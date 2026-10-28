@@ -1,6 +1,6 @@
 # Bộ nhớ làm việc của CSD
 
-> **Đợt thử được user cho phép trong chat mới đã kết thúc — PARTIAL, 28/10/2026.** Đã lưu 5 link thật từ JSON nhúng, chưa có request continuation quan sát được; không merge code thử. Xem [kết quả](evidence/branch-request-pagination-result.md). Main được build lại; hai nhánh thử và dataset ngoài repo được giữ. Worker/automation cũ vẫn dừng, không có LIVE đang chạy. Các dispatch bên dưới là lịch sử, không phải lệnh tiếp tục.
+> **Collector tiếp nối đã dùng được, 28/10/2026.** Đã lưu 1.156 link mới/1.155 PUBLIC, có continuation cùng query, Stop/resume/dedup/export và audit PAGE/GROUP/PROFILE. Tích hợp main, giữ nhánh; mọi run đã dừng. Chưa PASS 1.000 bài hợp lệ/24h vì chất lượng toàn tập chưa được nghiệm thu. Xem [báo cáo mới](evidence/collector-continuation-result.md), [master plan](master_plan.md) và ADR-019. Worker/automation và dispatch cũ vẫn dừng.
 
 `.brain` lưu kế hoạch, quyết định, bằng chứng kiểm chứng và thông tin bàn giao nội bộ của CSD — Crawl Socials Data.
 

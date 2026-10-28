@@ -1,19 +1,19 @@
 # CSD Master Plan
 
-> **Đợt thử giới hạn theo chỉ thị mới đã kết thúc — PARTIAL, 28/10/2026.** Có 5 link thật từ JSON nhúng; chưa có request phân trang quan sát được, không gửi continuation. Đã giữ hai nhánh thử, quay main và build lại; không worker/automation/LIVE đang chạy. Xem [báo cáo](evidence/branch-request-pagination-result.md). Không tiếp tục dispatch cũ hoặc tự mở đợt nguồn mới. Mục tiêu 1.000 bài/24h và các gate chưa được chứng minh.
+> **Collector tiếp nối đã nghiệm thu mức sử dụng được, 28/10/2026.** Theo [ADR-019](decisions/ADR-019-automatic-facebook-collector.md): 1.156 link mới duy nhất, 1.155 PUBLIC; export 447 PAGE/703 GROUP/3 PROFILE/3 UNKNOWN. Có browser continuation, Stop/resume/dedup/export. Tích hợp main, giữ nhánh; không còn LIVE/worker/automation chạy. **Chưa PASS benchmark 1.000 bài hợp lệ/24h**: relevance/kiểm tổng hợp chưa phủ toàn tập. Xem [báo cáo tiếp nối](evidence/collector-continuation-result.md).
 
 > CSD = Crawl Socials Data. Đây là bản đồ triển khai và nguồn trạng thái công việc duy nhất cho các AI Agent làm việc trong dự án.
 
 | Thuộc tính | Giá trị |
 | --- | --- |
-| Phiên bản kế hoạch | 1.56 |
+| Phiên bản kế hoạch | 1.57 |
 | Ngày cập nhật | 2026-10-28, múi giờ Asia/Bangkok |
 | Workspace | `C:/OwnProject/crawl-socials` |
 | Nền tảng bắt buộc của bản đầu | Facebook |
 | Mục tiêu đã xác nhận | Tối thiểu 1.000 bài quán cà phê không trùng trong ≤24 giờ; có đủ ba loại nguồn công khai, được lấy bài cũ; ưu tiên Hà Nội, nhận địa phương khác |
-| Hiện trạng sản phẩm | Đợt request pagination PARTIAL: 5 link thật, 2 PAGE/3 GROUP, 5 public, 2 relevance ACCEPT/3 UNVERIFIED; chưa có continuation. Dataset từ JSON nhúng, chưa nối collector. Hai nhánh thử giữ riêng, main build lại. [Báo cáo](evidence/branch-request-pagination-result.md) |
+| Hiện trạng sản phẩm | Collector CLI tự chạy đã lưu 1.156 link mới; scale-c riêng đạt 1.001 bài mới/~12 phút. Có ba loại nguồn qua audit, JSONL/JSON, stop/resume/dedup. Code `fe1754a`; [báo cáo](evidence/collector-continuation-result.md). Chưa đạt 1.000 bài benchmark đã kiểm chất lượng |
 | Hiện trạng tài liệu | P00.01–P00.04 đã nghiệm thu; protocol/checker đạt 51 tests sau sửa R04. ADR-009 chốt caps/data policy của thử nhỏ; session, điều kiện route và host live còn cần kiểm |
-| Điểm bắt đầu triển khai | Không có worker đang chạy. Đọc [kết quả request](evidence/branch-request-pagination-result.md) và [parser thay thế](evidence/embedded-link-first-followup-2026-10-28.md); cần phạm vi nguồn mới trước LIVE tiếp theo. Không chạy dispatch/runtime cũ |
+| Điểm bắt đầu triển khai | Collector được tích hợp main, mọi run đã dừng. Đọc [báo cáo tiếp nối](evidence/collector-continuation-result.md), README CLI và dataset ngoài repo. Bước tiếp: relevance/coverage/validation; không chạy dispatch/runtime cũ |
 | Gate gần nhất cần đánh giá | `G00` — đủ điều kiện thử nguồn dữ liệu thật |
 | Nguồn trạng thái task | Bảng điều phối trong mục 5; không duy trì một backlog trạng thái cạnh tranh |
 | Hướng nguồn đang theo đuổi | Giữ CSD/Electron; kiểm chứng nguồn sớm; nhà cung cấp bên ngoài chưa được chọn. Đọc [ADR-008](C:/OwnProject/crawl-socials/.brain/decisions/ADR-008-direction-and-source-validation.md) trước khi làm P00.02/P02 hoặc đề xuất đổi route |
@@ -265,9 +265,9 @@ Sau contract chung, có thể phân công song song nhánh query/planner, nhánh
 | P01.02 | DONE | CSD agent | P01.01 | [Lead nghiệm thu](evidence/lead-p01-session-review-2026-10-27.md): R01 đã sửa; 35 unit tích hợp + 44 contract, session smoke 3 process/13 nhóm kiểm, bootstrap 2 lượt, manifest 30/30 khớp. Profile/session/secrets đạt offline; chưa có Facebook session live |
 | P01.03 | DONE | CSD agent | P01.02 | [Lead nghiệm thu](evidence/lead-p01-observer-review-2026-10-27.md): 53 unit + 44 contract, Electron 9 nhóm/10 captures, replay 3 captures, session/bootstrap regression đạt; 23 hashes khớp. Không Facebook live |
 | P02.01 | DONE | CSD adapter agent | P00.02, P01.01 | [Lead nghiệm thu](evidence/lead-p02-review-2026-10-27.md): R02/R03 đã sửa, compile + 21 contract tests + npm run check/44 ca P00 đạt; 10 hashes khớp. Fake FIXTURE, cursor SAME_INSTANCE; không có nguồn live |
-| P02.02 | BLOCKED | —; đợt giới hạn của Codex /root đã kết thúc | P00.04 + P01.02; cần phạm vi nguồn mới để tiếp tục LIVE | [Request trial PARTIAL](evidence/branch-request-pagination-result.md): 5 unique links từ JSON nhúng, 0 request continuation; budget 2 search/2 scroll đã dùng. Không merge code thử. Parser thay thế giữ ở nhánh riêng, chưa LIVE. Permission UNKNOWN; benchmark OFF; gates giữ nguyên |
-| P02.03 | PLANNED | — | P02.02, P05.02 | Parser, phản hồi lỗi và schema drift |
-| P02.04 | PLANNED | — | P02.03, P05.03, P05.04 | Luồng thu nhỏ hoàn chỉnh, bằng chứng G01 |
+| P02.02 | DONE | Codex /root; đã bàn giao | P00.04 + P01.02; user cấp phạm vi mới theo ADR-019 | [Báo cáo collector](evidence/collector-continuation-result.md): 1.156 bài mới thật, continuation cùng query, source audit, lỗi/lifecycle/giới hạn rõ. CLI dùng được và hồi quy phù hợp; DONE cho thử nguồn, không suy thành G02/permission PASS |
+| P02.03 | PLANNED | — | P02.02, P05.02 | Đã có parser search thực trong collector CLI và skipped reasons; còn general adapter/schema drift integration. Không đánh dấu toàn task từ parser riêng |
+| P02.04 | PLANNED | — | P02.03, P05.03, P05.04 | CLI đã chứng minh lưu/continuation/dedup/export; [evidence](evidence/collector-continuation-result.md). Còn đánh giá G01 và tích hợp contract chung |
 | P03.01 | DONE | CSD adapter subagent | P00.01, P01.01 | [Lead nghiệm thu sau R05](evidence/lead-p03-intent-review-2026-10-27.md): compile riêng/16 tests đạt, 9 hashes khớp; alias chỉ map ký tự tiếng Việt, giữ Greek/Cyrillic. Model explicit, chưa classifier/expansion |
 | P03.02 | DONE | CSD adapter subagent | P03.01 | [Lead nghiệm thu](evidence/lead-p03-expansion-review-2026-10-27.md): compile riêng/34tests (18expansion+16intent)/4hashes đạt; đã sửa lỗi place sát cap làm hỏng fallback. Module thuần bounded/provenance/dedup; chưa execution hoặc yield nguồn |
 | P03.03 | DONE | CSD adapter subagent | P03.02, P02.01 | [Lead nghiệm thu](evidence/lead-p03-planner-review-2026-10-27.md): compile riêng/57tests(18planner+18expansion+21adapter)/4hashes đạt. Plan templates chưa bind run, không execution, budgets/lineage/capability rõ; P02.02 không phụ thuộc LIVE_VERIFIED của planner |
@@ -279,7 +279,7 @@ Sau contract chung, có thể phân công song song nhánh query/planner, nhánh
 | P05.02 | PLANNED | — | P05.01, P02.02 | Chuẩn hóa record/URL/thời gian |
 | P05.03 | PLANNED | — | P05.02 | Identity, aliases và dedup |
 | P05.04 | PLANNED | — | P05.03 | Provenance, snapshot và export tối thiểu |
-| P06.01 | BLOCKED | CSD adapter agent | P00.04, P03.01 | [Lead nhận chuẩn bị rubric](evidence/lead-visible-r06-and-rubric-review-2026-10-27.md): 24 synthetic/23 negative cases/26 evidence hashes, manifest 5/5 đạt. Phần còn lại chờ bộ mẫu nguồn thật để gán nhãn/review; không mở classifier |
+| P06.01 | READY | — | P00.04, P03.01 | Đã có nguồn thật và mẫu diagnostic 36 bài, 28 ACCEPT/4 REJECT/4 UNVERIFIED theo scope mới; cần review rubric/tập mẫu độc lập, không ngoại suy thành 1.000 bài hợp lệ. Không khởi động worker cũ |
 | P06.02 | PLANNED | — | P06.01, P05.03 | Rules/classifier và lý do quyết định |
 | P06.03 | PLANNED | — | P06.02, P05.04, P02.03 | Xác minh permalink/nguồn và audit queue |
 | P07.01 | PLANNED | — | P05.03, P02.01 | Durable queue, transaction, identity integration và leases |
@@ -310,9 +310,9 @@ Sau contract chung, có thể phân công song song nhánh query/planner, nhánh
 
 | Gate | Trạng thái | Đầu vào | Điều kiện PASS | Bằng chứng hiện tại |
 | --- | --- | --- | --- | --- |
-| G00 | NOT_EVALUATED | P00.01, P00.02, P00.04 | Phạm vi thử rõ; có ít nhất một nguồn phù hợp điều kiện truy cập; phép đo/ngân sách/stop conditions sẵn sàng | Login/search có evidence; permission nền tảng vẫn UNKNOWN. [ADR-010](decisions/ADR-010-bounded-source-diagnostic.md) cho diagnostic kỹ thuật hẹp trước G00, không mở collector/benchmark và không coi authorization của user/lead là Meta grant. Không PASS từ fixture/login/diagnostic |
-| G01 | NOT_EVALUATED | P02.04 | Có mẫu bài thật được xác minh, có bằng chứng continuation/điểm dừng và luồng lưu/loại trùng hoạt động | Chưa có |
-| G02 | NOT_EVALUATED | P08.03 | Ít nhất 1.000 bài hợp lệ trong tập thu ≤24h, đúng cơ cấu nguồn đã chốt và đủ bằng chứng audit | Chưa có |
+| G00 | NOT_EVALUATED | P00.01, P00.02, P00.04 | Phạm vi thử rõ; có ít nhất một nguồn phù hợp điều kiện truy cập; phép đo/ngân sách/stop conditions sẵn sàng | User đã cấp phạm vi collector hữu hạn theo ADR-019; capability nguồn có dữ liệu thật. Permission Meta vẫn UNKNOWN, không coi user authorization là Meta grant |
+| G01 | NOT_EVALUATED | P02.04 | Có mẫu bài thật được xác minh, có bằng chứng continuation/điểm dừng và luồng lưu/loại trùng hoạt động | Đã có CLI/1.156 link, continuation, 58 prefix match, source audit, stop/resume/export; chưa nghiệm thu đầy đủ contract/gate chung. Xem báo cáo tiếp nối |
+| G02 | NOT_EVALUATED | P08.03 | Ít nhất 1.000 bài hợp lệ trong tập thu ≤24h, đúng cơ cấu nguồn đã chốt và đủ bằng chứng audit | Scale-c 1.001 ứng viên mới/~12 phút; chất lượng chưa kiểm hết, noise thực, không là 1.000 benchmark ACCEPT |
 | G03 | NOT_EVALUATED | P08.04 | Đạt protocol lặp đã chốt, chi phí/can thiệp đạt giới hạn, không có lỗi dữ liệu nghiêm trọng chưa xử lý | Chưa có |
 | G04 | NOT_EVALUATED | P10.03 | Bản MVP cài/chạy/nâng cấp/phục hồi được, UAT và runbook đạt trong phạm vi đã chứng minh | Chưa có |
 | G05 | NOT_EVALUATED | P11.08 | Chế độ JOINED_GROUPS đạt contract riêng, mẫu thật từ nhóm riêng tư nếu công bố hỗ trợ, cách ly quyền giữa tài khoản và benchmark nhiều tài khoản đạt | Chưa có |
@@ -515,6 +515,8 @@ Mục tiêu: tiếp xúc nguồn thật sớm, xác nhận Facebook trả dữ l
 - **Nghiệm thu:** planner/scheduler có thể dùng fake adapter mà không biết Electron; unsupported filter bị từ chối rõ, không bị bỏ qua âm thầm.
 
 #### P02.02 — Thử nguồn Facebook có giới hạn
+
+**Cập nhật 28/10 theo chỉ thị trực tiếp mới:** ADR-019 và báo cáo collector tiếp nối thay phạm vi probe cũ dưới đây cho đợt collector đã nghiệm thu. User cho phép collector LIVE hữu hạn, không yêu cầu Meta grant mới để thực hiện công việc đã giao; permission nền tảng vẫn UNKNOWN và không tự nâng gate.
 
 - **Bước chuẩn bị offline:** sau P00.04 và P01.02, làm runbook/route assessment/preflight và tích hợp host tối thiểu. Bước này không mở nguồn thật, không làm G00 PASS. Phạm vi hiện tại ở [handoff](handoffs/p02-source-probe-preparation-2026-10-27.md), caps thử nhỏ theo [ADR-009](decisions/ADR-009-source-probe-operational-limits.md).
 - **Bước khám phá kỹ thuật hẹp:** [ADR-010](decisions/ADR-010-bounded-source-diagnostic.md) cho phép DOM diagnostic trước G00 sau review code; tiếp tới tối đa 5 public candidates khi có schema/publicity evidence. Đây là ngoại lệ có giới hạn, không quyền nguồn ALLOWED hoặc benchmark. [Dispatch và ownership](handoffs/lead-p02-dom-diagnostic-dispatch-2026-10-27.md).
@@ -1043,6 +1045,7 @@ ADR-001 đã được lập/kiểm tra ở P00.03 và áp dụng trong bootstrap
 | ADR-006 | Phân phối, lưu dữ liệu và migration | P10.01/P10.02 |
 | ADR-007 | JOINED_GROUPS, nhiều tài khoản và quyền dữ liệu nhóm riêng tư | P11.04 |
 | ADR-008 | [Giữ hướng triển khai hiện tại, vai trò Meta API/vendor và cách kiểm chứng nguồn](C:/OwnProject/crawl-socials/.brain/decisions/ADR-008-direction-and-source-validation.md) | Điều phối theo yêu cầu người dùng ngày 2026-10-27; tham chiếu cho P00.02/P01.01/P02, không thay đổi owner/task status |
+| ADR-019 | [Collector tự động theo phạm vi tiếp tục](decisions/ADR-019-automatic-facebook-collector.md) | User cho phép collector hữu hạn vượt caps cũ; JSON nhúng + browser continuation, dữ liệu bền vững và nghiệm thu bằng LIVE evidence |
 
 Mẫu ADR: bối cảnh → quyết định → phương án đã cân nhắc → hệ quả → bằng chứng → điều kiện xem xét lại. Không tạo ADR cho mọi thay đổi nhỏ. Quyết định bị thay thế giữ lại và liên kết đến bản thay thế.
 
@@ -1050,6 +1053,7 @@ Mẫu ADR: bối cảnh → quyết định → phương án đã cân nhắc �
 
 | Ngày | Phiên bản | Thay đổi |
 | --- | --- | --- |
+| 2026-10-28 | 1.57 | Collector CLI dùng được, 1.156 bài mới/1.155 PUBLIC, source audit có PROFILE, continuation cùng query, stop/resume/export. Tích hợp main, giữ nhánh; G02 chưa PASS vì audit chất lượng chưa phủ 1.000 bài. Không phục hồi worker/automation cũ |
 | 2026-10-27 | 1.14 | User nhắc ưu tiên duy nhất sửa login. Lead nhận v2 (10 tests/16 hashes), restart giữ profile, xác minh3XHR instagram.com bị chặn. Giao fix Instagram/fbsbx dependency với ownedFacebookcontext, subagent review read-only. Chưa claim hết trắng/session success |
 | 2026-10-27 | 1.15 | Nghiệm thu login: sửa Instagram/fbsbx rồi reCAPTCHA Enterprise theo domain/path/context; lead15tests/4fixture và109build/12fix hashes. Restart giữ profile, user xác nhận đã vào Facebook. Còn source probe, mọi gate chưa đổi; không hỏi lại login/grant hoặc tự đóng phiên |
 | 2026-10-27 | 1.16 | Giao lượt sau login: CSD agent đối chiếu readiness/code và sửa runbook stale để chốt lát cắt source nhỏ nhất; subagent triển khai P03.02 giới hạn độc lập, build output riêng. Giữ phiên thực, chưa thu hoặc nâng gate |
