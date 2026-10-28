@@ -19,7 +19,7 @@ export interface CaptureMetadata {
   observedAt: string;
 }
 export type ObserverEvent = (CaptureMetadata & { kind: 'STATE' | 'ERROR'; code: ObserverCode; requestKey?: number }) |
-  (CaptureMetadata & { kind: 'BODY'; requestKey: number; method: 'GET' | 'POST';
+  (CaptureMetadata & { kind: 'BODY'; requestKey: number; transportRequestId?: string; method: 'GET' | 'POST';
     status: number; mimeType: string; responseOrigin: 'NETWORK' | 'BROWSER_CACHE' | 'SERVICE_WORKER'; body: Uint8Array });
 export type ObserverRead = { kind: 'EVENT'; event: ObserverEvent } | { kind: 'TIMEOUT' | 'END' };
 export interface ObserverSnapshot {

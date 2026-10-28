@@ -231,7 +231,7 @@ export function createResponseObserverManager(input: {
         if (this.totalBytes + bytes.length > limits.maxTotalCapturedBytes) { this.end('TOTAL_BYTES_LIMIT'); return; }
         if (this.captures >= limits.maxCapturedResponses) { this.end('CAPTURE_LIMIT'); return; }
         this.forget(record); this.captures++; this.totalBytes += bytes.length;
-        this.emit({ ...this.metadata(), kind: 'BODY', requestKey: record.key, method: record.method, status: record.status,
+        this.emit({ ...this.metadata(), kind: 'BODY', requestKey: record.key, transportRequestId: record.id, method: record.method, status: record.status,
           mimeType: record.mimeType, responseOrigin: record.origin, body: bytes });
       } catch {
         if (this.state === 'ATTACHED' && this.pending.get(record.id) === record && record.generation === this.generation) this.fail(record, 'BODY_UNREADABLE');

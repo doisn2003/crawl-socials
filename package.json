@@ -12,6 +12,8 @@
   "packageManager": "npm@11.17.0",
   "scripts": {
     "start": "npm run build && electron .",
+    "collect:facebook": "npm run build && node scripts/run-facebook-collector.mjs",
+    "collector:control": "node scripts/run-facebook-collector.mjs",
     "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && node scripts/copy-assets.mjs && node scripts/freeze-probe-build.mjs",
     "check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.tests.json --noEmit && npm run check:p00",
     "check:p00": "node scripts/check-p00.cjs",
