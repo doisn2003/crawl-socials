@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 7,
+  "diagnosticScriptSha256": "6d33353891fce4612a4e99201ad357b0f043905e997f6a1e59365ef570aa4cba",
+  "files": [
+    {
+      "path": ".test-build-csd-dom/v7-clip-baseline/facebook-public-candidate-script.js",
+      "sha256": "132f5704e2f612c0e993aa4d93e1b00d84d2cdd2950a5c842fb0459ba69b1e60"
+    },
+    {
+      "path": ".test-build-csd-dom/v7-clip-baseline/facebook-public-candidate-fields.js",
+      "sha256": "18b83ecffd61ec57d76092104b6d56f1b78e6391fdd0112742b1ffdbfcbcc5a2"
+    },
+    {
+      "path": ".test-build-csd-dom/v7-clip-baseline/facebook-public-candidate.js",
+      "sha256": "2d757df0e098439e84304412d46ad5efca0b1aeb3c9d6289691e16fe9387c2b4"
+    }
+  ],
+  "nativeRepro": {
+    "exitCode": 1,
+    "expectedCandidates": 5,
+    "observed": {
+      "candidates": 0,
+      "visited": 2500,
+      "nodeLimit": true,
+      "layout": {
+        "contents": 40,
+        "boxless": 0,
+        "hidden": 0,
+        "textRanges": 69,
+        "textRangeMisses": 68,
+        "textParentBoxes": 69,
+        "textRangePositive": 0,
+        "textZeroArea": 0,
+        "textClipped": 0,
+        "textUnknown": 68,
+        "textSeparators": 0,
+        "textClipChecks": 0
+      }
+    }
+  }
+}

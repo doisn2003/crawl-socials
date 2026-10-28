@@ -1,0 +1,33 @@
+{
+  "task": "P02.02_OFFLINE_PREPARATION",
+  "date": "2026-10-27",
+  "algorithm": "SHA-256",
+  "hash_semantics": "exact file bytes",
+  "execution_authorized": false,
+  "files": [
+    {
+      "path": ".brain/specs/facebook_source_probe_runbook.md",
+      "sha256": "955f6c23caa22166e0059bbd6164ae08a0ae4182170e98244481c88c130d9846"
+    },
+    {
+      "path": ".brain/evidence/facebook-browser-route-assessment-2026-10-27.md",
+      "sha256": "d7bbfdc18b2c9647159847f811a32e8f41e950012c6e7d23b3b0f24b8bf8e650"
+    },
+    {
+      "path": "scripts/prepare-facebook-probe.mjs",
+      "sha256": "bec2c9fd11abdc028927f4a0bab8b414ef7682fddad696a1cd0eb08f6c21fe77"
+    },
+    {
+      "path": ".brain/evidence/facebook_source_probe_preflight-2026-10-27.json",
+      "sha256": "bb2d2eeeb7f3d6edc1accf93d75e85785f5cbe44b2027461b642ad8233706c57"
+    },
+    {
+      "path": ".brain/evidence/facebook_source_probe_validation-2026-10-27.md",
+      "sha256": "4859e3254d60b2aaa576f6a7198537aae59ed8d047624512e4ec704347d7fe72"
+    },
+    {
+      "path": ".brain/handoffs/facebook_source_probe_preparation-2026-10-27.md",
+      "sha256": "a925a4a9fa2a852bb6acd6141c81a443b185cf8ba4093c9bb0aa3e5247679acf"
+    }
+  ]
+}

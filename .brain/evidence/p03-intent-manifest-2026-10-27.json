@@ -1,0 +1,46 @@
+{
+  "task": "P03.01",
+  "revision": "R05-vietnamese-character-mapping",
+  "date": "2026-10-27",
+  "algorithm": "SHA-256",
+  "hash_semantics": "exact file bytes",
+  "live_observations": 0,
+  "files": [
+    {
+      "path": "src/domain/campaign-intent.ts",
+      "sha256": "baeb41957c395f6e8050c3544f8bb7241ea716d00bcd4d5b4ef8fdb908989328"
+    },
+    {
+      "path": "src/application/campaign-intent.ts",
+      "sha256": "475b362e15213abbe2a6fde01fbbaf7b885e8f9d9d742384c9f135451124e097"
+    },
+    {
+      "path": "tests/campaign-intent.test.ts",
+      "sha256": "13163b19b192e1d4a5d3c8be7badf9bd5215d757ed7899bc0ed9de410ca3dd31"
+    },
+    {
+      "path": "tests/fixtures/intent/normalization.json",
+      "sha256": "dbfde99ba3affeb3628fa28e121dee485aba0de728e160abffdc6408453709a4"
+    },
+    {
+      "path": ".test-build-intent/tsconfig.intent.json",
+      "sha256": "362f1dc41c0b35c573e3acd0c06004c645df8b2dc679ddcf7d76ba14ad3dc744"
+    },
+    {
+      "path": ".brain/specs/campaign_intent.md",
+      "sha256": "840d2e91fcc372ca5ff5769bb040c3b8104cee0b38e02301dec738217b442701"
+    },
+    {
+      "path": ".brain/evidence/p03-intent-validation-2026-10-27.md",
+      "sha256": "fd00be1ee437bcb0321f9bc5604a8b98cbbe4fbcda6af2cea1212126619f13f0"
+    },
+    {
+      "path": ".brain/evidence/p03-intent-tests-2026-10-27.tap",
+      "sha256": "bcc455254d115453dd400caf4c6920442dcd45b0494927dcab9459595d7347b1"
+    },
+    {
+      "path": ".brain/handoffs/p03-intent-2026-10-27.md",
+      "sha256": "75926c92321c581121e779ac7cb6604961700ea74575f916278d0dd7beddbe57"
+    }
+  ]
+}

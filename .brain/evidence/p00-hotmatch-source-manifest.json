@@ -1,0 +1,260 @@
+{
+  "audit": "P00.03",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "sourceRoot": "C:\\OwnProject\\hotmatch-desktop",
+  "headCommit": "632c4227c33ea54475a1aeb0181c8b6d37335144",
+  "workingTreeDirty": true,
+  "sourceVersion": "1.0.10",
+  "packageLicenseField": "ISC",
+  "private": true,
+  "rootLicenseFiles": [],
+  "reuseDecision": "Reimplement infrastructure patterns; no verbatim HotMatch source or session data copied",
+  "declaredDependencies": {
+    "proxy-chain": "^3.0.1",
+    "electron": "44.7.0",
+    "electron-builder": "^26.15.3"
+  },
+  "installed": {
+    "electron": {
+      "version": "44.7.0",
+      "license": "MIT",
+      "engines": {
+        "node": ">= 22.12.0"
+      }
+    },
+    "electron-builder": {
+      "version": "26.15.3",
+      "license": "MIT",
+      "engines": {
+        "node": ">=14.0.0"
+      }
+    },
+    "proxy-chain": {
+      "version": "3.0.1",
+      "license": "Apache-2.0",
+      "engines": {
+        "node": ">=20.11"
+      }
+    },
+    "ajv": {
+      "version": "8.20.0",
+      "license": "MIT",
+      "engines": null
+    }
+  },
+  "lockedVersions": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "proxy-chain": "3.0.1",
+    "ajv": "8.20.0"
+  },
+  "sources": [
+    {
+      "path": "package.json",
+      "sha256": "84a95f3d9aa977b57ad56a64038d85cef1f98d6472900b29865a0cf0965d2e6d",
+      "gitStatus": "M package.json",
+      "imports": []
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "6860fa6c4eb0574e6539b242a632a5d534d90a3ccef07e8852cb8c14f1855847",
+      "gitStatus": "M package-lock.json",
+      "imports": []
+    },
+    {
+      "path": "README.md",
+      "sha256": "34ad08198ad255c6625dfe2948e025f18147549ef7326538c24bc5ae2e454691",
+      "gitStatus": "M README.md",
+      "imports": []
+    },
+    {
+      "path": "main/index.js",
+      "sha256": "69783318809ccf5b95ca72d01cb929ab7a51caa7713d4c1a44d12a5c27be098e",
+      "gitStatus": "CLEAN",
+      "imports": [
+        "electron",
+        "proxy-chain",
+        "node:url",
+        "node:path",
+        "node:worker_threads",
+        "node:fs",
+        "./util.js",
+        "./manager.js"
+      ]
+    },
+    {
+      "path": "main/profiles.js",
+      "sha256": "a12e6428ac7b3a09e819444417d95f4e9e41d5cb70d475c5867b1cfc9bdf38be",
+      "gitStatus": "M main/profiles.js",
+      "imports": [
+        "../core/sites.js",
+        "./util.js",
+        "./account-adapter.js"
+      ]
+    },
+    {
+      "path": "main/manager.js",
+      "sha256": "46b6e5b4ca92a0a6a7838605fcc5f7c7a1835fb86dfd715b0a60888e2b66ee62",
+      "gitStatus": "M main/manager.js",
+      "imports": [
+        "node:path",
+        "./store.js",
+        "./profiles.js",
+        "./proxies.js",
+        "./platform.js",
+        "./proxy-bridge.js",
+        "./proxy-health.js",
+        "./windows.js",
+        "./ipc.js",
+        "./blackbox-store.js",
+        "./util.js",
+        "../core/storage.js",
+        "../core/blackbox.js",
+        "./agent.js",
+        "./coordinator.js",
+        "./resilience.js",
+        "./health-scheduler.js",
+        "./backup.js",
+        "./session-cookies.js",
+        "./network-diagnostics.js",
+        "./account-diagnostics.js",
+        "./browser-data.js",
+        "./page-account-observer.js"
+      ]
+    },
+    {
+      "path": "main/browser-tabs.js",
+      "sha256": "4036fb56d532cd2ba51d7df30a063bf2cb2bed2d83397d5860f6f0d03d97fdfd",
+      "gitStatus": "M main/browser-tabs.js",
+      "imports": [
+        "./load-queue.js",
+        "./util.js",
+        "./browser-navigation.js",
+        "./domain-tracking.js",
+        "./login-assistant.js",
+        "./site-lite.js",
+        "./window-groups.js"
+      ]
+    },
+    {
+      "path": "main/browser-navigation.js",
+      "sha256": "beac94cd294fd47684fa3c93746ce9a4621a6d155b332a45bdc3e9ce472b6bd6",
+      "gitStatus": "CLEAN",
+      "imports": []
+    },
+    {
+      "path": "main/platform.js",
+      "sha256": "1e666f5a843bb89fe0f996731eb34c526729382ed1f74096c4523c4ad2a893f4",
+      "gitStatus": "M main/platform.js",
+      "imports": [
+        "./util.js",
+        "./lite.js",
+        "./proxy-bridge.js"
+      ]
+    },
+    {
+      "path": "main/proxy-bridge.js",
+      "sha256": "fdebd1c0689122df3de68611e64f376d787d067869c910c39a7189970bdef3cc",
+      "gitStatus": "CLEAN",
+      "imports": [
+        "./util.js"
+      ]
+    },
+    {
+      "path": "main/proxies.js",
+      "sha256": "f4471a086be07340fb95c0428b651ab461e69423961fef5e60ac8d21a006be87",
+      "gitStatus": "CLEAN",
+      "imports": [
+        "./util.js",
+        "node:net"
+      ]
+    },
+    {
+      "path": "main/proxy-health.js",
+      "sha256": "a11dd742dba9517a4395efcbd89d1bbe4dfe6b10d5aacc719bbd61ff0d1dff42",
+      "gitStatus": "CLEAN",
+      "imports": [
+        "node:net",
+        "./util.js",
+        "./proxy-bridge.js"
+      ]
+    },
+    {
+      "path": "main/health-scheduler.js",
+      "sha256": "1ce43e8b68fae4f5452585ec15682d250cce6ffaac23c3ba9b03bda4abb60f2c",
+      "gitStatus": "CLEAN",
+      "imports": [
+        "./util.js"
+      ]
+    },
+    {
+      "path": "main/lite.js",
+      "sha256": "c2f5fec16c6afe56fd1d0bc6a7fdffdd790180df6d686f86f26ff2a79b2555ec",
+      "gitStatus": "CLEAN",
+      "imports": []
+    },
+    {
+      "path": "main/page-account-observer.js",
+      "sha256": "60a13f51c9d11ca8b9e8bb7c9d4fe24bd12b01ff7a8343005802a85dd83d1ef3",
+      "gitStatus": "?? main/page-account-observer.js",
+      "imports": [
+        "../core/account-reader.js"
+      ]
+    },
+    {
+      "path": "main/session-cookies.js",
+      "sha256": "bb98445f672768f8118695d36bbddb94d0d9a70cd79b040fa36891479e6292d3",
+      "gitStatus": "M main/session-cookies.js",
+      "imports": []
+    },
+    {
+      "path": "main/store.js",
+      "sha256": "633de62deb25bd227d9b8dfdb68727c323a5893cf822511b16ab542edf696265",
+      "gitStatus": "CLEAN",
+      "imports": [
+        "node:fs/promises",
+        "node:path",
+        "node:crypto",
+        "./util.js",
+        "../core/storage.js"
+      ]
+    },
+    {
+      "path": "main/coordinator.js",
+      "sha256": "02d7122960e4ac240d0f00038b6689404b62b7d714a5f0440bb28a8b36815535",
+      "gitStatus": "M main/coordinator.js",
+      "imports": [
+        "../core/prediction.js",
+        "../core/match.js",
+        "./util.js",
+        "./engine-view.js",
+        "./match-catalog.js",
+        "../core/clock.js",
+        "../core/timebase.js",
+        "../core/hotmatch.js",
+        "./claim-journal.js",
+        "./engine-settings.js",
+        "./code-timing.js",
+        "../core/engine-config.js",
+        "./match-session.js"
+      ]
+    },
+    {
+      "path": "main/util.js",
+      "sha256": "4a5fb65f59802691451b20802673ffc3f16a39b8f58530a7f6a82b17046de866",
+      "gitStatus": "CLEAN",
+      "imports": [
+        "node:crypto"
+      ]
+    },
+    {
+      "path": "main/load-queue.js",
+      "sha256": "73772ae080dcabb09c5721cc0ff06b98675f25df36d2d1f9a05fd9bd78d6ed16",
+      "gitStatus": "CLEAN",
+      "imports": [
+        "./util.js"
+      ]
+    }
+  ]
+}

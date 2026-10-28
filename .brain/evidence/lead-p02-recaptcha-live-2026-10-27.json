@@ -1,0 +1,2757 @@
+{
+  "version": 2,
+  "domainPolicy": "TLDTS_7.4.19_ICANN_BASE_ONLY_V1",
+  "purpose": "MANUAL_SESSION_POLICY_DIAGNOSTICS",
+  "observerEnabled": false,
+  "postsCollected": 0,
+  "startedAt": "2026-10-27T11:58:52.003Z",
+  "totalEvents": 1854,
+  "droppedOldEvents": 1726,
+  "priorityEventsDropped": 112,
+  "publishFailures": 0,
+  "counts": {
+    "NAVIGATION_STARTED": 20,
+    "NAVIGATION_COMMITTED": 4,
+    "LOAD_FINISHED": 4,
+    "REQUEST_ALLOWED": 837,
+    "RESOURCE_COMPLETED": 836,
+    "NAVIGATION_ALLOWED": 9,
+    "REQUEST_BLOCKED": 71,
+    "RESOURCE_FAILED": 71,
+    "PERMISSION_DENIED": 2
+  },
+  "events": [
+    {
+      "sequence": 1727,
+      "at": "2026-10-27T12:00:23.757Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1728,
+      "at": "2026-10-27T12:00:23.792Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "image",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1729,
+      "at": "2026-10-27T12:00:24.040Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1730,
+      "at": "2026-10-27T12:00:24.043Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1731,
+      "at": "2026-10-27T12:00:24.077Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1732,
+      "at": "2026-10-27T12:00:24.166Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1733,
+      "at": "2026-10-27T12:00:24.166Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1734,
+      "at": "2026-10-27T12:00:24.347Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1735,
+      "at": "2026-10-27T12:00:24.348Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1736,
+      "at": "2026-10-27T12:00:24.349Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1737,
+      "at": "2026-10-27T12:00:24.912Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1738,
+      "at": "2026-10-27T12:00:25.872Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1739,
+      "at": "2026-10-27T12:00:25.874Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1740,
+      "at": "2026-10-27T12:00:25.874Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1741,
+      "at": "2026-10-27T12:00:26.795Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1742,
+      "at": "2026-10-27T12:00:26.851Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1743,
+      "at": "2026-10-27T12:00:26.886Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1744,
+      "at": "2026-10-27T12:00:26.886Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1745,
+      "at": "2026-10-27T12:00:27.309Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1746,
+      "at": "2026-10-27T12:00:27.807Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1747,
+      "at": "2026-10-27T12:00:27.895Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1748,
+      "at": "2026-10-27T12:00:27.895Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1749,
+      "at": "2026-10-27T12:00:27.924Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1750,
+      "at": "2026-10-27T12:00:27.929Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1751,
+      "at": "2026-10-27T12:00:27.941Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1752,
+      "at": "2026-10-27T12:00:27.942Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1753,
+      "at": "2026-10-27T12:00:27.965Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1754,
+      "at": "2026-10-27T12:00:27.974Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1755,
+      "at": "2026-10-27T12:00:27.976Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1756,
+      "at": "2026-10-27T12:00:27.983Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1757,
+      "at": "2026-10-27T12:00:28.023Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1758,
+      "at": "2026-10-27T12:00:28.156Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1759,
+      "at": "2026-10-27T12:00:28.162Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1760,
+      "at": "2026-10-27T12:00:28.163Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1761,
+      "at": "2026-10-27T12:00:28.164Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1762,
+      "at": "2026-10-27T12:00:28.164Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1763,
+      "at": "2026-10-27T12:00:28.164Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1764,
+      "at": "2026-10-27T12:00:28.164Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1765,
+      "at": "2026-10-27T12:00:28.165Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1766,
+      "at": "2026-10-27T12:00:28.165Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1767,
+      "at": "2026-10-27T12:00:28.165Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1768,
+      "at": "2026-10-27T12:00:28.165Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1769,
+      "at": "2026-10-27T12:00:28.165Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1770,
+      "at": "2026-10-27T12:00:28.165Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1771,
+      "at": "2026-10-27T12:00:28.165Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1772,
+      "at": "2026-10-27T12:00:28.166Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1773,
+      "at": "2026-10-27T12:00:28.166Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1774,
+      "at": "2026-10-27T12:00:28.167Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1775,
+      "at": "2026-10-27T12:00:28.167Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1776,
+      "at": "2026-10-27T12:00:28.167Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1777,
+      "at": "2026-10-27T12:00:28.167Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1778,
+      "at": "2026-10-27T12:00:28.167Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1779,
+      "at": "2026-10-27T12:00:28.167Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1780,
+      "at": "2026-10-27T12:00:28.168Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1781,
+      "at": "2026-10-27T12:00:28.168Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1782,
+      "at": "2026-10-27T12:00:28.168Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1783,
+      "at": "2026-10-27T12:00:28.168Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1784,
+      "at": "2026-10-27T12:00:28.168Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1785,
+      "at": "2026-10-27T12:00:28.168Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1786,
+      "at": "2026-10-27T12:00:28.168Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1787,
+      "at": "2026-10-27T12:00:28.169Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1788,
+      "at": "2026-10-27T12:00:28.177Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1789,
+      "at": "2026-10-27T12:00:28.183Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1790,
+      "at": "2026-10-27T12:00:28.237Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1791,
+      "at": "2026-10-27T12:00:28.286Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1792,
+      "at": "2026-10-27T12:00:28.287Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1793,
+      "at": "2026-10-27T12:00:28.287Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1794,
+      "at": "2026-10-27T12:00:28.287Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1795,
+      "at": "2026-10-27T12:00:28.287Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1796,
+      "at": "2026-10-27T12:00:28.287Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1797,
+      "at": "2026-10-27T12:00:28.287Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1798,
+      "at": "2026-10-27T12:00:28.288Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1799,
+      "at": "2026-10-27T12:00:28.288Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1800,
+      "at": "2026-10-27T12:00:28.288Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1801,
+      "at": "2026-10-27T12:00:28.288Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1802,
+      "at": "2026-10-27T12:00:28.288Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1803,
+      "at": "2026-10-27T12:00:28.288Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1804,
+      "at": "2026-10-27T12:00:28.289Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1805,
+      "at": "2026-10-27T12:00:28.289Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1806,
+      "at": "2026-10-27T12:00:28.289Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1807,
+      "at": "2026-10-27T12:00:28.289Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1808,
+      "at": "2026-10-27T12:00:28.290Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1809,
+      "at": "2026-10-27T12:00:28.290Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1810,
+      "at": "2026-10-27T12:00:28.290Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1811,
+      "at": "2026-10-27T12:00:28.291Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1812,
+      "at": "2026-10-27T12:00:28.292Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1813,
+      "at": "2026-10-27T12:00:28.292Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1814,
+      "at": "2026-10-27T12:00:28.292Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1815,
+      "at": "2026-10-27T12:00:28.292Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1816,
+      "at": "2026-10-27T12:00:28.346Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1817,
+      "at": "2026-10-27T12:00:28.351Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1818,
+      "at": "2026-10-27T12:00:28.351Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1819,
+      "at": "2026-10-27T12:00:28.351Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1820,
+      "at": "2026-10-27T12:00:28.368Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1821,
+      "at": "2026-10-27T12:00:28.384Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1822,
+      "at": "2026-10-27T12:00:28.385Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1823,
+      "at": "2026-10-27T12:00:28.387Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://static.xx.fbcdn.net",
+        "family": "FBCDN",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "fbcdn.net"
+      },
+      "resourceType": "script",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1824,
+      "at": "2026-10-27T12:00:28.401Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1825,
+      "at": "2026-10-27T12:00:28.402Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1826,
+      "at": "2026-10-27T12:00:28.403Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1827,
+      "at": "2026-10-27T12:00:28.405Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1828,
+      "at": "2026-10-27T12:00:28.405Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1829,
+      "at": "2026-10-27T12:00:28.406Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1830,
+      "at": "2026-10-27T12:00:28.406Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1831,
+      "at": "2026-10-27T12:00:28.407Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1832,
+      "at": "2026-10-27T12:00:28.408Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1833,
+      "at": "2026-10-27T12:00:28.410Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1834,
+      "at": "2026-10-27T12:00:28.412Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1835,
+      "at": "2026-10-27T12:00:28.412Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1836,
+      "at": "2026-10-27T12:00:28.413Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1837,
+      "at": "2026-10-27T12:00:28.677Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1838,
+      "at": "2026-10-27T12:00:28.678Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1839,
+      "at": "2026-10-27T12:00:28.684Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1840,
+      "at": "2026-10-27T12:00:28.705Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1841,
+      "at": "2026-10-27T12:00:28.710Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1842,
+      "at": "2026-10-27T12:00:28.716Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1843,
+      "at": "2026-10-27T12:00:28.720Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1844,
+      "at": "2026-10-27T12:00:28.725Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1845,
+      "at": "2026-10-27T12:00:28.731Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1846,
+      "at": "2026-10-27T12:00:28.734Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1847,
+      "at": "2026-10-27T12:00:28.752Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1848,
+      "at": "2026-10-27T12:00:28.817Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1849,
+      "at": "2026-10-27T12:00:28.818Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1850,
+      "at": "2026-10-27T12:00:28.818Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1851,
+      "at": "2026-10-27T12:00:28.909Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1852,
+      "at": "2026-10-27T12:00:28.910Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1853,
+      "at": "2026-10-27T12:00:28.948Z",
+      "kind": "REQUEST_ALLOWED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1854,
+      "at": "2026-10-27T12:00:29.002Z",
+      "kind": "RESOURCE_COMPLETED",
+      "view": 1,
+      "location": {
+        "origin": "https://www.facebook.com",
+        "family": "FACEBOOK",
+        "scheme": "HTTPS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "xhr",
+      "statusCode": 200,
+      "networkError": null,
+      "errorCode": null
+    }
+  ],
+  "priorityEvents": [
+    {
+      "sequence": 1558,
+      "at": "2026-10-27T12:00:17.288Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1559,
+      "at": "2026-10-27T12:00:17.289Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1599,
+      "at": "2026-10-27T12:00:17.932Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1600,
+      "at": "2026-10-27T12:00:17.932Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1610,
+      "at": "2026-10-27T12:00:18.319Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1611,
+      "at": "2026-10-27T12:00:18.319Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1630,
+      "at": "2026-10-27T12:00:18.897Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1631,
+      "at": "2026-10-27T12:00:18.898Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1633,
+      "at": "2026-10-27T12:00:18.964Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1634,
+      "at": "2026-10-27T12:00:18.964Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1708,
+      "at": "2026-10-27T12:00:20.257Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1709,
+      "at": "2026-10-27T12:00:20.257Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1712,
+      "at": "2026-10-27T12:00:21.295Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1713,
+      "at": "2026-10-27T12:00:21.295Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1714,
+      "at": "2026-10-27T12:00:21.760Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1715,
+      "at": "2026-10-27T12:00:21.760Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1718,
+      "at": "2026-10-27T12:00:22.303Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1719,
+      "at": "2026-10-27T12:00:22.303Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1720,
+      "at": "2026-10-27T12:00:22.982Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1721,
+      "at": "2026-10-27T12:00:22.982Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1724,
+      "at": "2026-10-27T12:00:23.339Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1725,
+      "at": "2026-10-27T12:00:23.339Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1735,
+      "at": "2026-10-27T12:00:24.348Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1736,
+      "at": "2026-10-27T12:00:24.349Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1739,
+      "at": "2026-10-27T12:00:25.874Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1740,
+      "at": "2026-10-27T12:00:25.874Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1743,
+      "at": "2026-10-27T12:00:26.886Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1744,
+      "at": "2026-10-27T12:00:26.886Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1747,
+      "at": "2026-10-27T12:00:27.895Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1748,
+      "at": "2026-10-27T12:00:27.895Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    },
+    {
+      "sequence": 1851,
+      "at": "2026-10-27T12:00:28.909Z",
+      "kind": "REQUEST_BLOCKED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": null,
+      "errorCode": null
+    },
+    {
+      "sequence": 1852,
+      "at": "2026-10-27T12:00:28.910Z",
+      "kind": "RESOURCE_FAILED",
+      "view": 1,
+      "location": {
+        "origin": "REDACTED_FACEBOOK",
+        "family": "FACEBOOK",
+        "scheme": "WSS",
+        "pathCategory": "OTHER_REDACTED",
+        "registrableDomain": "facebook.com"
+      },
+      "resourceType": "webSocket",
+      "statusCode": null,
+      "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+      "errorCode": null
+    }
+  ],
+  "limitations": [
+    "NO_BODY_HEADERS_QUERY_DOM_OR_CREDENTIALS",
+    "EXACT_ORIGIN_ALLOWLIST_PLUS_ICANN_REGISTRABLE_DOMAIN_ONLY",
+    "PRIVATE_TENANT_LABELS_IP_SPECIAL_USE_AND_OBVIOUS_IDS_WITHHELD",
+    "REGISTRABLE_DOMAIN_NOT_OWNERSHIP_REGISTRATION_OR_AUTHORIZATION_PROOF",
+    "RING_BUFFER_NOT_COMPLETE_NETWORK_TRACE",
+    "PATH_CATEGORY_NOT_VERIFICATION_OUTCOME"
+  ],
+  "expiresAt": "2026-11-03T11:58:52.003Z",
+  "retentionCleanup": "MANUAL_REQUIRED_NO_SCHEDULER"
+}

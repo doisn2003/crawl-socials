@@ -1,0 +1,377 @@
+{
+  "task": "P02_DOM_DIAGNOSTIC",
+  "created_at": "2026-10-27T13:39:31.630Z",
+  "result": "IMPLEMENTATION_AND_FIXTURE_READY_FOR_LEAD_ACTIVATION",
+  "validation": {
+    "ownerUnitTests": 10,
+    "ownerNativeFixtureCases": 3,
+    "leadReportedCombinedTests": 15,
+    "leadReportedNativeFixtureCases": 3,
+    "liveSourceReads": 0,
+    "verifiedValidCount": 0,
+    "platformPermission": "UNKNOWN",
+    "benchmarkEligible": false
+  },
+  "diagnosticScriptSha256": "7f6d02b1b5272ecae1b1c4ec0cddf2b956b85a9251da5aabf54d2e70451cccfb",
+  "controllerCompiledSha256": "23c31f79af9bcf4b87f2c35e414d65e6d8851b96dbdfca6391008dcc8327ef2c",
+  "codeHashScope": "DOM_CONTROLLER_MODULE",
+  "ownedFiles": [
+    {
+      "path": "src/main/index.ts",
+      "bytes": 21794,
+      "sha256": "08fbdcf72c1f79a1d90bc09ae54f8d655f9a760f26308e4fab2d31f94e4c6e1a"
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic.ts",
+      "bytes": 12825,
+      "sha256": "b6060956ac005f023c322f4b62e119b31ea561cd1eade60f852ceae70207b403"
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic-script.ts",
+      "bytes": 5656,
+      "sha256": "2580e89e4845178bc473f91c06c0e21941eea8197996bd925ff52130d4921408"
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic-menu.ts",
+      "bytes": 3453,
+      "sha256": "81113522f7e656016cc8ab4517d8a3cc4077dfa4fd080f2762b0af94472afeaa"
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic-fixture.ts",
+      "bytes": 2863,
+      "sha256": "4bab4325bd3389106099e5f0dfb89d666a5609bbcb65af494a9508e270a0a23f"
+    },
+    {
+      "path": "tests/facebook-dom-diagnostic.test.ts",
+      "bytes": 9141,
+      "sha256": "5720623f4123c8bab863a1dd7cf11a5b060af69ec3f20d3d4db9ddd6c6ed8fa0"
+    },
+    {
+      "path": "scripts/facebook-dom-diagnostic-build.mjs",
+      "bytes": 1990,
+      "sha256": "0abe2d0269d87df46ebd6644d7ba163c360c9f19a39fc91ba70486ab15f01299"
+    },
+    {
+      "path": "scripts/facebook-dom-diagnostic-smoke.mjs",
+      "bytes": 2226,
+      "sha256": "2f354d3c4853e9910fc02e68cf1b1155389392dc40cd0591a0e1eb9bd01c6346"
+    },
+    {
+      "path": ".brain/evidence/p02-dom-diagnostic-fixture-2026-10-27.json",
+      "bytes": 889,
+      "sha256": "65825f27add6b254d0606a08a484fb299b6366b1f7dfec6a7ed54ce4062e8e10"
+    },
+    {
+      "path": ".brain/evidence/p02-dom-diagnostic-validation-2026-10-27.md",
+      "bytes": 3591,
+      "sha256": "27756359fd253d5651fda4ed93e01011ba51ddde1a1ae347702b43c3df0ebe30"
+    },
+    {
+      "path": ".brain/handoffs/p02-dom-diagnostic-2026-10-27.md",
+      "bytes": 8268,
+      "sha256": "d390a1681744538bae7ad54873329c95efe9c66cdb866b669b4c56cd4d5df7a9"
+    }
+  ],
+  "isolatedBuildFiles": [
+    {
+      "path": ".build-csd-dom/application/adapter-capabilities.js",
+      "bytes": 5590,
+      "sha256": "a8368af69a7e3a55302c8327035deb05627be9fdedb221b652e4351f5fe0afde"
+    },
+    {
+      "path": ".build-csd-dom/application/bootstrap-service.js",
+      "bytes": 1733,
+      "sha256": "c0d8cb594092681693b6d29659de1e9e04e457bdaf4db6f8781c59b20e14b58e"
+    },
+    {
+      "path": ".build-csd-dom/application/campaign-intent.js",
+      "bytes": 6163,
+      "sha256": "3dff1b626281c07bbea9d790965dbb2cd76c6c2051f13087c2b3a7236611f001"
+    },
+    {
+      "path": ".build-csd-dom/application/ports/browser-profiles.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/application/ports/campaign-validator.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/application/ports/response-observer.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/application/ports/secret-store.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/application/ports/social-adapter.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/application/query-expansion.js",
+      "bytes": 14751,
+      "sha256": "3d31c5c2527632f49db78bacb8c11bf35da35afe2f378dcbc8b65458b5892be0"
+    },
+    {
+      "path": ".build-csd-dom/application/query-planner.js",
+      "bytes": 18030,
+      "sha256": "c5a7e07ec1ad11074d65de38cd289b45203089859bd09a0e4e8220fbbc0a61e9"
+    },
+    {
+      "path": ".build-csd-dom/domain/adapter-contracts.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/domain/browser-profile.js",
+      "bytes": 475,
+      "sha256": "769fc3615e0ebef1599f570834d2457957e0560d5d33b28f8a0e966c580c1ef9"
+    },
+    {
+      "path": ".build-csd-dom/domain/campaign-intent.js",
+      "bytes": 119,
+      "sha256": "625e1f220c602541055bc32fbc2426a83547294106098a0eb40c6e9daabac0da"
+    },
+    {
+      "path": ".build-csd-dom/domain/campaign.js",
+      "bytes": 73,
+      "sha256": "1ae3ca85bdd4842210297217f95ce82c36e9f30de0491612281ec4bfd05a2c84"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/adapters/fake-social-adapter.js",
+      "bytes": 12894,
+      "sha256": "b7dbc6f23f2ad475824e030e0bdaa53c131806e0c3215a8dfa80510b3eaea654"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/browser-host.js",
+      "bytes": 17333,
+      "sha256": "29bf386c7828e1e99adde95ec595b303c1a1e5db88ff9ee189a834898a91bfd3"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/diagnostic-domain.js",
+      "bytes": 1320,
+      "sha256": "384f832616c03f16b4465f0b17a3bac67b74fd173490cbfaaa7c235295e3b8cc"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/electron-observer-target.js",
+      "bytes": 1998,
+      "sha256": "4dc6e535ce945b4b039b1ffc26a04fb39dcf1e71039d7010abb37b6e82a61be0"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/navigation-policy.js",
+      "bytes": 4019,
+      "sha256": "6880b933ee32d1ab9625abcef9867f47c2d2c4bc8ed514ff336f86c5473e45ab"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/observer-target.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/policy-diagnostics-file.js",
+      "bytes": 1331,
+      "sha256": "5b155c902e59a16947ca45f96fc1c679914221a148328ce6032b5d8c71920ac8"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/policy-diagnostics.js",
+      "bytes": 6838,
+      "sha256": "581feda3d7f57c21da8a8c501e5d934bad1c10467c60c01c688c9fabe5c18eb4"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/profile-repository.js",
+      "bytes": 3250,
+      "sha256": "e413c0c5f10be9404f28d4729eec3a0e2f36ef03105d54f419def8624952daa8"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/replay-fixture.js",
+      "bytes": 3501,
+      "sha256": "c7c7be933f429e7ff7bb995b1d336b46617f80201a4ab89205aeea67188b8493"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/replay-observer-target.js",
+      "bytes": 2374,
+      "sha256": "46ef5d5a22aa7252fff692c127d2858a0e5469fd05c531fc23f5f7d74ed4054a"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/response-observer.js",
+      "bytes": 21820,
+      "sha256": "ea8da1304cd99695e88e00175286456197753872da45704579665e3b321f2c79"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/session-snapshot-journal.js",
+      "bytes": 1331,
+      "sha256": "0bcb3e08e6f571f62ab6abbf14c1844b548e9726c28c3e72c6eae1999902f4e1"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/config/campaign-validator.js",
+      "bytes": 1263,
+      "sha256": "889411354500e6516c1ee0f1a5386b4ed7efa51c9b7dbbee05a309dc4b25a392"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/config/runtime-paths.js",
+      "bytes": 1048,
+      "sha256": "af521c8b9911c2b2a64732cace5c40422d7ffbd648c22441d81a9b379893e253"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/secrets/electron-secret-store.js",
+      "bytes": 562,
+      "sha256": "dd8c4040dcbdf6ef26761bc91c3a38268870ed07c24aa07381b75137c12c8057"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/secrets/encrypted-secret-store.js",
+      "bytes": 3063,
+      "sha256": "018b105f68a3b63f4c0a2743937b50d67d98fbabf139d846a9694681e67d27a4"
+    },
+    {
+      "path": ".build-csd-dom/main/auth-dependency-smoke.js",
+      "bytes": 6857,
+      "sha256": "1a03a63d6e4db2f5983057f9e4b0d7408c62c92bd07ea8eb3ec41e7cf7038c77"
+    },
+    {
+      "path": ".build-csd-dom/main/browser-ipc-policy.js",
+      "bytes": 780,
+      "sha256": "6338a64051b5154fc98bb6a3e7ff32a21577a1c1977dec3b1e064bc1f925c7a2"
+    },
+    {
+      "path": ".build-csd-dom/main/electron-probe-driver.js",
+      "bytes": 6162,
+      "sha256": "83ffb7508c3c9280df4320f0c0820a11e62e5d3475946d9568ca96c7461190a2"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-dom-diagnostic-fixture.js",
+      "bytes": 2804,
+      "sha256": "8dc0f696a60c8260f863fe962451a2bb900daa9b918738ab78f60220bb6f1415"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-dom-diagnostic-menu.js",
+      "bytes": 3578,
+      "sha256": "78756a53db2447cd3f1963e7eaa05248bd890e0d1058299d7030c3397b48de40"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-dom-diagnostic-script.js",
+      "bytes": 5657,
+      "sha256": "39fa284907fbc9f917c5191199458a011bf3fe71308f984426cc65c0a35f6b1a"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-dom-diagnostic.js",
+      "bytes": 12555,
+      "sha256": "23c31f79af9bcf4b87f2c35e414d65e6d8851b96dbdfca6391008dcc8327ef2c"
+    },
+    {
+      "path": ".build-csd-dom/main/index.js",
+      "bytes": 23756,
+      "sha256": "7ce1b47d2df0eedf58998480bc669d6d78a5ac6dd754e10d52683b2bdb01958f"
+    },
+    {
+      "path": ".build-csd-dom/main/ipc-policy.js",
+      "bytes": 197,
+      "sha256": "47316418e2764ca89d74e198ca90b2ee72d4a1d2111cdccfa4260cf30a61155b"
+    },
+    {
+      "path": ".build-csd-dom/main/observer-smoke.js",
+      "bytes": 11528,
+      "sha256": "777e7a2f201cacbc2fee4da6ed1816f3c130f4b69e66b33b88bf1e0bb28b9cb0"
+    },
+    {
+      "path": ".build-csd-dom/main/policy-diagnostics-smoke.js",
+      "bytes": 3173,
+      "sha256": "72c25b4751106d8c2c06b3cf7b38d5c0ccb337560b4682093772ec8e5d79f000"
+    },
+    {
+      "path": ".build-csd-dom/main/probe-contract.js",
+      "bytes": 2392,
+      "sha256": "9183caf9f8b5c63b683f4ddd5ae97055fd5a9d81b9e719123bc402a06a7d4287"
+    },
+    {
+      "path": ".build-csd-dom/main/probe-controller.js",
+      "bytes": 17576,
+      "sha256": "f0f741f15aa7b8f853022691806ce140d49019c60089e0d54041b4d1813a2725"
+    },
+    {
+      "path": ".build-csd-dom/main/probe-freeze.js",
+      "bytes": 2658,
+      "sha256": "88322a6fb1ff9e48b0f3e0a93029d94147cbad5d4707584069513dbf0c2559f8"
+    },
+    {
+      "path": ".build-csd-dom/main/probe-ipc-policy.js",
+      "bytes": 584,
+      "sha256": "f2e3c0042974fead0a3a36bd414e4712cf88ed3c88cf6aff573ed78ddbab8115"
+    },
+    {
+      "path": ".build-csd-dom/main/probe-smoke.js",
+      "bytes": 11100,
+      "sha256": "1fa40156d7a955a05496211d8e781184937dd74421e74ff89263624eb695ec61"
+    },
+    {
+      "path": ".build-csd-dom/main/probe-writer.js",
+      "bytes": 6293,
+      "sha256": "ad2786b1470621af06623fa5afda94d47eaa01339109b1904d99c4a9993c60a6"
+    },
+    {
+      "path": ".build-csd-dom/main/session-smoke.js",
+      "bytes": 12295,
+      "sha256": "6742cebb3a907daa81f9a897c96f468e440633ec67e81727a6aba1b82b8ab2c1"
+    },
+    {
+      "path": ".build-csd-dom/main/visible-startup-diagnostics.js",
+      "bytes": 3988,
+      "sha256": "97ae279ae29023083fdfc4e404cf6060fc53b9ce80cc129f120752ba2dbc12f0"
+    },
+    {
+      "path": ".build-csd-dom/package.json",
+      "bytes": 96,
+      "sha256": "e992afe54ada8ee9d7075b8e365e59b2a9fa668c57c790397b0a43d604c27438"
+    },
+    {
+      "path": ".build-csd-dom/preload/index.cjs",
+      "bytes": 1029,
+      "sha256": "a166eadc2b72ba679ca6941ae1666f2bcda6d9ad39b374342623679e06f4079b"
+    },
+    {
+      "path": ".build-csd-dom/renderer/app.js",
+      "bytes": 8925,
+      "sha256": "7a3a4a5e1a2146c1b1cad53fb62d558d89e9b7884649132d60c439eaa9094bad"
+    },
+    {
+      "path": ".build-csd-dom/renderer/index.html",
+      "bytes": 4623,
+      "sha256": "fd6ae28e571a6586fd1aac47f5a302397eb26d68fa0a58a85c0eea1f2d2c1b07"
+    },
+    {
+      "path": ".build-csd-dom/renderer/styles.css",
+      "bytes": 4502,
+      "sha256": "3ddfc3680f5d38792e15a160f832c8a52435949d5aecfe0bd0f0805d04867d39"
+    },
+    {
+      "path": ".build-csd-dom/resources/campaign.coffee.json",
+      "bytes": 2325,
+      "sha256": "858e5464b6fa70ca58ca97044bb52803cb3bffeb2309ead2abb0709cf78e2e8b"
+    },
+    {
+      "path": ".build-csd-dom/resources/campaign.offline.json",
+      "bytes": 1766,
+      "sha256": "6423809448e2d1671aa9bba361399e86381fbba08fa75fc41c9ea076c7e0c3f6"
+    },
+    {
+      "path": ".build-csd-dom/resources/campaign.schema.json",
+      "bytes": 9127,
+      "sha256": "5394fc1f6b079c223958ce0c609dbbecb7ebacd47d5b3ea591f0469a34ae3a80"
+    },
+    {
+      "path": ".build-csd-dom/resources/probe-build.json",
+      "bytes": 16501,
+      "sha256": "34e98cede823bba2a84acf360b19af5c751bb8bf9fb82f897e6d8db1f060c3db"
+    }
+  ],
+  "notes": [
+    "No shared dist or test output written by owner commands.",
+    "Copied probe-build.json is historical bootstrap metadata; not a new LIVE diagnostic freeze.",
+    "Only lead may activate the real-session diagnostic after review."
+  ]
+}

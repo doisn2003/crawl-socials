@@ -1,0 +1,42 @@
+{
+  "task": "P02_OBSERVED_SEARCH_POST_OPEN",
+  "caseKind": "wrong-link",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ELIGIBLE_TIMESTAMP",
+      "clickAttempts": 0,
+      "clicks": 0,
+      "postReads": 0,
+      "discovery": {
+        "scan_sha256": "216dc06bd6e546f9ff9bdb3414c3748f78ae3b873b1b9199a03f36484ac8a1aa",
+        "status": "SAMPLES_READY",
+        "visited": 80,
+        "examined": 1,
+        "opening": {
+          "version": 1,
+          "phase": "DISCOVER",
+          "status": "NO_ELIGIBLE_TIMESTAMP",
+          "targets": [],
+          "click_count": 0,
+          "selected_index": null,
+          "qualified_headers": 1,
+          "no_timestamp_headers": 1,
+          "ambiguous_headers": 0
+        }
+      },
+      "click": null,
+      "eventTrace": [],
+      "summarySha256": "170d3cc2129db28d7a1624c8112515b3f3cd54734cdd420ef5063ba043fc57f6"
+    }
+  ],
+  "browserClicks": 0,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

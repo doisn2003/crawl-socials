@@ -1,0 +1,86 @@
+{
+  "task": "R06_VISIBLE_STARTUP",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "result": "BLANK_NOT_REPRODUCED_VISIBLE_UI_VERIFIED_ORIGINAL_CAUSE_UNKNOWN",
+  "codeVersion": "SHA-256; no Git repository",
+  "scope": "R06 opt-in diagnostics/launch tooling and evidence; prior P02 manifests are historical and unchanged",
+  "files": [
+    {
+      "path": "src/main/index.ts",
+      "sha256": "3ef503bee5aa25dc8ae9d129e0f1167dd16b84a3f6ef86bc127ad4680e54eba5"
+    },
+    {
+      "path": "src/main/visible-startup-diagnostics.ts",
+      "sha256": "6c62c739cf50897f086ad6616d0d3dfc3ab27d47846718dcd6892791d739f393"
+    },
+    {
+      "path": "scripts/visible-startup-check.mjs",
+      "sha256": "d5896a533fb4049c0a0cdb76b513cc5db75491ee2ec90ac296088632843e6bf1"
+    },
+    {
+      "path": "package.json",
+      "sha256": "0a1bbc55a1f3d3de30d7e26294bce69665edbbba9519b63127b1ffad7af1ca5a"
+    },
+    {
+      "path": "README.md",
+      "sha256": "c9df764f61ffdd89c85f4cab74ea52354bc9fa3125762f7121a4c217895e81e7"
+    },
+    {
+      "path": "dist/main/index.js",
+      "sha256": "9925cd022498834e7ad1db18ba9e40d7d0282e409646bff1184923f7e255a6a7"
+    },
+    {
+      "path": "dist/main/visible-startup-diagnostics.js",
+      "sha256": "97ae279ae29023083fdfc4e404cf6060fc53b9ce80cc129f120752ba2dbc12f0"
+    },
+    {
+      "path": "dist/resources/probe-build.json",
+      "sha256": "f3f1abbf017d6d59c7552264320ee5d8f874c33d3743de239ab5835256c58469"
+    },
+    {
+      "path": ".brain/evidence/p02-visible-startup-r06-2026-10-27.md",
+      "sha256": "866525b3d02460637f5f0268a36bc58cc7992b6c17db3ba5237e5ce9ee70f9be"
+    },
+    {
+      "path": ".brain/handoffs/csd-visible-startup-r06-2026-10-27.md",
+      "sha256": "dca565d0231ca80b9ad06f4a0cc2798e7314031be7225859f4026a1eb7a43bf4"
+    },
+    {
+      "path": ".brain/evidence/p02-visible-r06-runtime-2026-10-27.json",
+      "sha256": "2626eab1e49ea9ee5df5683ed517d6b3d28859cff1bf0fbe13355ad8efe3928a"
+    },
+    {
+      "path": ".brain/evidence/p02-visible-r06-native-witness-2026-10-27.json",
+      "sha256": "f895a93194928ecc05d1f3089a7012a7a876196ff549e0b959fe87dd300b1129"
+    },
+    {
+      "path": ".brain/evidence/p02-visible-r06-bootstrap-regression-2026-10-27.json",
+      "sha256": "3da72ab96e8afcf048cf88d8e0bf039bcd6dc9387080c84c93bcb313416b425a"
+    },
+    {
+      "path": ".brain/evidence/p02-visible-r06-original-window-2026-10-27.png",
+      "sha256": "c46a90032b17f3a59e6c45c8d5055ddff4a780c822c22a20ff71b8dcc5dc7825"
+    },
+    {
+      "path": ".brain/evidence/p02-visible-r06-fresh-normal-2026-10-27.png",
+      "sha256": "aa5493f1a2f68d478e0d6f3a2f3acbd57d7a58b95e9ec737ddacbb67495cb6ad"
+    },
+    {
+      "path": ".brain/evidence/p02-visible-r06-offline-click-2026-10-27.png",
+      "sha256": "52b231aefb61763509364c7f9021fc1c6156061f9efd7c9121e90248ac66a6f0"
+    },
+    {
+      "path": ".brain/evidence/p02-visible-r06-electron-paint-2026-10-27.png",
+      "sha256": "347bffdff1684cb915a220e3de23983c191e68a5c369ddd6e47e3150f92de2ed"
+    },
+    {
+      "path": ".brain/evidence/p02-visible-r06-native-top-2026-10-27.png",
+      "sha256": "6c7f142e80b39d454fa61642aefb9d63406aa6fcab48bdf60d785012c9bdea25"
+    },
+    {
+      "path": ".brain/evidence/p02-visible-r06-native-form-2026-10-27.png",
+      "sha256": "922c0913dea7b2490b4369ff38017e3cdf6b6df24795117840e67502872f335e"
+    }
+  ]
+}

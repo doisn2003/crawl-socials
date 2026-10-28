@@ -1,0 +1,39 @@
+{
+  "task": "P02_PUBLIC_CANDIDATES",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "cases": [
+    {
+      "status": "SAMPLES_READY",
+      "candidateCount": 5,
+      "identityMissing": 1,
+      "nodeLimit": false,
+      "visited": 169,
+      "summarySha256": "78e004c2cf9505ab4811eab9c1962430c6df81934b6a5aa110348f107c7e275d",
+      "candidateFileSha256": "e1ccd2b7f523efaaaeb69931a92991021c3a1c2ca3e95157bf703c6d07120cdc"
+    },
+    {
+      "status": "NO_PUBLIC_CANDIDATE",
+      "candidateCount": 0,
+      "identityMissing": 0,
+      "nodeLimit": true,
+      "visited": 2500,
+      "summarySha256": "1e9b2c01e54d17a7d8336d88ff2dc257c05dca7b9236e91589b5ae1e26cd079c",
+      "candidateFileSha256": "e3edbb79b63d5c29af97e51d16e2e7c71e7c9b7e3caff01d7ff22dbfe8f600ea"
+    },
+    {
+      "status": "AUTH_REQUIRED",
+      "candidateCount": 0,
+      "identityMissing": 0,
+      "nodeLimit": false,
+      "visited": 0,
+      "summarySha256": "9501a1a25ca652e32790b2b82b296a81b0e722e75315e7255743ef01f6b683eb",
+      "candidateFileSha256": "a4a0306bae5680f69f77c0e9207b574c824dc68906a222fe27d4334d0853cb3e"
+    }
+  ],
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

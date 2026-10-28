@@ -1,0 +1,8 @@
+{
+  "phase": "FROZEN_V22_BEFORE_OBSERVED_HEADER_CHANGE",
+  "discoveryScriptSha256": "46d810b7c03dbbff51828cd61fc7fc04b0dcacdbb8ffd636cabc9f23492aec46",
+  "clickScriptSha256": "9949feb177057e6ac148c7c34ae3d8b02a4297d0ebaf1eff1c2f2a40835b25a4",
+  "reviewerSourceSha256": "d40898c9edeff1be583edbb61dca3cca3308e11c9ac7a5a62838c98529be025b",
+  "compiledTestSha256": "7e74d7ce9e82eced1623dd98139a725533b0dde836ac6e6d9b9adc1bf71df03a",
+  "output": ".test-build-adapter-candidate\\observed-header-v22-baseline"
+}

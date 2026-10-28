@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "workspace": "C:/OwnProject/crawl-socials",
+  "codeVersion": "SHA-256 manifest; CSD workspace has no Git repository",
+  "contractVersion": "1.0.0",
+  "planVersion": "1.2",
+  "algorithm": "sha256",
+  "files": [
+    {
+      "path": ".brain/README.md",
+      "sha256": "84371ca9280a700b5c0138c2e3a0d8b4103194b7b1ae59605c6377ed09a40a41"
+    },
+    {
+      "path": ".brain/master_plan.md",
+      "sha256": "5037489885d0f13e41ad7132f7468f844b3b5b57a9a3f144614a22b49540348b"
+    },
+    {
+      "path": ".brain/specs/product_contract.md",
+      "sha256": "5d11553e630f02758fa244463de42db6fffff9084d4875a5901e4d41c64252de"
+    },
+    {
+      "path": ".brain/specs/campaign.schema.json",
+      "sha256": "5394fc1f6b079c223958ce0c609dbbecb7ebacd47d5b3ea591f0469a34ae3a80"
+    },
+    {
+      "path": ".brain/specs/campaign.example.json",
+      "sha256": "ecfb35fbaa2a9ecf30723b8cdf9d489699ae35c78bd04e7d72045a443fb5c23b"
+    },
+    {
+      "path": ".brain/specs/campaign.coffee.json",
+      "sha256": "858e5464b6fa70ca58ca97044bb52803cb3bffeb2309ead2abb0709cf78e2e8b"
+    },
+    {
+      "path": ".brain/specs/hotmatch_reuse_inventory.md",
+      "sha256": "743fea7b26b0dcd7c472277a53d7464ecf9e9d4811e3be7fe9fe68bbd6833f2d"
+    },
+    {
+      "path": ".brain/decisions/ADR-001-runtime-and-reuse.md",
+      "sha256": "536b353a83096965805daabcd2d4168e74a7edb59c184fab28a461f5032b249b"
+    },
+    {
+      "path": ".brain/evidence/p00-validation-2026-10-27.md",
+      "sha256": "3479b2f15f027ae49b75e42a37f39ed3c8c7aa621942aa2849a67ac8cfbbdcbb"
+    },
+    {
+      "path": ".brain/evidence/p00-hotmatch-source-manifest.json",
+      "sha256": "d1badfad69b5e0493eceeab21dc010214fc1eaa9d9283629df4eabf45feecf7c"
+    },
+    {
+      "path": ".brain/evidence/p00-runtime-probe.json",
+      "sha256": "c4529d6da980799316744cff0046505b36b74d42bef35d6d796d7023d033c7d6"
+    },
+    {
+      "path": ".brain/evidence/p00-contract-checks.json",
+      "sha256": "0e3f2be9d265439b4a410fa3140e529a4ed496f38b193db996b73074a8bbdb81"
+    },
+    {
+      "path": "scripts/check-p00.cjs",
+      "sha256": "99bb617ba904c98226d4866986f2df3a09fe9ce4c16ae01df5b3d94f16cae7f7"
+    },
+    {
+      "path": "scripts/probes/p00-runtime.cjs",
+      "sha256": "ca0ae6012732b4932a6a5d9900d76faaa8f3372c0b9658b50976e744042d3ea2"
+    },
+    {
+      "path": "scripts/probes/p00-hotmatch-audit.cjs",
+      "sha256": "87cd0a72f09d57e09c8c1406967e4f95760279c8ce7435b4ace3146427efff52"
+    }
+  ]
+}

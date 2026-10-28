@@ -1,0 +1,13 @@
+# ADR-014 — Diagnostic một bài đã mở bằng timestamp
+
+28/10/2026 Asia/Bangkok. Theo quyền nghiên cứu/khắc phục nguồn của người dùng và ADR-010. LIVE v13 đã trả 2 snippets từ search, cả hai thiếu identity và còn truncated. Lead mở **một timestamp đã quan sát** của ứng viên đầu qua UI; Facebook chuyển sang group route có query `multi_permalinks` chứa một post ID và hiển thị post dialog. Body đầy hơn, nhãn public-group hiện rõ. Đây là dialog nội dung bài, không phải auth/challenge đã được vượt qua.
+
+Cho phép một action diagnostic mới **đọc tối đa 1 bài trong current post context này** sau code/independent review. Search reader cũ vẫn chỉ đọc search; không biến mọi dialog thành hợp lệ. Owner có thể dùng mode/script riêng nếu ít ảnh hưởng hơn, không cần refactor lớn.
+
+- Route hỗ trợ bước này: Facebook HTTPS group path hợp lệ, đúng 1 `multi_permalinks` param với một ID dạng string hợp lệ; không list/dấu phẩy/multiple params/unknown scope. Lấy IDs từ actual observed URL, không suy từ text/author/ảnh hoặc sinh URL rồi gọi verified. Lưu observed single-post route đã loại tracking dưới dạng identity/context hint; canonical/permalink verification vẫn UNVERIFIED nếu chưa có evidence độc lập. Không tự đổi schema benchmark.
+- Chỉ chọn một semantic post dialog có heading bài viết, cùng source-public header và single message body; cho phép outer wrapper dialog không có nội dung độc lập bao inner post dialog nếu chứng minh containment và root duy nhất. Multiple độc lập/unknown overlay → dừng. Không dựa riêng vào chuỗi title user-generated. Known auth/challenge/deny và security markers vẫn ưu tiên trước content-dialog exception; không bypass.
+- Chỉ đọc body marker của chính bài, loại comment/thread/composer/reaction/quoted nested story. Không gom `innerText` của toàn dialog. Không đọc credentials, hidden data/React state/network body, không click trong Facebook từ script. Không auto SeeMore/navigation/scroll trong task này.
+- Source/group IDs là context hints có provenance, không tự nâng source/publicity/identity thành VERIFIED. Text giới hạn 800 chars, redact contacts, thiếu/chopped ghi đúng. Không cần published_at khi UNBOUNDED; không mượn comment timestamp.
+- Cap 2500 work steps/1s script/4s read/5min run/1 action; combined starts 3/process dùng chung search diagnostic, payload ≤32KiB. Data local userData/7 days/manual cleanup; .brain chỉ summary/count/hash/ref, không raw body/IDs/account. Permission UNKNOWN, benchmark OFF, valid0/gates giữ nguyên.
+
+Đây là bước lấy evidence cho identity/context trước continuation. Sau LIVE phải đánh giá body/identity/source thực nhận; không từ fixture/post dialog/login suy đạt 1000/24h hoặc chuyển sang thu quy mô lớn.

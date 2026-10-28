@@ -1,0 +1,26 @@
+{
+  "version": "1.0.0",
+  "task": "P03.03",
+  "owner": "/root/csd_adapter",
+  "date": "2026-10-27",
+  "algorithm": "SHA-256",
+  "semantics": "Exact owned deliverable bytes. Offline module/test evidence, not task acceptance or live permission.",
+  "files": [
+    {
+      "path": "src/application/query-planner.ts",
+      "sha256": "d57343f51e3b6bedef9849869bb97082a5d7e3bebaa12363f836879a5cc36ffa"
+    },
+    {
+      "path": "tests/query-planner.test.ts",
+      "sha256": "795547cb35512dbe554725453d27209497b0ca793cfa94b02160d894ccab9bc1"
+    },
+    {
+      "path": ".brain/evidence/p03-query-planner-validation-2026-10-27.md",
+      "sha256": "a6c4ffad7d85f87d9bcbe5a0f56fe682fb8e743bf7a47ec2a22425cf5309b81c"
+    },
+    {
+      "path": ".brain/handoffs/p03-query-planner-2026-10-27.md",
+      "sha256": "504f03fad660de4f7e844dab4fdf20736db3e18c8b32c3184d5c4afb9a58d488"
+    }
+  ]
+}

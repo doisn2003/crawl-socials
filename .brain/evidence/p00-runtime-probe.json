@@ -1,0 +1,46 @@
+{
+  "probe": "P00.03",
+  "node": {
+    "node": "24.19.0",
+    "modulesAbi": "137",
+    "platform": "win32",
+    "arch": "x64",
+    "sqlite": {
+      "sqliteVersion": "3.53.3",
+      "wal": true,
+      "foreignKeys": true,
+      "rollback": true,
+      "idempotentInsert": true,
+      "unicodeAndStringIdAfterReopen": true,
+      "integrityCheck": "ok"
+    }
+  },
+  "electron": {
+    "runtime": "electron-main",
+    "electron": "44.7.0",
+    "node": "24.21.0",
+    "chromium": "152.0.7977.130",
+    "modulesAbi": "149",
+    "platform": "win32",
+    "arch": "x64",
+    "sqlite": {
+      "sqliteVersion": "3.53.4",
+      "wal": true,
+      "foreignKeys": true,
+      "rollback": true,
+      "idempotentInsert": true,
+      "unicodeAndStringIdAfterReopen": true,
+      "integrityCheck": "ok"
+    },
+    "browserClassesAvailable": true,
+    "safeStorageSyntheticRoundTrip": true,
+    "isolatedUserData": true,
+    "windowsCreated": 0,
+    "networkRequests": 0
+  },
+  "limitations": [
+    "No packaged executable tested",
+    "No browser session or Facebook access tested",
+    "No throughput, crash recovery or product persistence implementation tested"
+  ]
+}

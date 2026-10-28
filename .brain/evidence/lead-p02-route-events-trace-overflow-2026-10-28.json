@@ -1,0 +1,220 @@
+{
+  "task": "P02_POST_ROUTE_VERIFICATION",
+  "caseKind": "trace-overflow",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 2,
+  "nativeHistoryEvents": 15,
+  "cases": [
+    {
+      "label": "CURRENT_POST_ANCHOR",
+      "status": "SAMPLES_READY",
+      "summarySha256": "19b6f57103982aa9f1b80f46d4d625f024722a9c4881ce207fb7908332f09f64"
+    },
+    {
+      "label": "NO_ANCHOR",
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ANCHOR"
+    },
+    {
+      "label": "TRACE-OVERFLOW",
+      "result": "INCONCLUSIVE",
+      "reason": "EVENT_TRACE_LIMIT",
+      "navigationCount": 1,
+      "readCount": 1,
+      "freshDocument": true,
+      "eventTrace": [
+        {
+          "kind": "START",
+          "event": "DID_START_NAVIGATION",
+          "phase": "NAVIGATING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "DIFFERENT",
+          "owner": "SAME",
+          "generation_delta": 0,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "COMMIT",
+          "event": "DID_NAVIGATE",
+          "phase": "NAVIGATING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_START_NAVIGATION",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_NAVIGATE_IN_PAGE",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_START_NAVIGATION",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_NAVIGATE_IN_PAGE",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_START_NAVIGATION",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_NAVIGATE_IN_PAGE",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_START_NAVIGATION",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_NAVIGATE_IN_PAGE",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_START_NAVIGATION",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_NAVIGATE_IN_PAGE",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_START_NAVIGATION",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_NAVIGATE_IN_PAGE",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_START_NAVIGATION",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_NAVIGATE_IN_PAGE",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        }
+      ],
+      "traceOverflow": true,
+      "firstCancellation": {
+        "reason": "EVENT_TRACE_LIMIT",
+        "cause": "TRACE_OVERFLOW",
+        "phase": "READING",
+        "event_index": null
+      },
+      "summarySha256": "2335e3236f51fb28db405633208efc30b73c4ac0fa56b41d8a47dd16e9fa5f1c"
+    }
+  ],
+  "reopenRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

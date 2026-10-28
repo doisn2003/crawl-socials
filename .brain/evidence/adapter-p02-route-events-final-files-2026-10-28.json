@@ -1,0 +1,254 @@
+{
+  "phase": "FROZEN_ROUTE_EVENTS_FINAL",
+  "result": "PASS",
+  "createdAt": "2026-10-27T21:52:24.498Z",
+  "manifest": {
+    "path": ".brain/evidence/p02-route-events-files-2026-10-28.json",
+    "sha256": "63292a7a24743e7acb34400ccd35dca3f0cebc67bbacd3eccfde5767944803e9"
+  },
+  "tests": 45,
+  "passed": 45,
+  "breakdown": {
+    "reviewerVerification": 11,
+    "ownerVerification": 15,
+    "reviewerCurrentPost": 8,
+    "ownerCurrentPost": 11
+  },
+  "nativeScenarios": 7,
+  "nativeOutcomes": 21,
+  "ownedManifestHashes": 23,
+  "isolatedNativeBuildHashesBeforeRun": 65,
+  "liveV16Cause": "NOT_RECORDED",
+  "files": [
+    {
+      "path": "tests/facebook-post-route-verification-review.test.ts",
+      "sha256": "9395946285d4fa1f1c20b086d19b2b76dd671ad9958791fc88d73c5aa7963cec"
+    },
+    {
+      "path": ".test-build-adapter-candidate/route-events-final/src/main/facebook-post-route-verification.js",
+      "sha256": "e52e1e3749aec1d9b6e55e554c6e61dd6cb7d6010365622c8f3f744f1052f568"
+    },
+    {
+      "path": ".test-build-adapter-candidate/route-events-final/src/main/facebook-public-candidate.js",
+      "sha256": "d2309718815267a5bbd4bddb5728f172a9c07d1f0b81d71c50403f4997eb5558"
+    },
+    {
+      "path": ".test-build-adapter-candidate/route-events-final/tests/facebook-post-route-verification-review.test.js",
+      "sha256": "d99ec4f3fecdfc5d80dfde4e2e9fb808b4997ab96cafcb3839d65b4b8bdd5c42"
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "src/main/index.ts",
+      "sha256": "0526447603cf171d975d8e923b9456fb1e0bebfd8d8455283dc089d65762bb0c",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic.ts",
+      "sha256": "834b6ed4373f905974d4beb88d28183a8dc55fca4a2600de99dd5f4a8c34bd10",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic-menu.ts",
+      "sha256": "08f69317f48759c07dd521c195aca267c0f7489895f03a117b443182307a7ad7",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate.ts",
+      "sha256": "828d32b849d5120a4e35bf5a96c9d6d35143eb2d21b34f6d1a92d75c25509537",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fields.ts",
+      "sha256": "f76176df6d7de6b1f402a04bab5b16aa8b0f5200c3594cd7e9f278f45bd617cb",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate-script.ts",
+      "sha256": "331a5f5a804a8e5984f8f9243e2ad2af553346c61b31e5e577da3dd53b6ef583",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fixture.ts",
+      "sha256": "b9dd0cd4fa376db3b1ae6cac18839a1788e7c27214ac49ad2be57bf3b35c13ce",
+      "match": true
+    },
+    {
+      "path": "tests/facebook-public-candidate.test.ts",
+      "sha256": "6472577a2a8d2256d58c2dd0c703e33231d698d4e8e7c509934d1e0abd25f4a3",
+      "match": true
+    },
+    {
+      "path": "scripts/facebook-dom-diagnostic-build.mjs",
+      "sha256": "bfa9de393112b82de2dca8a5c53db4f0c7ed2dffdc65a1ee4745018b2519936a",
+      "match": true
+    },
+    {
+      "path": "scripts/facebook-public-candidate-smoke.mjs",
+      "sha256": "76fe73f5a7c2a1dd9ede1a4ab8feee76274179dd4f77643e33902605ed9fce7f",
+      "match": true
+    },
+    {
+      "path": "tests/facebook-current-post.test.ts",
+      "sha256": "774289f6c3d4b3aadcac16e54d41cda744fb02b493cd3f828232722a6f36f6e4",
+      "match": true
+    },
+    {
+      "path": "tests/fixtures/facebook-current-post-v14-script.json",
+      "sha256": "f599368c4268b3cb85dfad5d8d364dd52e1dd28805298bb4cfcbe6d6fdca95ba",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-post-route-verification.ts",
+      "sha256": "1185af95ea1a2811e5ec79eaf1b19453c210e46c613e78b7cf83ebc9af639712",
+      "match": true
+    },
+    {
+      "path": "tests/facebook-post-route-verification.test.ts",
+      "sha256": "00ba7f1c3508b2057395382696c1941997074b923a20772b2b8893fb6a526734",
+      "match": true
+    },
+    {
+      "path": ".brain/handoffs/p02-route-events-2026-10-28.md",
+      "sha256": "0ba4566482b75ce758c99757282627095228254b220e6c3fc1f7c013ad70483c",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-events-v16-baseline-2026-10-28.json",
+      "sha256": "e358e22488cf4db79bc86db12916266cc6913823f9917c3f7ed2be318a451cde",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-events-same-read-2026-10-28.json",
+      "sha256": "62cc309ae9dbc879b007b049f78afa7fc3b6c2e1a724086f4b7c6cf1aad74aee",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-events-same-loading-2026-10-28.json",
+      "sha256": "c249e0421709cd5a6b481f39b53aaf47c5a481c11576018b512e8f2389047815",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-events-away-return-2026-10-28.json",
+      "sha256": "137d3d16469097d4e9fafb22cacc2b02dfe597e58fc872c026cd006ef78fa006",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-events-full-same-2026-10-28.json",
+      "sha256": "b65002aca481b0ac94e700b218f19603b9f622f95cd34aeb9fe72b611b373a71",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-events-trace-overflow-2026-10-28.json",
+      "sha256": "38725e1982614344b458a8505de6392eed56b141ee002116f44baaeeb997bbe9",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-events-redirect-2026-10-28.json",
+      "sha256": "16dd7254f9ad8969a6809fa255435f16eb6fc6762688efc32540c48f258f32cd",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-events-stop-2026-10-28.json",
+      "sha256": "e225401d656e116af1b2af16895558644dd42be05fdd7e7b7b54584af3fd1bec",
+      "match": true
+    }
+  ],
+  "native": [
+    {
+      "kind": "same-loading",
+      "path": ".brain/evidence/adapter-p02-route-events-same-loading-2026-10-28.json",
+      "sha256": "f02b067088280d7dfab4e4f27833e89bbe8d0e3984696e2f8438be7d8c897834",
+      "result": "REOPEN_MATCH",
+      "reason": "MATCHED",
+      "nativeHistoryEvents": 4,
+      "traceEntries": 6,
+      "firstCancellation": null
+    },
+    {
+      "kind": "same-read",
+      "path": ".brain/evidence/adapter-p02-route-events-same-read-2026-10-28.json",
+      "sha256": "ade2cb5d839e425a5aa2dc6cd52b66792fdad58de9616cc6091c7c5e41b6c686",
+      "result": "REOPEN_MATCH",
+      "reason": "MATCHED",
+      "nativeHistoryEvents": 4,
+      "traceEntries": 6,
+      "firstCancellation": null
+    },
+    {
+      "kind": "away-return",
+      "path": ".brain/evidence/adapter-p02-route-events-away-return-2026-10-28.json",
+      "sha256": "dfb458aa7fbcf33612112abdadcabf43ba51fdde9fe2b1a0a49d0f292461dfba",
+      "result": "INCONCLUSIVE",
+      "reason": "ROUTE_CHANGED",
+      "nativeHistoryEvents": 1,
+      "traceEntries": 3,
+      "firstCancellation": {
+        "reason": "ROUTE_CHANGED",
+        "cause": "URL_CHANGED",
+        "phase": "READING",
+        "event_index": 2
+      }
+    },
+    {
+      "kind": "full-same",
+      "path": ".brain/evidence/adapter-p02-route-events-full-same-2026-10-28.json",
+      "sha256": "d1dcd5bc2b8a23adda41cd60c18b14ba8f7f33362b206815edd2f9f5512b3258",
+      "result": "INCONCLUSIVE",
+      "reason": "ROUTE_CHANGED",
+      "nativeHistoryEvents": 0,
+      "traceEntries": 3,
+      "firstCancellation": {
+        "reason": "ROUTE_CHANGED",
+        "cause": "FULL_NAVIGATION_DURING_READ",
+        "phase": "READING",
+        "event_index": 2
+      }
+    },
+    {
+      "kind": "trace-overflow",
+      "path": ".brain/evidence/adapter-p02-route-events-trace-overflow-2026-10-28.json",
+      "sha256": "4a679129eb0a01eea87e8be6c6d88e507f2fa2273032c78822e83fb53ecb34ff",
+      "result": "INCONCLUSIVE",
+      "reason": "EVENT_TRACE_LIMIT",
+      "nativeHistoryEvents": 15,
+      "traceEntries": 16,
+      "firstCancellation": {
+        "reason": "EVENT_TRACE_LIMIT",
+        "cause": "TRACE_OVERFLOW",
+        "phase": "READING",
+        "event_index": null
+      }
+    },
+    {
+      "kind": "redirect",
+      "path": ".brain/evidence/adapter-p02-route-events-redirect-2026-10-28.json",
+      "sha256": "0c0fc98859669421e22a9dc324a193c709432c3a13b8cfc598adb637822861d0",
+      "result": "INCONCLUSIVE",
+      "reason": "ROUTE_CHANGED",
+      "nativeHistoryEvents": 0,
+      "traceEntries": 2,
+      "firstCancellation": {
+        "reason": "ROUTE_CHANGED",
+        "cause": "REDIRECT",
+        "phase": "NAVIGATING",
+        "event_index": 1
+      }
+    },
+    {
+      "kind": "stop",
+      "path": ".brain/evidence/adapter-p02-route-events-stop-2026-10-28.json",
+      "sha256": "e73da28d54d377ec1ef081505719f4229d6e498f9eaaab0100c8239729581069",
+      "result": "INCONCLUSIVE",
+      "reason": "STOPPED",
+      "nativeHistoryEvents": 0,
+      "traceEntries": 1,
+      "firstCancellation": {
+        "reason": "STOPPED",
+        "cause": "STOP",
+        "phase": "NAVIGATING",
+        "event_index": null
+      }
+    }
+  ]
+}

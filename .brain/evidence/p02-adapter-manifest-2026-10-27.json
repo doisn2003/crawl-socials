@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-27",
+  "task": "P02.01",
+  "revision": "R03",
+  "fixes": [
+    "R02",
+    "R03"
+  ],
+  "captureMode": "FIXTURE",
+  "tests": 21,
+  "result": "PASS_ADAPTER_BRANCH_ONLY",
+  "files": [
+    {
+      "path": "src/domain/adapter-contracts.ts",
+      "sha256": "40842685cc66f4e5d2dbfeddad4bca7d85cb981dd3eaed5cfa7abf8130a0b390"
+    },
+    {
+      "path": "src/application/ports/social-adapter.ts",
+      "sha256": "0de96434f2b36c480f64eccfad63aa5b1d3f8d11391bca66f7d4db99d6b13bbb"
+    },
+    {
+      "path": "src/application/adapter-capabilities.ts",
+      "sha256": "596ae0fdc59cfc8047ae7e234c271b8b6f929957e89fbc676a9d9570807395cf"
+    },
+    {
+      "path": "src/infrastructure/adapters/fake-social-adapter.ts",
+      "sha256": "05ffdc0691461982f50945f43e8a37dab8061e2c01abd9db72c5094e0364b0b2"
+    },
+    {
+      "path": "tests/adapter-contracts.test.ts",
+      "sha256": "d8919bffdb4cdc707607fe91789efa4bf188244b2695cff9315ad59203a5f2c0"
+    },
+    {
+      "path": "tests/fixtures/adapters/facebook-pages.json",
+      "sha256": "e38af0c534c1e30698300c3a3e28586dd37179855ae02d1b79b24426e8502dcf"
+    },
+    {
+      "path": ".brain/specs/adapter_contract.md",
+      "sha256": "0906820161f00f6438e94e718b6fc5d51abc09735bfc66e2df9378f464aa249a"
+    },
+    {
+      "path": ".brain/evidence/p02-adapter-tests-2026-10-27.tap",
+      "sha256": "c59b3b7f28c928958c8f97613e07a82d164b83fbcb76549839866d5fe719747a"
+    },
+    {
+      "path": ".brain/evidence/p02-adapter-validation-2026-10-27.md",
+      "sha256": "6050ce24b38f798c73747373853ff422a71a3be0626b798073444bad17b27481"
+    },
+    {
+      "path": ".brain/handoffs/p02-adapter-2026-10-27.md",
+      "sha256": "92d420222f7223b7dc8deecae85614681c4d21a96d8d7400567fc0b4386dc42d"
+    }
+  ]
+}

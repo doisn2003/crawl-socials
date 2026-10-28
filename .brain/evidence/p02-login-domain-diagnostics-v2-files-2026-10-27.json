@@ -1,0 +1,80 @@
+{
+  "task": "P02_LOGIN_DOMAIN_DIAGNOSTICS_V2",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "result": "OFFLINE_DOMAIN_DIAGNOSTICS_READY_LIVE_UNKNOWN_DOMAINS_NOT_RECOVERABLE_FROM_V1",
+  "tests": {
+    "targeted": 10,
+    "passed": 10,
+    "contractChecks": 44,
+    "build": "PASS",
+    "buildManifestEntries": 107
+  },
+  "scope": "Changed source/build plus unchanged navigation policy, pinned parser bundle and immutable supplied snapshot; no live restart or access-policy change",
+  "files": [
+    {
+      "path": "package.json",
+      "sha256": "ff448b00426a39a995c6c6d1d67a929310dc2eaf5c68b95e8f3520b3852677f7"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "5e61519dcd9b759f1df2e47c29637d2f76ac8a534a179fbcd0138efabd14fcc5"
+    },
+    {
+      "path": "README.md",
+      "sha256": "159423b83dd44a81470d259582b8a1578c1819a78bf90866f8cf6b208b9eee5b"
+    },
+    {
+      "path": "src/infrastructure/browser/diagnostic-domain.ts",
+      "sha256": "f2c2edab687187cbe0e6069f39629f7f4bed54cfae4c8d6aaeef09ecbc483e7e"
+    },
+    {
+      "path": "src/infrastructure/browser/policy-diagnostics.ts",
+      "sha256": "9ecf296d131e25546ea0aeebc1ed961b21e48d7a8a7b875f30e8877ffff4ce02"
+    },
+    {
+      "path": "src/infrastructure/browser/policy-diagnostics-file.ts",
+      "sha256": "a481f309961a3564b928ab512cf987dae8976277999728ef1b7e27bbce2aeb27"
+    },
+    {
+      "path": "src/infrastructure/browser/navigation-policy.ts",
+      "sha256": "ca9c10d68eba97429baa0e0a1a19c49b844a2c413cdf1fffdb9c5dfbb49c1d14"
+    },
+    {
+      "path": "tests/diagnostic-domain.test.ts",
+      "sha256": "07a634c4a29b797e2b9e9aa29d97c45aca7939e2a5adbd6c1bb94f87928ff751"
+    },
+    {
+      "path": "tests/policy-diagnostics.test.ts",
+      "sha256": "cf7af31e2bb4ad3300eb0981b2d00d7c1f832b90b7d7f1cb05d650f5be49f533"
+    },
+    {
+      "path": "dist/infrastructure/browser/diagnostic-domain.js",
+      "sha256": "384f832616c03f16b4465f0b17a3bac67b74fd173490cbfaaa7c235295e3b8cc"
+    },
+    {
+      "path": "dist/infrastructure/browser/policy-diagnostics.js",
+      "sha256": "e157d407de30282cebaf0dc1b7ecaaa85d84b2a68cd855f5593abf2b6b1c1e54"
+    },
+    {
+      "path": "dist/infrastructure/browser/policy-diagnostics-file.js",
+      "sha256": "5b155c902e59a16947ca45f96fc1c679914221a148328ce6032b5d8c71920ac8"
+    },
+    {
+      "path": "dist/resources/probe-build.json",
+      "sha256": "f53c99498f2f7f743b82d071e5ea3ac577cbe5e979e68457e8e9ba9190ab2b74"
+    },
+    {
+      "path": "node_modules/tldts/dist/cjs/index.js",
+      "sha256": "f5e00f84b688d0fba6eca57b8e4265b6daf1aa2716ffffdd8fef6ec3a2202b92"
+    },
+    {
+      "path": ".brain/evidence/lead-p02-login-live-metadata-2026-10-27.json",
+      "sha256": "ca57c6df80e10d2260fd83fed7a198e78bf57f8b0ef84ac08cd0fc889fbfb9ee"
+    },
+    {
+      "path": ".brain/handoffs/csd-login-domain-diagnostics-v2-2026-10-27.md",
+      "sha256": "dfaf8eeec780a25e76fc61c2f802f60c5f71b229b941a2a62599a99d72012198"
+    }
+  ]
+}

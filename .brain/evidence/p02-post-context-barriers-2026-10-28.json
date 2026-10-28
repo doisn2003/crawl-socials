@@ -1,0 +1,94 @@
+{
+  "task": "P02_CURRENT_POST_BARRIERS",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 14,
+  "cases": [
+    {
+      "status": "AUTH_REQUIRED",
+      "candidateCount": 0,
+      "visited": 3,
+      "examined": 0,
+      "nodeLimit": false,
+      "context": {
+        "visibleDialogs": 0,
+        "wrapperDialogs": 0,
+        "wrapperNodes": 0,
+        "publicGroupSignals": 0
+      },
+      "barriers": {
+        "state": "VISIBLE",
+        "reason": "NONE",
+        "kind": "AUTH",
+        "evidence": "AUTH_FIELD",
+        "inspected": 1,
+        "hidden": 0,
+        "empty": 0,
+        "visible": 1,
+        "descendants": 0,
+        "ancestors": 2,
+        "overflow": false
+      },
+      "summarySha256": "2ebc01f8ad4237d97ad0f6eaa17ec2898e2f9a331ce6b3126735ed2e2a746668"
+    },
+    {
+      "status": "CHALLENGE",
+      "candidateCount": 0,
+      "visited": 3,
+      "examined": 0,
+      "nodeLimit": false,
+      "context": {
+        "visibleDialogs": 0,
+        "wrapperDialogs": 0,
+        "wrapperNodes": 0,
+        "publicGroupSignals": 0
+      },
+      "barriers": {
+        "state": "VISIBLE",
+        "reason": "NONE",
+        "kind": "CHALLENGE",
+        "evidence": "CHALLENGE_TEXT",
+        "inspected": 1,
+        "hidden": 0,
+        "empty": 0,
+        "visible": 1,
+        "descendants": 0,
+        "ancestors": 2,
+        "overflow": false
+      },
+      "summarySha256": "befa66f78cc16bf6d8953d6ba0bde1afdd8eac0c42df426fb9e23bcbf16aa154"
+    },
+    {
+      "status": "UNSUPPORTED_OVERLAY",
+      "candidateCount": 0,
+      "visited": 19,
+      "examined": 0,
+      "nodeLimit": false,
+      "context": {
+        "visibleDialogs": 3,
+        "wrapperDialogs": 0,
+        "wrapperNodes": 0,
+        "publicGroupSignals": 0
+      },
+      "barriers": {
+        "state": "VISIBLE",
+        "reason": "NONE",
+        "kind": "OVERLAY",
+        "evidence": "MODAL_BOX",
+        "inspected": 3,
+        "hidden": 0,
+        "empty": 0,
+        "visible": 1,
+        "descendants": 0,
+        "ancestors": 8,
+        "overflow": false
+      },
+      "summarySha256": "c1ef7af075091d19540edc1f8c7386c8c9dc7de3e7d43e934e4b1ab33bea257d"
+    }
+  ],
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

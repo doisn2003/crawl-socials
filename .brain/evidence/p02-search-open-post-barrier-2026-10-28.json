@@ -1,0 +1,87 @@
+{
+  "task": "P02_OBSERVED_SEARCH_POST_OPEN",
+  "caseKind": "post-barrier",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "result": "INCONCLUSIVE",
+      "reason": "CHALLENGE",
+      "clickAttempts": 1,
+      "clicks": 1,
+      "postReads": 1,
+      "discovery": {
+        "scan_sha256": "1398de740edc283dfd984b80e9881bc1855547b057145296c5af2366e1c77a81",
+        "status": "SAMPLES_READY",
+        "visited": 83,
+        "examined": 1,
+        "opening": {
+          "version": 1,
+          "phase": "DISCOVER",
+          "status": "TARGETS_READY",
+          "targets": [
+            {
+              "index": 0,
+              "href_kind": "SEARCH_PLACEHOLDER",
+              "timestamp_proof": "LABEL"
+            }
+          ],
+          "click_count": 0,
+          "selected_index": null,
+          "qualified_headers": 1,
+          "no_timestamp_headers": 0,
+          "ambiguous_headers": 0
+        }
+      },
+      "click": {
+        "scan_sha256": "f9b4020654300b9403441bec216e1cac3ccb2aa1668169e1bf9b85c87504cedc",
+        "status": "SAMPLES_READY",
+        "visited": 83,
+        "examined": 1,
+        "opening": {
+          "version": 1,
+          "phase": "CLICK",
+          "status": "CLICK_DISPATCHED",
+          "targets": [
+            {
+              "index": 0,
+              "href_kind": "SEARCH_PLACEHOLDER",
+              "timestamp_proof": "LABEL"
+            }
+          ],
+          "click_count": 1,
+          "selected_index": 0,
+          "qualified_headers": 1,
+          "no_timestamp_headers": 0,
+          "ambiguous_headers": 0
+        }
+      },
+      "eventTrace": [
+        {
+          "kind": "SAME_DOCUMENT",
+          "phase": "OPENING",
+          "frame": "MAIN",
+          "route": "SEARCH_EXACT",
+          "generation": 0,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "phase": "OPENING",
+          "frame": "MAIN",
+          "route": "POST_OBSERVED",
+          "generation": 0,
+          "decision": "EXPECTED"
+        }
+      ],
+      "summarySha256": "6bd5b1ae31886888758069270fb4bb986af5b00b3faf56c833ca2d664cfe00f7"
+    }
+  ],
+  "browserClicks": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

@@ -1,0 +1,55 @@
+{
+  "task": "R06_VISIBLE_STARTUP",
+  "reportVersion": 1,
+  "mode": "NORMAL_DIAGNOSTIC",
+  "smoke": false,
+  "recordedAt": "2026-10-27T10:52:24.589Z",
+  "pid": 1552,
+  "electron": "44.7.0",
+  "node": "24.21.0",
+  "visible": true,
+  "minimized": false,
+  "loading": false,
+  "mainManualLoginEnabled": true,
+  "uiDebuggerAttached": false,
+  "browserOpenViews": 0,
+  "probeLiveAvailable": false,
+  "probeState": "IDLE",
+  "rendererErrors": [],
+  "dom": {
+    "ready": true,
+    "readyState": "complete",
+    "titleMatches": true,
+    "headingMatches": true,
+    "profileFormPresent": true,
+    "profileLabelPresent": true,
+    "offlineButtonEnabled": true,
+    "probeStartDisabled": true,
+    "bodyChildren": 1,
+    "contentHeight": 1291,
+    "viewport": {
+      "width": 1104,
+      "height": 781
+    },
+    "manualLoginEnabled": true,
+    "profileCount": 0,
+    "probeLiveAvailable": false,
+    "probeAvailable": false,
+    "probeState": "IDLE",
+    "probeActions": 0,
+    "diagnosticCaptures": 0,
+    "nodeAvailable": false,
+    "bridgeKeys": [
+      "getInfo",
+      "probe",
+      "profiles",
+      "runOfflineCheck"
+    ]
+  },
+  "capture": {
+    "width": 1104,
+    "height": 781,
+    "distinctFromBackground": 392391,
+    "screenshotKind": "ELECTRON_CAPTURE_PAGE_NOT_NATIVE_WINDOW_WITNESS"
+  }
+}

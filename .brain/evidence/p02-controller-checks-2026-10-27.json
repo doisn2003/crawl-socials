@@ -1,0 +1,18 @@
+{
+  "task": "P02.02_CONTROLLER_FIXTURE",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "record_semantics": "Completed command exits/counts transcribed from tool output; no raw test payloads",
+  "result": "PASS",
+  "commands": [
+    { "command": "npm run check", "exit": 0, "contract_checks": 44 },
+    { "command": "npm test", "exit": 0, "unit_tests": 89, "contract_checks": 44, "includes_other_owner_intent_tests": 16 },
+    { "command": "node --test --test-reporter=spec .test-build/tests/probe-controller.test.js .test-build/tests/probe-freeze.test.js", "exit": 0, "unit_tests": 20 },
+    { "command": "npm run test:probe", "exit": 0, "launches": 2, "checks": 9, "diagnostic_captures": 15, "verified_valid_unique_posts": 0 },
+    { "command": "npm run test:session", "exit": 0, "launches": 3, "checks": 13 },
+    { "command": "npm run test:observer", "exit": 0, "checks": 9, "diagnostic_captures": 10, "note": "First regression attempt failed without detailed fixed code; instrumented rerun passed" },
+    { "command": "npm run test:smoke", "exit": 0, "launches": 2 },
+    { "command": "node scripts/observer-debug.mjs --mode replay --fixture tests/fixtures/observer/malformed-input.txt", "exit": 1, "expected_failure": true, "stdout": "", "stderr": "OBSERVER_DEBUG_FAILED", "input_marker_echoed": false }
+  ],
+  "limitations": ["Offline fixtures and injected faults only", "No live Facebook source/parser or gate evaluation", "No portable/package execution test in this dispatch"]
+}

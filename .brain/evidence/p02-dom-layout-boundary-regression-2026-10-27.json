@@ -1,0 +1,526 @@
+{
+  "task": "P02_CANDIDATE_BOUNDARY",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 3,
+  "cases": [
+    {
+      "status": "SAMPLES_READY",
+      "candidateCount": 2,
+      "visited": 76,
+      "nodeLimit": false,
+      "selection": {
+        "firstFeedFound": true,
+        "feedLandmarks": false,
+        "fallbackUsed": true,
+        "feedExamined": 6,
+        "mainExamined": 2,
+        "coLocationMisses": 0,
+        "fallbackScan": "COMPLETE",
+        "discoveryHints": {
+          "headings": 1,
+          "temporal": 1,
+          "publicLabels": 1,
+          "restrictedLabels": 0,
+          "messageRegions": 1,
+          "articles": 1,
+          "outsideFeed": 19
+        }
+      },
+      "rejectionShapes": [
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 0,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 1,
+            "navigation": 0,
+            "comment": 0
+          },
+          "layout": {
+            "contents": 0,
+            "boxless": 0,
+            "hidden": 0,
+            "textRanges": 0,
+            "textRangeMisses": 0
+          },
+          "messages": {
+            "markers": 0,
+            "groups": 0,
+            "nestedAliases": 0,
+            "nestedUnresolved": 0,
+            "sibling": 0,
+            "disjoint": 0,
+            "nestedDirect": 0,
+            "nestedShallow": 0,
+            "nestedDeep": 0,
+            "depthLimit": false,
+            "groupingComplete": true
+          },
+          "header": {
+            "clusterFound": false,
+            "ancestorLimit": false
+          }
+        },
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 0,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 1,
+            "navigation": 0,
+            "comment": 0
+          },
+          "layout": {
+            "contents": 0,
+            "boxless": 0,
+            "hidden": 0,
+            "textRanges": 0,
+            "textRangeMisses": 0
+          },
+          "messages": {
+            "markers": 0,
+            "groups": 0,
+            "nestedAliases": 0,
+            "nestedUnresolved": 0,
+            "sibling": 0,
+            "disjoint": 0,
+            "nestedDirect": 0,
+            "nestedShallow": 0,
+            "nestedDeep": 0,
+            "depthLimit": false,
+            "groupingComplete": true
+          },
+          "header": {
+            "clusterFound": false,
+            "ancestorLimit": false
+          }
+        },
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 0,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 1,
+            "navigation": 0,
+            "comment": 0
+          },
+          "layout": {
+            "contents": 0,
+            "boxless": 0,
+            "hidden": 0,
+            "textRanges": 0,
+            "textRangeMisses": 0
+          },
+          "messages": {
+            "markers": 0,
+            "groups": 0,
+            "nestedAliases": 0,
+            "nestedUnresolved": 0,
+            "sibling": 0,
+            "disjoint": 0,
+            "nestedDirect": 0,
+            "nestedShallow": 0,
+            "nestedDeep": 0,
+            "depthLimit": false,
+            "groupingComplete": true
+          },
+          "header": {
+            "clusterFound": false,
+            "ancestorLimit": false
+          }
+        }
+      ],
+      "summarySha256": "4a7f878e9c28ce4ee3052589b7dc0a7badcfe1995b17f3a3bb940ca47ab63e1f"
+    },
+    {
+      "status": "SAMPLES_READY",
+      "candidateCount": 1,
+      "visited": 55,
+      "nodeLimit": false,
+      "selection": {
+        "firstFeedFound": true,
+        "feedLandmarks": true,
+        "fallbackUsed": false,
+        "feedExamined": 3,
+        "mainExamined": 0,
+        "coLocationMisses": 0,
+        "fallbackScan": "NOT_USED",
+        "discoveryHints": {
+          "headings": 0,
+          "temporal": 0,
+          "publicLabels": 0,
+          "restrictedLabels": 0,
+          "messageRegions": 0,
+          "articles": 0,
+          "outsideFeed": 0
+        }
+      },
+      "rejectionShapes": [
+        {
+          "origin": "FEED_CHILD",
+          "reason": "RESTRICTED",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 1,
+            "temporal": 1,
+            "publicLabels": 0,
+            "restrictedLabels": 1,
+            "messageRegions": 1,
+            "outsideHeaderDepth": 2
+          },
+          "prunes": {
+            "article": 1,
+            "hidden": 0,
+            "control": 0,
+            "navigation": 0,
+            "comment": 1
+          },
+          "layout": {
+            "contents": 0,
+            "boxless": 0,
+            "hidden": 0,
+            "textRanges": 0,
+            "textRangeMisses": 0
+          },
+          "messages": {
+            "markers": 1,
+            "groups": 1,
+            "nestedAliases": 0,
+            "nestedUnresolved": 0,
+            "sibling": 0,
+            "disjoint": 0,
+            "nestedDirect": 0,
+            "nestedShallow": 0,
+            "nestedDeep": 0,
+            "depthLimit": false,
+            "groupingComplete": true
+          },
+          "header": {
+            "clusterFound": false,
+            "ancestorLimit": true
+          }
+        },
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER_CLUSTER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "COMPLETE",
+          "hints": {
+            "headings": 1,
+            "temporal": 1,
+            "publicLabels": 1,
+            "restrictedLabels": 0,
+            "messageRegions": 1,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 0,
+            "navigation": 0,
+            "comment": 0
+          },
+          "layout": {
+            "contents": 0,
+            "boxless": 0,
+            "hidden": 0,
+            "textRanges": 0,
+            "textRangeMisses": 0
+          },
+          "messages": {
+            "markers": 1,
+            "groups": 1,
+            "nestedAliases": 0,
+            "nestedUnresolved": 0,
+            "sibling": 0,
+            "disjoint": 0,
+            "nestedDirect": 0,
+            "nestedShallow": 0,
+            "nestedDeep": 0,
+            "depthLimit": false,
+            "groupingComplete": true
+          },
+          "header": {
+            "clusterFound": false,
+            "ancestorLimit": false
+          }
+        }
+      ],
+      "summarySha256": "5a6282822442e2fc35960296b46be8b46614f20e9bb6f740f690e08e9b326959"
+    },
+    {
+      "status": "NO_PUBLIC_CANDIDATE",
+      "candidateCount": 0,
+      "visited": 2500,
+      "nodeLimit": true,
+      "selection": {
+        "firstFeedFound": true,
+        "feedLandmarks": false,
+        "fallbackUsed": true,
+        "feedExamined": 6,
+        "mainExamined": 1,
+        "coLocationMisses": 0,
+        "fallbackScan": "PARTIAL",
+        "discoveryHints": {
+          "headings": 0,
+          "temporal": 0,
+          "publicLabels": 0,
+          "restrictedLabels": 0,
+          "messageRegions": 0,
+          "articles": 1,
+          "outsideFeed": 2
+        }
+      },
+      "rejectionShapes": [
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 0,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 1,
+            "navigation": 0,
+            "comment": 0
+          },
+          "layout": {
+            "contents": 0,
+            "boxless": 0,
+            "hidden": 0,
+            "textRanges": 0,
+            "textRangeMisses": 0
+          },
+          "messages": {
+            "markers": 0,
+            "groups": 0,
+            "nestedAliases": 0,
+            "nestedUnresolved": 0,
+            "sibling": 0,
+            "disjoint": 0,
+            "nestedDirect": 0,
+            "nestedShallow": 0,
+            "nestedDeep": 0,
+            "depthLimit": false,
+            "groupingComplete": true
+          },
+          "header": {
+            "clusterFound": false,
+            "ancestorLimit": false
+          }
+        },
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 0,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 1,
+            "navigation": 0,
+            "comment": 0
+          },
+          "layout": {
+            "contents": 0,
+            "boxless": 0,
+            "hidden": 0,
+            "textRanges": 0,
+            "textRangeMisses": 0
+          },
+          "messages": {
+            "markers": 0,
+            "groups": 0,
+            "nestedAliases": 0,
+            "nestedUnresolved": 0,
+            "sibling": 0,
+            "disjoint": 0,
+            "nestedDirect": 0,
+            "nestedShallow": 0,
+            "nestedDeep": 0,
+            "depthLimit": false,
+            "groupingComplete": true
+          },
+          "header": {
+            "clusterFound": false,
+            "ancestorLimit": false
+          }
+        },
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 0,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 1,
+            "navigation": 0,
+            "comment": 0
+          },
+          "layout": {
+            "contents": 0,
+            "boxless": 0,
+            "hidden": 0,
+            "textRanges": 0,
+            "textRangeMisses": 0
+          },
+          "messages": {
+            "markers": 0,
+            "groups": 0,
+            "nestedAliases": 0,
+            "nestedUnresolved": 0,
+            "sibling": 0,
+            "disjoint": 0,
+            "nestedDirect": 0,
+            "nestedShallow": 0,
+            "nestedDeep": 0,
+            "depthLimit": false,
+            "groupingComplete": true
+          },
+          "header": {
+            "clusterFound": false,
+            "ancestorLimit": false
+          }
+        },
+        {
+          "origin": "MAIN_ARTICLE",
+          "reason": "INCOMPLETE_BOUNDARY",
+          "tag": "ARTICLE",
+          "role": "OTHER",
+          "depth": "DIRECT",
+          "feedRelation": "OUTSIDE",
+          "state": "PARTIAL",
+          "hints": {
+            "headings": 1,
+            "temporal": 1,
+            "publicLabels": 1,
+            "restrictedLabels": 0,
+            "messageRegions": 1,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 0,
+            "navigation": 0,
+            "comment": 0
+          },
+          "layout": {
+            "contents": 0,
+            "boxless": 0,
+            "hidden": 0,
+            "textRanges": 0,
+            "textRangeMisses": 0
+          },
+          "messages": {
+            "markers": 1,
+            "groups": 1,
+            "nestedAliases": 0,
+            "nestedUnresolved": 0,
+            "sibling": 0,
+            "disjoint": 0,
+            "nestedDirect": 0,
+            "nestedShallow": 0,
+            "nestedDeep": 0,
+            "depthLimit": false,
+            "groupingComplete": false
+          },
+          "header": {
+            "clusterFound": true,
+            "ancestorLimit": false
+          }
+        }
+      ],
+      "summarySha256": "74b8beb761a1e94e75c5a949c8bdb5e0e6f68800c1be9fa2492a8e3a2a552b4b"
+    }
+  ],
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

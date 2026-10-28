@@ -1,0 +1,77 @@
+{
+  "task": "P02_DOM_DIAGNOSTIC",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 2,
+  "menuInstalled": true,
+  "cases": [
+    {
+      "status": "HEURISTIC_MATCH",
+      "mode": "FIXTURE",
+      "route": "SEARCH_POSTS",
+      "actions": 1,
+      "sampledStructures": 5,
+      "root": {
+        "kind": "MAIN_TAG",
+        "probes": 3,
+        "candidates": 2,
+        "cap": 3,
+        "enumeration": "FIRST_PER_SELECTOR",
+        "verified": false
+      },
+      "visited": 122,
+      "scan": "COMPLETE",
+      "nodeLimit": false,
+      "postLinkSamples": 5,
+      "ancestorSteps": 15,
+      "resultSha256": "088cc153467a1ade8f2b09af50b54ac5632e58a4b3d82052534d8f25b35d8658"
+    },
+    {
+      "status": "POST_LINK_STRUCTURE",
+      "mode": "FIXTURE",
+      "route": "SEARCH_TOP_MIXED",
+      "actions": 1,
+      "sampledStructures": 0,
+      "root": {
+        "kind": "ROLE_MAIN",
+        "probes": 3,
+        "candidates": 1,
+        "cap": 3,
+        "enumeration": "FIRST_PER_SELECTOR",
+        "verified": false
+      },
+      "visited": 103,
+      "scan": "COMPLETE",
+      "nodeLimit": false,
+      "postLinkSamples": 5,
+      "ancestorSteps": 40,
+      "resultSha256": "946a4bd00e309878e70087429d1faa3a6e8dd6a1ef5c67a6684ffdf347999f4b"
+    },
+    {
+      "status": "AUTH_REQUIRED",
+      "mode": "FIXTURE",
+      "route": "SEARCH_TOP_MIXED",
+      "actions": 1,
+      "sampledStructures": 0,
+      "root": {
+        "kind": "NONE",
+        "probes": 0,
+        "candidates": 0,
+        "cap": 3,
+        "enumeration": "FIRST_PER_SELECTOR",
+        "verified": false
+      },
+      "visited": 0,
+      "scan": "NOT_SCANNED",
+      "nodeLimit": false,
+      "postLinkSamples": 0,
+      "ancestorSteps": 0,
+      "resultSha256": "7b59255f018f348d20c9510963347c25bb3861c3f415c657cc00bba043b2c63b"
+    }
+  ],
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

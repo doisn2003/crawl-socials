@@ -1,0 +1,133 @@
+{
+  "task": "P02.02_CONTROLLER_FIXTURE",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "codeVersion": "SHA-256; no Git repository",
+  "scope": "Owned controller/wiring/tooling/evidence only; built manifest pins wider source/build including other owners, without asserting ownership",
+  "files": [
+    {
+      "path": "package.json",
+      "sha256": "7f159c1b51925dd751ea43932d82b0e3ac1428ddfb494b1ac4baa201d4357ccc"
+    },
+    {
+      "path": "README.md",
+      "sha256": "90db365e6637b122f08e1a54911ce17c4a60f5adf78a7a32e168886905530407"
+    },
+    {
+      "path": "src/main/index.ts",
+      "sha256": "d7739c2d66c8dcb7f343b87cbb08c1f0eb2dc4d6e0c9bd8bbfdb72b1bb300989"
+    },
+    {
+      "path": "src/main/probe-contract.ts",
+      "sha256": "6e63d718134277def08ce49465c98c7d753229463443dcd4c572c07bae06cde2"
+    },
+    {
+      "path": "src/main/probe-controller.ts",
+      "sha256": "0d4cdd81807e74fd6cee9db7063b2e2375d47c497a586cff2aefeb7796114c9d"
+    },
+    {
+      "path": "src/main/probe-writer.ts",
+      "sha256": "81f3b77c298f496b80b85569d97a7a112c185ec7309291e5a13fe1448b3ecb0e"
+    },
+    {
+      "path": "src/main/probe-freeze.ts",
+      "sha256": "2fb44ffc397a442b321ce49835e5717de98ac0f308b1261db748566ac72e2624"
+    },
+    {
+      "path": "src/main/probe-ipc-policy.ts",
+      "sha256": "3f6dc0efaec448e67150de3342e17701c5c352360e4cd6b71bd66faea925d3ca"
+    },
+    {
+      "path": "src/main/electron-probe-driver.ts",
+      "sha256": "6b051010b29b37d75349f0870549d85e80346b8850c7a5aa7767794191683d9b"
+    },
+    {
+      "path": "src/main/probe-smoke.ts",
+      "sha256": "5412fc8685779ee68f7049d48e14ba5cb5a030602be085b100866e5f3375e4f5"
+    },
+    {
+      "path": "src/shared/desktop-api.d.ts",
+      "sha256": "79040630f7aab5c690d0ffebfef77248a142cc75eb86d05cfa43218f413aa8c2"
+    },
+    {
+      "path": "src/preload/index.cts",
+      "sha256": "70bc49cb9bec4181dc40dc5e0f3861c421f67b950df0af956858399374766e40"
+    },
+    {
+      "path": "src/renderer/app.ts",
+      "sha256": "2f6e63729f30a326059d52745f62aa73193651c71028a3a814974c6b9a6d5dc4"
+    },
+    {
+      "path": "src/renderer/index.html",
+      "sha256": "fd6ae28e571a6586fd1aac47f5a302397eb26d68fa0a58a85c0eea1f2d2c1b07"
+    },
+    {
+      "path": "src/renderer/styles.css",
+      "sha256": "3ddfc3680f5d38792e15a160f832c8a52435949d5aecfe0bd0f0805d04867d39"
+    },
+    {
+      "path": "scripts/freeze-probe-build.mjs",
+      "sha256": "4c5b0b1c027da609ec0dea35ea8b375f67a70b4e610b8b421ab6b79531ee953e"
+    },
+    {
+      "path": "scripts/probe-fixture.mjs",
+      "sha256": "9bcd6fc9f909b23ed3d2164cdff576d94e80e4b6083321aeb5e10ce28460bc82"
+    },
+    {
+      "path": "scripts/bootstrap-smoke.mjs",
+      "sha256": "b4ac8d05dcd337e833b44ffe37cf2c1012dd0fa7a39bc9d869b4d07e95028538"
+    },
+    {
+      "path": "scripts/observer-debug.mjs",
+      "sha256": "005208ba098671c3709e036de01f4e62c70687dae2a4ed50784f264beb6d7bb1"
+    },
+    {
+      "path": "tests/probe-controller.test.ts",
+      "sha256": "8369add88b617be0828b4a600eb201dbf8f9541844877ffa22fbc2c33c2c2e6d"
+    },
+    {
+      "path": "tests/probe-freeze.test.ts",
+      "sha256": "4af81aea5af13b0a714d620382c5507b9b96a0c29be9681553aefdbca5cdb24c"
+    },
+    {
+      "path": "tests/fixtures/observer/malformed-input.txt",
+      "sha256": "88ae0b0457d93762d85fd88af23cf81566b85fe92f7202df004aabc8527e214f"
+    },
+    {
+      "path": ".brain/evidence/p02-controller-validation-2026-10-27.md",
+      "sha256": "c2ed94255c0dec139b5dfeadc9d4703a99f2835ffa2295865841c10fd28d0787"
+    },
+    {
+      "path": ".brain/handoffs/csd-probe-controller-p0202-2026-10-27.md",
+      "sha256": "024d84f576d9def1e46bee52f423876134846c648875ce6f6d3ddf1f0f053e7c"
+    },
+    {
+      "path": ".brain/evidence/p02-controller-checks-2026-10-27.json",
+      "sha256": "5a86048e52db99338cc21dedf7546275f70167a3d2df871023b4014bbee2843a"
+    },
+    {
+      "path": ".brain/evidence/p02-controller-smoke-2026-10-27.json",
+      "sha256": "e923e56227cdb110773b93163470a5e414026dd0441c539451640c09facddbc3"
+    },
+    {
+      "path": ".brain/evidence/p02-controller-session-regression-2026-10-27.json",
+      "sha256": "635e809bfe8c84dc3ad19fe1174adc45bd5db8760f53a8003c3125acc9c91ee0"
+    },
+    {
+      "path": ".brain/evidence/p02-controller-bootstrap-regression-2026-10-27.json",
+      "sha256": "830894fda3855d5f9c413284352b4b6510649a6359bb1bd0ac6497f6f2c9de74"
+    },
+    {
+      "path": ".brain/evidence/p02-controller-observer-regression-2026-10-27.json",
+      "sha256": "281d9cab8c56237abd70b3dcc1dd6cf2016ed25f0be5c4cc60878b5afb701d43"
+    },
+    {
+      "path": ".brain/evidence/p02-controller-ui-2026-10-27.png",
+      "sha256": "c72705e7637cd82f3689ef6f44d92ffecf9b75e5ef86e5c5bd50738f2eac044a"
+    },
+    {
+      "path": "dist/resources/probe-build.json",
+      "sha256": "6fdae8e77031567ab7e02f9fa3dfdc35de40b73fad001a74b6faaf66e13c6f77"
+    }
+  ]
+}

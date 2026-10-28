@@ -1,0 +1,43 @@
+{
+  "phase": "PRELIMINARY_BEFORE_FINAL_OWNER_HANDOFF",
+  "createdAt": "2026-10-27T21:21:05.757Z",
+  "reviewerTests": 6,
+  "passed": 6,
+  "files": [
+    {
+      "path": "src/main/facebook-post-route-verification.ts",
+      "sha256": "386676542ca9e6cafbe7f3835a2fbc29a27b662a5321fb5a95fbb8d853dd859a",
+      "readStartSha256": "475a0818898d64916a733ad7716d8f6b4e87124b630273acc4084a26d49b9700",
+      "unchanged": false
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic-menu.ts",
+      "sha256": "d934fc4102c5959e2d9fb4c963322b848e73f2cb39d2668aa573c1f48d59a506",
+      "readStartSha256": "d934fc4102c5959e2d9fb4c963322b848e73f2cb39d2668aa573c1f48d59a506",
+      "unchanged": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate.ts",
+      "sha256": "828d32b849d5120a4e35bf5a96c9d6d35143eb2d21b34f6d1a92d75c25509537",
+      "readStartSha256": "828d32b849d5120a4e35bf5a96c9d6d35143eb2d21b34f6d1a92d75c25509537",
+      "unchanged": true
+    },
+    {
+      "path": "tests/facebook-post-route-verification-review.test.ts",
+      "sha256": "4c9dbeb651c42a4513b33addab0fe84525fd9a283d23046e4edbd0e7e26d250d"
+    },
+    {
+      "path": ".test-build-adapter-candidate/route-preliminary/src/main/facebook-post-route-verification.js",
+      "sha256": "ae9ef399f5eaa64d0683d7981e54ce5457e90dd52a1dff5330404926af6aaa6f"
+    },
+    {
+      "path": ".test-build-adapter-candidate/route-preliminary/src/main/facebook-public-candidate.js",
+      "sha256": "d2309718815267a5bbd4bddb5728f172a9c07d1f0b81d71c50403f4997eb5558"
+    },
+    {
+      "path": ".test-build-adapter-candidate/route-preliminary/tests/facebook-post-route-verification-review.test.js",
+      "sha256": "070b38829af803ee6a56e129da245d233c6b10b619588cb754fa99a9c491d17f"
+    }
+  ],
+  "noRuntimeOrNativeExecution": true
+}

@@ -1,0 +1,111 @@
+{
+  "phase": "PRELIMINARY_NOT_FROZEN",
+  "tests": {
+    "total": 8,
+    "pass": 8,
+    "fail": 0,
+    "native": false
+  },
+  "sourceStableDuringCompile": true,
+  "sourceStableAtReceipt": true,
+  "sourceBefore": [
+    {
+      "sha256": "26824149832ed477032e1c65ea52815d238ee969806b967ef24833e596cd02da",
+      "path": "src/main/facebook-search-post-open.ts"
+    },
+    {
+      "sha256": "af15a79302b8b17b74a625539dcb70b3ea6ff8618c3215994e82da386eb06d21",
+      "path": "src/main/facebook-dom-diagnostic-menu.ts"
+    },
+    {
+      "sha256": "c8a7a7299fe029cc71a0473449bba12f0c122ef2e33ce2f83179a4d5d3234d74",
+      "path": "src/main/facebook-public-candidate-script.ts"
+    },
+    {
+      "sha256": "8f4fc3f469bb664648f5541c4c6c701c6b72b79c1226ea35ac42d3110d02f587",
+      "path": "src/main/facebook-public-candidate-fields.ts"
+    },
+    {
+      "sha256": "4462e1aa158ed5d40205db41f684ef7d33c4a597e9d8ce26d0c4b47c70fc755e",
+      "path": "src/main/facebook-search-post-open-script-hooks.ts"
+    },
+    {
+      "sha256": "2cd4e705d272bc83adb658caccebb04577793405900318d97611c0c32050c82f",
+      "path": "tests/facebook-search-post-open-review.test.ts"
+    }
+  ],
+  "sourceAfter": [
+    {
+      "sha256": "26824149832ed477032e1c65ea52815d238ee969806b967ef24833e596cd02da",
+      "path": "src/main/facebook-search-post-open.ts"
+    },
+    {
+      "sha256": "af15a79302b8b17b74a625539dcb70b3ea6ff8618c3215994e82da386eb06d21",
+      "path": "src/main/facebook-dom-diagnostic-menu.ts"
+    },
+    {
+      "sha256": "c8a7a7299fe029cc71a0473449bba12f0c122ef2e33ce2f83179a4d5d3234d74",
+      "path": "src/main/facebook-public-candidate-script.ts"
+    },
+    {
+      "sha256": "8f4fc3f469bb664648f5541c4c6c701c6b72b79c1226ea35ac42d3110d02f587",
+      "path": "src/main/facebook-public-candidate-fields.ts"
+    },
+    {
+      "sha256": "4462e1aa158ed5d40205db41f684ef7d33c4a597e9d8ce26d0c4b47c70fc755e",
+      "path": "src/main/facebook-search-post-open-script-hooks.ts"
+    },
+    {
+      "sha256": "2cd4e705d272bc83adb658caccebb04577793405900318d97611c0c32050c82f",
+      "path": "tests/facebook-search-post-open-review.test.ts"
+    }
+  ],
+  "sourceAtReceipt": [
+    {
+      "path": "src/main/facebook-search-post-open.ts",
+      "sha256": "26824149832ed477032e1c65ea52815d238ee969806b967ef24833e596cd02da"
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic-menu.ts",
+      "sha256": "af15a79302b8b17b74a625539dcb70b3ea6ff8618c3215994e82da386eb06d21"
+    },
+    {
+      "path": "src/main/facebook-public-candidate-script.ts",
+      "sha256": "c8a7a7299fe029cc71a0473449bba12f0c122ef2e33ce2f83179a4d5d3234d74"
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fields.ts",
+      "sha256": "8f4fc3f469bb664648f5541c4c6c701c6b72b79c1226ea35ac42d3110d02f587"
+    },
+    {
+      "path": "src/main/facebook-search-post-open-script-hooks.ts",
+      "sha256": "4462e1aa158ed5d40205db41f684ef7d33c4a597e9d8ce26d0c4b47c70fc755e"
+    },
+    {
+      "path": "tests/facebook-search-post-open-review.test.ts",
+      "sha256": "2cd4e705d272bc83adb658caccebb04577793405900318d97611c0c32050c82f"
+    }
+  ],
+  "compiled": [
+    {
+      "path": ".test-build-adapter-candidate/search-open-lifecycle-preliminary/src/main/facebook-search-post-open.js",
+      "sha256": "538ea83b9e1467fe4d6871942b41221bfa2f5b1284e35846acd538e009b537bc"
+    },
+    {
+      "path": ".test-build-adapter-candidate/search-open-lifecycle-preliminary/src/main/facebook-public-candidate-script.js",
+      "sha256": "842eac63c2e56fb96617d3928a04c365e0a1c831416daa3e631881cafe04f1b1"
+    },
+    {
+      "path": ".test-build-adapter-candidate/search-open-lifecycle-preliminary/src/main/facebook-public-candidate-fields.js",
+      "sha256": "72a016e5e3468947f25c9a7f4a50af3b6d5b4e9615967fac9da262e0907f01f0"
+    },
+    {
+      "path": ".test-build-adapter-candidate/search-open-lifecycle-preliminary/src/main/facebook-search-post-open-script-hooks.js",
+      "sha256": "7e12f88984d4985febd470d09fa4f531fe36d784936d8b17ca853fa8c29e8f6a"
+    },
+    {
+      "path": ".test-build-adapter-candidate/search-open-lifecycle-preliminary/tests/facebook-search-post-open-review.test.js",
+      "sha256": "f91da429de8c7f4ae45446296896a7aa1a49e4eb2e08158798733935b8ff345f"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "task": "P02_POST_ROUTE_VERIFICATION",
+  "caseKind": "redirect",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "label": "CURRENT_POST_ANCHOR",
+      "status": "SAMPLES_READY",
+      "summarySha256": "035e998e503755ccffa875226eac5aaed993f26cb3dbe3f28a6cca93c5b02612"
+    },
+    {
+      "label": "NO_ANCHOR",
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ANCHOR"
+    },
+    {
+      "label": "REDIRECT",
+      "result": "INCONCLUSIVE",
+      "reason": "ROUTE_CHANGED",
+      "navigationCount": 1,
+      "readCount": 0,
+      "freshDocument": false,
+      "summarySha256": "3afa8061476b8c44f76a4b98edfff25c58ca76b2b41293511a30cfbe2c0df75a"
+    }
+  ],
+  "reopenRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

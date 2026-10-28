@@ -1,0 +1,21 @@
+# P02.02 — Layout pruning, message nesting và header scope
+
+Ngày 2026-10-27. Đọc [LIVE v2](../evidence/p02-live-candidate-boundary-v2-2026-10-27.md) và JSON summary kèm theo. V2 đã chạy30ms/380nodes, main fallback xem1article nhưng rejected AMBIGUOUS:2message markers,2outsideHeaderDepth; còn hidden prune ở feed và article. Chưa candidate, không có dấu hiệu auth/deny. Không hỏi lại login/API.
+
+Owner tiếp tục **CSD agent**; reviewer `/root/csd_adapter`. Phạm vi file vẫn candidate script/controller/fields/owner test/native fixture, docs prefix `p02-dom-layout`; reviewer chỉ test/evidence riêng. Build/output cô lập như trước, không shared dist/runtime/master/README/gates. Lead giữ runtime22308/main2494008/source4787124 đang có query/public filter,1/3native starts đã dùng.
+
+1. **Phân biệt subtree ẩn với wrapper không có hộp layout.** `getClientRects().length===0` hiện đủ để prune cả subtree. Dùng native fixture với `display:contents` chứa post hiển thị để kiểm nghi vấn; nếu tái hiện, cho traversal đi qua wrapper hợp lệ mà không coi wrapper là text/rendered candidate. Giữ display:none/hidden/aria-hidden/visibility và negative-source guards; descendants phải có kiểm visibility phù hợp. Metadata chỉ enum lý do prune/layout category/count, không CSS/class/attribute values. Không khẳng định Facebook dùng display:contents trước evidence.
+2. **Phân biệt marker lồng nhau và hai vùng nội dung khác nhau.** LIVE báo2markers nhưng chưa biết quan hệ. Ghi bounded relationship metadata (same element đã OR, strict nested/sibling/disjoint, depth buckets; không body/text). Nếu markers chỉ bọc cùng một message thì normalize một body khi đủ cấu trúc; không gộp sibling bodies, shared/embedded posts hoặc quotes không rõ thành một bài. Fixture phải có cả nested-alias dương và distinct-body âm; không đơn giản bỏ c.bodies>1.
+3. **Header sâu:** không chỉ tăng depth6 vô hạn. Khi exact boundary được khám phá, tìm cluster heading/time/public trong bounded walk và ghi lý do không nhận được từng loại tín hiệu. Có thể chọn root/header cluster gần hơn hoặc thay absolute-depth guard bằng containment/cluster checks có giới hạn; không lấy sidebar/public/body label làm header. Thiếu temporal/permalink vẫn null/UNKNOWN và không fabrication. Metadata về temporal node tag/role/format nếu cần chỉ fixed enums/counts, không full aria-label/date/URL. Không hover/click/Xem thêm/network body ở lượt này.
+4. Giữ global2500nodes/deadline1s/main4s,≤12boundaries,≤5candidates và≤5shape samples; không reset budget trong layout/normalization/header pass. Fixed script/validator/envelope cùng version nếu đổi schema. Payload local ngoài repo; summary/hashes không có body/name/permalink/contact. Stop/owner-change/late result, footer restricted/ad, split-node contact và private/embedded regressions phải giữ.
+
+Đầu ra cần là code chạy được, native fixture phản ánh các lỗi tái hiện, handoff/hash và missing-evidence cụ thể. Ưu tiên sửa bug đã chứng minh; nếu alias/header shape chưa đủ evidence, thêm metadata tối thiểu ngay trong cùng đường trích để lượt thật kế tiếp phân biệt được nguyên nhân. Không framework/SQLite/UI/scale mới, không retry nguyên build trên trang không đổi. Lead nghiệm thu rồi chạy một read tiếp; chưa tự nâng gate hoặc bắt đầu continuation.
+
+## Cases reviewer bổ sung trước triển khai
+
+Subagent đã đọc evidence/dispatch và trả review rủi ro, hiện dừng chờ code-ready:
+
+- Wrapper `display:contents` chỉ cho traversal đi qua; tín hiệu phải thuộc descendant hiển thị. Cùng cấu trúc dưới display:none/hidden/aria-hidden/visibility:hidden phải bị loại; kiểm cả child cố bật visibility để không vô tình bỏ guard ancestor của CSD.
+- Nested-marker dương phải có một message trong cùng boundary. Negative gồm inner marker có header/time/public riêng, outer có phần nội dung độc lập, sibling/disjoint bodies và shared/quoted post. Không hợp nhất chỉ vì containment.
+- Header sâu phải gắn với body của exact boundary. Public ở body/sidebar/embedded article hoặc temporal ở bài sibling không được ghép thành header hợp lệ.
+- Các pass layout/normalization/header cộng vào cùng node/deadline budget; partial không được ghi candidate chưa kiểm xong. Giữ footer Friends/ad, split-node contact, nested private và lifecycle regressions.

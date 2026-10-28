@@ -1,0 +1,33 @@
+{
+  "task": "P00.02",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "userConfirmedAccess": {
+    "ordinaryPersonalAccount": true,
+    "metaAppOrApiGrant": false,
+    "separateAutomationApproval": false,
+    "requestedResearchRoute": "FB_BROWSER_PUBLIC_SEARCH",
+    "browserCapabilityVerified": false,
+    "permissionForAutomatedCollectionVerified": false,
+    "continueOffline": true
+  },
+  "routeState": "UNKNOWN",
+  "availableRoutes": 0,
+  "facebookDataRequests": 0,
+  "credentialsReadOrStored": false,
+  "sources": [
+    { "url": "https://developers.facebook.com/docs/graph-api/changelog/version19.0/", "result": "FETCH_429", "currentContentVerified": false },
+    { "url": "https://developers.facebook.com/docs/features-reference/page-public-content-access/", "result": "FETCH_429", "currentContentVerified": false },
+    { "url": "https://developers.facebook.com/docs/pages-api/search-pages/", "result": "FETCH_429", "currentContentVerified": false },
+    { "url": "https://developers.facebook.com/docs/pages-api/posts/", "result": "FETCH_429", "currentContentVerified": false },
+    { "url": "https://developers.facebook.com/docs/content-library-and-api/get-access/", "result": "FETCH_429", "currentContentVerified": false },
+    { "url": "https://transparency.meta.com/researchtools/meta-content-library/", "result": "FETCH_429", "currentContentVerified": false },
+    { "url": "https://developers.facebook.com/docs/graph-api/reference/user/posts/", "result": "FETCH_429", "currentContentVerified": false },
+    { "url": "https://developers.facebook.com/docs/graph-api/overview/rate-limiting/", "result": "FETCH_429", "currentContentVerified": false },
+    { "url": "https://www.facebook.com/legal/automated_data_collection_terms", "result": "LOGIN_TEMPORARY_BLOCK_PAGE", "currentContentVerified": false },
+    { "url": "https://about.fb.com/news/2021/04/how-we-combat-scraping/amp/", "result": "READ_PRIMARY_SOURCE", "supports": "Public visibility and automated collection permission are distinct; limits exist", "limitations": "Historical Meta statement, not a permission grant" },
+    { "url": "https://about.fb.com/news/2023/11/new-tools-to-support-independent-research/", "result": "READ_PRIMARY_SOURCE", "supports": "Content Library research access and application context", "limitations": "Announcement updated through 2024, not current operational grant/API docs" },
+    { "url": "https://developers.google.com/search/docs/monitor-debug/search-operators/all-search-site", "result": "READ_PRIMARY_SOURCE", "supports": "site search results are not exhaustive", "limitations": "Not a Facebook data access grant or provider integration" }
+  ],
+  "conclusion": "Source matrix and conditional browser research route documented; no live route AVAILABLE; G00 is not passed."
+}

@@ -1,0 +1,18 @@
+{
+  "baseline": "FROZEN_V21_REUSED_NO_OWNER_SOURCE_COMPILE",
+  "discoverySha256": "bcbb45e85ce60432c6d7d3eb3702e885151c14718d470b3f631ef2b2dd3ccb5d",
+  "files": [
+    {
+      "path": ".test-build-adapter-candidate/search-preflight-v21-baseline/src/main/facebook-search-post-open-script-hooks.js",
+      "sha256": "30f1ec26d7c9a0a415bec325641acc1ae0e1b0d0d5e817168826249f83734aa9"
+    },
+    {
+      "path": ".test-build-adapter-candidate/search-preflight-v21-baseline/src/main/facebook-public-candidate-script.js",
+      "sha256": "2955f6b3194dbf7a3e561ab2c3cee5eefddaf2deaf434f5ae452874aed59c409"
+    },
+    {
+      "path": ".test-build-adapter-candidate/search-preflight-v21-baseline/tests/facebook-search-post-open-review.test.js",
+      "sha256": "d8de4bf90dbde4e0413afeb203913c909b6510ad34d37175ad3fe859ed005025"
+    }
+  ]
+}

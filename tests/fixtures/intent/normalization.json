@@ -1,0 +1,9 @@
+[
+  { "raw": "  Quán\u00a0CÀ\tPHÊ  ", "canonical": "Quán CÀ PHÊ", "case_key": "quán cà phê", "alias": "quan ca phe" },
+  { "raw": "Địa điểm đi coffee", "canonical": "Địa điểm đi coffee", "case_key": "địa điểm đi coffee", "alias": "dia diem di coffee" },
+  { "raw": "\u0085Cafe\u2003Hà\u202fNội\n", "canonical": "Cafe Hà Nội", "case_key": "cafe hà nội", "alias": "cafe ha noi" },
+  { "raw": "Tiny Cafe", "canonical": "Tiny Cafe", "case_key": "tiny cafe", "alias": "tiny cafe" },
+  { "raw": "Tiny Café", "canonical": "Tiny Café", "case_key": "tiny café", "alias": "tiny cafe" },
+  { "raw": "Café Müller ☕", "canonical": "Café Müller ☕", "case_key": "café müller ☕", "alias": "cafe müller ☕" },
+  { "raw": "Ｃａｆｅ", "canonical": "Ｃａｆｅ", "case_key": "ｃａｆｅ", "alias": "ｃａｆｅ" }
+]

@@ -1,0 +1,26 @@
+{
+  "task": "P02_OBSERVED_SEARCH_POST_OPEN",
+  "caseKind": "stop",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "result": "INCONCLUSIVE",
+      "reason": "STOPPED",
+      "clickAttempts": 0,
+      "clicks": 0,
+      "postReads": 0,
+      "discovery": null,
+      "click": null,
+      "eventTrace": [],
+      "summarySha256": "c4f81c253dfcd09d100a8c34c9f9a54341869b8b963d2a332758e03f4eb6cd49"
+    }
+  ],
+  "browserClicks": 0,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

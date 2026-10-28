@@ -1,0 +1,74 @@
+{
+  "protocol_version": "1.0.0",
+  "status": "DRAFT",
+  "run_id": null,
+  "run_kind": "SOURCE_PROBE",
+  "run_temperature": "COLD",
+  "capture_mode": "LIVE",
+  "platform": "FACEBOOK",
+  "collection_scope": "PUBLIC_DISCOVERY",
+  "campaign": {
+    "campaign_id": "coffee-public-facebook-v1",
+    "contract_version": "1.0.0",
+    "sha256": null
+  },
+  "versions": {
+    "code_sha256": null,
+    "configuration_sha256": null,
+    "source_matrix_sha256": null,
+    "adapter_id": "FB_BROWSER_PUBLIC_SEARCH",
+    "adapter_version": null,
+    "parser_version": null,
+    "rubric_version": "coffee-intent-v1"
+  },
+  "selected_queries": ["quán cà phê", "cafe Hà Nội", "Tiny Cafe"],
+  "seed_lineage": [],
+  "source_readiness": [
+    {
+      "route_id": "FB_BROWSER_PUBLIC_SEARCH",
+      "source_types": ["PAGE", "PUBLIC_GROUP", "PUBLIC_PERSONAL"],
+      "session_status": "UNVERIFIED",
+      "session_evidence_ref": null,
+      "technical_status": "UNPROBED",
+      "technical_evidence_ref": null,
+      "permission_status": "UNRESOLVED",
+      "permission_assessment_ref": null,
+      "product_fit": "UNPROVEN"
+    }
+  ],
+  "clock": {
+    "started_at": null,
+    "deadline_at": null,
+    "max_wall_time_seconds": 1800,
+    "policy": "INCLUDES_PAUSE_SLEEP_RETRY_RELOGIN_RESTART",
+    "anomaly_policy": "STOP",
+    "drift_threshold_seconds": 2
+  },
+  "budgets": {
+    "status": "PROPOSED",
+    "decision_ref": null,
+    "currency": "VND",
+    "max_external_cost": 0,
+    "max_requests": 20,
+    "request_unit": "CONTROLLED_COLLECTION_ACTION",
+    "max_queries": 3,
+    "max_batches_per_query": 5,
+    "max_candidates": 100,
+    "max_storage_mb": 50,
+    "max_operator_seconds": 600,
+    "max_retries_per_batch": 1,
+    "no_progress_batches": 2
+  },
+  "data_policy": {
+    "status": "PROPOSED",
+    "decision_ref": null,
+    "purpose": "TECHNICAL_SOURCE_FEASIBILITY",
+    "storage_ref": null,
+    "retention_days": 7,
+    "output_formats": ["JSONL", "JSON_SUMMARY"],
+    "export_scope": "LOCAL_ONLY",
+    "credentials_in_evidence": false,
+    "raw_social_data_in_brain": false
+  },
+  "freeze_sha256": null
+}

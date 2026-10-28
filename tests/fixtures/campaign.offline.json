@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0.0", "contract_version": "1.0.0",
+  "campaign_id": "offline-fixture", "name": "Campaign kiểm tra giả — không phải dữ liệu Facebook",
+  "mode": "DRAFT", "platform": "FACEBOOK", "collection_scope": "PUBLIC_DISCOVERY",
+  "workload": {
+    "confirmation": "EXAMPLE_ONLY", "keywords": ["quán cà phê giả lập"],
+    "intent": "Fixture kiểm tra cấu hình offline, không chứa bài hoặc tài khoản thật.",
+    "exclusions": [], "language": null, "display_timezone": "Asia/Bangkok",
+    "geography": { "mode": "ANY", "places": [], "preferred_places": [], "evidence_rule": null },
+    "content_types": ["TEXT_POST"]
+  },
+  "source_requirements": {
+    "PAGE": { "in_scope": true, "minimum_valid_unique_posts": 1 },
+    "PUBLIC_GROUP": { "in_scope": true, "minimum_valid_unique_posts": 1 },
+    "PUBLIC_PERSONAL": { "in_scope": true, "minimum_valid_unique_posts": 1 }
+  },
+  "historical_window": { "mode": "UNBOUNDED", "from_utc": null, "to_utc": null },
+  "target": { "valid_unique_posts": 1000, "max_wall_time_seconds": 86400, "clock_policy": "INCLUDES_PAUSE_SLEEP_RETRY_RELOGIN_RESTART", "after_target_policy": "CONTINUE_WHILE_PRODUCTIVE_WITHIN_BUDGET" },
+  "identity_policy": { "unique_key": "PLATFORM_POST_ID_OR_VERIFIED_PERMALINK_ALIAS", "shares": "DISTINCT_POST_ID_IF_ALLOWED_AND_VERIFIED", "same_text_different_ids": "KEEP_DISTINCT_LABEL_SIMILARITY" },
+  "discovery_policy": { "seed_policy": "KEYWORDS_AND_SOURCE_URLS_NO_POST_LIST", "source_seeds": [], "expansion": "DISABLED", "allowed_expansions": [], "expansion_rule_version": null },
+  "budgets": { "currency": "VND", "max_cost": null, "max_requests": null, "max_operator_minutes": null, "max_storage_mb": null },
+  "open_questions": ["O03", "O04", "O06"]
+}

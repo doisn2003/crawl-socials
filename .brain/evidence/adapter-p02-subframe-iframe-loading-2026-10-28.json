@@ -1,0 +1,84 @@
+{
+  "task": "P02_POST_ROUTE_VERIFICATION",
+  "caseKind": "iframe-loading",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 2,
+  "nativeHistoryEvents": 0,
+  "nativeSubframeHistoryEvents": 2,
+  "cases": [
+    {
+      "label": "CURRENT_POST_ANCHOR",
+      "status": "SAMPLES_READY",
+      "summarySha256": "135b04e849f7a14b347cfad9d19a2acf2ad684c58a5cb4000aa48b86cddb199d"
+    },
+    {
+      "label": "NO_ANCHOR",
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ANCHOR"
+    },
+    {
+      "label": "IFRAME-LOADING",
+      "result": "REOPEN_MATCH",
+      "reason": "MATCHED",
+      "navigationCount": 1,
+      "readCount": 1,
+      "freshDocument": true,
+      "eventTrace": [
+        {
+          "kind": "START",
+          "event": "DID_START_NAVIGATION",
+          "phase": "NAVIGATING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "DIFFERENT",
+          "owner": "SAME",
+          "generation_delta": 0,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "COMMIT",
+          "event": "DID_NAVIGATE",
+          "phase": "NAVIGATING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_NAVIGATE_IN_PAGE",
+          "phase": "NAVIGATING",
+          "frame": "SUBFRAME",
+          "url_equality": "NOT_APPLICABLE",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_NAVIGATE_IN_PAGE",
+          "phase": "READING",
+          "frame": "SUBFRAME",
+          "url_equality": "NOT_APPLICABLE",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        }
+      ],
+      "traceOverflow": false,
+      "firstCancellation": null,
+      "summarySha256": "dab17d35d97b2dcb5dc9eaff41a0a63c796f8d72f8124631d7277b2c363f004d"
+    }
+  ],
+  "reopenRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

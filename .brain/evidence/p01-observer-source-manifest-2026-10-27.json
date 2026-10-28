@@ -1,0 +1,101 @@
+{
+  "task": "P01.03",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "codeVersion": "SHA-256; no Git repository",
+  "scope": "Observer owned source/evidence only; excludes coordinator and adapter/protocol files",
+  "files": [
+    {
+      "path": "package.json",
+      "sha256": "56c35276ae1c4bbe946865df5f9f3f47b6a94c780b60da5c8dc200f035462532"
+    },
+    {
+      "path": "README.md",
+      "sha256": "642e1944c5c946702127a99561b8bf0c3157e052a26933f8034312b2c8e3a4db"
+    },
+    {
+      "path": "src/application/ports/response-observer.ts",
+      "sha256": "171e92433b34803d226a6edc3a5842b480a9c256794b7d9641fa61c91b5a1df6"
+    },
+    {
+      "path": "src/infrastructure/browser/observer-target.ts",
+      "sha256": "94b481da459e602e67e6d2c3d1a98015cb073c6d64fcb570b4b9169631174ec9"
+    },
+    {
+      "path": "src/infrastructure/browser/response-observer.ts",
+      "sha256": "1442602ccd003cd6249e2a96329136616ec3ef51cd89b780bcae07a41604f8b7"
+    },
+    {
+      "path": "src/infrastructure/browser/electron-observer-target.ts",
+      "sha256": "3d7526dbd5e3ec753af6f2b3fe0745b2fba981e6dc01327594248b4e32a67b5a"
+    },
+    {
+      "path": "src/infrastructure/browser/replay-observer-target.ts",
+      "sha256": "4a3202e8ce880e860cf91c5c4b38b82d61c733e72c0bf44facce62dcf0cb211f"
+    },
+    {
+      "path": "src/infrastructure/browser/replay-fixture.ts",
+      "sha256": "5beca784bcf733be9050e88dd2a9957581ed0ec3b7351fb18681690d48c87a92"
+    },
+    {
+      "path": "src/infrastructure/browser/browser-host.ts",
+      "sha256": "0d46483223e8972d3bc9572b60d351264e6e71d1348d8eab77fbb62c7b1f8bad"
+    },
+    {
+      "path": "src/main/index.ts",
+      "sha256": "695f81cc5a9f17e914e5641d4879911727458be7b829242a72ce8ab9537d2418"
+    },
+    {
+      "path": "src/main/observer-smoke.ts",
+      "sha256": "ad9750a850edd47f0435013c9740c2648c824e26a3c7cb8faa2c2f603bb1b0d1"
+    },
+    {
+      "path": "scripts/observer-debug.mjs",
+      "sha256": "7eb2a79cfc214f850af99c1f08ec869cf01056bfa6b29ce62b7fd02eb96de5c0"
+    },
+    {
+      "path": "tests/observer.test.ts",
+      "sha256": "3f9d5752976d5545c19538a4e29d0ebac8d44c2a087aec59d44a68389ac9880e"
+    },
+    {
+      "path": "tests/fixtures/observer/replay.json",
+      "sha256": "b087560f079e4ccbf7f29a137934b7836ce44ba5139e5a4234cd29a894c88478"
+    },
+    {
+      "path": ".brain/evidence/p01-observer-validation-2026-10-27.md",
+      "sha256": "ed3c20597021234b298d567be6c0bb5a02ed49201917e4009b3da9f3687f8ad8"
+    },
+    {
+      "path": ".brain/evidence/p01-observer-smoke-2026-10-27.json",
+      "sha256": "281d9cab8c56237abd70b3dcc1dd6cf2016ed25f0be5c4cc60878b5afb701d43"
+    },
+    {
+      "path": ".brain/evidence/p01-observer-replay-2026-10-27.json",
+      "sha256": "689890ebc4592e5e40fa266065f4e77e304a1a468b2afa74abfb1ee36e595579"
+    },
+    {
+      "path": ".brain/evidence/p01-observer-query-2026-10-27.json",
+      "sha256": "4e7f0aee159a966868f6873a0490a2e759302effa912643fe9cce31346ba989b"
+    },
+    {
+      "path": ".brain/evidence/p01-observer-redaction-2026-10-27.json",
+      "sha256": "b149588b175d1438c04fd55242d2d974eda283fb86fd3215225f6215bfa62dc8"
+    },
+    {
+      "path": ".brain/evidence/p01-observer-session-regression-2026-10-27.json",
+      "sha256": "635e809bfe8c84dc3ad19fe1174adc45bd5db8760f53a8003c3125acc9c91ee0"
+    },
+    {
+      "path": ".brain/evidence/p01-observer-bootstrap-regression-2026-10-27.json",
+      "sha256": "59bcd54304733964dc758453a40710647f60425131d3facbee99c478ee3a72da"
+    },
+    {
+      "path": ".brain/evidence/p01-observer-bootstrap-regression-2026-10-27.png",
+      "sha256": "1829f97c56eba8ee148161b882331a90472390d022b44ca89c76e8f1ce4f5046"
+    },
+    {
+      "path": ".brain/handoffs/csd-observer-p0103-2026-10-27.md",
+      "sha256": "bfaabe156b073687994b39f690b76ba44ddacc0471d35c276efc845e2c5a41d1"
+    }
+  ]
+}

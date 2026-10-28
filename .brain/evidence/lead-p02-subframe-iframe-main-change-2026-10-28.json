@@ -1,0 +1,78 @@
+{
+  "task": "P02_POST_ROUTE_VERIFICATION",
+  "caseKind": "iframe-main-change",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 2,
+  "nativeHistoryEvents": 1,
+  "nativeSubframeHistoryEvents": 0,
+  "cases": [
+    {
+      "label": "CURRENT_POST_ANCHOR",
+      "status": "SAMPLES_READY",
+      "summarySha256": "dcea18dd3995e7514f7aaf2a05e84283d2b92a62e4e5cd1c715c86ec4f087f18"
+    },
+    {
+      "label": "NO_ANCHOR",
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ANCHOR"
+    },
+    {
+      "label": "IFRAME-MAIN-CHANGE",
+      "result": "INCONCLUSIVE",
+      "reason": "ROUTE_CHANGED",
+      "navigationCount": 1,
+      "readCount": 1,
+      "freshDocument": true,
+      "eventTrace": [
+        {
+          "kind": "START",
+          "event": "DID_START_NAVIGATION",
+          "phase": "NAVIGATING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "DIFFERENT",
+          "owner": "SAME",
+          "generation_delta": 0,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "COMMIT",
+          "event": "DID_NAVIGATE",
+          "phase": "NAVIGATING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_START_NAVIGATION",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "DIFFERENT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "CANCEL"
+        }
+      ],
+      "traceOverflow": false,
+      "firstCancellation": {
+        "reason": "ROUTE_CHANGED",
+        "cause": "URL_CHANGED",
+        "phase": "READING",
+        "event_index": 2
+      },
+      "summarySha256": "b53c21fcab79f38af7add395848755c56ea4afb6d3ff4a2ab543b27fa25e7fb2"
+    }
+  ],
+  "reopenRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

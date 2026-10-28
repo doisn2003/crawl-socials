@@ -1,0 +1,239 @@
+{
+  "mode": "LOCAL_NATIVE_SYNTHETIC",
+  "createdAt": "2026-10-27T20:46:32.873Z",
+  "electron": "44.7.0",
+  "chrome": "152.0.7977.130",
+  "scriptHash": "ed4e51967912dab472d37230103a51d42df722cd1896ae0565f876ece8e633cd",
+  "harnessHash": "9a159a7d2a658fb3a07fd6a005c04505c0a46dd7469eefbd98d6e66fc0a3184b",
+  "cases": [
+    {
+      "name": "small-positive",
+      "rows": 32,
+      "fixtureHash": "95dcb0393412b186e77f68bcfae519c6a7dfbd370105ac68f678b28ab0a183ac",
+      "elapsedMs": 9.399999998509884,
+      "stages": [
+        {
+          "stage": "SECURITY_XPATH",
+          "ms": 2.4000000059604645
+        },
+        {
+          "stage": "DIALOG_XPATH",
+          "ms": 0.09999999403953552
+        }
+      ],
+      "status": "SAMPLES_READY",
+      "visited": 68,
+      "inspected": 2,
+      "barrierState": "CLEAR",
+      "barrierReason": "NONE",
+      "samples": 1,
+      "contextHints": 1,
+      "nodeLimit": false,
+      "timeLimit": false
+    },
+    {
+      "name": "large-positive",
+      "rows": 12000,
+      "fixtureHash": "9efd08fa585cdf4459cbe0d8d4e8deb6e61d0d086c1775cefe466b325fd1edce",
+      "elapsedMs": 667.7999999970198,
+      "stages": [
+        {
+          "stage": "SECURITY_XPATH",
+          "ms": 656.7000000029802
+        },
+        {
+          "stage": "DIALOG_XPATH",
+          "ms": 9.799999997019768
+        }
+      ],
+      "status": "SAMPLES_READY",
+      "visited": 68,
+      "inspected": 2,
+      "barrierState": "CLEAR",
+      "barrierReason": "NONE",
+      "samples": 1,
+      "contextHints": 1,
+      "nodeLimit": false,
+      "timeLimit": false
+    },
+    {
+      "name": "large-late-auth-sibling",
+      "rows": 12000,
+      "fixtureHash": "d17364cd36f251b04ed8610c03af453a54728541f00aeec21fd194963f580a37",
+      "elapsedMs": 672.3999999985099,
+      "stages": [
+        {
+          "stage": "SECURITY_XPATH",
+          "ms": 671.8999999985099
+        }
+      ],
+      "status": "AUTH_REQUIRED",
+      "visited": 4,
+      "inspected": 1,
+      "barrierState": "VISIBLE",
+      "barrierReason": "NONE",
+      "samples": 0,
+      "contextHints": 0,
+      "nodeLimit": false,
+      "timeLimit": false
+    },
+    {
+      "name": "large-late-auth-wrapper",
+      "rows": 12000,
+      "fixtureHash": "9fe3b270f2ebe44fb8f784ac61fcfef7a03699d626f2a78f3a120bda87176d78",
+      "elapsedMs": 708.8000000044703,
+      "stages": [
+        {
+          "stage": "SECURITY_XPATH",
+          "ms": 708.2000000029802
+        }
+      ],
+      "status": "AUTH_REQUIRED",
+      "visited": 5,
+      "inspected": 1,
+      "barrierState": "VISIBLE",
+      "barrierReason": "NONE",
+      "samples": 0,
+      "contextHints": 0,
+      "nodeLimit": false,
+      "timeLimit": false
+    },
+    {
+      "name": "large-late-challenge",
+      "rows": 12000,
+      "fixtureHash": "08871a84af057e6a45df05bd217aa16a1a65f1181692374d07d45e2640348cc7",
+      "elapsedMs": 627.6000000014901,
+      "stages": [
+        {
+          "stage": "SECURITY_XPATH",
+          "ms": 626.8000000044703
+        }
+      ],
+      "status": "CHALLENGE",
+      "visited": 4,
+      "inspected": 1,
+      "barrierState": "VISIBLE",
+      "barrierReason": "NONE",
+      "samples": 0,
+      "contextHints": 0,
+      "nodeLimit": false,
+      "timeLimit": false
+    },
+    {
+      "name": "large-late-denied",
+      "rows": 12000,
+      "fixtureHash": "a2951fab925bd05e6d5acbe9a959b1fc40d848c2eeeb37e282d306babb38ebeb",
+      "elapsedMs": 636.5,
+      "stages": [
+        {
+          "stage": "SECURITY_XPATH",
+          "ms": 636
+        }
+      ],
+      "status": "ACCESS_DENIED",
+      "visited": 4,
+      "inspected": 1,
+      "barrierState": "VISIBLE",
+      "barrierReason": "NONE",
+      "samples": 0,
+      "contextHints": 0,
+      "nodeLimit": false,
+      "timeLimit": false
+    },
+    {
+      "name": "extra-large-positive",
+      "rows": 24000,
+      "fixtureHash": "23905176c7ed7b10e624787adb2b3afef81869bf024935ab320ed89af55a6533",
+      "elapsedMs": 1275.2999999970198,
+      "stages": [
+        {
+          "stage": "SECURITY_XPATH",
+          "ms": 1258.1000000014901
+        },
+        {
+          "stage": "DIALOG_XPATH",
+          "ms": 16.799999997019768
+        }
+      ],
+      "status": "BARRIER_SCAN_INCOMPLETE",
+      "visited": 0,
+      "inspected": 0,
+      "barrierState": "INCOMPLETE",
+      "barrierReason": "TIME_LIMIT",
+      "samples": 0,
+      "contextHints": 0,
+      "nodeLimit": false,
+      "timeLimit": true
+    },
+    {
+      "name": "extra-large-late-challenge",
+      "rows": 24000,
+      "fixtureHash": "0d0ae51d4a9f012009926815df30defdf345f553587fcd9ac43eee490e230d1c",
+      "elapsedMs": 1470.3000000044703,
+      "stages": [
+        {
+          "stage": "SECURITY_XPATH",
+          "ms": 1470
+        }
+      ],
+      "status": "BARRIER_SCAN_INCOMPLETE",
+      "visited": 0,
+      "inspected": 0,
+      "barrierState": "INCOMPLETE",
+      "barrierReason": "TIME_LIMIT",
+      "samples": 0,
+      "contextHints": 0,
+      "nodeLimit": false,
+      "timeLimit": true
+    },
+    {
+      "name": "security-overflow",
+      "rows": 200,
+      "fixtureHash": "947d18cb4d0793357e2447bb8ea0d84cc68bbd85b44e4e228324b23cc3939583",
+      "elapsedMs": 10.5,
+      "stages": [
+        {
+          "stage": "SECURITY_XPATH",
+          "ms": 9.899999998509884
+        }
+      ],
+      "status": "BARRIER_SCAN_INCOMPLETE",
+      "visited": 32,
+      "inspected": 16,
+      "barrierState": "INCOMPLETE",
+      "barrierReason": "CANDIDATE_LIMIT",
+      "samples": 0,
+      "contextHints": 0,
+      "nodeLimit": false,
+      "timeLimit": false
+    },
+    {
+      "name": "dialog-overflow",
+      "rows": 200,
+      "fixtureHash": "94874308edabedc678dd264369cd8c9c8317266799f82b72490394839aeb5b12",
+      "elapsedMs": 10.399999998509884,
+      "stages": [
+        {
+          "stage": "SECURITY_XPATH",
+          "ms": 9.900000005960464
+        },
+        {
+          "stage": "DIALOG_XPATH",
+          "ms": 0.19999999552965164
+        }
+      ],
+      "status": "BARRIER_SCAN_INCOMPLETE",
+      "visited": 0,
+      "inspected": 0,
+      "barrierState": "INCOMPLETE",
+      "barrierReason": "CANDIDATE_LIMIT",
+      "samples": 0,
+      "contextHints": 0,
+      "nodeLimit": false,
+      "timeLimit": false
+    }
+  ],
+  "externalNetworkRequests": 0,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

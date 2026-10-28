@@ -1,0 +1,49 @@
+{
+  "task": "R06_VISIBLE_STARTUP",
+  "version": 1,
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "method": "computer-use @oai/sky Windows.Graphics.Capture + UI Automation",
+  "observations": [
+    {
+      "rootPid": 23964,
+      "windowId": 528090,
+      "stage": "ORIGINAL_BEFORE_CODE_CHANGE",
+      "nativeUiVisible": true,
+      "accessibilityFormPresent": true
+    },
+    {
+      "rootPid": 19672,
+      "windowId": 2428576,
+      "stage": "FRESH_DIRECT_NORMAL_LAUNCH_BEFORE_CODE_CHANGE",
+      "nativeUiVisible": true,
+      "offlineButtonClickedAndPassed": true
+    },
+    {
+      "rootPid": 1552,
+      "windowId": 2559652,
+      "stage": "NORMAL_DIAGNOSTIC_LAUNCH",
+      "nativeUiVisible": true,
+      "accessibilityFormPresent": true,
+      "profileCount": 0,
+      "probeIdleVisible": true,
+      "liveUnavailableVisible": true
+    }
+  ],
+  "captureMismatch": {
+    "observed": true,
+    "context": "After unrelated hidden smoke processes while target CSD was not foreground",
+    "accessibilityStillCsd": true,
+    "imageDidNotMatchCsd": true,
+    "reselectedAndActivatedSameCsdWindowRestoredMatchingCapture": true,
+    "mismatchedImagePersisted": false,
+    "causalClaimForOriginalBlank": "UNPROVEN"
+  },
+  "outcome": "BLANK_NOT_REPRODUCED_VISIBLE_UI_VERIFIED_ORIGINAL_CAUSE_UNKNOWN",
+  "loginPerformed": false,
+  "cookiesRead": false,
+  "profileCreated": false,
+  "sourceCaptureStarted": false,
+  "remainingVisibleRootPid": 1552,
+  "remainingVisibleWindowId": 2559652
+}

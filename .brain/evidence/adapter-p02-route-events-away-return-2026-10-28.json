@@ -1,0 +1,77 @@
+{
+  "task": "P02_POST_ROUTE_VERIFICATION",
+  "caseKind": "away-return",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 2,
+  "nativeHistoryEvents": 1,
+  "cases": [
+    {
+      "label": "CURRENT_POST_ANCHOR",
+      "status": "SAMPLES_READY",
+      "summarySha256": "c61a722098ac07f4869310265717e756cdb8074aee9a246d352bd4948f941a27"
+    },
+    {
+      "label": "NO_ANCHOR",
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ANCHOR"
+    },
+    {
+      "label": "AWAY-RETURN",
+      "result": "INCONCLUSIVE",
+      "reason": "ROUTE_CHANGED",
+      "navigationCount": 1,
+      "readCount": 1,
+      "freshDocument": true,
+      "eventTrace": [
+        {
+          "kind": "START",
+          "event": "DID_START_NAVIGATION",
+          "phase": "NAVIGATING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "DIFFERENT",
+          "owner": "SAME",
+          "generation_delta": 0,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "COMMIT",
+          "event": "DID_NAVIGATE",
+          "phase": "NAVIGATING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_START_NAVIGATION",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "DIFFERENT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "CANCEL"
+        }
+      ],
+      "traceOverflow": false,
+      "firstCancellation": {
+        "reason": "ROUTE_CHANGED",
+        "cause": "URL_CHANGED",
+        "phase": "READING",
+        "event_index": 2
+      },
+      "summarySha256": "4741022f9907608f9dfab6c345b8fb63fe38cb710d29b3d0f1799591e797b64b"
+    }
+  ],
+  "reopenRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

@@ -1,0 +1,90 @@
+{
+  "task": "P02_MANUAL_FACEBOOK_LOGIN_STALL_DIAGNOSTICS",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "outcome": "VERIFICATION_ROUTE_OBSERVED_RENDER_CAUSE_UNKNOWN_OFFLINE_DIAGNOSTICS_READY_PENDING_LEAD_RESTART",
+  "codeVersion": "SHA-256; no Git repository",
+  "scope": "Diagnostics source/build/evidence; navigation-policy.ts is included unchanged as a baseline; current real session not restarted or inspected for credentials",
+  "files": [
+    {
+      "path": "src/infrastructure/browser/policy-diagnostics.ts",
+      "sha256": "26a495899d3f6482d699861475689b23a658673d587a1f023ef3d8c86090af63"
+    },
+    {
+      "path": "src/infrastructure/browser/policy-diagnostics-file.ts",
+      "sha256": "5574f49c65582cb262c67c43436645dcd54b86dc825b50fe53009ac1f38c1917"
+    },
+    {
+      "path": "src/infrastructure/browser/browser-host.ts",
+      "sha256": "b44676f7f0b6707c83a8c4b731de40666f4e31edbc1dcd8f5309d56d61fc843b"
+    },
+    {
+      "path": "src/infrastructure/browser/navigation-policy.ts",
+      "sha256": "ca9c10d68eba97429baa0e0a1a19c49b844a2c413cdf1fffdb9c5dfbb49c1d14"
+    },
+    {
+      "path": "src/main/index.ts",
+      "sha256": "0a85a484a4bb83235c8c57e4a1b4b5cb396db1239e3feff3500ee20acff1da71"
+    },
+    {
+      "path": "src/main/policy-diagnostics-smoke.ts",
+      "sha256": "741e56e8f6ddb8d49e35372e50f7771258434efb2fd84a6e114b6ef0a2869a25"
+    },
+    {
+      "path": "scripts/policy-diagnostics-smoke.mjs",
+      "sha256": "2b9c282cae7cdd44ec4d5039060895f57562bcd20e9f896f6a869cd6411a72e9"
+    },
+    {
+      "path": "tests/policy-diagnostics.test.ts",
+      "sha256": "ff8fec1822b4700528a807a79b35337f50dd92310013ded4a926b62c270b382f"
+    },
+    {
+      "path": "package.json",
+      "sha256": "9ba397102cb2e7f97d3339e91ca9902270ead8c59aa0401f13c8dd562c348518"
+    },
+    {
+      "path": "README.md",
+      "sha256": "0e0290316839019b56526540a41a51e510a25e4f6cf6365f1e20992f71a45c3b"
+    },
+    {
+      "path": "dist/infrastructure/browser/policy-diagnostics.js",
+      "sha256": "9217e22a57fe7af723062fba10b21803d4b793d6bab4c05c8aafc000f1451d4a"
+    },
+    {
+      "path": "dist/infrastructure/browser/policy-diagnostics-file.js",
+      "sha256": "a9c2fa97900d13417a2be78d9598b757487669026cde20217b291e0dff629cb0"
+    },
+    {
+      "path": "dist/infrastructure/browser/browser-host.js",
+      "sha256": "e21ca9d39a4a032b9356c6a7f29aff932c003285537ede2fd80991316dd7af37"
+    },
+    {
+      "path": "dist/main/index.js",
+      "sha256": "4d04efb90ef7cc663ac60112e9b933ea438b1a4af49840fdd03d6e59fc16341d"
+    },
+    {
+      "path": "dist/main/policy-diagnostics-smoke.js",
+      "sha256": "72c25b4751106d8c2c06b3cf7b38d5c0ccb337560b4682093772ec8e5d79f000"
+    },
+    {
+      "path": "dist/resources/probe-build.json",
+      "sha256": "8b8c8525d8f95249f1de0dc950c987e7ca5d0c11260ffed9dcb52fba2d2db003"
+    },
+    {
+      "path": ".brain/evidence/p02-facebook-login-stall-2026-10-27.md",
+      "sha256": "b5a02f9a72c10189cd759966f2ce997bd8c45b3ac95a9c30893f48f7164425ac"
+    },
+    {
+      "path": ".brain/handoffs/csd-facebook-login-stall-2026-10-27.md",
+      "sha256": "5d2e73ab858c803b0b5aa14e0f434ffd0dde8e948f8530256aa77f27b71132a6"
+    },
+    {
+      "path": ".brain/evidence/p02-facebook-login-policy-fixture-2026-10-27.json",
+      "sha256": "e2c26519690a425b0f632849c1ae72948faa646f2a8b89f45cdb40ace9ae0dee"
+    },
+    {
+      "path": ".brain/evidence/p02-facebook-login-stall-native-2026-10-27.png",
+      "sha256": "770bf183efe3e0d38f779da97088a26e95d018ceaf328189b86055a58f9e2c05"
+    }
+  ]
+}

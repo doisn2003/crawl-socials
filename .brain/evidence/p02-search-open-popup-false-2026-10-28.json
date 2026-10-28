@@ -1,0 +1,87 @@
+{
+  "task": "P02_OBSERVED_SEARCH_POST_OPEN",
+  "caseKind": "popup-false",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "result": "OPENED_POST_SAMPLE",
+      "reason": "OBSERVED_CLICK_ROUTE_AND_POST_READ",
+      "clickAttempts": 1,
+      "clicks": 1,
+      "postReads": 1,
+      "discovery": {
+        "scan_sha256": "508ecd67d8c4ef8ff2de82ad4fa0eefb178ee418d964c36147fe698574af9db7",
+        "status": "SAMPLES_READY",
+        "visited": 80,
+        "examined": 1,
+        "opening": {
+          "version": 1,
+          "phase": "DISCOVER",
+          "status": "TARGETS_READY",
+          "targets": [
+            {
+              "index": 0,
+              "href_kind": "SEARCH_PLACEHOLDER",
+              "timestamp_proof": "UNIQUE_HEADER_PLACEHOLDER"
+            }
+          ],
+          "click_count": 0,
+          "selected_index": null,
+          "qualified_headers": 1,
+          "no_timestamp_headers": 0,
+          "ambiguous_headers": 0
+        }
+      },
+      "click": {
+        "scan_sha256": "8e21b462326aa772dd297b721bd290313cb345269e245cb5489d0888d12638b3",
+        "status": "SAMPLES_READY",
+        "visited": 80,
+        "examined": 1,
+        "opening": {
+          "version": 1,
+          "phase": "CLICK",
+          "status": "CLICK_DISPATCHED",
+          "targets": [
+            {
+              "index": 0,
+              "href_kind": "SEARCH_PLACEHOLDER",
+              "timestamp_proof": "UNIQUE_HEADER_PLACEHOLDER"
+            }
+          ],
+          "click_count": 1,
+          "selected_index": 0,
+          "qualified_headers": 1,
+          "no_timestamp_headers": 0,
+          "ambiguous_headers": 0
+        }
+      },
+      "eventTrace": [
+        {
+          "kind": "SAME_DOCUMENT",
+          "phase": "OPENING",
+          "frame": "MAIN",
+          "route": "SEARCH_EXACT",
+          "generation": 0,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "phase": "OPENING",
+          "frame": "MAIN",
+          "route": "POST_OBSERVED",
+          "generation": 0,
+          "decision": "EXPECTED"
+        }
+      ],
+      "summarySha256": "5e254844bd75160a6cfd31e8ab50a3425c5bffa509f1b98dc4b90417c227f132"
+    }
+  ],
+  "browserClicks": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

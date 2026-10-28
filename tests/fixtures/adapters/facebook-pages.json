@@ -1,0 +1,17 @@
+{
+  "page_size": 2,
+  "posts": [
+    { "platform": "FACEBOOK", "post_id": "90071992547409931234", "canonical_url": "https://www.facebook.com/fixture-page/posts/90071992547409931234", "text": "Dữ liệu giả: quán cafe ở Hà Nội.", "source_type": "PAGE", "source_id": "fixture-page", "author_type": "PAGE", "visibility_at_observation": "PUBLIC", "content_type": "TEXT_POST", "published_at": "2020-01-01T00:00:00.000Z", "language": "vi", "capture_mode": "LIVE", "provenance": { "capture_mode": "LIVE", "access_token": "synthetic-injection-must-be-ignored" } },
+    { "platform": "FACEBOOK", "post_id": "fixture-post-2", "canonical_url": "https://www.facebook.com/fixture-page/posts/fixture-post-2", "text": "Dữ liệu giả: cafe hẹn hò.", "source_type": "PAGE", "source_id": "fixture-page", "author_type": "PAGE", "visibility_at_observation": "PUBLIC", "content_type": "PHOTO_POST", "published_at": "2025-01-01T00:00:00.000Z", "language": "vi" },
+    { "platform": "FACEBOOK", "post_id": "fixture-post-2", "canonical_url": "https://www.facebook.com/fixture-page/posts/fixture-post-2", "text": "Dữ liệu giả: cafe hẹn hò.", "source_type": "PAGE", "source_id": "fixture-page", "author_type": "PAGE", "visibility_at_observation": "PUBLIC", "content_type": "PHOTO_POST", "published_at": "2025-01-01T00:00:00.000Z", "language": "vi" },
+    { "platform": "FACEBOOK", "post_id": "fixture-post-3", "canonical_url": "https://www.facebook.com/fixture-page/posts/fixture-post-3", "text": "Synthetic coffee event.", "source_type": "PAGE", "source_id": "fixture-page", "author_type": "PAGE", "visibility_at_observation": "PUBLIC", "content_type": "VIDEO_POST", "published_at": "2026-01-01T00:00:00.000Z", "language": "en" },
+    { "platform": "FACEBOOK", "post_id": "fixture-group-post", "canonical_url": "https://www.facebook.com/groups/fixture-group/posts/fixture-group-post", "text": "Dữ liệu giả: Page đăng bài cafe trong nhóm.", "source_type": "PUBLIC_GROUP", "source_id": "fixture-group", "author_type": "PAGE", "visibility_at_observation": "PUBLIC", "content_type": "TEXT_POST", "published_at": null, "language": "vi" },
+    { "platform": "FACEBOOK", "post_id": "fixture-personal-post", "canonical_url": "https://www.facebook.com/fixture-person/posts/fixture-personal-post", "text": "Dữ liệu giả: đi coffee.", "source_type": "PUBLIC_PERSONAL", "source_id": "fixture-person", "author_type": "PERSON", "visibility_at_observation": "UNKNOWN", "content_type": "TEXT_POST", "published_at": null, "language": "vi" }
+  ],
+  "sources": [
+    { "source_id": "fixture-page", "source_type": "PAGE", "url": "https://www.facebook.com/fixture-page", "name": "Quán cafe giả A", "visibility_at_observation": "PUBLIC" },
+    { "source_id": "fixture-page-b", "source_type": "PAGE", "url": "https://www.facebook.com/fixture-page-b", "name": "Quán cafe giả B", "visibility_at_observation": "PUBLIC" },
+    { "source_id": "fixture-page-c", "source_type": "PAGE", "url": "https://www.facebook.com/fixture-page-c", "name": "Quán cafe giả C", "visibility_at_observation": "PUBLIC" },
+    { "source_id": "fixture-group", "source_type": "PUBLIC_GROUP", "url": "https://www.facebook.com/groups/fixture-group", "name": "Nhóm cafe giả", "visibility_at_observation": "PUBLIC" }
+  ]
+}

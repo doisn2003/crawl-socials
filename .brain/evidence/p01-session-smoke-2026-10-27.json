@@ -1,0 +1,62 @@
+{
+  "task": "P01.02",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "result": "PASS",
+  "electronVersion": "44.7.0",
+  "platform": "win32",
+  "arch": "x64",
+  "phaseCount": 3,
+  "phases": [
+    {
+      "phase": "seed",
+      "checks": [
+        "UI form creates profile and open-session control opens its isolated view",
+        "IPC rejects extra URL, invalid ID, credential payload and disabled login",
+        "two profiles isolate localStorage and persistent/session/HttpOnly cookies",
+        "site has no Node/CSD bridge; permissions, popup, external redirect/request denied",
+        "closing destroys owned contents; reopen reuses only its own partition",
+        "replacing destroyed contents also closes the stale host window",
+        "Windows async safeStorage vault round-trip; custom files contain no plaintext markers"
+      ],
+      "observations": {},
+      "abruptExit": false,
+      "windowsAfterClose": 0,
+      "webContentsAfterClose": 0
+    },
+    {
+      "phase": "logout-crash",
+      "checks": [
+        "stable IDs, unverified binding, partition storage and OS vault persist across processes",
+        "restart restores session/HttpOnly cookies and Chromium persistent cookie",
+        "logout invalidates old encrypted snapshot durably before debounce completes"
+      ],
+      "observations": {
+        "nativeSessionCookiePresentBeforeHostRestore": false,
+        "nativePersistentCookiePresentBeforeHostRestore": true
+      },
+      "abruptExit": true
+    },
+    {
+      "phase": "verify-logout",
+      "checks": [
+        "stable IDs, unverified binding, partition storage and OS vault persist across processes",
+        "abrupt exit during pending save cannot resurrect logged-out cookies",
+        "partial restore failure is quarantined durably; next owner cannot accept partial auth"
+      ],
+      "observations": {
+        "nativeSessionCookiePresentBeforeHostRestore": false,
+        "nativePersistentCookiePresentBeforeHostRestore": false
+      },
+      "abruptExit": false,
+      "windowsAfterClose": 0,
+      "webContentsAfterClose": 0
+    }
+  ],
+  "limitations": [
+    "Local loopback fixtures only; no Facebook login or collection",
+    "Controlled abrupt app.exit with pending 10s test debounce; production debounce is 150ms",
+    "Dirty marker covers cookie events delivered to host; not a guarantee against OS power loss or pre-event crashes",
+    "Only custom session-cookie backup is OS-encrypted; Chromium profile is not wholly encrypted by CSD"
+  ]
+}

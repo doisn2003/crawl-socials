@@ -1,0 +1,8 @@
+{
+  "phase": "FROZEN_V23_SUBTREE_BASELINE",
+  "discoveryScriptSha256": "ba67d8fb3c204b7708b815cdd85b9dfd2e96f6077599856bfa147c7f2cb14f7c",
+  "clickScriptSha256": "f86fec9adec24e937c213828da5050a42776b6f4fcf8e60c80275fe63d4a1cc7",
+  "reviewerSourceSha256": "1debf2d85edbc146a1b3346653018248938da6c24a55d485f0f83c55759f55e6",
+  "compiledTestSha256": "588a903a066a487b791ea22b89c9aa1fbfc20a3c2faa7b11a72ac74d1867515e",
+  "output": ".test-build-adapter-candidate/subtree-v23-baseline"
+}

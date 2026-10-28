@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-27",
+  "purpose": "Independent lead review baseline before dispatch P01.02/P02.01",
+  "files": [
+    {
+      "path": ".brain/specs/campaign.coffee.json",
+      "sha256": "858e5464b6fa70ca58ca97044bb52803cb3bffeb2309ead2abb0709cf78e2e8b"
+    },
+    {
+      "path": ".brain/specs/campaign.schema.json",
+      "sha256": "5394fc1f6b079c223958ce0c609dbbecb7ebacd47d5b3ea591f0469a34ae3a80"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "841aacc68f19cc32986120aa3d608fbcb149c752ff9b6a1553d7d5f697631fb3"
+    },
+    {
+      "path": "package.json",
+      "sha256": "cbc4f0b81e41d3078e861f1866ff61583fac4413d6b1cd1c308272169e59b94b"
+    },
+    {
+      "path": "scripts/bootstrap-smoke.mjs",
+      "sha256": "a280db0f6bb03352ab8a8dcc2721c0b8b49d2ef41a926247a14b80a372a4c80a"
+    },
+    {
+      "path": "scripts/check-p00.cjs",
+      "sha256": "99bb617ba904c98226d4866986f2df3a09fe9ce4c16ae01df5b3d94f16cae7f7"
+    },
+    {
+      "path": "scripts/copy-assets.mjs",
+      "sha256": "6e066ddedbe022078427bd214cbe06633a21c2278997139536cd7dc93adf8f78"
+    },
+    {
+      "path": "scripts/probes/p00-hotmatch-audit.cjs",
+      "sha256": "87cd0a72f09d57e09c8c1406967e4f95760279c8ce7435b4ace3146427efff52"
+    },
+    {
+      "path": "scripts/probes/p00-runtime.cjs",
+      "sha256": "ca0ae6012732b4932a6a5d9900d76faaa8f3372c0b9658b50976e744042d3ea2"
+    },
+    {
+      "path": "src/application/bootstrap-service.ts",
+      "sha256": "d9ecee20742966104cbb574edc7de27b9c02e774d47e0fcf1003d509a068eacc"
+    },
+    {
+      "path": "src/application/ports/campaign-validator.ts",
+      "sha256": "9983b6dd33315d22064616ca2a99984fedefae9ffedc2ab790f0910f782c0f08"
+    },
+    {
+      "path": "src/domain/campaign.ts",
+      "sha256": "e71d0419ad921cde4e506ebda11e31acd2a86b8a5f41e6aeb2772e2242a9cfd2"
+    },
+    {
+      "path": "src/infrastructure/config/campaign-validator.ts",
+      "sha256": "81773514480f582d8d4237cdcacad3142cec6507796ca61c5030755a436e4bae"
+    },
+    {
+      "path": "src/infrastructure/config/runtime-paths.ts",
+      "sha256": "7e69b39502f8adda9e46b2d9b6a847e17921cf71ea0954d74bc2e9a9e79af396"
+    },
+    {
+      "path": "src/main/index.ts",
+      "sha256": "734705b0c840a2f917a8558eda4c9e7ac55ed0bca32e2f714ac38e83d6270988"
+    },
+    {
+      "path": "src/main/ipc-policy.ts",
+      "sha256": "bb67766bfb6999375691f5057865b02020c1270ec59676c1fbab45de55b30167"
+    },
+    {
+      "path": "src/preload/index.cts",
+      "sha256": "9c186ce565766133a596242ec8951b23704b8fe2e27b49a1d9aeaec77e8a357f"
+    },
+    {
+      "path": "src/renderer/app.ts",
+      "sha256": "a466dc9c05b11b9c4fa42e2df15921134e2714e5a8c19b5dbe3bc79c913f5fcf"
+    },
+    {
+      "path": "src/renderer/index.html",
+      "sha256": "190a04a99700d3b5c705b7b9a92671e78cde673f3eef757edf6bb3ec4ef8c1f1"
+    },
+    {
+      "path": "src/renderer/styles.css",
+      "sha256": "9de1b31c56d96bde4444fc2ed5a69f54894fd4808f940a5d974386bb09bcf1d2"
+    },
+    {
+      "path": "src/shared/desktop-api.d.ts",
+      "sha256": "73b2f57923a2fa2859946bf677a57533ff68b8dfeaa56a9674f5cfb8acc90cc9"
+    },
+    {
+      "path": "tests/bootstrap.test.ts",
+      "sha256": "16e0f1adf5c7464ae9b8b2b1f99479eafdf5ec7d43798c33e8bbf69cc8cb9639"
+    },
+    {
+      "path": "tests/boundaries.test.ts",
+      "sha256": "005540877788ea7858f40dc5540f22bdc1f849fc4a8a6f5e23de7c7f1b3327f1"
+    },
+    {
+      "path": "tests/fixtures/campaign.offline.json",
+      "sha256": "6423809448e2d1671aa9bba361399e86381fbba08fa75fc41c9ea076c7e0c3f6"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "sha256": "1aca0d16612289197b4091c531aaa2fe1972065f9aab6d502a9ab9c7dd1c39dd"
+    },
+    {
+      "path": "tsconfig.main.json",
+      "sha256": "35a87d38cddb29c32c785b2ad9d7c4cdc40856320d8d4b335b4ae1e4ac4977e8"
+    },
+    {
+      "path": "tsconfig.renderer.json",
+      "sha256": "ed6ac45e9136d1f4723032b75a0c32cd57712a9eb5216103f4144323cf9c96ea"
+    },
+    {
+      "path": "tsconfig.tests.json",
+      "sha256": "1d5d4c381f35df54d0f05bd979620dab1361eaf01c62341b6ee37a8fb4368d76"
+    }
+  ]
+}

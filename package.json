@@ -1,0 +1,66 @@
+{
+  "name": "csd-desktop",
+  "version": "0.1.0",
+  "description": "CSD — Crawl Socials Data",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "dist/main/index.js",
+  "engines": {
+    "node": ">=24.19.0 <25"
+  },
+  "packageManager": "npm@11.17.0",
+  "scripts": {
+    "start": "npm run build && electron .",
+    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && node scripts/copy-assets.mjs && node scripts/freeze-probe-build.mjs",
+    "check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.tests.json --noEmit && npm run check:p00",
+    "check:p00": "node scripts/check-p00.cjs",
+    "test": "npm run test:unit && npm run check:p00",
+    "test:unit": "tsc -p tsconfig.tests.json && node --test .test-build/tests/*.test.js",
+    "test:smoke": "npm run build && node scripts/bootstrap-smoke.mjs",
+    "test:session": "npm run build && node scripts/session-smoke.mjs",
+    "test:observer": "npm run build && node scripts/observer-debug.mjs --mode fixture --scenario all",
+    "debug:observer": "npm run build && node scripts/observer-debug.mjs",
+    "test:probe": "npm run build && node scripts/probe-fixture.mjs",
+    "check:visible": "npm run build && node scripts/visible-startup-check.mjs",
+    "test:policy-diagnostics": "npm run build && node scripts/policy-diagnostics-smoke.mjs",
+    "test:auth-dependencies": "npm run build && node scripts/auth-dependency-smoke.mjs",
+    "pack:dir": "npm run build && electron-builder --dir --win --x64",
+    "dist:portable": "npm run build && electron-builder --win portable --x64"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "tldts": "7.4.19"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "typescript": "6.0.3"
+  },
+  "build": {
+    "appId": "io.csd.desktop",
+    "productName": "CSD",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "CSD-Portable-${version}.exe"
+    }
+  }
+}

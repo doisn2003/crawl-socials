@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "captureMode": "LIVE",
+  "bodies": [
+    { "requestId": "text", "body": "CSD fixture — cà phê", "base64Encoded": false },
+    { "requestId": "empty", "body": "", "base64Encoded": false },
+    { "requestId": "binary", "body": "AP+A", "base64Encoded": true }
+  ],
+  "frames": [
+    { "method": "Network.requestWillBeSent", "params": { "requestId": "text", "type": "Fetch", "request": { "method": "POST", "url": "http://fixture.invalid/capture?case=text", "headers": { "cookie": "synthetic-not-exported" } } } },
+    { "method": "Network.responseReceived", "params": { "requestId": "text", "response": { "url": "http://fixture.invalid/capture?case=text", "status": 200, "mimeType": "text/plain" } } },
+    { "method": "Network.loadingFinished", "params": { "requestId": "text" } },
+    { "method": "Network.requestWillBeSent", "params": { "requestId": "empty", "type": "Fetch", "request": { "method": "GET", "url": "http://fixture.invalid/capture?case=empty" } } },
+    { "method": "Network.responseReceived", "params": { "requestId": "empty", "response": { "url": "http://fixture.invalid/capture?case=empty", "status": 204, "mimeType": "text/plain" } } },
+    { "method": "Network.loadingFinished", "params": { "requestId": "empty" } },
+    { "method": "Network.requestWillBeSent", "params": { "requestId": "binary", "type": "Fetch", "request": { "method": "GET", "url": "http://fixture.invalid/capture?case=binary" } } },
+    { "method": "Network.responseReceived", "params": { "requestId": "binary", "response": { "url": "http://fixture.invalid/capture?case=binary", "status": 200, "mimeType": "text/plain" } } },
+    { "method": "Network.loadingFinished", "params": { "requestId": "binary" } }
+  ]
+}

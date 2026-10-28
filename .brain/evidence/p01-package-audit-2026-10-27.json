@@ -1,0 +1,24 @@
+{
+  "task": "P01.01",
+  "date": "2026-10-27",
+  "builder": "26.15.3",
+  "target": "win-unpacked x64",
+  "result": "PASS",
+  "asarSha256": "c199c1c877c7dad30071be1bbee586112607824aabedd045b8f06174d56079a3",
+  "entryCount": 470,
+  "requiredFilesPresent": [
+    "dist/main/index.js",
+    "dist/preload/index.cjs",
+    "dist/renderer/index.html",
+    "dist/renderer/app.js",
+    "dist/resources/campaign.schema.json",
+    "dist/resources/campaign.coffee.json",
+    "dist/resources/campaign.offline.json",
+    "package.json"
+  ],
+  "forbiddenFiles": [],
+  "limitations": [
+    "Package contents validated only; packaged executable was not run",
+    "Not a portable installer or release gate"
+  ]
+}

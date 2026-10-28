@@ -1,0 +1,43 @@
+{
+  "task": "P02.02_CONTROLLER_FIXTURE",
+  "version": 1,
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "checks": [
+    "EXACT_IPC_NO_APPROVAL_MODE_URL_OVERRIDE",
+    "IPC_STOP_INVALIDATES_PENDING_START_PREFLIGHT",
+    "REAL_UI_START_THREE_QUERIES_FIFTEEN_BATCHES_SIXTEEN_ACTIONS",
+    "FROZEN_HASHES_SAFE_METADATA_UNKNOWN_CANDIDATES_AND_MANUAL_EXPIRY",
+    "REAL_IPC_STOP_DURING_REQUEST_DETACHES_OBSERVER",
+    "REAL_DEVTOOLS_POLICY_STOPS_CONTROLLER",
+    "UNCONTROLLED_NAVIGATION_STOPS_COVERAGE",
+    "TARGET_CLOSE_STOPS_ACTIONS_AND_CLEANUP",
+    "INTERRUPTED_RUN_UNCHANGED_AND_NEW_RUN_ID_ON_RESTART"
+  ],
+  "completedRun": {
+    "actions": 16,
+    "diagnosticCaptures": 15,
+    "batches": [
+      5,
+      5,
+      5
+    ],
+    "candidates": null,
+    "verifiedValidUniquePosts": 0,
+    "persistedBytes": 35887,
+    "manifestSha256": "04c308cdecc2825f93d5022066b9e4cf402697f57229efb5903186f370546c8f",
+    "snapshotSha256": "de5d437be5f20c8a40cbef34d370f688e0354257308f7f6ed47a83fd13bd428c"
+  },
+  "stoppedRunReason": "OPERATOR_STOP",
+  "devToolsRunReason": "DEVTOOLS_OPENED",
+  "coverageRunReason": "COVERAGE_LOST",
+  "closeRunReason": "TARGET_CLOSED",
+  "runIdsUnique": true,
+  "interruptedRunLeftUnresumed": true,
+  "liveAvailable": false,
+  "facebookDriver": "NOT_IMPLEMENTED",
+  "parser": "NOT_IMPLEMENTED",
+  "verifiedValidUniquePosts": 0,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

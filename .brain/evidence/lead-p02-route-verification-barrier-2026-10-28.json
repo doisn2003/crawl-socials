@@ -1,0 +1,34 @@
+{
+  "task": "P02_POST_ROUTE_VERIFICATION",
+  "caseKind": "barrier",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "label": "CURRENT_POST_ANCHOR",
+      "status": "SAMPLES_READY",
+      "summarySha256": "d37e68a663c6eec0ded768efeba4ac0400acacc532fc1c729235e90454d45dfe"
+    },
+    {
+      "label": "NO_ANCHOR",
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ANCHOR"
+    },
+    {
+      "label": "BARRIER",
+      "result": "INCONCLUSIVE",
+      "reason": "CHALLENGE",
+      "navigationCount": 1,
+      "readCount": 1,
+      "freshDocument": true,
+      "summarySha256": "40029c2a412732b09d64189692688794d662eb856dd422011e90ebce42c4129a"
+    }
+  ],
+  "reopenRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

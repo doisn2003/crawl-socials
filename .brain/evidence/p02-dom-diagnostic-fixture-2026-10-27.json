@@ -1,0 +1,34 @@
+{
+  "task": "P02_DOM_DIAGNOSTIC",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "menuInstalled": true,
+  "cases": [
+    {
+      "status": "HEURISTIC_MATCH",
+      "mode": "FIXTURE",
+      "actions": 1,
+      "sampledStructures": 5,
+      "resultSha256": "2662e0e7576383c279404c11f7d792b63a83fcc54f6d1f83ab4adb2d0904b2d3"
+    },
+    {
+      "status": "NO_MATCH",
+      "mode": "FIXTURE",
+      "actions": 1,
+      "sampledStructures": 0,
+      "resultSha256": "f4ac00a9f56a3e8f5d9c7ad199466094058d379388d3ddc6d6e42ff213a68070"
+    },
+    {
+      "status": "AUTH_REQUIRED",
+      "mode": "FIXTURE",
+      "actions": 1,
+      "sampledStructures": 0,
+      "resultSha256": "94d9c8371855fda2ecbb6e85756121672a4ba7ab7809165c2c81984139964e4c"
+    }
+  ],
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

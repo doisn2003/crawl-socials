@@ -1,0 +1,78 @@
+[
+  {
+    "kind": "menu",
+    "discovery": {
+      "version": 1,
+      "phase": "DISCOVER",
+      "status": "TARGETS_READY",
+      "targets": [
+        {
+          "index": 0,
+          "href_kind": "SEARCH_PLACEHOLDER",
+          "timestamp_proof": "UNIQUE_HEADER_PLACEHOLDER"
+        }
+      ],
+      "click_count": 0,
+      "selected_index": null,
+      "qualified_headers": 1,
+      "no_timestamp_headers": 0,
+      "ambiguous_headers": 0
+    },
+    "click": {
+      "version": 1,
+      "phase": "CLICK",
+      "status": "CLICK_DISPATCHED",
+      "targets": [
+        {
+          "index": 0,
+          "href_kind": "SEARCH_PLACEHOLDER",
+          "timestamp_proof": "UNIQUE_HEADER_PLACEHOLDER"
+        }
+      ],
+      "click_count": 1,
+      "selected_index": 0,
+      "qualified_headers": 1,
+      "no_timestamp_headers": 0,
+      "ambiguous_headers": 0
+    },
+    "actualClicks": 1
+  },
+  {
+    "kind": "author",
+    "discovery": {
+      "version": 1,
+      "phase": "DISCOVER",
+      "status": "TARGETS_READY",
+      "targets": [
+        {
+          "index": 0,
+          "href_kind": "SEARCH_PLACEHOLDER",
+          "timestamp_proof": "UNIQUE_HEADER_PLACEHOLDER"
+        }
+      ],
+      "click_count": 0,
+      "selected_index": null,
+      "qualified_headers": 1,
+      "no_timestamp_headers": 0,
+      "ambiguous_headers": 0
+    },
+    "click": {
+      "version": 1,
+      "phase": "CLICK",
+      "status": "CLICK_DISPATCHED",
+      "targets": [
+        {
+          "index": 0,
+          "href_kind": "SEARCH_PLACEHOLDER",
+          "timestamp_proof": "UNIQUE_HEADER_PLACEHOLDER"
+        }
+      ],
+      "click_count": 1,
+      "selected_index": 0,
+      "qualified_headers": 1,
+      "no_timestamp_headers": 0,
+      "ambiguous_headers": 0
+    },
+    "actualClicks": 1
+  }
+]

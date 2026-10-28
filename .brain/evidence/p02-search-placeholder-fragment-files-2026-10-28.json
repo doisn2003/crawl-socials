@@ -1,0 +1,520 @@
+{
+  "task": "P02_SEARCH_PLACEHOLDER_FRAGMENT",
+  "schemaVersion": 2,
+  "created_at": "2026-10-27T23:18:07.336Z",
+  "clientDate": "2026-10-28",
+  "clientTimezone": "Asia/Bangkok",
+  "result": "CODE_READY_FROZEN_PENDING_INDEPENDENT_REVIEW",
+  "supersedes": ".brain/evidence/p02-search-target-files-2026-10-28.json",
+  "liveEvidenceRef": ".brain/evidence/p02-live-search-target-v20-2026-10-28.json",
+  "validation": {
+    "focusedOwnerUnitTests": 14,
+    "unitScope": "SEARCH_POST_OPEN",
+    "unchangedOwnerRegressionsNotRerun": 46,
+    "nativeScenarios": 9,
+    "build": "PASS",
+    "ownerLiveSourceReads": 0,
+    "verifiedValidCount": 0,
+    "platformPermission": "UNKNOWN",
+    "benchmarkEligible": false
+  },
+  "fragmentContract": {
+    "family": "^#\\?[a-z]{3}$",
+    "scope": "SAME_ORIGIN_SAME_SEARCH_PATH_PLACEHOLDER_ONLY",
+    "postRouteFragments": false,
+    "otherAnchors": false,
+    "newQueryKeys": false,
+    "hrefStripped": false,
+    "rawHrefBindingPreserved": true,
+    "placeholderReloads": 0,
+    "actionAndVisibilityGuardsUnchanged": true,
+    "openingSchema": 2
+  },
+  "changedSourceFiles": [
+    "src/main/index.ts",
+    "src/main/facebook-public-candidate-fields.ts",
+    "src/main/facebook-public-candidate-fixture.ts",
+    "tests/facebook-search-post-open.test.ts"
+  ],
+  "discoveryScriptSha256": "bcbb45e85ce60432c6d7d3eb3702e885151c14718d470b3f631ef2b2dd3ccb5d",
+  "clickScriptSha256": "4a4906d6869b384375872e6f4b91a9b1529448e10247b561143af08b2a8cb520",
+  "currentPostScriptSha256": "613d6e954927f34539ce25c86e7332c7fb5c496ba8755f40d0733604db2aa3cd",
+  "diagnosticScriptSha256": "44bebe027dd2694f3e8f72b997abd774963d85f7ebc8406246ca50de8cda4b8d",
+  "controllerCompiledSha256": "d2309718815267a5bbd4bddb5728f172a9c07d1f0b81d71c50403f4997eb5558",
+  "searchOpenControllerCompiledSha256": "6efb4afac58afc02f75bca753f199e1676640566909bd1e300571d0a6656e6de",
+  "searchOpenCodeHashScope": "SEARCH_POST_OPEN_CONTROLLER_MODULE",
+  "ownedFiles": [
+    {
+      "path": "src/main/index.ts",
+      "bytes": 27696,
+      "sha256": "2ba67042a690b1daed7f9406a18c164a969d712a54900f4f1924500ae1206e8b"
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic.ts",
+      "bytes": 17309,
+      "sha256": "834b6ed4373f905974d4beb88d28183a8dc55fca4a2600de99dd5f4a8c34bd10"
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic-menu.ts",
+      "bytes": 12291,
+      "sha256": "af15a79302b8b17b74a625539dcb70b3ea6ff8618c3215994e82da386eb06d21"
+    },
+    {
+      "path": "src/main/facebook-public-candidate.ts",
+      "bytes": 32187,
+      "sha256": "828d32b849d5120a4e35bf5a96c9d6d35143eb2d21b34f6d1a92d75c25509537"
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fields.ts",
+      "bytes": 6340,
+      "sha256": "9de015c7401ece01296329c59c265ffca131dbd0ae1b4c4c3c7bd4e01052cd8b"
+    },
+    {
+      "path": "src/main/facebook-public-candidate-script.ts",
+      "bytes": 64608,
+      "sha256": "24de71e906dc4fc2ab285e4e9ebbee74ec41ce73fa629a5af9c160fd9bb4fd8b"
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fixture.ts",
+      "bytes": 91417,
+      "sha256": "a837e1bbca29c9ec3362d1f37af7ab390a9a3ed0549d4e227bb582fe21125c75"
+    },
+    {
+      "path": "tests/facebook-public-candidate.test.ts",
+      "bytes": 34424,
+      "sha256": "6472577a2a8d2256d58c2dd0c703e33231d698d4e8e7c509934d1e0abd25f4a3"
+    },
+    {
+      "path": "scripts/facebook-dom-diagnostic-build.mjs",
+      "bytes": 2370,
+      "sha256": "00fe434e650ff9f547d4f6ca15ca09c8d5beb075ff5c8d25c0174ecdc7ed606c"
+    },
+    {
+      "path": "scripts/facebook-public-candidate-smoke.mjs",
+      "bytes": 3756,
+      "sha256": "71e2d5761b0bcebbaac1e0153bc3b4ff79fca6c57af33995153084ff06542d8d"
+    },
+    {
+      "path": "tests/facebook-current-post.test.ts",
+      "bytes": 13449,
+      "sha256": "774289f6c3d4b3aadcac16e54d41cda744fb02b493cd3f828232722a6f36f6e4"
+    },
+    {
+      "path": "tests/fixtures/facebook-current-post-v14-script.json",
+      "bytes": 68492,
+      "sha256": "f599368c4268b3cb85dfad5d8d364dd52e1dd28805298bb4cfcbe6d6fdca95ba"
+    },
+    {
+      "path": "src/main/facebook-post-route-verification.ts",
+      "bytes": 15861,
+      "sha256": "ab0e8943ef71c9b4471a8b98eeadf26e522cd86c4c951718d8b2fe1da1b37b9b"
+    },
+    {
+      "path": "tests/facebook-post-route-verification.test.ts",
+      "bytes": 17617,
+      "sha256": "229974d65091ef92f7d99f5b9b582f61f22ff347f8002a52a88cc5e4a21ac0de"
+    },
+    {
+      "path": "src/main/facebook-search-post-open-script-hooks.ts",
+      "bytes": 12405,
+      "sha256": "927ceeb11d2a628de4a555fb7535b524082d335b1841a1e4547e5db0fcef0e28"
+    },
+    {
+      "path": "src/main/facebook-search-post-open.ts",
+      "bytes": 17688,
+      "sha256": "836b3f85af8eb8ef97c8fdc25836dc6c0e792ddca0b7056a91d73f2a2196090e"
+    },
+    {
+      "path": "tests/facebook-search-post-open.test.ts",
+      "bytes": 17374,
+      "sha256": "d0ad20e33b7c3f4b21dd2ff14e7adee13dfb64bfa09c6d3e80a1e15cc0a02cb2"
+    },
+    {
+      "path": ".brain/handoffs/p02-search-placeholder-fragment-2026-10-28.md",
+      "bytes": 4191,
+      "sha256": "5ff44deab253c614fefee970ee540361a121e8f953bc4f60feb4bd9268d3b570"
+    },
+    {
+      "path": ".brain/evidence/p02-search-placeholder-fragment-positive-2026-10-28.json",
+      "bytes": 7436,
+      "sha256": "1d4c652e1361d87e90fcb6dddecdc9acf261dc7b3f3b71b41c44abefa4c746ef"
+    },
+    {
+      "path": ".brain/evidence/p02-search-placeholder-fragment-target-2026-10-28.json",
+      "bytes": 3714,
+      "sha256": "7d4c41308bbd0bce24e059555b64397db0cbd49be7bf31bbb639460c9304bc12"
+    },
+    {
+      "path": ".brain/evidence/p02-search-placeholder-fragment-post-2026-10-28.json",
+      "bytes": 3712,
+      "sha256": "8d6246fda8d68ca155a6d6e6484ceb55a4e1a4731226f3e72b7ba0c3357de4d5"
+    },
+    {
+      "path": ".brain/evidence/p02-search-placeholder-fragment-bad-2026-10-28.json",
+      "bytes": 3711,
+      "sha256": "4eef4841031bb845ca454b8e5a738d15560727e8ca334233c809ecc4f5d311ff"
+    },
+    {
+      "path": ".brain/evidence/p02-search-placeholder-fragment-stale-2026-10-28.json",
+      "bytes": 6990,
+      "sha256": "f367ea2dddbeeba09061cbb78dfffedc79b0f048b845963288d8b99ce9034c5a"
+    },
+    {
+      "path": ".brain/evidence/p02-search-placeholder-fragment-popup-2026-10-28.json",
+      "bytes": 3720,
+      "sha256": "716530c1ce684731cf07809a9789aa1c1131b8c16c2568b6bf4ab33bfd1c9dcf"
+    },
+    {
+      "path": ".brain/evidence/p02-search-placeholder-fragment-geometry-2026-10-28.json",
+      "bytes": 3732,
+      "sha256": "cd82fe0e4a83f130f8ad9ba1d8685a0b5572602b08ccd2d53bd615823af433f3"
+    },
+    {
+      "path": ".brain/evidence/p02-search-placeholder-fragment-pre-barrier-2026-10-28.json",
+      "bytes": 5883,
+      "sha256": "57948b13fb0e8b9b51dd5dacea87732f8d37461ea078a7b195f4d007aca1c1fe"
+    },
+    {
+      "path": ".brain/evidence/p02-search-placeholder-fragment-stop-2026-10-28.json",
+      "bytes": 703,
+      "sha256": "4501af1973f3d877aa54e795ba00cac0021f19150edbee6637818851ea1c61b9"
+    }
+  ],
+  "isolatedBuildFiles": [
+    {
+      "path": ".build-csd-dom/application/adapter-capabilities.js",
+      "bytes": 5590,
+      "sha256": "a8368af69a7e3a55302c8327035deb05627be9fdedb221b652e4351f5fe0afde"
+    },
+    {
+      "path": ".build-csd-dom/application/bootstrap-service.js",
+      "bytes": 1733,
+      "sha256": "c0d8cb594092681693b6d29659de1e9e04e457bdaf4db6f8781c59b20e14b58e"
+    },
+    {
+      "path": ".build-csd-dom/application/campaign-intent.js",
+      "bytes": 6163,
+      "sha256": "3dff1b626281c07bbea9d790965dbb2cd76c6c2051f13087c2b3a7236611f001"
+    },
+    {
+      "path": ".build-csd-dom/application/ports/browser-profiles.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/application/ports/campaign-validator.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/application/ports/response-observer.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/application/ports/secret-store.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/application/ports/social-adapter.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/application/query-expansion.js",
+      "bytes": 14751,
+      "sha256": "3d31c5c2527632f49db78bacb8c11bf35da35afe2f378dcbc8b65458b5892be0"
+    },
+    {
+      "path": ".build-csd-dom/application/query-planner.js",
+      "bytes": 18030,
+      "sha256": "c5a7e07ec1ad11074d65de38cd289b45203089859bd09a0e4e8220fbbc0a61e9"
+    },
+    {
+      "path": ".build-csd-dom/domain/adapter-contracts.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/domain/browser-profile.js",
+      "bytes": 475,
+      "sha256": "769fc3615e0ebef1599f570834d2457957e0560d5d33b28f8a0e966c580c1ef9"
+    },
+    {
+      "path": ".build-csd-dom/domain/campaign-intent.js",
+      "bytes": 119,
+      "sha256": "625e1f220c602541055bc32fbc2426a83547294106098a0eb40c6e9daabac0da"
+    },
+    {
+      "path": ".build-csd-dom/domain/campaign.js",
+      "bytes": 73,
+      "sha256": "1ae3ca85bdd4842210297217f95ce82c36e9f30de0491612281ec4bfd05a2c84"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/adapters/fake-social-adapter.js",
+      "bytes": 12894,
+      "sha256": "b7dbc6f23f2ad475824e030e0bdaa53c131806e0c3215a8dfa80510b3eaea654"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/browser-host.js",
+      "bytes": 17333,
+      "sha256": "29bf386c7828e1e99adde95ec595b303c1a1e5db88ff9ee189a834898a91bfd3"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/diagnostic-domain.js",
+      "bytes": 1320,
+      "sha256": "384f832616c03f16b4465f0b17a3bac67b74fd173490cbfaaa7c235295e3b8cc"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/electron-observer-target.js",
+      "bytes": 1998,
+      "sha256": "4dc6e535ce945b4b039b1ffc26a04fb39dcf1e71039d7010abb37b6e82a61be0"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/navigation-policy.js",
+      "bytes": 4019,
+      "sha256": "6880b933ee32d1ab9625abcef9867f47c2d2c4bc8ed514ff336f86c5473e45ab"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/observer-target.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/policy-diagnostics-file.js",
+      "bytes": 1331,
+      "sha256": "5b155c902e59a16947ca45f96fc1c679914221a148328ce6032b5d8c71920ac8"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/policy-diagnostics.js",
+      "bytes": 6838,
+      "sha256": "581feda3d7f57c21da8a8c501e5d934bad1c10467c60c01c688c9fabe5c18eb4"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/profile-repository.js",
+      "bytes": 3250,
+      "sha256": "e413c0c5f10be9404f28d4729eec3a0e2f36ef03105d54f419def8624952daa8"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/replay-fixture.js",
+      "bytes": 3501,
+      "sha256": "c7c7be933f429e7ff7bb995b1d336b46617f80201a4ab89205aeea67188b8493"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/replay-observer-target.js",
+      "bytes": 2374,
+      "sha256": "46ef5d5a22aa7252fff692c127d2858a0e5469fd05c531fc23f5f7d74ed4054a"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/response-observer.js",
+      "bytes": 21820,
+      "sha256": "ea8da1304cd99695e88e00175286456197753872da45704579665e3b321f2c79"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/browser/session-snapshot-journal.js",
+      "bytes": 1331,
+      "sha256": "0bcb3e08e6f571f62ab6abbf14c1844b548e9726c28c3e72c6eae1999902f4e1"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/config/campaign-validator.js",
+      "bytes": 1263,
+      "sha256": "889411354500e6516c1ee0f1a5386b4ed7efa51c9b7dbbee05a309dc4b25a392"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/config/runtime-paths.js",
+      "bytes": 1048,
+      "sha256": "af521c8b9911c2b2a64732cace5c40422d7ffbd648c22441d81a9b379893e253"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/secrets/electron-secret-store.js",
+      "bytes": 562,
+      "sha256": "dd8c4040dcbdf6ef26761bc91c3a38268870ed07c24aa07381b75137c12c8057"
+    },
+    {
+      "path": ".build-csd-dom/infrastructure/secrets/encrypted-secret-store.js",
+      "bytes": 3063,
+      "sha256": "018b105f68a3b63f4c0a2743937b50d67d98fbabf139d846a9694681e67d27a4"
+    },
+    {
+      "path": ".build-csd-dom/main/auth-dependency-smoke.js",
+      "bytes": 6857,
+      "sha256": "1a03a63d6e4db2f5983057f9e4b0d7408c62c92bd07ea8eb3ec41e7cf7038c77"
+    },
+    {
+      "path": ".build-csd-dom/main/browser-ipc-policy.js",
+      "bytes": 780,
+      "sha256": "6338a64051b5154fc98bb6a3e7ff32a21577a1c1977dec3b1e064bc1f925c7a2"
+    },
+    {
+      "path": ".build-csd-dom/main/electron-probe-driver.js",
+      "bytes": 6162,
+      "sha256": "83ffb7508c3c9280df4320f0c0820a11e62e5d3475946d9568ca96c7461190a2"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-dom-diagnostic-fixture.js",
+      "bytes": 5315,
+      "sha256": "57ff77b5edce1af2e21291f3a5686969808ff98548baafd2e2520879722e2a11"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-dom-diagnostic-menu.js",
+      "bytes": 14168,
+      "sha256": "ddd51a1c3f265e4126515c8cd1047847075f72c6eea29c90e4b161267659c6a2"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-dom-diagnostic-script.js",
+      "bytes": 9720,
+      "sha256": "39a1bc803fca93f910ac2f43f1f8c9b1f8b7042b7bc292b33cfd515bb8600b25"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-dom-diagnostic.js",
+      "bytes": 16632,
+      "sha256": "77b70d2bcb59227eebd9822ddb7f2564f3f73e9c42a4d0968fdb9b8bd6289287"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-post-route-verification.js",
+      "bytes": 18002,
+      "sha256": "84657c05fa61115f4c6e6e85489d02a140b12d8207c851d8f541f76a447397f6"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-public-candidate-fields.js",
+      "bytes": 7058,
+      "sha256": "5db7eba8a7c127734e70c63f41592f75e88fbae209a716ba8ed6266067383d38"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-public-candidate-fixture.js",
+      "bytes": 100477,
+      "sha256": "3170c63a87573cd082af0e18b068ad6b305f9c6c57ca705bb012e649083bde88"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-public-candidate-script.js",
+      "bytes": 64629,
+      "sha256": "2955f6b3194dbf7a3e561ab2c3cee5eefddaf2deaf434f5ae452874aed59c409"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-public-candidate.js",
+      "bytes": 30703,
+      "sha256": "d2309718815267a5bbd4bddb5728f172a9c07d1f0b81d71c50403f4997eb5558"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-search-post-open-script-hooks.js",
+      "bytes": 12516,
+      "sha256": "30f1ec26d7c9a0a415bec325641acc1ae0e1b0d0d5e817168826249f83734aa9"
+    },
+    {
+      "path": ".build-csd-dom/main/facebook-search-post-open.js",
+      "bytes": 20806,
+      "sha256": "6efb4afac58afc02f75bca753f199e1676640566909bd1e300571d0a6656e6de"
+    },
+    {
+      "path": ".build-csd-dom/main/index.js",
+      "bytes": 29490,
+      "sha256": "c509c8d9132ab2b5d48f53634e8dd16415ec2817cbbb9850f4dd51161a82ea23"
+    },
+    {
+      "path": ".build-csd-dom/main/ipc-policy.js",
+      "bytes": 197,
+      "sha256": "47316418e2764ca89d74e198ca90b2ee72d4a1d2111cdccfa4260cf30a61155b"
+    },
+    {
+      "path": ".build-csd-dom/main/observer-smoke.js",
+      "bytes": 11528,
+      "sha256": "777e7a2f201cacbc2fee4da6ed1816f3c130f4b69e66b33b88bf1e0bb28b9cb0"
+    },
+    {
+      "path": ".build-csd-dom/main/policy-diagnostics-smoke.js",
+      "bytes": 3173,
+      "sha256": "72c25b4751106d8c2c06b3cf7b38d5c0ccb337560b4682093772ec8e5d79f000"
+    },
+    {
+      "path": ".build-csd-dom/main/probe-contract.js",
+      "bytes": 2392,
+      "sha256": "9183caf9f8b5c63b683f4ddd5ae97055fd5a9d81b9e719123bc402a06a7d4287"
+    },
+    {
+      "path": ".build-csd-dom/main/probe-controller.js",
+      "bytes": 17576,
+      "sha256": "f0f741f15aa7b8f853022691806ce140d49019c60089e0d54041b4d1813a2725"
+    },
+    {
+      "path": ".build-csd-dom/main/probe-freeze.js",
+      "bytes": 2658,
+      "sha256": "88322a6fb1ff9e48b0f3e0a93029d94147cbad5d4707584069513dbf0c2559f8"
+    },
+    {
+      "path": ".build-csd-dom/main/probe-ipc-policy.js",
+      "bytes": 584,
+      "sha256": "f2e3c0042974fead0a3a36bd414e4712cf88ed3c88cf6aff573ed78ddbab8115"
+    },
+    {
+      "path": ".build-csd-dom/main/probe-smoke.js",
+      "bytes": 11100,
+      "sha256": "1fa40156d7a955a05496211d8e781184937dd74421e74ff89263624eb695ec61"
+    },
+    {
+      "path": ".build-csd-dom/main/probe-writer.js",
+      "bytes": 6293,
+      "sha256": "ad2786b1470621af06623fa5afda94d47eaa01339109b1904d99c4a9993c60a6"
+    },
+    {
+      "path": ".build-csd-dom/main/session-smoke.js",
+      "bytes": 12295,
+      "sha256": "6742cebb3a907daa81f9a897c96f468e440633ec67e81727a6aba1b82b8ab2c1"
+    },
+    {
+      "path": ".build-csd-dom/main/visible-startup-diagnostics.js",
+      "bytes": 3988,
+      "sha256": "97ae279ae29023083fdfc4e404cf6060fc53b9ce80cc129f120752ba2dbc12f0"
+    },
+    {
+      "path": ".build-csd-dom/package.json",
+      "bytes": 96,
+      "sha256": "e992afe54ada8ee9d7075b8e365e59b2a9fa668c57c790397b0a43d604c27438"
+    },
+    {
+      "path": ".build-csd-dom/preload/index.cjs",
+      "bytes": 1029,
+      "sha256": "a166eadc2b72ba679ca6941ae1666f2bcda6d9ad39b374342623679e06f4079b"
+    },
+    {
+      "path": ".build-csd-dom/renderer/app.js",
+      "bytes": 8925,
+      "sha256": "7a3a4a5e1a2146c1b1cad53fb62d558d89e9b7884649132d60c439eaa9094bad"
+    },
+    {
+      "path": ".build-csd-dom/renderer/index.html",
+      "bytes": 4623,
+      "sha256": "fd6ae28e571a6586fd1aac47f5a302397eb26d68fa0a58a85c0eea1f2d2c1b07"
+    },
+    {
+      "path": ".build-csd-dom/renderer/styles.css",
+      "bytes": 4502,
+      "sha256": "3ddfc3680f5d38792e15a160f832c8a52435949d5aecfe0bd0f0805d04867d39"
+    },
+    {
+      "path": ".build-csd-dom/resources/campaign.coffee.json",
+      "bytes": 2325,
+      "sha256": "858e5464b6fa70ca58ca97044bb52803cb3bffeb2309ead2abb0709cf78e2e8b"
+    },
+    {
+      "path": ".build-csd-dom/resources/campaign.offline.json",
+      "bytes": 1766,
+      "sha256": "6423809448e2d1671aa9bba361399e86381fbba08fa75fc41c9ea076c7e0c3f6"
+    },
+    {
+      "path": ".build-csd-dom/resources/campaign.schema.json",
+      "bytes": 9127,
+      "sha256": "5394fc1f6b079c223958ce0c609dbbecb7ebacd47d5b3ea591f0469a34ae3a80"
+    },
+    {
+      "path": ".build-csd-dom/resources/facebook-current-post-v14-script.json",
+      "bytes": 68492,
+      "sha256": "f599368c4268b3cb85dfad5d8d364dd52e1dd28805298bb4cfcbe6d6fdca95ba"
+    },
+    {
+      "path": ".build-csd-dom/resources/probe-build.json",
+      "bytes": 20532,
+      "sha256": "4650056c0c1bf02838529310adc4103c3e53a8437a77d8b312d4a48f22a115d3"
+    }
+  ]
+}

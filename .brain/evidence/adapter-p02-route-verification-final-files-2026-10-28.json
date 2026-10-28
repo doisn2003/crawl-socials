@@ -1,0 +1,291 @@
+{
+  "phase": "FINAL_FROZEN_REVIEW",
+  "result": "PASS",
+  "createdAt": "2026-10-27T21:28:48.752Z",
+  "manifest": {
+    "path": ".brain/evidence/p02-route-verification-files-2026-10-28.json",
+    "sha256": "f31920c594c25351ffdace770b50f8d6c2aab79988725470d7971d2ea4c29250"
+  },
+  "unitTests": 36,
+  "passed": 36,
+  "breakdown": {
+    "independentVerification": 6,
+    "ownerVerification": 11,
+    "independentCurrentPost": 8,
+    "ownerCurrentPost": 11
+  },
+  "nativeScenarios": 5,
+  "nativeOutcomes": 15,
+  "sourceManifestHashesMatch": 20,
+  "isolatedNativeBuildHashesMatchedBeforeRun": 65,
+  "preliminaryCompiledVerifierMatchesFinal": true,
+  "files": [
+    {
+      "path": "tests/facebook-post-route-verification-review.test.ts",
+      "sha256": "4c9dbeb651c42a4513b33addab0fe84525fd9a283d23046e4edbd0e7e26d250d"
+    },
+    {
+      "path": ".test-build-adapter-candidate/route-final/src/main/facebook-post-route-verification.js",
+      "sha256": "ae9ef399f5eaa64d0683d7981e54ce5457e90dd52a1dff5330404926af6aaa6f"
+    },
+    {
+      "path": ".test-build-adapter-candidate/route-final/src/main/facebook-public-candidate.js",
+      "sha256": "d2309718815267a5bbd4bddb5728f172a9c07d1f0b81d71c50403f4997eb5558"
+    },
+    {
+      "path": ".test-build-adapter-candidate/route-final/tests/facebook-post-route-verification-review.test.js",
+      "sha256": "070b38829af803ee6a56e129da245d233c6b10b619588cb754fa99a9c491d17f"
+    },
+    {
+      "path": ".test-build-adapter-candidate/route-final/tests/facebook-current-post-review.test.js",
+      "sha256": "fc2474e620e1818ec6abba7d41464cd2f1140ed11085f3eec6b0c55148fb967e"
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "src/main/index.ts",
+      "sha256": "1aa058722bc783ca2d26212b18d728ba3d4fe7649ed700a9dd80ad763c252e94",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic.ts",
+      "sha256": "834b6ed4373f905974d4beb88d28183a8dc55fca4a2600de99dd5f4a8c34bd10",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic-menu.ts",
+      "sha256": "d934fc4102c5959e2d9fb4c963322b848e73f2cb39d2668aa573c1f48d59a506",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate.ts",
+      "sha256": "828d32b849d5120a4e35bf5a96c9d6d35143eb2d21b34f6d1a92d75c25509537",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fields.ts",
+      "sha256": "f76176df6d7de6b1f402a04bab5b16aa8b0f5200c3594cd7e9f278f45bd617cb",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate-script.ts",
+      "sha256": "331a5f5a804a8e5984f8f9243e2ad2af553346c61b31e5e577da3dd53b6ef583",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fixture.ts",
+      "sha256": "f8cff0799f8a3b8184c780199c733155978872fb44ae46acbe536f18edc02bf8",
+      "match": true
+    },
+    {
+      "path": "tests/facebook-public-candidate.test.ts",
+      "sha256": "6472577a2a8d2256d58c2dd0c703e33231d698d4e8e7c509934d1e0abd25f4a3",
+      "match": true
+    },
+    {
+      "path": "scripts/facebook-dom-diagnostic-build.mjs",
+      "sha256": "bfa9de393112b82de2dca8a5c53db4f0c7ed2dffdc65a1ee4745018b2519936a",
+      "match": true
+    },
+    {
+      "path": "scripts/facebook-public-candidate-smoke.mjs",
+      "sha256": "76fe73f5a7c2a1dd9ede1a4ab8feee76274179dd4f77643e33902605ed9fce7f",
+      "match": true
+    },
+    {
+      "path": "tests/facebook-current-post.test.ts",
+      "sha256": "774289f6c3d4b3aadcac16e54d41cda744fb02b493cd3f828232722a6f36f6e4",
+      "match": true
+    },
+    {
+      "path": "tests/fixtures/facebook-current-post-v14-script.json",
+      "sha256": "f599368c4268b3cb85dfad5d8d364dd52e1dd28805298bb4cfcbe6d6fdca95ba",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-post-route-verification.ts",
+      "sha256": "386676542ca9e6cafbe7f3835a2fbc29a27b662a5321fb5a95fbb8d853dd859a",
+      "match": true
+    },
+    {
+      "path": "tests/facebook-post-route-verification.test.ts",
+      "sha256": "745e410d66f251e82263675ae45a93ab6bf6b63c873a1b3ca3398c2c20e374b5",
+      "match": true
+    },
+    {
+      "path": ".brain/handoffs/p02-route-verification-2026-10-28.md",
+      "sha256": "1b200cd994b35fb546ca7abd0f5880bb8e04ef363a3efb42a87bc9821b85a82c",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-verification-match-2026-10-28.json",
+      "sha256": "9a7d88a5fd0073e440eebd33dcfba49abc58186a18ddc6a20aa4b585ce103484",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-verification-body-2026-10-28.json",
+      "sha256": "f5d656d661f260300a670701a783dd86d9c9d93694b9446e760bd1eabe2f4d35",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-verification-barrier-2026-10-28.json",
+      "sha256": "0dcfc9e432a1fa66042f0a9bd4a2560e1d9288b3f72882693165a3470754d75b",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-verification-redirect-2026-10-28.json",
+      "sha256": "f23d60048618f425aed7f3d14ef9c92dbaf07a6994655943548d497b5a03d601",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-route-verification-stop-2026-10-28.json",
+      "sha256": "e26a9fc2459b34ab2c59249d5fe38aa156ea6e2d40e518fe6e055076e0ced99c",
+      "match": true
+    }
+  ],
+  "native": [
+    {
+      "kind": "match",
+      "path": ".brain/evidence/adapter-p02-route-verification-match-2026-10-28.json",
+      "sha256": "473acc9b84695490d2dab74130b50b43634c1b2cb2277be228476f5f47b320cb",
+      "result": "PASS",
+      "cases": [
+        {
+          "label": "CURRENT_POST_ANCHOR",
+          "status": "SAMPLES_READY",
+          "summarySha256": "90f986b4a9d31e0f094ffa9740633a722befad2fa2ff057b7fc795393516b65c"
+        },
+        {
+          "label": "NO_ANCHOR",
+          "result": "INCONCLUSIVE",
+          "reason": "NO_ANCHOR"
+        },
+        {
+          "label": "MATCH",
+          "result": "REOPEN_MATCH",
+          "reason": "MATCHED",
+          "navigationCount": 1,
+          "readCount": 1,
+          "freshDocument": true,
+          "summarySha256": "d3f88342003f75b8a4f030a1673beac0448ab44e81c17858bfe306fff3896d8e"
+        }
+      ],
+      "windowsAfterClose": 0,
+      "webContentsAfterClose": 0
+    },
+    {
+      "kind": "body",
+      "path": ".brain/evidence/adapter-p02-route-verification-body-2026-10-28.json",
+      "sha256": "b66d7d0a28ff1e21e7ec8b20ff190de53dda0b8d78835905f952ecba60079f44",
+      "result": "PASS",
+      "cases": [
+        {
+          "label": "CURRENT_POST_ANCHOR",
+          "status": "SAMPLES_READY",
+          "summarySha256": "60e4e0f46ce125e0a796435c7364717b3f8a445bfe1ef806ad680dab51f18c5b"
+        },
+        {
+          "label": "NO_ANCHOR",
+          "result": "INCONCLUSIVE",
+          "reason": "NO_ANCHOR"
+        },
+        {
+          "label": "BODY",
+          "result": "REOPEN_MISMATCH",
+          "reason": "BODY_CHANGED",
+          "navigationCount": 1,
+          "readCount": 1,
+          "freshDocument": true,
+          "summarySha256": "c032d6a3a89880925b5dda9621f592d6d6a559d9a7c0ec3b2e9a7c7535355b16"
+        }
+      ],
+      "windowsAfterClose": 0,
+      "webContentsAfterClose": 0
+    },
+    {
+      "kind": "barrier",
+      "path": ".brain/evidence/adapter-p02-route-verification-barrier-2026-10-28.json",
+      "sha256": "fc4b6c30c493c8f69cc45c1fb30c1119ee40d5bc5f98509ca5b3391234120422",
+      "result": "PASS",
+      "cases": [
+        {
+          "label": "CURRENT_POST_ANCHOR",
+          "status": "SAMPLES_READY",
+          "summarySha256": "58eb8584ef98d85d5d17f4dad56b1eba3c6f1b9f6aabb98143bd28f64a5dbae3"
+        },
+        {
+          "label": "NO_ANCHOR",
+          "result": "INCONCLUSIVE",
+          "reason": "NO_ANCHOR"
+        },
+        {
+          "label": "BARRIER",
+          "result": "INCONCLUSIVE",
+          "reason": "CHALLENGE",
+          "navigationCount": 1,
+          "readCount": 1,
+          "freshDocument": true,
+          "summarySha256": "6f098f6e7a2293ea766aa3c6aa2269a41964325ad3e3462e3519f217b708f999"
+        }
+      ],
+      "windowsAfterClose": 0,
+      "webContentsAfterClose": 0
+    },
+    {
+      "kind": "redirect",
+      "path": ".brain/evidence/adapter-p02-route-verification-redirect-2026-10-28.json",
+      "sha256": "955a09d0fcf893b54698eea4b20c6a2cf062a68c5603c3c17e893878d43a7c19",
+      "result": "PASS",
+      "cases": [
+        {
+          "label": "CURRENT_POST_ANCHOR",
+          "status": "SAMPLES_READY",
+          "summarySha256": "c9133b0337bbc81e3116a5d368733cbae35d8f784b0e4cb3460336b8e94192a7"
+        },
+        {
+          "label": "NO_ANCHOR",
+          "result": "INCONCLUSIVE",
+          "reason": "NO_ANCHOR"
+        },
+        {
+          "label": "REDIRECT",
+          "result": "INCONCLUSIVE",
+          "reason": "ROUTE_CHANGED",
+          "navigationCount": 1,
+          "readCount": 0,
+          "freshDocument": false,
+          "summarySha256": "d2f687f7d0538d5d65b25e748ed8ab86fde2e80d9f4c90634b8e8ff0703bcdfa"
+        }
+      ],
+      "windowsAfterClose": 0,
+      "webContentsAfterClose": 0
+    },
+    {
+      "kind": "stop",
+      "path": ".brain/evidence/adapter-p02-route-verification-stop-2026-10-28.json",
+      "sha256": "fd7efc3ac6600c69c2253bebf4d121caffa4121cfc92353cd057ff2ef15fa6f0",
+      "result": "PASS",
+      "cases": [
+        {
+          "label": "CURRENT_POST_ANCHOR",
+          "status": "SAMPLES_READY",
+          "summarySha256": "5bbf831f037d610d6a1655a134169cc38a67f70a61407bf28ffe9d90c808a103"
+        },
+        {
+          "label": "STOP_PENDING_NAVIGATION",
+          "result": "INCONCLUSIVE",
+          "reason": "STOPPED",
+          "navigationCount": 1,
+          "readCount": 0
+        },
+        {
+          "label": "CONSUMED_ANCHOR",
+          "result": "INCONCLUSIVE",
+          "reason": "NO_ANCHOR"
+        }
+      ],
+      "windowsAfterClose": 0,
+      "webContentsAfterClose": 0
+    }
+  ]
+}

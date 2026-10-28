@@ -1,0 +1,228 @@
+{
+  "phase": "FROZEN_OBSERVED_HEADER_GUARDS_FINAL",
+  "result": "PASS",
+  "createdAt": "2026-10-28T00:33:59.561Z",
+  "manifest": {
+    "path": ".brain/evidence/p02-observed-header-link-guards-files-2026-10-28.json",
+    "sha256": "586b722fe850c29b562883b58a09db5aacd09855b41eacb340bf9baf3cf471f5"
+  },
+  "tests": {
+    "total": 51,
+    "passed": 51,
+    "reviewer": 27,
+    "owner": 24,
+    "rawCoercionMutations": 15
+  },
+  "nativeScenarios": 4,
+  "ownedHashesMatched": 28,
+  "isolatedNativeBuildHashesMatched": 68,
+  "ownedHashesStable": true,
+  "findings": [
+    {
+      "id": "R-OH1",
+      "status": "CLOSED"
+    },
+    {
+      "id": "R-OH2",
+      "status": "CLOSED"
+    }
+  ],
+  "discoveryScriptSha256": "ba67d8fb3c204b7708b815cdd85b9dfd2e96f6077599856bfa147c7f2cb14f7c",
+  "clickScriptSha256": "f86fec9adec24e937c213828da5050a42776b6f4fcf8e60c80275fe63d4a1cc7",
+  "searchOpenControllerCompiledSha256": "b80a3407527103543e1590a63f11e98cab1aabbf37591376b7e92e54aa026072",
+  "defaultFixedScriptHashesUnchanged": true,
+  "reviewerFiles": [
+    {
+      "path": "tests/facebook-search-post-open-review.test.ts",
+      "sha256": "0ece1bacd4527c12ce6dfb09cae096a11ed8d6e20a2eb675bd2709735d88b91d"
+    },
+    {
+      "path": ".test-build-adapter-candidate/observed-header-guards-final/tests/facebook-search-post-open-review.test.js",
+      "sha256": "1d3dcd4109e57a9c98ade1bdfb78602e03ac4fc007c86fea7fbcf7e34d8f5486"
+    },
+    {
+      "path": ".test-build-adapter-candidate/observed-header-guards-final/native-smoke.mjs",
+      "sha256": "2f3ab8fa0b076e8a5e00065b387526c570d6d49c09117587ca8e4d96f36f9d3e"
+    }
+  ],
+  "native": [
+    {
+      "path": ".brain/evidence/adapter-p02-observed-header-guards-transparent-2026-10-28.json",
+      "sha256": "c46a66ac4fabfea4e763d32aa079e247452df122286664314f653d218d47ce6a",
+      "clicks": 0,
+      "postReads": 0,
+      "reason": "NO_ELIGIBLE_TIMESTAMP",
+      "cssFillAlpha": "ZERO",
+      "svgGlyphGeometry": true
+    },
+    {
+      "path": ".brain/evidence/adapter-p02-observed-header-guards-alpha-positive-2026-10-28.json",
+      "sha256": "044b08386781077aa32bddee5fc9fbde67b8056501f74d9822ac2f69c52ca4ee",
+      "clicks": 1,
+      "postReads": 1,
+      "reason": "OBSERVED_CLICK_ROUTE_AND_POST_READ",
+      "cssFillAlpha": "POSITIVE",
+      "svgGlyphGeometry": true
+    },
+    {
+      "path": ".brain/evidence/adapter-p02-observed-header-guards-target161-2026-10-28.json",
+      "sha256": "243ef8f0fe166d9bcfd334d0910f5997f99ffc2a2013fa826779231b12086c99",
+      "clicks": 0,
+      "postReads": 0,
+      "reason": "NO_ELIGIBLE_TIMESTAMP",
+      "cssFillAlpha": null,
+      "svgGlyphGeometry": true
+    },
+    {
+      "path": ".brain/evidence/adapter-p02-observed-header-guards-stale-target-2026-10-28.json",
+      "sha256": "4a13c33b854c48e0f62ae449f330bb93bd97b9767bfde73aa3f0174d4f0fb06d",
+      "clicks": 0,
+      "postReads": 0,
+      "reason": "STALE_TARGET",
+      "cssFillAlpha": null,
+      "svgGlyphGeometry": true
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "src/main/index.ts",
+      "bytes": 28394,
+      "sha256": "8424046be6f8535585f7ab1a23327a16d8573ee8eb5cee4b8ef849db1d5dc093"
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic.ts",
+      "bytes": 17309,
+      "sha256": "834b6ed4373f905974d4beb88d28183a8dc55fca4a2600de99dd5f4a8c34bd10"
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic-menu.ts",
+      "bytes": 12291,
+      "sha256": "af15a79302b8b17b74a625539dcb70b3ea6ff8618c3215994e82da386eb06d21"
+    },
+    {
+      "path": "src/main/facebook-public-candidate.ts",
+      "bytes": 32187,
+      "sha256": "828d32b849d5120a4e35bf5a96c9d6d35143eb2d21b34f6d1a92d75c25509537"
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fields.ts",
+      "bytes": 6862,
+      "sha256": "eb2d385ebe78e10fd8b9e4eb7ab35edcb2ee04adc834ec8f60e8de1a2677256d"
+    },
+    {
+      "path": "src/main/facebook-public-candidate-script.ts",
+      "bytes": 64699,
+      "sha256": "d558b4387276da0bcd7bad154fd408817255316a2ea87cdd77e8be6bdf46af5f"
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fixture.ts",
+      "bytes": 101684,
+      "sha256": "e403a55cd1ed8ced5cd76f988a3ed2f0e2e4dc1fd1f9ebf3edddac8c3e393d4a"
+    },
+    {
+      "path": "tests/facebook-public-candidate.test.ts",
+      "bytes": 34424,
+      "sha256": "6472577a2a8d2256d58c2dd0c703e33231d698d4e8e7c509934d1e0abd25f4a3"
+    },
+    {
+      "path": "scripts/facebook-dom-diagnostic-build.mjs",
+      "bytes": 2540,
+      "sha256": "97919939c367df5aa97ebd4f6160e14b635faf76622e7933171ba361e83823e6"
+    },
+    {
+      "path": "scripts/facebook-public-candidate-smoke.mjs",
+      "bytes": 3756,
+      "sha256": "71e2d5761b0bcebbaac1e0153bc3b4ff79fca6c57af33995153084ff06542d8d"
+    },
+    {
+      "path": "tests/facebook-current-post.test.ts",
+      "bytes": 13449,
+      "sha256": "774289f6c3d4b3aadcac16e54d41cda744fb02b493cd3f828232722a6f36f6e4"
+    },
+    {
+      "path": "tests/fixtures/facebook-current-post-v14-script.json",
+      "bytes": 68492,
+      "sha256": "f599368c4268b3cb85dfad5d8d364dd52e1dd28805298bb4cfcbe6d6fdca95ba"
+    },
+    {
+      "path": "src/main/facebook-post-route-verification.ts",
+      "bytes": 15861,
+      "sha256": "ab0e8943ef71c9b4471a8b98eeadf26e522cd86c4c951718d8b2fe1da1b37b9b"
+    },
+    {
+      "path": "tests/facebook-post-route-verification.test.ts",
+      "bytes": 17617,
+      "sha256": "229974d65091ef92f7d99f5b9b582f61f22ff347f8002a52a88cc5e4a21ac0de"
+    },
+    {
+      "path": "src/main/facebook-search-post-open-script-hooks.ts",
+      "bytes": 24359,
+      "sha256": "73ecf694266836171d18894f3582af5e305b5037872d7e97ef04e6454a83b253"
+    },
+    {
+      "path": "src/main/facebook-search-post-open.ts",
+      "bytes": 17820,
+      "sha256": "6a05ee489341934b418906e315a9e0c0714bc2046b4e0fe0512a2926c58c8ba8"
+    },
+    {
+      "path": "tests/facebook-search-post-open.test.ts",
+      "bytes": 40340,
+      "sha256": "1b2b7cacdeb7cfb2c140e7a8022e146cd1667b3c951dab3b308b1d08b4af3075"
+    },
+    {
+      "path": "tests/fixtures/facebook-search-open-v21-scripts.json",
+      "bytes": 81826,
+      "sha256": "07169d2e1120771665b78dc794f41690527265b6c671dccc36be6a121b91ef9b"
+    },
+    {
+      "path": ".brain/handoffs/p02-observed-header-link-guards-2026-10-28.md",
+      "bytes": 4484,
+      "sha256": "e982cb548a7875464f87ef8c6312630d927c0c21cbcf12fd5fc063f6aaf0e25c"
+    },
+    {
+      "path": ".brain/evidence/p02-observed-header-link-guards-transparent-2026-10-28.json",
+      "bytes": 5408,
+      "sha256": "56cbbbd64a76d94a71a5d1bf407728bc3a81fc66cd4ecaa26dd08fb55621e3c8"
+    },
+    {
+      "path": ".brain/evidence/p02-observed-header-link-guards-transparent-keyword-2026-10-28.json",
+      "bytes": 5416,
+      "sha256": "0e8136989f2c58106244e8fd5aa9d155c8759a8006837499a3af6fb1608a5f6d"
+    },
+    {
+      "path": ".brain/evidence/p02-observed-header-link-guards-alpha-positive-2026-10-28.json",
+      "bytes": 10566,
+      "sha256": "a559a6924c2fb8c1772356140d848b0184676156f79ba07efdd23a0dabec25e9"
+    },
+    {
+      "path": ".brain/evidence/p02-observed-header-link-guards-svg-2026-10-28.json",
+      "bytes": 10549,
+      "sha256": "ca3d43b055078cb07b7c197005d5626163906bdf9a4bcaf28b967c2ebe9cc132"
+    },
+    {
+      "path": ".brain/evidence/p02-observed-header-link-guards-time-2026-10-28.json",
+      "bytes": 10280,
+      "sha256": "a96661695d6293ae14dbabeab9c0116e8d9b01d18c53b1f1f5ab896cb8b9e7e3"
+    },
+    {
+      "path": ".brain/evidence/p02-observed-header-link-guards-stale-subtree-2026-10-28.json",
+      "bytes": 9973,
+      "sha256": "bc0f4557b6ada0a03cf016fa289ed2da35a13928cebba36802813cc16f416499"
+    },
+    {
+      "path": ".brain/evidence/p02-observed-header-link-guards-target160-2026-10-28.json",
+      "bytes": 5397,
+      "sha256": "a62e567ba52ae6eacc4e1f9d9d0edca2fe0b145faa48543560fdf9e22ab83488"
+    },
+    {
+      "path": ".brain/evidence/p02-observed-header-link-guards-target161-2026-10-28.json",
+      "bytes": 5399,
+      "sha256": "1eb82a234ed06da04c7946c699f5b1af27105acea3912005abe0b5fa6421e570"
+    },
+    {
+      "path": ".brain/evidence/p02-observed-header-link-guards-stale-target-2026-10-28.json",
+      "bytes": 9969,
+      "sha256": "4f7b0a9f94fe434b171649721cf966cc3a65c44eff577a4e906df864a3c92be8"
+    }
+  ]
+}

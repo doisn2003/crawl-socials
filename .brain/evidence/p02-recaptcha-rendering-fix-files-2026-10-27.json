@@ -1,0 +1,63 @@
+{
+  "task": "P02_RECAPTCHA_ENTERPRISE_RENDERING_DEPENDENCY_FIX",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "result": "TARGETED_AND_NATIVE_FIXTURE_VALIDATED_PENDING_LEAD_LIVE_RENDER_TEST",
+  "validation": {
+    "targetedTests": 15,
+    "contractChecks": 44,
+    "nativeFixtureGroups": 4,
+    "externalNetworkRequests": 0,
+    "buildManifestEntries": 109
+  },
+  "files": [
+    {
+      "path": "src/infrastructure/browser/navigation-policy.ts",
+      "sha256": "c095e65af2dacb43307835e4f834c6e18e1a8da4c2ac663dca9352cb24cd1c25"
+    },
+    {
+      "path": "src/infrastructure/browser/policy-diagnostics.ts",
+      "sha256": "823f7e447a603c166f7d050bbdfbe9d2a3e11d0fa51568bffcc7f3d6c64b2614"
+    },
+    {
+      "path": "src/main/auth-dependency-smoke.ts",
+      "sha256": "f1e55dc779a1c3b83251bf72634d184a86385db56572c041c847615daf18975b"
+    },
+    {
+      "path": "tests/manual-auth-policy.test.ts",
+      "sha256": "cc9ba6a390840c96cd7723ded1bf48d9eccad17b38c25112205925828361e35e"
+    },
+    {
+      "path": "tests/diagnostic-domain.test.ts",
+      "sha256": "11464c1b5af4074b05fc681462b376e0a595cf55ca470c8c8edd9d5062046097"
+    },
+    {
+      "path": "README.md",
+      "sha256": "a40d9e7de17dab9959a3e17b315b358248591db4e7eaaa30b9e85586d4238a66"
+    },
+    {
+      "path": "dist/infrastructure/browser/navigation-policy.js",
+      "sha256": "6880b933ee32d1ab9625abcef9867f47c2d2c4bc8ed514ff336f86c5473e45ab"
+    },
+    {
+      "path": "dist/infrastructure/browser/policy-diagnostics.js",
+      "sha256": "581feda3d7f57c21da8a8c501e5d934bad1c10467c60c01c688c9fabe5c18eb4"
+    },
+    {
+      "path": "dist/main/auth-dependency-smoke.js",
+      "sha256": "1a03a63d6e4db2f5983057f9e4b0d7408c62c92bd07ea8eb3ec41e7cf7038c77"
+    },
+    {
+      "path": "dist/resources/probe-build.json",
+      "sha256": "34e98cede823bba2a84acf360b19af5c751bb8bf9fb82f897e6d8db1f060c3db"
+    },
+    {
+      "path": ".brain/evidence/p02-recaptcha-dependency-fixture-2026-10-27.json",
+      "sha256": "d83614d1ea5e0c24426beb5b43142c4ec08d6018315e69889f055f985d139d2e"
+    },
+    {
+      "path": ".brain/handoffs/csd-recaptcha-rendering-fix-2026-10-27.md",
+      "sha256": "7c9ebc7eba33b5f41278365ffd493e3ec311dc909d3acad1fd031e4934f6d5e8"
+    }
+  ]
+}

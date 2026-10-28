@@ -1,0 +1,129 @@
+{
+  "task": "P01.02 + R01",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "codeVersion": "SHA-256; no Git repository",
+  "scope": "CSD agent owned files only; excludes coordinator and adapter-agent files",
+  "files": [
+    {
+      "path": "package.json",
+      "sha256": "561585dd9672958153367cb02c6aff51ad2a90bc1422153416017069fc2e8ff7"
+    },
+    {
+      "path": "README.md",
+      "sha256": "bb997755690e1419319526b1f688497c32d9348b11e4d80a0a4c86d9ff22870f"
+    },
+    {
+      "path": "src/infrastructure/config/campaign-validator.ts",
+      "sha256": "778b1423eced1a95b992080eba6e67eb16aeede12051163d45ba74f07f9892f8"
+    },
+    {
+      "path": "src/main/index.ts",
+      "sha256": "f7bd417b907ad2dbb3f8d536f348f7645e5eedea164f7bc7a4aee7a4247d0daa"
+    },
+    {
+      "path": "src/main/browser-ipc-policy.ts",
+      "sha256": "09e068adc39e819c3d4bfa5de585ae774d3ffa5b03cdf893872a7e1b7cf3880f"
+    },
+    {
+      "path": "src/main/session-smoke.ts",
+      "sha256": "7a24abee1b81d722482028c907fea7d615fe5dcae209ea075ee7fe344cbe967c"
+    },
+    {
+      "path": "src/preload/index.cts",
+      "sha256": "95421a2d5fafc190c6f0fe79e21acb3dedb385bd37ee63685f3a33d09665d3e1"
+    },
+    {
+      "path": "src/shared/desktop-api.d.ts",
+      "sha256": "4aca0c33fa50fb00fc073e19bb8cdd655c5882176689ddffd3dea35425dd155c"
+    },
+    {
+      "path": "src/renderer/app.ts",
+      "sha256": "c9184240650e13fea27b0a9f4db0ad08caa1d5d9ad4ed10baf2ea1641b4a7d46"
+    },
+    {
+      "path": "src/renderer/index.html",
+      "sha256": "8dfaf5b888048749e655949de658584f98b7231f789d6bb60240f14b314770eb"
+    },
+    {
+      "path": "src/renderer/styles.css",
+      "sha256": "d1c0891ce52defe17915f41848cebe1fe7773cc44e075735b82ccaaaef7bc2a5"
+    },
+    {
+      "path": "src/domain/browser-profile.ts",
+      "sha256": "121bb2a4ab427f7785d964f186d15970d633d55308093608cafb9ea22969a6db"
+    },
+    {
+      "path": "src/application/ports/browser-profiles.ts",
+      "sha256": "7de7d4787eddaa96de2e36157b8ac3996b40fe930fbcb335ed0a2f2d4ee084a3"
+    },
+    {
+      "path": "src/application/ports/secret-store.ts",
+      "sha256": "75e077e003134ee5d3d19c6b161bd66c8996d0a280d6db157763ce2ff69fd820"
+    },
+    {
+      "path": "src/infrastructure/browser/browser-host.ts",
+      "sha256": "3075ec3e0bbb4c62b0c63296e707cace8dbf9b165a5ca6bc5f536bb752136c28"
+    },
+    {
+      "path": "src/infrastructure/browser/profile-repository.ts",
+      "sha256": "334ecc66f46edc71c808b7ebfcbaeb7187694e8226482fc426201092ba642fdb"
+    },
+    {
+      "path": "src/infrastructure/browser/navigation-policy.ts",
+      "sha256": "ca9c10d68eba97429baa0e0a1a19c49b844a2c413cdf1fffdb9c5dfbb49c1d14"
+    },
+    {
+      "path": "src/infrastructure/browser/session-snapshot-journal.ts",
+      "sha256": "807a2693d84ea57636d5a9713cf6cddd5777c5ce8542c368f7410922bae4d7ef"
+    },
+    {
+      "path": "src/infrastructure/secrets/encrypted-secret-store.ts",
+      "sha256": "fa26fcf28cc1f8cf4fbbbf1bbb97a9738966a553794690f6006220a3e055498d"
+    },
+    {
+      "path": "src/infrastructure/secrets/electron-secret-store.ts",
+      "sha256": "ee81ef6ff0e024d9b13ee5e7748916982e9e24ee27370c9e4fef63c08980218b"
+    },
+    {
+      "path": "scripts/bootstrap-smoke.mjs",
+      "sha256": "bb7c2ab8809f9790fce58b0d2619f8207f760366657af9a4cc415bab3b92c0be"
+    },
+    {
+      "path": "scripts/session-smoke.mjs",
+      "sha256": "522e430a394ba810e5c641ec948bbfe0201c61f9b11510780d4a1b69ad8b0e68"
+    },
+    {
+      "path": "tests/bootstrap.test.ts",
+      "sha256": "4111ecd54589148d5ecbd1f1d99088a2de2b206ed9a7d626966611fee392818e"
+    },
+    {
+      "path": "tests/session.test.ts",
+      "sha256": "e29f284f2634f6d589b91dc437ef23080c8a34c9f49a9545d49f7d033be05641"
+    },
+    {
+      "path": ".brain/evidence/p01-session-validation-2026-10-27.md",
+      "sha256": "5facff7baf3ec4c04171b03df0e882ac4c5a16bb17a3785077c4e0bfb90c3a77"
+    },
+    {
+      "path": ".brain/evidence/p01-session-smoke-2026-10-27.json",
+      "sha256": "635e809bfe8c84dc3ad19fe1174adc45bd5db8760f53a8003c3125acc9c91ee0"
+    },
+    {
+      "path": ".brain/evidence/p01-session-profile-ui-2026-10-27.png",
+      "sha256": "20c0c134a0a6dd86d0097a2c4d20323478a63c67035d0650e00c000a57c69e6a"
+    },
+    {
+      "path": ".brain/evidence/p01-session-bootstrap-smoke-2026-10-27.json",
+      "sha256": "d06acf77a628766baeecae7b0b1769ea27264ff62b1273bf37c57c1f89faa0be"
+    },
+    {
+      "path": ".brain/evidence/p01-session-bootstrap-offline.png",
+      "sha256": "1829f97c56eba8ee148161b882331a90472390d022b44ca89c76e8f1ce4f5046"
+    },
+    {
+      "path": ".brain/handoffs/csd-session-p0102-2026-10-27.md",
+      "sha256": "7406003dc05c8a632a3e2f9b4071d616ae3ae3e160994a33b54d22aa22b2da13"
+    }
+  ]
+}

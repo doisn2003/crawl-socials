@@ -1,0 +1,184 @@
+{
+  "phase": "FROZEN_PASSIVE_ARIA_FINAL",
+  "result": "PASS",
+  "createdAt": "2026-10-28T01:25:44.713Z",
+  "manifest": {
+    "path": ".brain/evidence/p02-passive-aria-wrapper-files-2026-10-28.json",
+    "sha256": "6ba4a31d170c3d9ee24a95e3817e460f06500a87b2de5ef35c1eaea580988310"
+  },
+  "tests": {
+    "total": 5,
+    "passed": 5,
+    "reviewer": 3,
+    "owner": 2
+  },
+  "nativeScenarios": 1,
+  "ownedHashesMatched": 27,
+  "isolatedNativeBuildHashesMatched": 69,
+  "ownedHashesStable": true,
+  "findings": [],
+  "discoveryScriptSha256": "eb54c8895efc53875255110606a7d492640d8f3718d265c4e7bb5610c5014f5c",
+  "clickScriptSha256": "943b70bc6847e5fe7af68d60be96612044cb13f01a0a1ce140e046f7fed977d1",
+  "searchOpenControllerCompiledSha256": "35a6ad9758f78815ea28e3d337c79172d637cc0d91721bb22b2eb38131a46ce1",
+  "defaultFixedScriptHashesUnchanged": true,
+  "reviewerFiles": [
+    {
+      "path": "tests/facebook-search-post-open-review.test.ts",
+      "sha256": "848dbd858b8ec078d5b84a10783ba7e8129861c33d8a1788cc011b80dc9c6719"
+    },
+    {
+      "path": ".test-build-adapter-candidate/passive-aria-final/tests/facebook-search-post-open-review.test.js",
+      "sha256": "f27e14530b190afbd2cba1efec1097695e7ab265debc9dca196a5eb4fa7cb9ba"
+    },
+    {
+      "path": ".test-build-adapter-candidate/passive-aria-final/native-smoke.mjs",
+      "sha256": "6502ebebd99e0b24750e4f6dd4e37410daa8827a40bb9f8dc667208d867a0751"
+    }
+  ],
+  "native": [
+    {
+      "path": ".brain/evidence/adapter-p02-passive-aria-stale-2026-10-28.json",
+      "sha256": "9f140f090857de0d3723147994ac082c49832a7eec31a76608e852b015e8daca",
+      "reason": "STALE_TARGET",
+      "clicks": 0,
+      "postReads": 0
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "src/main/index.ts",
+      "bytes": 28682,
+      "sha256": "37c71d4b4aafd445c073072f51009c57f6b3a31e31e2c3bfadfe2e4ff9f0a662"
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic.ts",
+      "bytes": 17309,
+      "sha256": "834b6ed4373f905974d4beb88d28183a8dc55fca4a2600de99dd5f4a8c34bd10"
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic-menu.ts",
+      "bytes": 12291,
+      "sha256": "af15a79302b8b17b74a625539dcb70b3ea6ff8618c3215994e82da386eb06d21"
+    },
+    {
+      "path": "src/main/facebook-public-candidate.ts",
+      "bytes": 32187,
+      "sha256": "828d32b849d5120a4e35bf5a96c9d6d35143eb2d21b34f6d1a92d75c25509537"
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fields.ts",
+      "bytes": 6862,
+      "sha256": "eb2d385ebe78e10fd8b9e4eb7ab35edcb2ee04adc834ec8f60e8de1a2677256d"
+    },
+    {
+      "path": "src/main/facebook-public-candidate-script.ts",
+      "bytes": 64699,
+      "sha256": "d558b4387276da0bcd7bad154fd408817255316a2ea87cdd77e8be6bdf46af5f"
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fixture.ts",
+      "bytes": 104706,
+      "sha256": "8cfe2a41a2b9d952f6bab17cfff532abeb68692137585c6d0ed28a26a01f3994"
+    },
+    {
+      "path": "tests/facebook-public-candidate.test.ts",
+      "bytes": 34424,
+      "sha256": "6472577a2a8d2256d58c2dd0c703e33231d698d4e8e7c509934d1e0abd25f4a3"
+    },
+    {
+      "path": "scripts/facebook-dom-diagnostic-build.mjs",
+      "bytes": 2710,
+      "sha256": "1a6ede1db85b9809c0b2bd88ccafef14e2503b13bd70ae057c8a2c886e1c1b16"
+    },
+    {
+      "path": "scripts/facebook-public-candidate-smoke.mjs",
+      "bytes": 3756,
+      "sha256": "71e2d5761b0bcebbaac1e0153bc3b4ff79fca6c57af33995153084ff06542d8d"
+    },
+    {
+      "path": "tests/facebook-current-post.test.ts",
+      "bytes": 13449,
+      "sha256": "774289f6c3d4b3aadcac16e54d41cda744fb02b493cd3f828232722a6f36f6e4"
+    },
+    {
+      "path": "tests/fixtures/facebook-current-post-v14-script.json",
+      "bytes": 68492,
+      "sha256": "f599368c4268b3cb85dfad5d8d364dd52e1dd28805298bb4cfcbe6d6fdca95ba"
+    },
+    {
+      "path": "src/main/facebook-post-route-verification.ts",
+      "bytes": 15861,
+      "sha256": "ab0e8943ef71c9b4471a8b98eeadf26e522cd86c4c951718d8b2fe1da1b37b9b"
+    },
+    {
+      "path": "tests/facebook-post-route-verification.test.ts",
+      "bytes": 17617,
+      "sha256": "229974d65091ef92f7d99f5b9b582f61f22ff347f8002a52a88cc5e4a21ac0de"
+    },
+    {
+      "path": "src/main/facebook-search-post-open-script-hooks.ts",
+      "bytes": 29654,
+      "sha256": "422065c7896e6ef0337a5d10c922b8e947c97ab8ab6fce80b13e09e5ba8c9c22"
+    },
+    {
+      "path": "src/main/facebook-search-post-open.ts",
+      "bytes": 17820,
+      "sha256": "dfbc573a4565ee400d894764a8c01aaa5f5189f6a362899c1ef923098b946534"
+    },
+    {
+      "path": "tests/facebook-search-post-open.test.ts",
+      "bytes": 47301,
+      "sha256": "f2c45684841fcd382fde0fd4f26143753706fa81d88b7b26436f48bf83bded75"
+    },
+    {
+      "path": "tests/fixtures/facebook-search-open-v21-scripts.json",
+      "bytes": 81826,
+      "sha256": "07169d2e1120771665b78dc794f41690527265b6c671dccc36be6a121b91ef9b"
+    },
+    {
+      "path": "tests/fixtures/facebook-search-open-v23-scripts.json",
+      "bytes": 93855,
+      "sha256": "e3bd6f174e664be874978581d1a4393923100054711a4dea65fdbc229176e6ae"
+    },
+    {
+      "path": ".brain/handoffs/p02-passive-aria-wrapper-2026-10-28.md",
+      "bytes": 3646,
+      "sha256": "d37e1d446360bf880338dab6b548a0484c5c0f4bcbe96da1561e66bb21b687ba"
+    },
+    {
+      "path": ".brain/evidence/p02-passive-aria-wrapper-plain-2026-10-28.json",
+      "bytes": 11980,
+      "sha256": "603e7f9661cdd9fc29c594fef2383bc9d274034e60c4f5518efcdc28542aeaac"
+    },
+    {
+      "path": ".brain/evidence/p02-passive-aria-wrapper-svg-2026-10-28.json",
+      "bytes": 12013,
+      "sha256": "784bedbca746a949589ce9f852ea5fa535ee141631301f7209907e1d9b2d78dc"
+    },
+    {
+      "path": ".brain/evidence/p02-passive-aria-wrapper-media-2026-10-28.json",
+      "bytes": 6132,
+      "sha256": "05f431434f15b326b45889968611ae1f8747bf00ef91948577bfb36c5c559384"
+    },
+    {
+      "path": ".brain/evidence/p02-passive-aria-wrapper-blank-2026-10-28.json",
+      "bytes": 6157,
+      "sha256": "d55033c9c942b62a234fc09fb68671a5cb74819fe849a387dbbd22985a26a952"
+    },
+    {
+      "path": ".brain/evidence/p02-passive-aria-wrapper-limit-2026-10-28.json",
+      "bytes": 6189,
+      "sha256": "27e4fade43a74c1860ef0020eae39191c7ae3e70aefd62a04162e91eb8e715e6"
+    },
+    {
+      "path": ".brain/evidence/p02-passive-aria-wrapper-stale-2026-10-28.json",
+      "bytes": 11563,
+      "sha256": "8586daa74cc48048b224df7adc4895adaecfe1048fe850b9be1a9932f7f05e1f"
+    },
+    {
+      "path": ".brain/evidence/p02-passive-aria-wrapper-time-2026-10-28.json",
+      "bytes": 11772,
+      "sha256": "b722f87a60dec6f1bea8f69d536802ec3bd9f9d6b884cc829591e3aad6f63b0e"
+    }
+  ]
+}

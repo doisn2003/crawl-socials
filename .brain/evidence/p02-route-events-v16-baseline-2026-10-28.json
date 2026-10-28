@@ -1,0 +1,35 @@
+{
+  "task": "P02_POST_ROUTE_VERIFICATION",
+  "caseKind": "same-read-baseline",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 1,
+  "nativeHistoryEvents": 1,
+  "cases": [
+    {
+      "label": "CURRENT_POST_ANCHOR",
+      "status": "SAMPLES_READY",
+      "summarySha256": "baffb9c12c893edd963c710db134bb9e3f22f01f9e9e1573fd46f6187e1270b5"
+    },
+    {
+      "label": "NO_ANCHOR",
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ANCHOR"
+    },
+    {
+      "label": "SAME-READ-BASELINE",
+      "result": "INCONCLUSIVE",
+      "reason": "ROUTE_CHANGED",
+      "navigationCount": 1,
+      "readCount": 1,
+      "freshDocument": true,
+      "summarySha256": "785d8b9fe2870b330321dcda09e978a72d83d23ea977c1c5833d2bb738485510"
+    }
+  ],
+  "reopenRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

@@ -1,0 +1,29 @@
+{
+  "task": "P02_PUBLIC_GROUP_V12_BASELINE",
+  "schemaVersion": 12,
+  "exitCode": 1,
+  "expectedCandidates": 5,
+  "observed": {
+    "candidates": 1,
+    "acceptedKinds": [
+      "KNOWN_PUBLIC_GRAPHIC"
+    ],
+    "visited": 134,
+    "rejected": {
+      "NO_FEED": 0,
+      "NOT_RENDERED": 0,
+      "NO_HEADER": 0,
+      "NO_TEMPORAL": 0,
+      "MISSING_PUBLIC": 4,
+      "RESTRICTED": 0,
+      "CONFLICTING_PUBLIC": 0,
+      "AD_OR_SUGGESTION": 0,
+      "AMBIGUOUS_BOUNDARY": 0,
+      "INCOMPLETE_BOUNDARY": 0,
+      "DUPLICATE_ID": 0,
+      "NO_COLOCATED_BOUNDARY": 0,
+      "NO_HEADER_CLUSTER": 0
+    }
+  },
+  "scriptSha256": "6dd3d58ca42a5d7c16d076cc3c5aab1836a189aa13127bc11a4aa8b382332ca8"
+}

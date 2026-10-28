@@ -1,0 +1,31 @@
+{
+  "task": "P02_HEADER_TREE_V10_BASELINE",
+  "schemaVersion": 10,
+  "exitCode": 1,
+  "expectedCandidates": 3,
+  "observed": {
+    "candidates": 1,
+    "visited": 267,
+    "rejected": {
+      "NO_FEED": 0,
+      "NOT_RENDERED": 0,
+      "NO_HEADER": 0,
+      "NO_TEMPORAL": 0,
+      "MISSING_PUBLIC": 0,
+      "RESTRICTED": 0,
+      "CONFLICTING_PUBLIC": 0,
+      "AD_OR_SUGGESTION": 0,
+      "AMBIGUOUS_BOUNDARY": 0,
+      "INCOMPLETE_BOUNDARY": 0,
+      "DUPLICATE_ID": 0,
+      "NO_COLOCATED_BOUNDARY": 0,
+      "NO_HEADER_CLUSTER": 2
+    },
+    "headers": {
+      "deepHints": 5,
+      "clustersFound": 0,
+      "ancestorLimits": 2
+    }
+  },
+  "scriptSha256": "b03803437d1bbcd5320090cd5e8f12fd977934c1638fc6a3d63b8b926d82a789"
+}

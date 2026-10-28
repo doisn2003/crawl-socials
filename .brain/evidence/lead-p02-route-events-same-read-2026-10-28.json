@@ -1,0 +1,105 @@
+{
+  "task": "P02_POST_ROUTE_VERIFICATION",
+  "caseKind": "same-read",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 2,
+  "nativeHistoryEvents": 4,
+  "cases": [
+    {
+      "label": "CURRENT_POST_ANCHOR",
+      "status": "SAMPLES_READY",
+      "summarySha256": "44009e294d24b52211fc7bd4e2ac10119b3a8973dde3496ef82f453aa7b4e4ba"
+    },
+    {
+      "label": "NO_ANCHOR",
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ANCHOR"
+    },
+    {
+      "label": "SAME-READ",
+      "result": "REOPEN_MATCH",
+      "reason": "MATCHED",
+      "navigationCount": 1,
+      "readCount": 1,
+      "freshDocument": true,
+      "eventTrace": [
+        {
+          "kind": "START",
+          "event": "DID_START_NAVIGATION",
+          "phase": "NAVIGATING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "DIFFERENT",
+          "owner": "SAME",
+          "generation_delta": 0,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "COMMIT",
+          "event": "DID_NAVIGATE",
+          "phase": "NAVIGATING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_START_NAVIGATION",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_NAVIGATE_IN_PAGE",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_START_NAVIGATION",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "event": "DID_NAVIGATE_IN_PAGE",
+          "phase": "READING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "EXACT",
+          "owner": "SAME",
+          "generation_delta": 1,
+          "decision": "NO_OP"
+        }
+      ],
+      "traceOverflow": false,
+      "firstCancellation": null,
+      "summarySha256": "751dffb68ab53160485604825ee47ea8601d221403f5ae62cd10b30145535357"
+    }
+  ],
+  "reopenRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

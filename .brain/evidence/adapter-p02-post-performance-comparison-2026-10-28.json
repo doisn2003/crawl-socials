@@ -1,0 +1,226 @@
+{
+  "task": "INDEPENDENT_POST_PERFORMANCE_REVIEW",
+  "result": "PASS",
+  "createdAt": "2026-10-27T20:59:12.559Z",
+  "sourceUnchangedAcrossReview": true,
+  "ownerManifestMatches": 16,
+  "reviewerTests": 92,
+  "reviewerTestsPassed": 92,
+  "sameHarness": true,
+  "sameFixtureHashes": 10,
+  "currentScriptSha256": "613d6e954927f34539ce25c86e7332c7fb5c496ba8755f40d0733604db2aa3cd",
+  "comparisons": [
+    {
+      "name": "small-positive",
+      "fixtureHash": "95dcb0393412b186e77f68bcfae519c6a7dfbd370105ac68f678b28ab0a183ac",
+      "baselineStatus": "SAMPLES_READY",
+      "optimizedStatus": "SAMPLES_READY",
+      "baselineMs": 9.399999998509884,
+      "optimizedMs": 9,
+      "baselineSecurityMs": 2.4000000059604645,
+      "optimizedSecurityMs": 0.5
+    },
+    {
+      "name": "large-positive",
+      "fixtureHash": "9efd08fa585cdf4459cbe0d8d4e8deb6e61d0d086c1775cefe466b325fd1edce",
+      "baselineStatus": "SAMPLES_READY",
+      "optimizedStatus": "SAMPLES_READY",
+      "baselineMs": 667.7999999970198,
+      "optimizedMs": 108.79999999701977,
+      "baselineSecurityMs": 656.7000000029802,
+      "optimizedSecurityMs": 95.30000000447035
+    },
+    {
+      "name": "large-late-auth-sibling",
+      "fixtureHash": "d17364cd36f251b04ed8610c03af453a54728541f00aeec21fd194963f580a37",
+      "baselineStatus": "AUTH_REQUIRED",
+      "optimizedStatus": "AUTH_REQUIRED",
+      "baselineMs": 672.3999999985099,
+      "optimizedMs": 85.89999999850988,
+      "baselineSecurityMs": 671.8999999985099,
+      "optimizedSecurityMs": 85.39999999850988
+    },
+    {
+      "name": "large-late-auth-wrapper",
+      "fixtureHash": "9fe3b270f2ebe44fb8f784ac61fcfef7a03699d626f2a78f3a120bda87176d78",
+      "baselineStatus": "AUTH_REQUIRED",
+      "optimizedStatus": "AUTH_REQUIRED",
+      "baselineMs": 708.8000000044703,
+      "optimizedMs": 98.60000000149012,
+      "baselineSecurityMs": 708.2000000029802,
+      "optimizedSecurityMs": 98
+    },
+    {
+      "name": "large-late-challenge",
+      "fixtureHash": "08871a84af057e6a45df05bd217aa16a1a65f1181692374d07d45e2640348cc7",
+      "baselineStatus": "CHALLENGE",
+      "optimizedStatus": "CHALLENGE",
+      "baselineMs": 627.6000000014901,
+      "optimizedMs": 74.5,
+      "baselineSecurityMs": 626.8000000044703,
+      "optimizedSecurityMs": 74
+    },
+    {
+      "name": "large-late-denied",
+      "fixtureHash": "a2951fab925bd05e6d5acbe9a959b1fc40d848c2eeeb37e282d306babb38ebeb",
+      "baselineStatus": "ACCESS_DENIED",
+      "optimizedStatus": "ACCESS_DENIED",
+      "baselineMs": 636.5,
+      "optimizedMs": 78.29999999701977,
+      "baselineSecurityMs": 636,
+      "optimizedSecurityMs": 78
+    },
+    {
+      "name": "extra-large-positive",
+      "fixtureHash": "23905176c7ed7b10e624787adb2b3afef81869bf024935ab320ed89af55a6533",
+      "baselineStatus": "BARRIER_SCAN_INCOMPLETE",
+      "optimizedStatus": "SAMPLES_READY",
+      "baselineMs": 1275.2999999970198,
+      "optimizedMs": 166.39999999850988,
+      "baselineSecurityMs": 1258.1000000014901,
+      "optimizedSecurityMs": 148.70000000298023
+    },
+    {
+      "name": "extra-large-late-challenge",
+      "fixtureHash": "0d0ae51d4a9f012009926815df30defdf345f553587fcd9ac43eee490e230d1c",
+      "baselineStatus": "BARRIER_SCAN_INCOMPLETE",
+      "optimizedStatus": "CHALLENGE",
+      "baselineMs": 1470.3000000044703,
+      "optimizedMs": 160.60000000149012,
+      "baselineSecurityMs": 1470,
+      "optimizedSecurityMs": 160.10000000149012
+    },
+    {
+      "name": "security-overflow",
+      "fixtureHash": "947d18cb4d0793357e2447bb8ea0d84cc68bbd85b44e4e228324b23cc3939583",
+      "baselineStatus": "BARRIER_SCAN_INCOMPLETE",
+      "optimizedStatus": "BARRIER_SCAN_INCOMPLETE",
+      "baselineMs": 10.5,
+      "optimizedMs": 1.8999999985098839,
+      "baselineSecurityMs": 9.899999998509884,
+      "optimizedSecurityMs": 1.3999999985098839
+    },
+    {
+      "name": "dialog-overflow",
+      "fixtureHash": "94874308edabedc678dd264369cd8c9c8317266799f82b72490394839aeb5b12",
+      "baselineStatus": "BARRIER_SCAN_INCOMPLETE",
+      "optimizedStatus": "BARRIER_SCAN_INCOMPLETE",
+      "baselineMs": 10.399999998509884,
+      "optimizedMs": 1.8000000044703484,
+      "baselineSecurityMs": 9.900000005960464,
+      "optimizedSecurityMs": 1.5
+    }
+  ],
+  "files": [
+    {
+      "path": "tests/fixtures/reviewer/current-post-performance.mjs",
+      "sha256": "9a159a7d2a658fb3a07fd6a005c04505c0a46dd7469eefbd98d6e66fc0a3184b"
+    },
+    {
+      "path": "tests/facebook-current-post-review.test.ts",
+      "sha256": "0c4b23ea2404525463786c27ab05a3464f0f6e6ff35423be7d0a69bce34bac0b"
+    },
+    {
+      "path": "tests/facebook-public-candidate-review.test.ts",
+      "sha256": "8b243900560ef3989150b1dcdc7122513a4e6fd0437fd50bf2d60de9409bacd9"
+    },
+    {
+      "path": ".test-build-adapter-candidate/src/main/facebook-public-candidate-script.js",
+      "sha256": "0eecfabdd96310a5ff584658232f9d3e471ce65cd4e11b3505ded63485842c43"
+    },
+    {
+      "path": ".test-build-adapter-candidate/src/main/facebook-public-candidate.js",
+      "sha256": "52bcc208934daa007633bc39c9300e3003e70240d02af2333ce0e6d9ffc05be4"
+    },
+    {
+      "path": ".brain/evidence/adapter-p02-post-performance-v14-2026-10-28.json",
+      "sha256": "52682c7a2f222d93c3c53212574aee2e24d73b8b005f26f33c35a1d2e3583e8a"
+    },
+    {
+      "path": ".brain/evidence/adapter-p02-post-performance-optimized-2026-10-28.json",
+      "sha256": "9c86ed3447ed336d502533fd708abb00bca19aff80f07c9902a23d5d86e9466f"
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "src/main/index.ts",
+      "sha256": "b719f92c7eb1bad3e3e90642e2de6ccb01200bd26307b5b33f0e641d862a2549",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic.ts",
+      "sha256": "834b6ed4373f905974d4beb88d28183a8dc55fca4a2600de99dd5f4a8c34bd10",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic-menu.ts",
+      "sha256": "8a10bf5b504ebeb719c73213299e3c51e7a90140b6da56548a21f4b1f80ea4b1",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate.ts",
+      "sha256": "dd87ed65c74bf18462495682c4955c57ef00741202caf760eedd9cc6e84db43f",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fields.ts",
+      "sha256": "f76176df6d7de6b1f402a04bab5b16aa8b0f5200c3594cd7e9f278f45bd617cb",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate-script.ts",
+      "sha256": "331a5f5a804a8e5984f8f9243e2ad2af553346c61b31e5e577da3dd53b6ef583",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fixture.ts",
+      "sha256": "bf3df73df327b2a5632d839487ce3c85ae144db3fdab0c929865db55770b1589",
+      "match": true
+    },
+    {
+      "path": "tests/facebook-public-candidate.test.ts",
+      "sha256": "6472577a2a8d2256d58c2dd0c703e33231d698d4e8e7c509934d1e0abd25f4a3",
+      "match": true
+    },
+    {
+      "path": "scripts/facebook-dom-diagnostic-build.mjs",
+      "sha256": "2ab3c51127d12f679a8dd6a840cd284dc17361f84f97e5887b102ecc7b8795a4",
+      "match": true
+    },
+    {
+      "path": "scripts/facebook-public-candidate-smoke.mjs",
+      "sha256": "e173cb67d71b02206f7165ae492f236b990d195205da4e8190e40f116b147592",
+      "match": true
+    },
+    {
+      "path": "tests/facebook-current-post.test.ts",
+      "sha256": "e45a1c4ed7cc651031073d8b139aebc2f3f80cf831a1122add340d2114c25f63",
+      "match": true
+    },
+    {
+      "path": "tests/fixtures/facebook-current-post-v14-script.json",
+      "sha256": "f599368c4268b3cb85dfad5d8d364dd52e1dd28805298bb4cfcbe6d6fdca95ba",
+      "match": true
+    },
+    {
+      "path": ".brain/handoffs/p02-post-performance-2026-10-28.md",
+      "sha256": "403b8d941778574a50cf9f1198822719cba415678bb58209f400388362ec8a09",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-post-performance-native-2026-10-28.json",
+      "sha256": "dfbc7438d75a3a7130ea4953c2a580254410bb9e770f435f2a23c02b08220c80",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-post-performance-context-2026-10-28.json",
+      "sha256": "33850ac00f456de2a26b85a239b291fa773c722bd6d1474493f349b82ca5030a",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-post-performance-barriers-2026-10-28.json",
+      "sha256": "5e7d39ddfa95beabfec29087beda23df92b29b01deea86dbc431e08ee93b2a2a",
+      "match": true
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "phase": "FROZEN_V25_READER_PARSER_PARITY_BASELINE",
+  "sourcePath": ".test-build-adapter-candidate/observed-url-v25-baseline/src/main/facebook-public-candidate-fields.js",
+  "sourceSha256": "d44f4464b8ea3a06108af42da5f378985d2dc83bd37152b431ea49451e3782af",
+  "testSourceSha256": "ba93cbf59d9fbd690cd820080e373c06fd637bb17cc88f8ee86433b26144f45e",
+  "compiledTestSha256": "1960e87c890bc6a7b9c3adb3e885f77dfe652077536c64f797b3f342eac01223",
+  "output": ".test-build-adapter-candidate/observed-url-v25-baseline"
+}

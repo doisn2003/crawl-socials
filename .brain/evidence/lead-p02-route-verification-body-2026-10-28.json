@@ -1,0 +1,34 @@
+{
+  "task": "P02_POST_ROUTE_VERIFICATION",
+  "caseKind": "body",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "label": "CURRENT_POST_ANCHOR",
+      "status": "SAMPLES_READY",
+      "summarySha256": "120114eef2cb4364b53df10def25884147366e535b56165dade97bdfc4a9b5a0"
+    },
+    {
+      "label": "NO_ANCHOR",
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ANCHOR"
+    },
+    {
+      "label": "BODY",
+      "result": "REOPEN_MISMATCH",
+      "reason": "BODY_CHANGED",
+      "navigationCount": 1,
+      "readCount": 1,
+      "freshDocument": true,
+      "summarySha256": "2ac763d40602bbf815437bc83fefd81c42496b927e127c3c7ae9b7b95e967ff4"
+    }
+  ],
+  "reopenRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

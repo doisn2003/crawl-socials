@@ -1,0 +1,33 @@
+{
+  "phase": "PRELIMINARY_UNFROZEN_R_URL1_FAILED",
+  "finding": "R-URL1",
+  "status": "OPEN",
+  "expectedTargets": 0,
+  "actualTargets": 1,
+  "observedRole": "menuitem",
+  "discoveryScriptSha256": "e4bbac86b98061edbdff92cc73a64013329ac3f420fe332295b34d3fccd56cbb",
+  "revalidationScriptSha256": "d76b498227fab0ce1d6025f632cdcbae3e670074a6ff8abd189faca3f6ac4caa",
+  "files": [
+    {
+      "path": ".test-build-adapter-candidate/observed-url-role-preliminary/src/main/facebook-search-post-open-script-hooks.js",
+      "sha256": "69865a8ce6e6c030b748563de7e78a664483f8b45131cd2479a3b959460d9657"
+    },
+    {
+      "path": ".test-build-adapter-candidate/observed-url-role-preliminary/src/main/facebook-public-candidate-script.js",
+      "sha256": "2d0aa9e21bd0b304ea4173473eac61ab6b73f67cdc7ef38e39e0dc2e299d873a"
+    },
+    {
+      "path": ".test-build-adapter-candidate/observed-url-role-preliminary/src/main/facebook-search-post-open.js",
+      "sha256": "2cf334fc8857106c536933048e4da07a520247385a63aedcf49bc09c4b5e259f"
+    },
+    {
+      "path": ".test-build-adapter-candidate/observed-url-role-preliminary/tests/facebook-search-post-open-review.test.js",
+      "sha256": "9a7793fa10568fa38651c7eb4f20b4d16138d11e28488624879dfdc614392e83"
+    },
+    {
+      "path": ".test-build-adapter-candidate/observed-url-role-preliminary/reviewer-source.ts",
+      "sha256": "111c3b6922509557d9e59f54087768b5eedb0bd500f450ac3c67921742f7a84b"
+    }
+  ],
+  "ownerFreeze": false
+}

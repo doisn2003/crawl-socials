@@ -1,0 +1,30 @@
+{
+  "manifest_version": "1.0.0",
+  "task": "P06.01_OFFLINE_PREPARATION",
+  "owner": "/root/csd_adapter",
+  "date": "2026-10-27",
+  "algorithm": "SHA-256",
+  "scope": "Owned deliverable bytes; not live evidence, task acceptance or gate result.",
+  "files": [
+    {
+      "path": ".brain/specs/relevance_rubric.md",
+      "sha256": "66f2dbbef684295043be9d0c8caeac2f51ef169f7d1cda66f0f9590d009ea2ae"
+    },
+    {
+      "path": ".brain/specs/relevance_reason_codes.schema.json",
+      "sha256": "056195bfe834665166bcd596258be22a4de3eae697ebb1dd690cfd46d93318af"
+    },
+    {
+      "path": "tests/fixtures/relevance/rubric-examples.json",
+      "sha256": "d5c13d7af4c5e6a29593c1c3e5c1fb1760160e6747df9373fcb9468d935031f2"
+    },
+    {
+      "path": ".brain/evidence/p06-rubric-preparation-2026-10-27.md",
+      "sha256": "4ce97c50a5dbbfe20ae4b73cdf7392c54e0820e1b360336256343302b3fab342"
+    },
+    {
+      "path": ".brain/handoffs/p06-rubric-preparation-2026-10-27.md",
+      "sha256": "fb5a33e7aa14abfe2e015c66e548dd3a9af1f160786751032a24c35710a791d7"
+    }
+  ]
+}

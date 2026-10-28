@@ -1,0 +1,33 @@
+{
+  "baseline": "FROZEN_V19_REUSED_NO_OWNER_SOURCE_COMPILE",
+  "discoverySha256": "d2c4f6be903135651759ba69bc7d78341b02040d51fa5be9acc7245bf2919931",
+  "files": [
+    {
+      "path": ".test-build-adapter-candidate/search-target-v19-baseline/src/main/facebook-search-post-open-script-hooks.js",
+      "sha256": "ffeebade77c46bc0950db051367e23814c0065eb51cfec0f462597443a9cc8a7"
+    },
+    {
+      "path": ".test-build-adapter-candidate/search-target-v19-baseline/src/main/facebook-public-candidate-script.js",
+      "sha256": "842eac63c2e56fb96617d3928a04c365e0a1c831416daa3e631881cafe04f1b1"
+    },
+    {
+      "path": ".test-build-adapter-candidate/search-target-v19-baseline/src/main/facebook-search-post-open.js",
+      "sha256": "d659257dcb1eced2ac591241652cdd3fc3f5988c31d1e5de0f1e8ebaaa038b26"
+    },
+    {
+      "path": ".test-build-adapter-candidate/search-target-v19-baseline/tests/facebook-search-post-open-review.test.js",
+      "sha256": "1b5cc139694a50a45ae82581080021792c19f137bdd393676464abc2241fd2bd"
+    }
+  ],
+  "result": {
+    "targetedTests": 2,
+    "passed": 1,
+    "failed": 1,
+    "finding": "R-SO3",
+    "productionRootCause": "UNDETERMINED"
+  },
+  "reviewerSource": {
+    "path": "tests/facebook-search-post-open-review.test.ts",
+    "sha256": "a30b77c2baa0958d2fb7db79e34f5b58e5f409ff1df1c6bdbd5893bc6b415a03"
+  }
+}

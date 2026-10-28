@@ -1,0 +1,88 @@
+{
+  "task": "P02_CURRENT_POST_CONTEXT",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 14,
+  "cases": [
+    {
+      "status": "SAMPLES_READY",
+      "candidateCount": 1,
+      "visited": 72,
+      "examined": 1,
+      "nodeLimit": false,
+      "context": {
+        "visibleDialogs": 2,
+        "wrapperDialogs": 1,
+        "wrapperNodes": 2,
+        "publicGroupSignals": 1
+      },
+      "barriers": {
+        "state": "CLEAR",
+        "reason": "NONE",
+        "kind": "NONE",
+        "evidence": "NONE",
+        "inspected": 2,
+        "hidden": 0,
+        "empty": 0,
+        "visible": 0,
+        "descendants": 2,
+        "ancestors": 6,
+        "overflow": false
+      },
+      "summarySha256": "1276ead6879f770a6c9649dca454be3a36f70d512dc3e9ce6e8852305d45cb3b"
+    },
+    {
+      "status": "NO_PUBLIC_CANDIDATE",
+      "candidateCount": 0,
+      "visited": 78,
+      "examined": 1,
+      "nodeLimit": false,
+      "context": {
+        "visibleDialogs": 2,
+        "wrapperDialogs": 1,
+        "wrapperNodes": 2,
+        "publicGroupSignals": 0
+      },
+      "barriers": {
+        "state": "CLEAR",
+        "reason": "NONE",
+        "kind": "NONE",
+        "evidence": "NONE",
+        "inspected": 2,
+        "hidden": 0,
+        "empty": 0,
+        "visible": 0,
+        "descendants": 2,
+        "ancestors": 6,
+        "overflow": false
+      },
+      "summarySha256": "8facbb37e16b71375e2145056ccd633f04ba2cd8e3c09f8797ccbc2d8cc2dd13"
+    },
+    {
+      "status": "NO_PUBLIC_CANDIDATE",
+      "candidateCount": 0,
+      "visited": 6,
+      "examined": 0,
+      "nodeLimit": false,
+      "barriers": {
+        "state": "CLEAR",
+        "reason": "NONE",
+        "kind": "NONE",
+        "evidence": "NONE",
+        "inspected": 0,
+        "hidden": 0,
+        "empty": 0,
+        "visible": 0,
+        "descendants": 0,
+        "ancestors": 0,
+        "overflow": false
+      },
+      "summarySha256": "b9e8b6c1b038afa4f239cb13db1da514a908092a3f5f02aaaf1a3edf51c8b070"
+    }
+  ],
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

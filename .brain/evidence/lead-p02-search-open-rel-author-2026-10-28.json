@@ -1,0 +1,42 @@
+{
+  "task": "P02_OBSERVED_SEARCH_POST_OPEN",
+  "caseKind": "rel-author",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ELIGIBLE_TIMESTAMP",
+      "clickAttempts": 0,
+      "clicks": 0,
+      "postReads": 0,
+      "discovery": {
+        "scan_sha256": "e3e4d722a70b5765b16a0574525d5f679b05b333f4b3785abd779805dacfd97b",
+        "status": "SAMPLES_READY",
+        "visited": 77,
+        "examined": 1,
+        "opening": {
+          "version": 1,
+          "phase": "DISCOVER",
+          "status": "NO_ELIGIBLE_TIMESTAMP",
+          "targets": [],
+          "click_count": 0,
+          "selected_index": null,
+          "qualified_headers": 1,
+          "no_timestamp_headers": 1,
+          "ambiguous_headers": 0
+        }
+      },
+      "click": null,
+      "eventTrace": [],
+      "summarySha256": "77be6466479d9bac994c32b55f2db939333af6ec2867d4cac236912cffffd982"
+    }
+  ],
+  "browserClicks": 0,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

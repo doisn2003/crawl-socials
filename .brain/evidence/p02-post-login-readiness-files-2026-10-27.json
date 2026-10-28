@@ -1,0 +1,24 @@
+{
+  "task": "P02_POST_LOGIN_READINESS_DOCUMENTATION",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "scope": "Documentation only; no source/build/package/network/UI/auth/capture actions",
+  "readinessWords": 756,
+  "gateChanged": false,
+  "runtimeTouched": false,
+  "buildOrTestsRun": false,
+  "files": [
+    {
+      "path": ".brain/specs/facebook_source_probe_runbook.md",
+      "sha256": "e1b990a71984a8b179839048672982dbf273c328b1f3d1e4943c44fe0cbfab5b"
+    },
+    {
+      "path": ".brain/evidence/p02-post-login-readiness-2026-10-27.md",
+      "sha256": "24bcaf206116f3b305a55b2038a2ec8d8881c39b1bce5c4d462d55417896300d"
+    },
+    {
+      "path": ".brain/handoffs/csd-post-login-readiness-2026-10-27.md",
+      "sha256": "29d5a5fa1d91835bdb43971b7fede1e0a53ab0161f2d78224e293faaa36b0127"
+    }
+  ]
+}

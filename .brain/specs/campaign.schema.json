@@ -1,0 +1,153 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:csd:campaign:1.0.0",
+  "title": "CSD CampaignSpec 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "contract_version", "campaign_id", "name", "mode", "platform", "collection_scope", "workload", "source_requirements", "historical_window", "target", "identity_policy", "discovery_policy", "budgets", "open_questions"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "contract_version": { "const": "1.0.0" },
+    "campaign_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$" },
+    "name": { "$ref": "#/definitions/nonBlank" },
+    "mode": { "enum": ["DRAFT", "BENCHMARK"] },
+    "platform": { "const": "FACEBOOK" },
+    "collection_scope": { "const": "PUBLIC_DISCOVERY" },
+    "workload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["confirmation", "keywords", "intent", "exclusions", "language", "display_timezone", "geography", "content_types"],
+      "properties": {
+        "confirmation": { "enum": ["EXAMPLE_ONLY", "USER_CONFIRMED"] },
+        "keywords": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/nonBlank" } },
+        "intent": { "anyOf": [{ "$ref": "#/definitions/nonBlank" }, { "type": "null" }] },
+        "exclusions": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/nonBlank" } },
+        "language": { "type": ["string", "null"], "minLength": 2 },
+        "display_timezone": { "const": "Asia/Bangkok" },
+        "geography": {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "places", "preferred_places", "evidence_rule"],
+          "properties": {
+            "mode": { "enum": ["UNRESOLVED", "ANY", "INCLUDE"] },
+            "places": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/nonBlank" } },
+            "preferred_places": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/nonBlank" } },
+            "evidence_rule": { "anyOf": [{ "$ref": "#/definitions/nonBlank" }, { "type": "null" }] }
+          },
+          "allOf": [
+            { "if": { "properties": { "mode": { "const": "INCLUDE" } } }, "then": { "properties": { "places": { "minItems": 1 }, "evidence_rule": { "$ref": "#/definitions/nonBlank" } } } },
+            { "if": { "properties": { "mode": { "enum": ["ANY", "UNRESOLVED"] } } }, "then": { "properties": { "places": { "maxItems": 0 }, "evidence_rule": { "type": "null" } } } }
+          ]
+        },
+        "content_types": { "type": "array", "uniqueItems": true, "items": { "enum": ["TEXT_POST", "PHOTO_POST", "VIDEO_POST", "LINK_POST", "SHARED_POST"] } }
+      }
+    },
+    "source_requirements": {
+      "type": "object", "additionalProperties": false,
+      "required": ["PAGE", "PUBLIC_GROUP", "PUBLIC_PERSONAL"],
+      "properties": {
+        "PAGE": { "$ref": "#/definitions/sourceRequirement" },
+        "PUBLIC_GROUP": { "$ref": "#/definitions/sourceRequirement" },
+        "PUBLIC_PERSONAL": { "$ref": "#/definitions/sourceRequirement" }
+      }
+    },
+    "historical_window": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mode", "from_utc", "to_utc"],
+      "properties": {
+        "mode": { "enum": ["UNBOUNDED", "RANGE"] },
+        "from_utc": { "anyOf": [{ "$ref": "#/definitions/utcTimestamp" }, { "type": "null" }] },
+        "to_utc": { "anyOf": [{ "$ref": "#/definitions/utcTimestamp" }, { "type": "null" }] }
+      },
+      "allOf": [
+        { "if": { "properties": { "mode": { "const": "UNBOUNDED" } } }, "then": { "properties": { "from_utc": { "type": "null" }, "to_utc": { "type": "null" } } } },
+        { "if": { "properties": { "mode": { "const": "RANGE" } } }, "then": { "properties": { "from_utc": { "$ref": "#/definitions/utcTimestamp" }, "to_utc": { "$ref": "#/definitions/utcTimestamp" } } } }
+      ]
+    },
+    "target": {
+      "type": "object", "additionalProperties": false,
+      "required": ["valid_unique_posts", "max_wall_time_seconds", "clock_policy", "after_target_policy"],
+      "properties": {
+        "valid_unique_posts": { "const": 1000 },
+        "max_wall_time_seconds": { "const": 86400 },
+        "clock_policy": { "const": "INCLUDES_PAUSE_SLEEP_RETRY_RELOGIN_RESTART" },
+        "after_target_policy": { "const": "CONTINUE_WHILE_PRODUCTIVE_WITHIN_BUDGET" }
+      }
+    },
+    "identity_policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["unique_key", "shares", "same_text_different_ids"],
+      "properties": {
+        "unique_key": { "const": "PLATFORM_POST_ID_OR_VERIFIED_PERMALINK_ALIAS" },
+        "shares": { "const": "DISTINCT_POST_ID_IF_ALLOWED_AND_VERIFIED" },
+        "same_text_different_ids": { "const": "KEEP_DISTINCT_LABEL_SIMILARITY" }
+      }
+    },
+    "discovery_policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["seed_policy", "source_seeds", "expansion", "allowed_expansions", "expansion_rule_version"],
+      "properties": {
+        "seed_policy": { "const": "KEYWORDS_AND_SOURCE_URLS_NO_POST_LIST" },
+        "source_seeds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/nonBlank" } },
+        "expansion": { "enum": ["DISABLED", "FROZEN_ALLOWLIST", "BOUNDED_INTENT"] },
+        "allowed_expansions": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/nonBlank" } },
+        "expansion_rule_version": { "enum": [null, "coffee-intent-v1"] }
+      },
+      "allOf": [
+        { "if": { "properties": { "expansion": { "const": "DISABLED" } } }, "then": { "properties": { "allowed_expansions": { "maxItems": 0 }, "expansion_rule_version": { "type": "null" } } } },
+        { "if": { "properties": { "expansion": { "const": "FROZEN_ALLOWLIST" } } }, "then": { "properties": { "allowed_expansions": { "minItems": 1 }, "expansion_rule_version": { "type": "null" } } } },
+        { "if": { "properties": { "expansion": { "const": "BOUNDED_INTENT" } } }, "then": { "properties": { "allowed_expansions": { "maxItems": 0 }, "expansion_rule_version": { "const": "coffee-intent-v1" } } } }
+      ]
+    },
+    "budgets": {
+      "type": "object", "additionalProperties": false,
+      "required": ["currency", "max_cost", "max_requests", "max_operator_minutes", "max_storage_mb"],
+      "properties": {
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "max_cost": { "type": ["number", "null"], "minimum": 0 },
+        "max_requests": { "type": ["integer", "null"], "minimum": 1 },
+        "max_operator_minutes": { "type": ["number", "null"], "minimum": 0 },
+        "max_storage_mb": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "open_questions": { "type": "array", "uniqueItems": true, "items": { "enum": ["O01", "O02", "O03", "O04", "O05", "O06"] } }
+  },
+  "definitions": {
+    "nonBlank": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "utcTimestamp": { "type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$" },
+    "sourceRequirement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["in_scope", "minimum_valid_unique_posts"],
+      "properties": {
+        "in_scope": { "type": ["boolean", "null"] },
+        "minimum_valid_unique_posts": { "type": ["integer", "null"], "minimum": 0 }
+      },
+      "allOf": [{ "if": { "properties": { "in_scope": { "const": false } } }, "then": { "properties": { "minimum_valid_unique_posts": { "const": 0 } } } }]
+    },
+    "resolvedSource": {
+      "type": "object", "required": ["in_scope", "minimum_valid_unique_posts"],
+      "properties": { "in_scope": { "type": "boolean" }, "minimum_valid_unique_posts": { "type": "integer", "minimum": 0 } }
+    }
+  },
+  "allOf": [{
+    "if": { "properties": { "mode": { "const": "BENCHMARK" } } },
+    "then": {
+      "properties": {
+        "workload": { "properties": {
+          "confirmation": { "const": "USER_CONFIRMED" },
+          "keywords": { "minItems": 1 }, "intent": { "$ref": "#/definitions/nonBlank" },
+          "geography": { "properties": { "mode": { "enum": ["ANY", "INCLUDE"] } } },
+          "content_types": { "minItems": 1 }
+        } },
+        "source_requirements": {
+          "properties": { "PAGE": { "$ref": "#/definitions/resolvedSource" }, "PUBLIC_GROUP": { "$ref": "#/definitions/resolvedSource" }, "PUBLIC_PERSONAL": { "$ref": "#/definitions/resolvedSource" } },
+          "anyOf": [
+            { "properties": { "PAGE": { "properties": { "in_scope": { "const": true } } } } },
+            { "properties": { "PUBLIC_GROUP": { "properties": { "in_scope": { "const": true } } } } },
+            { "properties": { "PUBLIC_PERSONAL": { "properties": { "in_scope": { "const": true } } } } }
+          ]
+        },
+        "budgets": { "properties": { "max_cost": { "type": "number" }, "max_requests": { "type": "integer" }, "max_operator_minutes": { "type": "number" }, "max_storage_mb": { "type": "integer" } } },
+        "open_questions": { "maxItems": 0 }
+      }
+    }
+  }]
+}

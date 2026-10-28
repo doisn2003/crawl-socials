@@ -1,0 +1,39 @@
+{
+  "task": "P00.04",
+  "revision": "R04-and-selected-route-binding",
+  "date": "2026-10-27",
+  "algorithm": "SHA-256",
+  "hash_semantics": "exact file bytes, not canonical JSON",
+  "execution_authorized": false,
+  "live_observations": 0,
+  "files": [
+    {
+      "path": ".brain/specs/benchmark_protocol.md",
+      "sha256": "86ab8d9068bc521f7064fe9b470ad6a348cf811a7faa763719faf413ee0a8f3f"
+    },
+    {
+      "path": ".brain/specs/benchmark_manifest.template.json",
+      "sha256": "086d15f7c613a6a6f481b0485ea838a23f5682439620544784a5dcfc60d0c52e"
+    },
+    {
+      "path": "scripts/check-benchmark-protocol.mjs",
+      "sha256": "f284512f0588166c4e337bd29135bd67461e7c79232ae4069c97db550bf94d0a"
+    },
+    {
+      "path": "tests/fixtures/protocol/invalid-cases.json",
+      "sha256": "03dbe0492f5afb6e0f6b241ce1b62878a6675321d447e70d9344adac2aaaed7e"
+    },
+    {
+      "path": ".brain/evidence/p00-protocol-checks-2026-10-27.json",
+      "sha256": "fd7fbd05251b04446a05346de75150b715df72e9afefd06c6d62acfcad783c19"
+    },
+    {
+      "path": ".brain/evidence/p00-protocol-validation-2026-10-27.md",
+      "sha256": "2881c8d1f5340748e38110e960676462334ae22ab909981a4b95bb57eccc9978"
+    },
+    {
+      "path": ".brain/handoffs/p00-protocol-2026-10-27.md",
+      "sha256": "cd9d8fb247430b5e94e2fac25bbccfc2fade0899aad8c56ab58e358db29d89cf"
+    }
+  ]
+}

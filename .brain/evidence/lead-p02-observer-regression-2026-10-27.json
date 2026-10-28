@@ -1,0 +1,112 @@
+{
+  "task": "P01.03",
+  "date": "2026-10-27",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "scenario": "all",
+  "checks": [
+    "one local query captures correlated JSON via real Electron CDP with FIXTURE provenance",
+    "empty, binary/base64, POST and non-2xx response status remain distinct transport facts",
+    "same-origin requests in a second profile do not appear in the first profile observer",
+    "reload while pending cancels old request generation and captures the new document",
+    "suspend detaches and suppresses captures; resume binds a fresh generation",
+    "oversized response and aborted HTTP response produce errors rather than empty success",
+    "external debugger detach while pending clears listeners; explicit reattach does not duplicate them",
+    "hidden real DevTools lifecycle is recorded; observer can explicitly reattach after it closes",
+    "closing pending view stops capture; reopen gets new ownership and rejects old target identity"
+  ],
+  "captures": [
+    {
+      "bytes": 37,
+      "sha256": "c7e3900a5275161ecbc88368f48975cb8a4da753857c518664d7603fd98e207b",
+      "captureMode": "FIXTURE",
+      "profile": "A",
+      "status": 200
+    },
+    {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "captureMode": "FIXTURE",
+      "profile": "A",
+      "status": 200
+    },
+    {
+      "bytes": 5,
+      "sha256": "e1017891a8dc2b5398c02204fb0280bcb139a3b31da234b1b38ac3e86a3f39ad",
+      "captureMode": "FIXTURE",
+      "profile": "A",
+      "status": 200
+    },
+    {
+      "bytes": 38,
+      "sha256": "b946ade6d67a42d27c09df90e051c923c4ad2c491a925f5437b540eee685725b",
+      "captureMode": "FIXTURE",
+      "profile": "A",
+      "status": 200
+    },
+    {
+      "bytes": 28,
+      "sha256": "5f41efe89ab615b31f57983dd528b85c60b5b2325d7971203b63c379afc6d8d8",
+      "captureMode": "FIXTURE",
+      "profile": "A",
+      "status": 403
+    },
+    {
+      "bytes": 37,
+      "sha256": "c7e3900a5275161ecbc88368f48975cb8a4da753857c518664d7603fd98e207b",
+      "captureMode": "FIXTURE",
+      "profile": "B",
+      "status": 200
+    },
+    {
+      "bytes": 37,
+      "sha256": "c7e3900a5275161ecbc88368f48975cb8a4da753857c518664d7603fd98e207b",
+      "captureMode": "FIXTURE",
+      "profile": "A",
+      "status": 200
+    },
+    {
+      "bytes": 37,
+      "sha256": "c7e3900a5275161ecbc88368f48975cb8a4da753857c518664d7603fd98e207b",
+      "captureMode": "FIXTURE",
+      "profile": "A",
+      "status": 200
+    },
+    {
+      "bytes": 37,
+      "sha256": "c7e3900a5275161ecbc88368f48975cb8a4da753857c518664d7603fd98e207b",
+      "captureMode": "FIXTURE",
+      "profile": "A",
+      "status": 200
+    },
+    {
+      "bytes": 37,
+      "sha256": "c7e3900a5275161ecbc88368f48975cb8a4da753857c518664d7603fd98e207b",
+      "captureMode": "FIXTURE",
+      "profile": "A",
+      "status": 200
+    }
+  ],
+  "devToolsTerminalCode": "DEVTOOLS_OPENED",
+  "limits": {
+    "maxPendingRequests": 32,
+    "maxConcurrentReads": 2,
+    "maxBodyBytes": 131072,
+    "maxBufferedBytes": 524288,
+    "maxResults": 32,
+    "maxCapturedResponses": 100,
+    "maxTotalCapturedBytes": 2097152,
+    "commandTimeoutMs": 2000,
+    "requestTimeoutMs": 3000,
+    "maxRunMs": 20000,
+    "maxObservers": 4
+  },
+  "verifiedValidUniquePosts": 0,
+  "limitations": [
+    "Local HTTP fixtures only; no Facebook parser/login/live data",
+    "Native body command rejection/timeout and strict capacity faults are injected in unit tests",
+    "CDP buffer hints and post-decode checks are not an absolute bound on native/string allocation"
+  ],
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

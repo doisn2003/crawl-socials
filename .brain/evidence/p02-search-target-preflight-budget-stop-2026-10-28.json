@@ -1,0 +1,32 @@
+{
+  "task": "P02_OBSERVED_SEARCH_POST_OPEN",
+  "caseKind": "stop",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 3,
+  "baselineEligibilityEquivalent": true,
+  "baselineScriptSha256": "bcbb45e85ce60432c6d7d3eb3702e885151c14718d470b3f631ef2b2dd3ccb5d",
+  "budgetGate": null,
+  "geometryRects": 0,
+  "cases": [
+    {
+      "result": "INCONCLUSIVE",
+      "reason": "STOPPED",
+      "clickAttempts": 0,
+      "clicks": 0,
+      "postReads": 0,
+      "discovery": null,
+      "click": null,
+      "eventTrace": [],
+      "summarySha256": "475d6f8f22a4e45064c12591e4573d4cb41f1dd21efe177a333ab73d42ce4ce2"
+    }
+  ],
+  "browserClicks": 0,
+  "clickedObservedHrefUnchanged": null,
+  "placeholderRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

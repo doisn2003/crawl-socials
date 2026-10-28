@@ -1,0 +1,23 @@
+{
+  "phase": "R_OH1_FAILED_FROZEN_SNAPSHOT",
+  "manifestSha256": "256258fe241ca0163fc4e3c6ba3ed48c395f2319d3454ee80dea7e05af2682d8",
+  "ownedHashesMatched": 39,
+  "nativeBuildHashesMatched": 68,
+  "discoveryScriptSha256": "7633253c56e7471261a61263f897fe4a0e551f984a52c07be823a97628251067",
+  "clickScriptSha256": "82a27d07b40380d55ea4c8377cd9ad3450086463e709dece8fd2a219e22797e8",
+  "output": ".test-build-adapter-candidate/observed-header-ink-failed",
+  "reviewerSourceSha256": "14eb51a1545bba5e3b56a027845becb73e3716abe1c5774871fb2107bc6f4b73",
+  "compiledTestSha256": "ffc4303afa3fc05196706cc338f857cb180b1fb447a30f33aa124c64be51c06f",
+  "native": {
+    "path": ".brain/evidence/adapter-p02-observed-header-transparent-native-2026-10-28.json",
+    "sha256": "6072bfb8696867f331e8ac6197a267750b9baac6856e0e75ab4d5e872d81ad4a",
+    "fixturePath": ".test-build-adapter-candidate/observed-header-ink-failed/native-fixture-repro.js",
+    "fixtureSha256": "7201a77492cd4ad3aab28932e50d4eeab99d2bd643028e35425eb0ee897a488d"
+  },
+  "additionalFinding": {
+    "id": "R-OH2",
+    "compiledOutput": ".test-build-adapter-candidate/observed-header-target-failed",
+    "compiledTestSha256": "2dc1a1ad59840671b24ce7e06caa08ffc7fbe9136e31dfd5d3144c3cc209912c",
+    "sameFrozenSource": true
+  }
+}

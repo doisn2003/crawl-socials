@@ -1,0 +1,32 @@
+{
+  "task": "P02_POST_ROUTE_VERIFICATION",
+  "caseKind": "stop",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "label": "CURRENT_POST_ANCHOR",
+      "status": "SAMPLES_READY",
+      "summarySha256": "f2a9c8a2d786c3b2a82e7d6bed100798881ab4b3e065fe3af29257f35bd24cb6"
+    },
+    {
+      "label": "STOP_PENDING_NAVIGATION",
+      "result": "INCONCLUSIVE",
+      "reason": "STOPPED",
+      "navigationCount": 1,
+      "readCount": 0
+    },
+    {
+      "label": "CONSUMED_ANCHOR",
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ANCHOR"
+    }
+  ],
+  "reopenRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

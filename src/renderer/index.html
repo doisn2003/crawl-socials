@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>CSD — Crawl Socials Data</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" aria-label="CSD"><span class="brand-mark">C</span><span>CSD <small>Crawl Socials Data</small></span></a>
+      <div class="build"><span class="status-dot"></span> Chế độ offline <span id="version"></span></div>
+    </header>
+    <main>
+      <div class="eyebrow">KHÔNG GIAN THU THẬP</div>
+      <h1>Bắt đầu từ một chủ đề.</h1>
+      <p class="intro">Chủ đề và phạm vi thu thập đã được xác định. Kết nối nguồn Facebook sẽ được xác minh ở bước tiếp theo.</p>
+      <section class="campaign card" aria-labelledby="campaign-heading">
+        <div class="section-heading"><h2 id="campaign-heading">Campaign quán cà phê</h2><span class="badge">Bản nháp</span></div>
+        <p id="campaign-name" class="campaign-name"></p>
+        <p id="preference" class="muted"></p>
+        <div id="keywords" class="keywords" aria-label="Từ khóa"></div>
+        <div class="campaign-notes"><span>Mở rộng từ khóa liên quan</span><span>Được lấy bài cũ</span></div>
+      </section>
+      <div class="details-grid">
+        <section class="card target-card" aria-labelledby="target-heading">
+          <h2 id="target-heading">Mục tiêu tối thiểu</h2>
+          <div class="target-number" id="target">1.000</div>
+          <p>bài đúng chủ đề, không trùng <span class="muted">trong tối đa <strong id="max-hours">24</strong> giờ</span></p>
+          <p class="footnote">Ưu tiên đạt sớm; tiếp tục lấy thêm khi còn hiệu quả và ngân sách.</p>
+        </section>
+        <section class="card" aria-labelledby="sources-heading">
+          <h2 id="sources-heading">Có kết quả từ cả ba nguồn</h2>
+          <ul id="sources" class="sources"></ul>
+          <p class="footnote">Báo cáo số lượng riêng, không chia tỷ lệ bắt buộc.</p>
+        </section>
+      </div>
+      <section class="offline-panel" aria-labelledby="offline-heading">
+        <div><h2 id="offline-heading">Kiểm tra khởi động</h2><p>Kiểm tra cấu hình mẫu ngay trên máy, chưa kết nối Facebook.</p></div>
+        <button id="offline-check" disabled>Kiểm tra offline <span aria-hidden="true">↗</span></button>
+        <p id="check-result" class="check-result" data-state="idle" role="status" aria-live="polite">Chưa chạy kiểm tra.</p>
+      </section>
+      <section class="card profile-panel" aria-labelledby="profiles-heading">
+        <h2 id="profiles-heading">Phiên truy cập</h2>
+        <p class="footnote">Mỗi phiên có vùng đăng nhập riêng. Danh tính tài khoản vẫn chưa được xác minh.</p>
+        <form id="profile-form" class="profile-form">
+          <label for="profile-label">Tên phiên</label>
+          <input id="profile-label" name="label" maxlength="80" required placeholder="Phiên 1" autocomplete="off">
+          <button type="submit">Tạo phiên</button>
+        </form>
+        <ul id="profiles" class="profile-list"></ul>
+        <p id="profile-result" class="footnote" role="status" aria-live="polite">Chưa có phiên truy cập.</p>
+      </section>
+      <section class="card probe-panel" aria-labelledby="probe-heading">
+        <h2 id="probe-heading">Phép thử nguồn</h2>
+        <p id="probe-availability" class="footnote">Đang kiểm tra cấu hình.</p>
+        <div class="probe-actions">
+          <label for="probe-profile">Phiên đang mở</label><select id="probe-profile" aria-label="Phiên cho phép thử"></select>
+          <button id="probe-start" disabled>Bắt đầu fixture</button><button id="probe-stop" disabled>Dừng</button>
+        </div>
+        <p id="probe-status" role="status" aria-live="polite" data-state="IDLE">Chưa có lượt chạy.</p>
+        <p id="probe-counts" class="footnote">Bài hợp lệ: 0 · Candidate và loại nguồn: chưa xác minh.</p>
+      </section>
+    </main>
+    <footer><span>CSD · Facebook</span><span>Chưa bắt đầu thu thập dữ liệu</span></footer>
+  </div>
+</body>
+</html>

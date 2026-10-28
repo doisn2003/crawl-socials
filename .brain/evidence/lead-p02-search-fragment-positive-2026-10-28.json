@@ -1,0 +1,238 @@
+{
+  "task": "P02_OBSERVED_SEARCH_POST_OPEN",
+  "caseKind": "fragment",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 2,
+  "geometryRects": 0,
+  "cases": [
+    {
+      "result": "OPENED_POST_SAMPLE",
+      "reason": "OBSERVED_CLICK_ROUTE_AND_POST_READ",
+      "clickAttempts": 1,
+      "clicks": 1,
+      "postReads": 1,
+      "discovery": {
+        "scan_sha256": "c2a8bfafbb7c23ca8c7703f9b8343ba257d4c40b2dfbf8dfb773fbe27f15781b",
+        "status": "SAMPLES_READY",
+        "visited": 79,
+        "examined": 1,
+        "opening": {
+          "version": 2,
+          "phase": "DISCOVER",
+          "status": "TARGETS_READY",
+          "targets": [
+            {
+              "index": 0,
+              "href_kind": "SEARCH_PLACEHOLDER",
+              "timestamp_proof": "UNIQUE_HEADER_PLACEHOLDER"
+            }
+          ],
+          "click_count": 0,
+          "selected_index": null,
+          "qualified_headers": 1,
+          "no_timestamp_headers": 0,
+          "ambiguous_headers": 0,
+          "eligibility": {
+            "counters": {
+              "headers_seen": 1,
+              "headers_qualified": 1,
+              "headers_without_records": 0,
+              "records_seen": 2,
+              "records_matched": 0,
+              "records_limited": 0,
+              "records_semantic": 0,
+              "record_heading": 0,
+              "target_missing": 0,
+              "not_link": 0,
+              "control": 0,
+              "role": 0,
+              "body": 0,
+              "heading": 0,
+              "quote": 0,
+              "not_rendered": 0,
+              "rendered_pass": 1,
+              "not_visible": 0,
+              "target_visibility_unknown": 0,
+              "visible_pass": 1,
+              "href_rejected": 1,
+              "href_placeholder": 1,
+              "href_post": 0,
+              "non_placeholder_without_temporal": 0,
+              "new_window": 0,
+              "download": 0,
+              "disabled": 0,
+              "popup": 0,
+              "author": 0,
+              "media_or_heading": 0,
+              "action_label": 0,
+              "rect_limit": 0,
+              "off_viewport": 0,
+              "viewport_pass": 1,
+              "header_ancestor": 0,
+              "header_missing": 0,
+              "header_pass": 1,
+              "eligible_records": 1,
+              "headers_bound": 1,
+              "headers_ambiguous": 0,
+              "headers_visibility_unknown": 0
+            },
+            "shapes": [
+              {
+                "record": "UNMATCHED",
+                "scope": "HEADER",
+                "rendered": "NOT_CHECKED",
+                "visible_signal": "NOT_CHECKED",
+                "header_invalidation": "NONE",
+                "href_kind": "REJECTED",
+                "action": "NOT_CHECKED",
+                "viewport": "NOT_CHECKED",
+                "header": "NOT_CHECKED",
+                "stage": "HREF",
+                "count": 1
+              },
+              {
+                "record": "UNMATCHED",
+                "scope": "HEADER",
+                "rendered": "YES",
+                "visible_signal": "PASS",
+                "header_invalidation": "NONE",
+                "href_kind": "SEARCH_PLACEHOLDER",
+                "action": "NONE",
+                "viewport": "PASS",
+                "header": "COLOCATED",
+                "stage": "ELIGIBLE",
+                "count": 1
+              }
+            ],
+            "shapes_truncated": false
+          }
+        }
+      },
+      "click": {
+        "scan_sha256": "4957eacb434e86aca9272d61d9653aa813151e294f4562c1a8a635df14e1dc4a",
+        "status": "SAMPLES_READY",
+        "visited": 79,
+        "examined": 1,
+        "opening": {
+          "version": 2,
+          "phase": "CLICK",
+          "status": "CLICK_DISPATCHED",
+          "targets": [
+            {
+              "index": 0,
+              "href_kind": "SEARCH_PLACEHOLDER",
+              "timestamp_proof": "UNIQUE_HEADER_PLACEHOLDER"
+            }
+          ],
+          "click_count": 1,
+          "selected_index": 0,
+          "qualified_headers": 1,
+          "no_timestamp_headers": 0,
+          "ambiguous_headers": 0,
+          "eligibility": {
+            "counters": {
+              "headers_seen": 1,
+              "headers_qualified": 1,
+              "headers_without_records": 0,
+              "records_seen": 2,
+              "records_matched": 0,
+              "records_limited": 0,
+              "records_semantic": 0,
+              "record_heading": 0,
+              "target_missing": 0,
+              "not_link": 0,
+              "control": 0,
+              "role": 0,
+              "body": 0,
+              "heading": 0,
+              "quote": 0,
+              "not_rendered": 0,
+              "rendered_pass": 1,
+              "not_visible": 0,
+              "target_visibility_unknown": 0,
+              "visible_pass": 1,
+              "href_rejected": 1,
+              "href_placeholder": 1,
+              "href_post": 0,
+              "non_placeholder_without_temporal": 0,
+              "new_window": 0,
+              "download": 0,
+              "disabled": 0,
+              "popup": 0,
+              "author": 0,
+              "media_or_heading": 0,
+              "action_label": 0,
+              "rect_limit": 0,
+              "off_viewport": 0,
+              "viewport_pass": 1,
+              "header_ancestor": 0,
+              "header_missing": 0,
+              "header_pass": 1,
+              "eligible_records": 1,
+              "headers_bound": 1,
+              "headers_ambiguous": 0,
+              "headers_visibility_unknown": 0
+            },
+            "shapes": [
+              {
+                "record": "UNMATCHED",
+                "scope": "HEADER",
+                "rendered": "NOT_CHECKED",
+                "visible_signal": "NOT_CHECKED",
+                "header_invalidation": "NONE",
+                "href_kind": "REJECTED",
+                "action": "NOT_CHECKED",
+                "viewport": "NOT_CHECKED",
+                "header": "NOT_CHECKED",
+                "stage": "HREF",
+                "count": 1
+              },
+              {
+                "record": "UNMATCHED",
+                "scope": "HEADER",
+                "rendered": "YES",
+                "visible_signal": "PASS",
+                "header_invalidation": "NONE",
+                "href_kind": "SEARCH_PLACEHOLDER",
+                "action": "NONE",
+                "viewport": "PASS",
+                "header": "COLOCATED",
+                "stage": "ELIGIBLE",
+                "count": 1
+              }
+            ],
+            "shapes_truncated": false
+          }
+        }
+      },
+      "eventTrace": [
+        {
+          "kind": "SAME_DOCUMENT",
+          "phase": "OPENING",
+          "frame": "MAIN",
+          "route": "SEARCH_EXACT",
+          "generation": 0,
+          "decision": "EXPECTED"
+        },
+        {
+          "kind": "SAME_DOCUMENT",
+          "phase": "OPENING",
+          "frame": "MAIN",
+          "route": "POST_OBSERVED",
+          "generation": 0,
+          "decision": "EXPECTED"
+        }
+      ],
+      "summarySha256": "64afb200fa7645b55de445d9bb2878095b4f1a5121a3ca7c554b46d12b57eef6"
+    }
+  ],
+  "browserClicks": 1,
+  "clickedObservedHrefUnchanged": true,
+  "placeholderRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

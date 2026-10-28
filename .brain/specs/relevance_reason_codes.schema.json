@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:csd:relevance-decision:1.0.0",
+  "title": "CSD coffee relevance decision 1.0.0 (not overall post validity)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "rubric_version", "policy_version", "campaign_id", "contract_version", "observation_ref", "record_version", "result", "reasons", "evidence_refs", "missing_evidence", "rationale"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "rubric_version": { "const": "coffee-relevance-1.0.0" },
+    "policy_version": { "const": "coffee-intent-v1" },
+    "campaign_id": { "const": "coffee-public-facebook-v1" },
+    "contract_version": { "const": "1.0.0" },
+    "observation_ref": { "$ref": "#/definitions/nonBlank" },
+    "record_version": { "$ref": "#/definitions/nonBlank" },
+    "result": { "type": "string", "enum": ["ACCEPT", "REJECT", "UNVERIFIED"] },
+    "reasons": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["CAFE_DISCOVERY_REQUEST", "CAFE_EXPERIENCE", "CAFE_PLACE_OR_DATE", "CAFE_EVENT", "CAFE_BRAND_CONTEXT", "UNRELATED_SUBJECT", "HOME_COFFEE_ONLY", "BEAN_SALE_ONLY", "INCIDENTAL_TERM_ONLY", "CONTENT_MISSING", "CONTENT_TRUNCATED", "AMBIGUOUS_ENTITY", "CONFLICTING_EVIDENCE"] } },
+    "evidence_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/evidenceRef" } },
+    "missing_evidence": { "type": "array", "uniqueItems": true, "items": { "type": "string", "enum": ["USABLE_CONTENT", "FULLER_CONTENT", "VENUE_OR_BRAND_LINK", "CONFLICT_RESOLUTION"] } },
+    "rationale": { "$ref": "#/definitions/nonBlank" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "result": { "const": "ACCEPT" } }, "required": ["result"] },
+      "then": { "properties": { "reasons": { "type": "array", "items": { "type": "string", "enum": ["CAFE_DISCOVERY_REQUEST", "CAFE_EXPERIENCE", "CAFE_PLACE_OR_DATE", "CAFE_EVENT", "CAFE_BRAND_CONTEXT"] } }, "evidence_refs": { "type": "array", "minItems": 1 }, "missing_evidence": { "type": "array", "maxItems": 0 } } }
+    },
+    {
+      "if": { "properties": { "result": { "const": "REJECT" } }, "required": ["result"] },
+      "then": { "properties": { "reasons": { "type": "array", "items": { "type": "string", "enum": ["UNRELATED_SUBJECT", "HOME_COFFEE_ONLY", "BEAN_SALE_ONLY", "INCIDENTAL_TERM_ONLY"] } }, "evidence_refs": { "type": "array", "minItems": 1 }, "missing_evidence": { "type": "array", "maxItems": 0 } } }
+    },
+    {
+      "if": { "properties": { "result": { "const": "UNVERIFIED" } }, "required": ["result"] },
+      "then": { "properties": { "reasons": { "type": "array", "items": { "type": "string", "enum": ["CONTENT_MISSING", "CONTENT_TRUNCATED", "AMBIGUOUS_ENTITY", "CONFLICTING_EVIDENCE"] } }, "missing_evidence": { "type": "array", "minItems": 1 } } }
+    }
+  ],
+  "definitions": {
+    "nonBlank": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "evidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "version", "sha256", "role"],
+      "properties": {
+        "ref": { "$ref": "#/definitions/nonBlank" },
+        "version": { "$ref": "#/definitions/nonBlank" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "role": { "type": "string", "enum": ["CONTENT", "VENUE_BRAND_CONTEXT"] }
+      }
+    }
+  }
+}

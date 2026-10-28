@@ -1,0 +1,582 @@
+{
+  "task": "MANUAL_AUTH_DEPENDENCY_FIX",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "checks": [
+    "OWNED_FACEBOOK_INSTAGRAM_XHR_AND_FBSBX_FRAME_REDIRECT_SCRIPT_XHR_COMPLETE",
+    "FBSBX_MAIN_NAVIGATION_REMAINS_DENIED",
+    "INSTAGRAM_DENIED_OUTSIDE_FACEBOOK_BEFORE_PROTOCOL_HANDLER"
+  ],
+  "diagnostics": {
+    "version": 2,
+    "domainPolicy": "TLDTS_7.4.19_ICANN_BASE_ONLY_V1",
+    "purpose": "MANUAL_SESSION_POLICY_DIAGNOSTICS",
+    "observerEnabled": false,
+    "postsCollected": 0,
+    "startedAt": "2026-10-27T11:47:00.705Z",
+    "totalEvents": 28,
+    "droppedOldEvents": 0,
+    "priorityEventsDropped": 0,
+    "publishFailures": 0,
+    "counts": {
+      "NAVIGATION_STARTED": 5,
+      "NAVIGATION_COMMITTED": 3,
+      "LOAD_FINISHED": 3,
+      "REQUEST_ALLOWED": 6,
+      "RESOURCE_COMPLETED": 5,
+      "NAVIGATION_ALLOWED": 2,
+      "NAVIGATION_BLOCKED": 1,
+      "REQUEST_BLOCKED": 1,
+      "RESOURCE_FAILED": 1,
+      "VIEW_CLOSED": 1
+    },
+    "events": [
+      {
+        "sequence": 1,
+        "at": "2026-10-27T11:47:01.073Z",
+        "kind": "NAVIGATION_STARTED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "ABOUT",
+          "registrableDomain": null,
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 2,
+        "at": "2026-10-27T11:47:01.225Z",
+        "kind": "NAVIGATION_COMMITTED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "ABOUT",
+          "registrableDomain": null,
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 3,
+        "at": "2026-10-27T11:47:01.238Z",
+        "kind": "LOAD_FINISHED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "ABOUT",
+          "registrableDomain": null,
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 4,
+        "at": "2026-10-27T11:47:01.242Z",
+        "kind": "NAVIGATION_STARTED",
+        "view": 1,
+        "location": {
+          "origin": "https://www.facebook.com",
+          "family": "FACEBOOK",
+          "scheme": "HTTPS",
+          "pathCategory": "LOGIN",
+          "registrableDomain": "facebook.com"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 5,
+        "at": "2026-10-27T11:47:01.245Z",
+        "kind": "REQUEST_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "https://www.facebook.com",
+          "family": "FACEBOOK",
+          "scheme": "HTTPS",
+          "pathCategory": "LOGIN",
+          "registrableDomain": "facebook.com"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 6,
+        "at": "2026-10-27T11:47:01.269Z",
+        "kind": "RESOURCE_COMPLETED",
+        "view": 1,
+        "location": {
+          "origin": "https://www.facebook.com",
+          "family": "FACEBOOK",
+          "scheme": "HTTPS",
+          "pathCategory": "LOGIN",
+          "registrableDomain": "facebook.com"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": 200,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 7,
+        "at": "2026-10-27T11:47:01.272Z",
+        "kind": "NAVIGATION_COMMITTED",
+        "view": 1,
+        "location": {
+          "origin": "https://www.facebook.com",
+          "family": "FACEBOOK",
+          "scheme": "HTTPS",
+          "pathCategory": "LOGIN",
+          "registrableDomain": "facebook.com"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": 200,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 8,
+        "at": "2026-10-27T11:47:01.281Z",
+        "kind": "REQUEST_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "instagram.com"
+        },
+        "resourceType": "xhr",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 9,
+        "at": "2026-10-27T11:47:01.284Z",
+        "kind": "NAVIGATION_STARTED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "subFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 10,
+        "at": "2026-10-27T11:47:01.284Z",
+        "kind": "NAVIGATION_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "subFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 11,
+        "at": "2026-10-27T11:47:01.286Z",
+        "kind": "REQUEST_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "subFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 12,
+        "at": "2026-10-27T11:47:01.288Z",
+        "kind": "RESOURCE_COMPLETED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "instagram.com"
+        },
+        "resourceType": "xhr",
+        "statusCode": 200,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 13,
+        "at": "2026-10-27T11:47:01.289Z",
+        "kind": "NAVIGATION_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "subFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 14,
+        "at": "2026-10-27T11:47:01.290Z",
+        "kind": "REQUEST_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "subFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 15,
+        "at": "2026-10-27T11:47:01.293Z",
+        "kind": "RESOURCE_COMPLETED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "subFrame",
+        "statusCode": 302,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 16,
+        "at": "2026-10-27T11:47:01.354Z",
+        "kind": "REQUEST_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "script",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 17,
+        "at": "2026-10-27T11:47:01.355Z",
+        "kind": "RESOURCE_COMPLETED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "script",
+        "statusCode": 200,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 18,
+        "at": "2026-10-27T11:47:01.359Z",
+        "kind": "REQUEST_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "xhr",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 19,
+        "at": "2026-10-27T11:47:01.360Z",
+        "kind": "RESOURCE_COMPLETED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "xhr",
+        "statusCode": 200,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 20,
+        "at": "2026-10-27T11:47:01.369Z",
+        "kind": "LOAD_FINISHED",
+        "view": 1,
+        "location": {
+          "origin": "https://www.facebook.com",
+          "family": "FACEBOOK",
+          "scheme": "HTTPS",
+          "pathCategory": "LOGIN",
+          "registrableDomain": "facebook.com"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 21,
+        "at": "2026-10-27T11:47:01.372Z",
+        "kind": "NAVIGATION_STARTED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 22,
+        "at": "2026-10-27T11:47:01.373Z",
+        "kind": "NAVIGATION_BLOCKED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 23,
+        "at": "2026-10-27T11:47:01.411Z",
+        "kind": "NAVIGATION_STARTED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "ABOUT",
+          "registrableDomain": null,
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 24,
+        "at": "2026-10-27T11:47:01.418Z",
+        "kind": "NAVIGATION_COMMITTED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "ABOUT",
+          "registrableDomain": null,
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 25,
+        "at": "2026-10-27T11:47:01.437Z",
+        "kind": "LOAD_FINISHED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "ABOUT",
+          "registrableDomain": null,
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 26,
+        "at": "2026-10-27T11:47:01.440Z",
+        "kind": "REQUEST_BLOCKED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "instagram.com"
+        },
+        "resourceType": "xhr",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 27,
+        "at": "2026-10-27T11:47:01.440Z",
+        "kind": "RESOURCE_FAILED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "instagram.com"
+        },
+        "resourceType": "xhr",
+        "statusCode": null,
+        "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+        "errorCode": null
+      },
+      {
+        "sequence": 28,
+        "at": "2026-10-27T11:47:01.454Z",
+        "kind": "VIEW_CLOSED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "OTHER",
+          "registrableDomain": null,
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "other",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      }
+    ],
+    "priorityEvents": [
+      {
+        "sequence": 22,
+        "at": "2026-10-27T11:47:01.373Z",
+        "kind": "NAVIGATION_BLOCKED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_FACEBOOK_SANDBOX",
+          "family": "FACEBOOK_SANDBOX",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "fbsbx.com"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 26,
+        "at": "2026-10-27T11:47:01.440Z",
+        "kind": "REQUEST_BLOCKED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "instagram.com"
+        },
+        "resourceType": "xhr",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 27,
+        "at": "2026-10-27T11:47:01.440Z",
+        "kind": "RESOURCE_FAILED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED",
+          "registrableDomain": "instagram.com"
+        },
+        "resourceType": "xhr",
+        "statusCode": null,
+        "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+        "errorCode": null
+      }
+    ],
+    "limitations": [
+      "NO_BODY_HEADERS_QUERY_DOM_OR_CREDENTIALS",
+      "EXACT_ORIGIN_ALLOWLIST_PLUS_ICANN_REGISTRABLE_DOMAIN_ONLY",
+      "PRIVATE_TENANT_LABELS_IP_SPECIAL_USE_AND_OBVIOUS_IDS_WITHHELD",
+      "REGISTRABLE_DOMAIN_NOT_OWNERSHIP_REGISTRATION_OR_AUTHORIZATION_PROOF",
+      "RING_BUFFER_NOT_COMPLETE_NETWORK_TRACE",
+      "PATH_CATEGORY_NOT_VERIFICATION_OUTCOME"
+    ]
+  },
+  "externalNetworkRequests": 0,
+  "protocolResponses": 6,
+  "postsCollected": 0,
+  "limitations": [
+    "Isolated HTTPS protocol fixture; no real login/session/2FA or external network",
+    "Live fix still needs lead verification after restart"
+  ],
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

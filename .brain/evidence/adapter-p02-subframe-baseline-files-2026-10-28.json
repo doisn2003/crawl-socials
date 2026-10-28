@@ -1,0 +1,30 @@
+{
+  "phase": "FROZEN_V17_SUBFRAME_BASELINE",
+  "tests": 3,
+  "expectedPositiveFailures": 2,
+  "actualFailures": 2,
+  "negativePass": 1,
+  "sourceActions": 0,
+  "files": [
+    {
+      "path": "tests/facebook-post-route-verification-review.test.ts",
+      "sha256": "0a03bdf1b7e0d05d39fa88ae5d2e6786df5b46032fa88e940611a6b0ed5f65bb"
+    },
+    {
+      "path": ".test-build-adapter-candidate/subframe-baseline/tests/facebook-post-route-verification-review.test.js",
+      "sha256": "aa04f37cce16e56f8de3aad82a4cb4a55fc92038935347474d194933e57f7662"
+    },
+    {
+      "path": ".test-build-adapter-candidate/subframe-baseline/src/main/facebook-post-route-verification.js",
+      "sha256": "e52e1e3749aec1d9b6e55e554c6e61dd6cb7d6010365622c8f3f744f1052f568"
+    },
+    {
+      "path": ".test-build-adapter-candidate/subframe-baseline/src/main/facebook-public-candidate-script.js",
+      "sha256": "0eecfabdd96310a5ff584658232f9d3e471ce65cd4e11b3505ded63485842c43"
+    },
+    {
+      "path": ".brain/evidence/p02-live-route-events-v17-2026-10-28.json",
+      "sha256": "60e03814549f47c7ed63d1b4da28404f962a4bc40302091586be9333aa0c39d5"
+    }
+  ]
+}

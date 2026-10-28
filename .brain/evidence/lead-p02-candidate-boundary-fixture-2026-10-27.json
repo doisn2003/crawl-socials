@@ -1,0 +1,334 @@
+{
+  "task": "P02_CANDIDATE_BOUNDARY",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 2,
+  "cases": [
+    {
+      "status": "SAMPLES_READY",
+      "candidateCount": 2,
+      "visited": 71,
+      "nodeLimit": false,
+      "selection": {
+        "firstFeedFound": true,
+        "feedLandmarks": false,
+        "fallbackUsed": true,
+        "feedExamined": 6,
+        "mainExamined": 2,
+        "coLocationMisses": 0,
+        "fallbackScan": "COMPLETE",
+        "discoveryHints": {
+          "headings": 1,
+          "temporal": 1,
+          "publicLabels": 1,
+          "restrictedLabels": 0,
+          "messageRegions": 1,
+          "articles": 1,
+          "outsideFeed": 19
+        }
+      },
+      "rejectionShapes": [
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 0,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 1,
+            "navigation": 0,
+            "comment": 0
+          }
+        },
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 0,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 1,
+            "navigation": 0,
+            "comment": 0
+          }
+        },
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 0,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 1,
+            "navigation": 0,
+            "comment": 0
+          }
+        }
+      ],
+      "summarySha256": "8f8fc258a6088c59920301cef93507f3daccec2d9e6c085a51e59aab9bea6e76"
+    },
+    {
+      "status": "SAMPLES_READY",
+      "candidateCount": 1,
+      "visited": 95,
+      "nodeLimit": false,
+      "selection": {
+        "firstFeedFound": true,
+        "feedLandmarks": false,
+        "fallbackUsed": true,
+        "feedExamined": 2,
+        "mainExamined": 2,
+        "coLocationMisses": 0,
+        "fallbackScan": "COMPLETE",
+        "discoveryHints": {
+          "headings": 2,
+          "temporal": 2,
+          "publicLabels": 2,
+          "restrictedLabels": 0,
+          "messageRegions": 2,
+          "articles": 0,
+          "outsideFeed": 8
+        }
+      },
+      "rejectionShapes": [
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 1,
+            "outsideHeaderDepth": 3
+          },
+          "prunes": {
+            "article": 1,
+            "hidden": 0,
+            "control": 0,
+            "navigation": 0,
+            "comment": 1
+          }
+        },
+        {
+          "origin": "FEED_CHILD",
+          "reason": "RESTRICTED",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 1,
+            "messageRegions": 1,
+            "outsideHeaderDepth": 2
+          },
+          "prunes": {
+            "article": 1,
+            "hidden": 0,
+            "control": 0,
+            "navigation": 0,
+            "comment": 1
+          }
+        },
+        {
+          "origin": "MAIN_COLOCATION",
+          "reason": "NO_HEADER_CLUSTER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "DIRECT",
+          "feedRelation": "OUTSIDE",
+          "state": "COMPLETE",
+          "hints": {
+            "headings": 1,
+            "temporal": 1,
+            "publicLabels": 1,
+            "restrictedLabels": 0,
+            "messageRegions": 1,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 0,
+            "navigation": 0,
+            "comment": 0
+          }
+        }
+      ],
+      "summarySha256": "327f596b71205a58fa4991c1ce11c098b7a624bb9c438d6d03674207064a4a13"
+    },
+    {
+      "status": "NO_PUBLIC_CANDIDATE",
+      "candidateCount": 0,
+      "visited": 2500,
+      "nodeLimit": true,
+      "selection": {
+        "firstFeedFound": true,
+        "feedLandmarks": false,
+        "fallbackUsed": true,
+        "feedExamined": 6,
+        "mainExamined": 1,
+        "coLocationMisses": 0,
+        "fallbackScan": "PARTIAL",
+        "discoveryHints": {
+          "headings": 0,
+          "temporal": 0,
+          "publicLabels": 0,
+          "restrictedLabels": 0,
+          "messageRegions": 0,
+          "articles": 1,
+          "outsideFeed": 2
+        }
+      },
+      "rejectionShapes": [
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 0,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 1,
+            "navigation": 0,
+            "comment": 0
+          }
+        },
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 0,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 1,
+            "navigation": 0,
+            "comment": 0
+          }
+        },
+        {
+          "origin": "FEED_CHILD",
+          "reason": "NO_HEADER",
+          "tag": "DIV",
+          "role": "OTHER",
+          "depth": "SHALLOW",
+          "feedRelation": "INSIDE",
+          "state": "PRUNED",
+          "hints": {
+            "headings": 0,
+            "temporal": 0,
+            "publicLabels": 0,
+            "restrictedLabels": 0,
+            "messageRegions": 0,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 1,
+            "navigation": 0,
+            "comment": 0
+          }
+        },
+        {
+          "origin": "MAIN_ARTICLE",
+          "reason": "INCOMPLETE_BOUNDARY",
+          "tag": "ARTICLE",
+          "role": "OTHER",
+          "depth": "DIRECT",
+          "feedRelation": "OUTSIDE",
+          "state": "PARTIAL",
+          "hints": {
+            "headings": 1,
+            "temporal": 1,
+            "publicLabels": 1,
+            "restrictedLabels": 0,
+            "messageRegions": 1,
+            "outsideHeaderDepth": 0
+          },
+          "prunes": {
+            "article": 0,
+            "hidden": 0,
+            "control": 0,
+            "navigation": 0,
+            "comment": 0
+          }
+        }
+      ],
+      "summarySha256": "528f1166ec9e5a0410cd1681a3cb0dd7f8b24efe6ec5bc07a9d28e0411af2584"
+    }
+  ],
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

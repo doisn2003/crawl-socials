@@ -1,0 +1,143 @@
+{
+  "task": "P02_POST_SECURITY_PERFORMANCE",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 14,
+  "workload": {
+    "unrelatedCards": 4500,
+    "unrelatedElements": 27000,
+    "unrelatedTextNodes": 22500,
+    "unrelatedLabelAttributes": 1125,
+    "placement": "SIBLINGS_BEFORE_POST_AND_TAIL_MARKER",
+    "machinePlatform": "win32",
+    "machineArch": "x64",
+    "electron": "44.7.0",
+    "chromium": "152.0.7977.130"
+  },
+  "equivalence": {
+    "cases": 517,
+    "mismatches": 0,
+    "expectedMismatches": 0
+  },
+  "cases": [
+    {
+      "label": "FROZEN_V14",
+      "scriptSha256": "ed4e51967912dab472d37230103a51d42df722cd1896ae0565f876ece8e633cd",
+      "status": "BARRIER_SCAN_INCOMPLETE",
+      "candidateCount": 0,
+      "visited": 0,
+      "examined": 0,
+      "barriers": {
+        "state": "INCOMPLETE",
+        "reason": "TIME_LIMIT",
+        "kind": "NONE",
+        "evidence": "NONE",
+        "inspected": 0,
+        "hidden": 0,
+        "empty": 0,
+        "visible": 0,
+        "descendants": 0,
+        "ancestors": 0,
+        "overflow": false
+      },
+      "executionMs": 1100.3346999999999,
+      "stageTimings": {
+        "preparationMs": 0.7000000029802322,
+        "securityXPathMs": 1078.1999999955297,
+        "dialogXPathMs": 18.400000005960464
+      }
+    },
+    {
+      "label": "OPTIMIZED",
+      "scriptSha256": "613d6e954927f34539ce25c86e7332c7fb5c496ba8755f40d0733604db2aa3cd",
+      "status": "SAMPLES_READY",
+      "candidateCount": 1,
+      "visited": 72,
+      "examined": 1,
+      "barriers": {
+        "state": "CLEAR",
+        "reason": "NONE",
+        "kind": "NONE",
+        "evidence": "NONE",
+        "inspected": 2,
+        "hidden": 0,
+        "empty": 0,
+        "visible": 0,
+        "descendants": 2,
+        "ancestors": 6,
+        "overflow": false
+      },
+      "executionMs": 126.39829999999984,
+      "stageTimings": {
+        "preparationMs": 0.30000000447034836,
+        "securityXPathMs": 99.89999999850988,
+        "dialogXPathMs": 18.899999998509884
+      }
+    },
+    {
+      "label": "TAIL_AUTH",
+      "status": "AUTH_REQUIRED",
+      "candidateCount": 0,
+      "visited": 3,
+      "examined": 0,
+      "barriers": {
+        "state": "VISIBLE",
+        "reason": "NONE",
+        "kind": "AUTH",
+        "evidence": "AUTH_FIELD",
+        "inspected": 1,
+        "hidden": 0,
+        "empty": 0,
+        "visible": 1,
+        "descendants": 0,
+        "ancestors": 2,
+        "overflow": false
+      }
+    },
+    {
+      "label": "TAIL_CHALLENGE_TITLE",
+      "status": "CHALLENGE",
+      "candidateCount": 0,
+      "visited": 3,
+      "examined": 0,
+      "barriers": {
+        "state": "VISIBLE",
+        "reason": "NONE",
+        "kind": "CHALLENGE",
+        "evidence": "CHALLENGE_TEXT",
+        "inspected": 1,
+        "hidden": 0,
+        "empty": 0,
+        "visible": 1,
+        "descendants": 0,
+        "ancestors": 2,
+        "overflow": false
+      }
+    },
+    {
+      "label": "TAIL_DENIED",
+      "status": "ACCESS_DENIED",
+      "candidateCount": 0,
+      "visited": 3,
+      "examined": 0,
+      "barriers": {
+        "state": "VISIBLE",
+        "reason": "NONE",
+        "kind": "DENIED",
+        "evidence": "DENIED_TEXT",
+        "inspected": 1,
+        "hidden": 0,
+        "empty": 0,
+        "visible": 1,
+        "descendants": 0,
+        "ancestors": 2,
+        "overflow": false
+      }
+    }
+  ],
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

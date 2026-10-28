@@ -1,0 +1,70 @@
+{
+  "task": "P02_OVERLAY_VISIBILITY",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 4,
+  "cases": [
+    {
+      "status": "SAMPLES_READY",
+      "candidateCount": 1,
+      "visited": 24,
+      "barriers": {
+        "state": "CLEAR",
+        "reason": "NONE",
+        "kind": "NONE",
+        "evidence": "NONE",
+        "inspected": 4,
+        "hidden": 1,
+        "empty": 3,
+        "visible": 0,
+        "descendants": 0,
+        "ancestors": 8,
+        "overflow": false
+      },
+      "summarySha256": "0f60f422ca3d66a92008d34f4b2d3da63dbfc230844e56384b24c2c2bac0c076"
+    },
+    {
+      "status": "UNSUPPORTED_OVERLAY",
+      "candidateCount": 0,
+      "visited": 12,
+      "barriers": {
+        "state": "VISIBLE",
+        "reason": "NONE",
+        "kind": "OVERLAY",
+        "evidence": "VISIBLE_TEXT",
+        "inspected": 5,
+        "hidden": 1,
+        "empty": 3,
+        "visible": 1,
+        "descendants": 2,
+        "ancestors": 10,
+        "overflow": false
+      },
+      "summarySha256": "6dea2eeb843e2e269a3ba1371317ac989a8a9995354e8d65e180ebdc485aa159"
+    },
+    {
+      "status": "CHALLENGE",
+      "candidateCount": 0,
+      "visited": 5,
+      "barriers": {
+        "state": "VISIBLE",
+        "reason": "NONE",
+        "kind": "CHALLENGE",
+        "evidence": "CHALLENGE_FRAME",
+        "inspected": 2,
+        "hidden": 1,
+        "empty": 0,
+        "visible": 1,
+        "descendants": 0,
+        "ancestors": 5,
+        "overflow": false
+      },
+      "summarySha256": "a7fe81840194f22f5391ee84df5dbd4ebd83217fc9bf75a16267aa007488ac8e"
+    }
+  ],
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

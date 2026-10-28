@@ -1,0 +1,597 @@
+{
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "task": "MANUAL_SESSION_POLICY_DIAGNOSTICS",
+  "checks": [
+    "ALLOWED_ROUTE_CATEGORY_BLOCKED_SCRIPT_HTTP_STATUS_NETWORK_FAILURE_POPUP_DISTINCT",
+    "UNCONTROLLED_NAVIGATION_DENIAL_RECORDED_WITHOUT_URL_OR_QUERY",
+    "REAL_INITIAL_LOAD_TIMEOUT_RECORDED_SEPARATELY_FROM_HTTP_AND_NETWORK",
+    "METADATA_ONLY_NO_DEBUGGER_OBSERVER_POSTS_OR_PRIVATE_MARKERS"
+  ],
+  "diagnostics": {
+    "version": 1,
+    "purpose": "MANUAL_SESSION_POLICY_DIAGNOSTICS",
+    "observerEnabled": false,
+    "postsCollected": 0,
+    "startedAt": "2026-10-27T11:23:36.751Z",
+    "totalEvents": 26,
+    "droppedOldEvents": 0,
+    "priorityEventsDropped": 0,
+    "publishFailures": 0,
+    "counts": {
+      "NAVIGATION_STARTED": 4,
+      "NAVIGATION_COMMITTED": 3,
+      "LOAD_FINISHED": 2,
+      "REQUEST_ALLOWED": 5,
+      "RESOURCE_COMPLETED": 3,
+      "REQUEST_BLOCKED": 1,
+      "RESOURCE_FAILED": 3,
+      "POPUP_DENIED": 1,
+      "NAVIGATION_BLOCKED": 1,
+      "HOST_NAVIGATION_TIMEOUT": 1,
+      "LOAD_FAILED": 1,
+      "VIEW_CLOSED": 1
+    },
+    "events": [
+      {
+        "sequence": 1,
+        "at": "2026-10-27T11:23:38.397Z",
+        "kind": "NAVIGATION_STARTED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "ABOUT",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 2,
+        "at": "2026-10-27T11:23:47.955Z",
+        "kind": "NAVIGATION_COMMITTED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "ABOUT",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 3,
+        "at": "2026-10-27T11:23:47.956Z",
+        "kind": "LOAD_FINISHED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "ABOUT",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 4,
+        "at": "2026-10-27T11:23:47.961Z",
+        "kind": "NAVIGATION_STARTED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "TWO_STEP_VERIFICATION"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 5,
+        "at": "2026-10-27T11:23:47.963Z",
+        "kind": "REQUEST_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "TWO_STEP_VERIFICATION"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 6,
+        "at": "2026-10-27T11:23:48.119Z",
+        "kind": "RESOURCE_COMPLETED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "TWO_STEP_VERIFICATION"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": 200,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 7,
+        "at": "2026-10-27T11:23:48.164Z",
+        "kind": "NAVIGATION_COMMITTED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "TWO_STEP_VERIFICATION"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": 200,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 8,
+        "at": "2026-10-27T11:23:48.178Z",
+        "kind": "REQUEST_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "script",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 9,
+        "at": "2026-10-27T11:23:48.186Z",
+        "kind": "REQUEST_BLOCKED",
+        "view": 1,
+        "location": {
+          "origin": "https://connect.facebook.net",
+          "family": "FACEBOOK_CONNECT",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "script",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 10,
+        "at": "2026-10-27T11:23:48.187Z",
+        "kind": "RESOURCE_FAILED",
+        "view": 1,
+        "location": {
+          "origin": "https://connect.facebook.net",
+          "family": "FACEBOOK_CONNECT",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "script",
+        "statusCode": null,
+        "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+        "errorCode": null
+      },
+      {
+        "sequence": 11,
+        "at": "2026-10-27T11:23:48.192Z",
+        "kind": "RESOURCE_COMPLETED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "script",
+        "statusCode": 200,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 12,
+        "at": "2026-10-27T11:23:48.879Z",
+        "kind": "LOAD_FINISHED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "TWO_STEP_VERIFICATION"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 13,
+        "at": "2026-10-27T11:23:49.082Z",
+        "kind": "REQUEST_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "xhr",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 14,
+        "at": "2026-10-27T11:23:49.084Z",
+        "kind": "RESOURCE_COMPLETED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "xhr",
+        "statusCode": 503,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 15,
+        "at": "2026-10-27T11:23:49.100Z",
+        "kind": "REQUEST_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "xhr",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 16,
+        "at": "2026-10-27T11:23:49.104Z",
+        "kind": "RESOURCE_FAILED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "xhr",
+        "statusCode": null,
+        "networkError": "net::ERR_EMPTY_RESPONSE",
+        "errorCode": null
+      },
+      {
+        "sequence": 17,
+        "at": "2026-10-27T11:23:49.144Z",
+        "kind": "POPUP_DENIED",
+        "view": 1,
+        "location": {
+          "origin": "https://www.facebook.com",
+          "family": "FACEBOOK",
+          "scheme": "HTTPS",
+          "pathCategory": "TWO_STEP_VERIFICATION"
+        },
+        "resourceType": "other",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 18,
+        "at": "2026-10-27T11:23:49.249Z",
+        "kind": "NAVIGATION_STARTED",
+        "view": 1,
+        "location": {
+          "origin": "https://www.facebook.com",
+          "family": "FACEBOOK",
+          "scheme": "HTTPS",
+          "pathCategory": "TWO_STEP_VERIFICATION"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 19,
+        "at": "2026-10-27T11:23:49.249Z",
+        "kind": "NAVIGATION_BLOCKED",
+        "view": 1,
+        "location": {
+          "origin": "https://www.facebook.com",
+          "family": "FACEBOOK",
+          "scheme": "HTTPS",
+          "pathCategory": "TWO_STEP_VERIFICATION"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 20,
+        "at": "2026-10-27T11:23:49.290Z",
+        "kind": "NAVIGATION_STARTED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 21,
+        "at": "2026-10-27T11:23:49.291Z",
+        "kind": "REQUEST_ALLOWED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 22,
+        "at": "2026-10-27T11:23:49.304Z",
+        "kind": "NAVIGATION_COMMITTED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": 200,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 23,
+        "at": "2026-10-27T11:24:04.297Z",
+        "kind": "HOST_NAVIGATION_TIMEOUT",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 24,
+        "at": "2026-10-27T11:24:04.303Z",
+        "kind": "RESOURCE_FAILED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": "net::ERR_ABORTED",
+        "errorCode": null
+      },
+      {
+        "sequence": 25,
+        "at": "2026-10-27T11:24:04.305Z",
+        "kind": "LOAD_FAILED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": -3
+      },
+      {
+        "sequence": 26,
+        "at": "2026-10-27T11:24:04.312Z",
+        "kind": "VIEW_CLOSED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_OTHER",
+          "family": "OTHER",
+          "scheme": "OTHER",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "other",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      }
+    ],
+    "priorityEvents": [
+      {
+        "sequence": 9,
+        "at": "2026-10-27T11:23:48.186Z",
+        "kind": "REQUEST_BLOCKED",
+        "view": 1,
+        "location": {
+          "origin": "https://connect.facebook.net",
+          "family": "FACEBOOK_CONNECT",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "script",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 10,
+        "at": "2026-10-27T11:23:48.187Z",
+        "kind": "RESOURCE_FAILED",
+        "view": 1,
+        "location": {
+          "origin": "https://connect.facebook.net",
+          "family": "FACEBOOK_CONNECT",
+          "scheme": "HTTPS",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "script",
+        "statusCode": null,
+        "networkError": "net::ERR_BLOCKED_BY_CLIENT",
+        "errorCode": null
+      },
+      {
+        "sequence": 16,
+        "at": "2026-10-27T11:23:49.104Z",
+        "kind": "RESOURCE_FAILED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "xhr",
+        "statusCode": null,
+        "networkError": "net::ERR_EMPTY_RESPONSE",
+        "errorCode": null
+      },
+      {
+        "sequence": 17,
+        "at": "2026-10-27T11:23:49.144Z",
+        "kind": "POPUP_DENIED",
+        "view": 1,
+        "location": {
+          "origin": "https://www.facebook.com",
+          "family": "FACEBOOK",
+          "scheme": "HTTPS",
+          "pathCategory": "TWO_STEP_VERIFICATION"
+        },
+        "resourceType": "other",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 19,
+        "at": "2026-10-27T11:23:49.249Z",
+        "kind": "NAVIGATION_BLOCKED",
+        "view": 1,
+        "location": {
+          "origin": "https://www.facebook.com",
+          "family": "FACEBOOK",
+          "scheme": "HTTPS",
+          "pathCategory": "TWO_STEP_VERIFICATION"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 23,
+        "at": "2026-10-27T11:24:04.297Z",
+        "kind": "HOST_NAVIGATION_TIMEOUT",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": null
+      },
+      {
+        "sequence": 24,
+        "at": "2026-10-27T11:24:04.303Z",
+        "kind": "RESOURCE_FAILED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": "net::ERR_ABORTED",
+        "errorCode": null
+      },
+      {
+        "sequence": 25,
+        "at": "2026-10-27T11:24:04.305Z",
+        "kind": "LOAD_FAILED",
+        "view": 1,
+        "location": {
+          "origin": "REDACTED_LOOPBACK",
+          "family": "LOOPBACK",
+          "scheme": "HTTP",
+          "pathCategory": "OTHER_REDACTED"
+        },
+        "resourceType": "mainFrame",
+        "statusCode": null,
+        "networkError": null,
+        "errorCode": -3
+      }
+    ],
+    "limitations": [
+      "NO_BODY_HEADERS_QUERY_DOM_OR_CREDENTIALS",
+      "EXACT_ORIGIN_ALLOWLIST_OTHER_HOSTS_REDACTED",
+      "RING_BUFFER_NOT_COMPLETE_NETWORK_TRACE",
+      "PATH_CATEGORY_NOT_VERIFICATION_OUTCOME"
+    ]
+  },
+  "limitations": [
+    "Loopback fixture only; not observed live Facebook network",
+    "Fixture denies every external origin; no claim those resources are needed by Facebook",
+    "Current real session/window not read, reloaded, closed or restarted by this harness"
+  ],
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

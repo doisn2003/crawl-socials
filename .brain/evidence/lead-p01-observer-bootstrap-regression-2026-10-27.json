@@ -1,0 +1,173 @@
+{
+  "task": "P01.01",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "result": "PASS",
+  "launches": 2,
+  "sameIsolatedDataRootOnRestart": true,
+  "ownElectronBinary": true,
+  "unrelatedSyntheticSentinelUnchanged": true,
+  "runs": [
+    {
+      "run": 1,
+      "elapsedMilliseconds": 771,
+      "appId": "io.csd.desktop",
+      "appName": "CSD",
+      "version": "0.1.0",
+      "electron": "44.7.0",
+      "node": "24.21.0",
+      "platform": "win32",
+      "arch": "x64",
+      "initial": {
+        "info": {
+          "product": "CSD",
+          "fullName": "Crawl Socials Data",
+          "version": "0.1.0",
+          "mode": "OFFLINE_BOOTSTRAP",
+          "benchmarkReady": false,
+          "campaign": {
+            "name": "Quán cà phê — ưu tiên Hà Nội, gồm Page, nhóm và trang cá nhân công khai",
+            "keywords": [
+              "quán cà phê",
+              "tìm quán cà phê",
+              "review quán cà phê",
+              "địa điểm đi coffee",
+              "quán cà phê hẹn hò",
+              "cafe Hà Nội",
+              "Tiny Cafe",
+              "sự kiện tại quán cà phê"
+            ],
+            "preferredPlaces": [
+              "Hà Nội"
+            ],
+            "sources": [
+              {
+                "type": "PAGE",
+                "minimum": 1
+              },
+              {
+                "type": "PUBLIC_GROUP",
+                "minimum": 1
+              },
+              {
+                "type": "PUBLIC_PERSONAL",
+                "minimum": 1
+              }
+            ],
+            "target": 1000,
+            "maxHours": 24,
+            "historicalPostsAllowed": true,
+            "expansionAllowed": true
+          }
+        },
+        "title": "CSD — Crawl Socials Data",
+        "nodeAvailable": false,
+        "processAvailable": false,
+        "bridgeKeys": [
+          "getInfo",
+          "profiles",
+          "runOfflineCheck"
+        ]
+      },
+      "offlineCheckPassed": true,
+      "configuredWebPreferences": {
+        "sandbox": true,
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "webviewTag": false
+      },
+      "uiPartition": "csd-ui",
+      "dataPathsIsolated": true,
+      "networkBlocked": true,
+      "blockedExternalRequests": 1,
+      "windowsAfterClose": 0,
+      "webContentsAfterClose": 0,
+      "rendererErrors": [],
+      "captureMode": "FIXTURE",
+      "verifiedValidUniquePosts": 0
+    },
+    {
+      "run": 2,
+      "elapsedMilliseconds": 862,
+      "appId": "io.csd.desktop",
+      "appName": "CSD",
+      "version": "0.1.0",
+      "electron": "44.7.0",
+      "node": "24.21.0",
+      "platform": "win32",
+      "arch": "x64",
+      "initial": {
+        "info": {
+          "product": "CSD",
+          "fullName": "Crawl Socials Data",
+          "version": "0.1.0",
+          "mode": "OFFLINE_BOOTSTRAP",
+          "benchmarkReady": false,
+          "campaign": {
+            "name": "Quán cà phê — ưu tiên Hà Nội, gồm Page, nhóm và trang cá nhân công khai",
+            "keywords": [
+              "quán cà phê",
+              "tìm quán cà phê",
+              "review quán cà phê",
+              "địa điểm đi coffee",
+              "quán cà phê hẹn hò",
+              "cafe Hà Nội",
+              "Tiny Cafe",
+              "sự kiện tại quán cà phê"
+            ],
+            "preferredPlaces": [
+              "Hà Nội"
+            ],
+            "sources": [
+              {
+                "type": "PAGE",
+                "minimum": 1
+              },
+              {
+                "type": "PUBLIC_GROUP",
+                "minimum": 1
+              },
+              {
+                "type": "PUBLIC_PERSONAL",
+                "minimum": 1
+              }
+            ],
+            "target": 1000,
+            "maxHours": 24,
+            "historicalPostsAllowed": true,
+            "expansionAllowed": true
+          }
+        },
+        "title": "CSD — Crawl Socials Data",
+        "nodeAvailable": false,
+        "processAvailable": false,
+        "bridgeKeys": [
+          "getInfo",
+          "profiles",
+          "runOfflineCheck"
+        ]
+      },
+      "offlineCheckPassed": true,
+      "configuredWebPreferences": {
+        "sandbox": true,
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "webviewTag": false
+      },
+      "uiPartition": "csd-ui",
+      "dataPathsIsolated": true,
+      "networkBlocked": true,
+      "blockedExternalRequests": 1,
+      "windowsAfterClose": 0,
+      "webContentsAfterClose": 0,
+      "rendererErrors": [],
+      "captureMode": "FIXTURE",
+      "verifiedValidUniquePosts": 0
+    }
+  ],
+  "limitations": [
+    "Offline bootstrap only",
+    "No real HotMatch userData inspected",
+    "No Facebook session, live source, collection throughput or packaged executable tested"
+  ]
+}

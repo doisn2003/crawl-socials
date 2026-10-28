@@ -1,0 +1,64 @@
+{
+  "task": "P02_OBSERVED_SEARCH_POST_OPEN",
+  "caseKind": "pre-barrier",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "result": "INCONCLUSIVE",
+      "reason": "CHALLENGE",
+      "clickAttempts": 1,
+      "clicks": 0,
+      "postReads": 0,
+      "discovery": {
+        "scan_sha256": "1398de740edc283dfd984b80e9881bc1855547b057145296c5af2366e1c77a81",
+        "status": "SAMPLES_READY",
+        "visited": 83,
+        "examined": 1,
+        "opening": {
+          "version": 1,
+          "phase": "DISCOVER",
+          "status": "TARGETS_READY",
+          "targets": [
+            {
+              "index": 0,
+              "href_kind": "SEARCH_PLACEHOLDER",
+              "timestamp_proof": "LABEL"
+            }
+          ],
+          "click_count": 0,
+          "selected_index": null,
+          "qualified_headers": 1,
+          "no_timestamp_headers": 0,
+          "ambiguous_headers": 0
+        }
+      },
+      "click": {
+        "scan_sha256": "c8577507cbeb352fa703d03a66fa882467739b881b74ce740a0ade549c3c98a8",
+        "status": "CHALLENGE",
+        "visited": 3,
+        "examined": 0,
+        "opening": {
+          "version": 1,
+          "phase": "CLICK",
+          "status": "NO_ELIGIBLE_TIMESTAMP",
+          "targets": [],
+          "click_count": 0,
+          "selected_index": null,
+          "qualified_headers": 0,
+          "no_timestamp_headers": 0,
+          "ambiguous_headers": 0
+        }
+      },
+      "eventTrace": [],
+      "summarySha256": "89fb59592b2a649fb94d9db8b7750c9bff9445d44805cb3e81d95a7fa9fb04e7"
+    }
+  ],
+  "browserClicks": 0,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

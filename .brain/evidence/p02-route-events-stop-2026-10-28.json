@@ -1,0 +1,53 @@
+{
+  "task": "P02_POST_ROUTE_VERIFICATION",
+  "caseKind": "stop",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 2,
+  "nativeHistoryEvents": 0,
+  "cases": [
+    {
+      "label": "CURRENT_POST_ANCHOR",
+      "status": "SAMPLES_READY",
+      "summarySha256": "39afd648574606c6c2bd9873e9a2879b86eebdf8f4ec8aebdecb15f0d3c35d8f"
+    },
+    {
+      "label": "STOP_PENDING_NAVIGATION",
+      "result": "INCONCLUSIVE",
+      "reason": "STOPPED",
+      "navigationCount": 1,
+      "readCount": 0,
+      "eventTrace": [
+        {
+          "kind": "START",
+          "event": "DID_START_NAVIGATION",
+          "phase": "NAVIGATING",
+          "frame": "MAIN",
+          "url_equality": "EXACT",
+          "current_url_equality": "DIFFERENT",
+          "owner": "SAME",
+          "generation_delta": 0,
+          "decision": "EXPECTED"
+        }
+      ],
+      "traceOverflow": false,
+      "firstCancellation": {
+        "reason": "STOPPED",
+        "cause": "STOP",
+        "phase": "NAVIGATING",
+        "event_index": null
+      }
+    },
+    {
+      "label": "CONSUMED_ANCHOR",
+      "result": "INCONCLUSIVE",
+      "reason": "NO_ANCHOR"
+    }
+  ],
+  "reopenRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

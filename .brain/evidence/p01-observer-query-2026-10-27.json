@@ -1,0 +1,41 @@
+{
+  "task": "P01.03",
+  "date": "2026-10-27",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "scenario": "query",
+  "checks": [
+    "one local query captures correlated JSON via real Electron CDP with FIXTURE provenance"
+  ],
+  "captures": [
+    {
+      "bytes": 37,
+      "sha256": "c7e3900a5275161ecbc88368f48975cb8a4da753857c518664d7603fd98e207b",
+      "captureMode": "FIXTURE",
+      "profile": "A",
+      "status": 200
+    }
+  ],
+  "devToolsTerminalCode": null,
+  "limits": {
+    "maxPendingRequests": 32,
+    "maxConcurrentReads": 2,
+    "maxBodyBytes": 131072,
+    "maxBufferedBytes": 524288,
+    "maxResults": 32,
+    "maxCapturedResponses": 100,
+    "maxTotalCapturedBytes": 2097152,
+    "commandTimeoutMs": 2000,
+    "requestTimeoutMs": 3000,
+    "maxRunMs": 20000,
+    "maxObservers": 4
+  },
+  "verifiedValidUniquePosts": 0,
+  "limitations": [
+    "Local HTTP fixtures only; no Facebook parser/login/live data",
+    "Native body command rejection/timeout and strict capacity faults are injected in unit tests",
+    "CDP buffer hints and post-decode checks are not an absolute bound on native/string allocation"
+  ],
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}

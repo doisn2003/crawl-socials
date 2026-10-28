@@ -1,0 +1,85 @@
+{
+  "task": "P02_MANUAL_FACEBOOK_AUTH_DEPENDENCY_FIX",
+  "date": "2026-10-27",
+  "timezone": "Asia/Bangkok",
+  "result": "LEAD_LIVE_LOGIN_FORM_RENDER_CONFIRMED_FULL_2FA_SESSION_UNVERIFIED",
+  "validation": {
+    "targetedTests": 13,
+    "wholeUnitTests": 102,
+    "contractChecks": 44,
+    "nativeFixtureGroups": 3,
+    "externalNetworkRequests": 0,
+    "buildManifestEntries": 109
+  },
+  "files": [
+    {
+      "path": "src/infrastructure/browser/navigation-policy.ts",
+      "sha256": "c6bf52934f960f974b14369378c6e43ac6f8e490eb90000671df1909b3c8e186"
+    },
+    {
+      "path": "src/infrastructure/browser/browser-host.ts",
+      "sha256": "5b0d1083727ac5139c8db6a6067310abd513eceb19747c1b472d8fa3a8e62823"
+    },
+    {
+      "path": "src/main/index.ts",
+      "sha256": "35d387f33af028b41f1cfbd050b27a1f6b15ed504a7110b0d833c5d89256cc03"
+    },
+    {
+      "path": "src/main/auth-dependency-smoke.ts",
+      "sha256": "9c88fe2d99dc5890a5f85c63d19a7c8e486a9fa6118ea1b268d6166247c88a25"
+    },
+    {
+      "path": "scripts/auth-dependency-smoke.mjs",
+      "sha256": "43e3d2fc4ff154c6b8f225955906a57f10521fd89cf9db4379af6948d766936b"
+    },
+    {
+      "path": "tests/manual-auth-policy.test.ts",
+      "sha256": "e6292efa6bf2d26d9ecf822b07340086336810ea5d3051d35ddb3b97969bd34c"
+    },
+    {
+      "path": "package.json",
+      "sha256": "8f13c99ed496fd782de53620ed58f8445ec1b50b67fbfde30b30bda4d428aca2"
+    },
+    {
+      "path": "README.md",
+      "sha256": "1a2804a19a9093a85924dbabff1c79b9e438251dcb2087bd1dd8f3c7829a072c"
+    },
+    {
+      "path": "dist/infrastructure/browser/navigation-policy.js",
+      "sha256": "ecc4256b433a699c42259f9900565d59e81fc1c0e250379c60abc6c6d2bc7fcf"
+    },
+    {
+      "path": "dist/infrastructure/browser/browser-host.js",
+      "sha256": "29bf386c7828e1e99adde95ec595b303c1a1e5db88ff9ee189a834898a91bfd3"
+    },
+    {
+      "path": "dist/main/index.js",
+      "sha256": "0c767a461b34b2001ace39a731dd39b2fcc94fe2e961307103767dc881f3e3a0"
+    },
+    {
+      "path": "dist/main/auth-dependency-smoke.js",
+      "sha256": "d5b0d3f5390feb00eb0b4c6c7ddbd545e049985f03322e3e4fff2ceb2cb8b930"
+    },
+    {
+      "path": "dist/resources/probe-build.json",
+      "sha256": "c7880d27363707673e3195423c0732abd5c504982906d5916083873ad30a3d9d"
+    },
+    {
+      "path": ".brain/evidence/p02-manual-auth-dependency-fixture-2026-10-27.json",
+      "sha256": "f91cb32223d45d9c8de401accbecac770f1ad899f7fb23dfcc2dbb378e438d07"
+    },
+    {
+      "path": ".brain/handoffs/csd-manual-auth-dependency-fix-2026-10-27.md",
+      "sha256": "b4ad118c5d4db0eb9e6d3f53a8b2cd8b3dde8d366cb68567fb54f8573dfb5a2d"
+    }
+  ],
+  "leadLiveObservation": {
+    "path": ".brain/evidence/lead-p02-login-after-fix-2026-10-27.json",
+    "sha256AtRead": "b3824f5e4bb34527acedee9187034c93c4c74bf7ee8fd3132bd92e816f4c3184",
+    "eventsAtRead": 151,
+    "semantics": "Lead-supplied snapshot may be updated; separate from owned source/build hashes",
+    "formRenderConfirmedByLead": true,
+    "full2FASessionVerified": false,
+    "laterScriptDenyOrigin": "https://www.google.com"
+  }
+}

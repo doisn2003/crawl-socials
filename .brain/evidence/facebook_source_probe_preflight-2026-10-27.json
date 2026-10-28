@@ -1,0 +1,149 @@
+{
+  "preparation_version": "1.0.0",
+  "status": "DRAFT_PREPARATION",
+  "task": "P02.02_OFFLINE",
+  "execution_authorized": false,
+  "gate_evaluated": false,
+  "live_observations": 0,
+  "run_id": null,
+  "started_at": null,
+  "deadline_at": null,
+  "freeze_sha256": null,
+  "route_id": "FB_BROWSER_PUBLIC_SEARCH",
+  "planned_capture_mode": "LIVE",
+  "planned_temperature": "COLD",
+  "campaign_id": "coffee-public-facebook-v1",
+  "selected_queries": [
+    "quán cà phê",
+    "cafe Hà Nội",
+    "Tiny Cafe"
+  ],
+  "operational_decision": {
+    "status": "LEAD_DECIDED",
+    "ref": "evidence://lead-probe-limits-2026-10-27",
+    "decision_maker": "lead /root",
+    "runtime_binding": "NOT_BOUND_UNTIL_IMPLEMENTED_AND_REVIEWED",
+    "user_approval_claimed": false
+  },
+  "limits_to_enforce": {
+    "max_wall_time_seconds": 1800,
+    "max_candidates": 100,
+    "max_actions": 20,
+    "request_unit": "CONTROLLED_COLLECTION_ACTION",
+    "max_queries": 3,
+    "max_batches_per_query": 5,
+    "max_storage_mb": 50,
+    "max_operator_seconds": 600,
+    "max_retries_per_batch": 1,
+    "no_progress_batches": 2,
+    "currency": "VND",
+    "max_external_cost": 0
+  },
+  "data_policy_to_apply": {
+    "decision_ref": "evidence://lead-probe-limits-2026-10-27",
+    "purpose": "TECHNICAL_SOURCE_FEASIBILITY",
+    "export_scope": "LOCAL_ONLY",
+    "output_formats": [
+      "JSONL",
+      "JSON_SUMMARY"
+    ],
+    "retention_days": 7,
+    "retention_scheduler_exists": false,
+    "raw_social_data_in_brain": false,
+    "credentials_in_evidence": false
+  },
+  "storage_plan": {
+    "runtime_base": "APPDATA/csd-desktop",
+    "relative_run_directory": "source-probes/<run_id>",
+    "symbolic_storage_ref": "csd-userdata://source-probes/<run_id>",
+    "directories_created": false,
+    "requires_resolved_path_outside_repository": true,
+    "files": [
+      "manifest.json",
+      "evidence-map.json",
+      "observations.jsonl",
+      "events.jsonl",
+      "snapshot.json",
+      "summary.json"
+    ]
+  },
+  "evidence_map": [
+    {
+      "ref": "evidence://lead-probe-limits-2026-10-27",
+      "path": ".brain/decisions/ADR-009-source-probe-operational-limits.md",
+      "kind": "OPERATIONAL_DECISION",
+      "permission_grant": false
+    },
+    {
+      "ref": "evidence://facebook-browser-assessment-2026-10-27",
+      "path": ".brain/evidence/facebook-browser-route-assessment-2026-10-27.md",
+      "kind": "ROUTE_ASSESSMENT",
+      "permission_grant": false
+    }
+  ],
+  "pending_inputs": [
+    {
+      "code": "PROBE_CONTROLLER_INTEGRATION",
+      "owner": "lead assigns after P01.03 ownership returns",
+      "details": "Reuse existing main/browser host: counters, global deadline, sanitizer, writer, Start/Stop; no second host"
+    },
+    {
+      "code": "AUTOMATED_ROUTE_CONDITIONS",
+      "owner": "lead",
+      "details": "Assessment has no CSD platform permission evidence; resolve disposition on actual basis, not a boolean approval substitute"
+    },
+    {
+      "code": "SESSION_SETUP_EVIDENCE",
+      "owner": "operator with lead coordination",
+      "details": "CSD profile manual setup; no cookie/token export; do not claim verified account binding"
+    },
+    {
+      "code": "PIN_ARTIFACTS_AT_START",
+      "owner": "probe host after reviewed build",
+      "fields": [
+        "built_code_manifest_sha256",
+        "effective_configuration_sha256",
+        "canonical_campaign_sha256",
+        "source_matrix_sha256",
+        "assessment_sha256",
+        "runtime_versions",
+        "adapter_version",
+        "parser_version",
+        "rubric_version",
+        "session_evidence_ref",
+        "route_disposition_ref"
+      ]
+    }
+  ],
+  "stable_preparation_input_hashes": [
+    {
+      "path": ".brain/decisions/ADR-009-source-probe-operational-limits.md",
+      "sha256": "ef25ae35712a8e63ec558ac6e16cc2971001cd1bfd36ef5f8c3a71de7e9204b2"
+    },
+    {
+      "path": ".brain/specs/benchmark_protocol.md",
+      "sha256": "86ab8d9068bc521f7064fe9b470ad6a348cf811a7faa763719faf413ee0a8f3f"
+    },
+    {
+      "path": ".brain/specs/benchmark_manifest.template.json",
+      "sha256": "086d15f7c613a6a6f481b0485ea838a23f5682439620544784a5dcfc60d0c52e"
+    },
+    {
+      "path": ".brain/specs/campaign.coffee.json",
+      "sha256": "858e5464b6fa70ca58ca97044bb52803cb3bffeb2309ead2abb0709cf78e2e8b"
+    },
+    {
+      "path": ".brain/specs/source_access_matrix.md",
+      "sha256": "4b3e926493f9142a141d2af64514fb0bc82cfff92b5a4a39625d5d647beaf296"
+    },
+    {
+      "path": ".brain/specs/facebook_source_probe_runbook.md",
+      "sha256": "955f6c23caa22166e0059bbd6164ae08a0ae4182170e98244481c88c130d9846"
+    },
+    {
+      "path": ".brain/evidence/facebook-browser-route-assessment-2026-10-27.md",
+      "sha256": "d7bbfdc18b2c9647159847f811a32e8f41e950012c6e7d23b3b0f24b8bf8e650"
+    }
+  ],
+  "hash_semantics": "Exact preparation document bytes only; not frozen code/config or a run manifest"
+}

@@ -1,0 +1,228 @@
+{
+  "phase": "FROZEN_SUBFRAME_FINAL",
+  "result": "PASS",
+  "createdAt": "2026-10-27T22:08:51.571Z",
+  "manifest": {
+    "path": ".brain/evidence/p02-subframe-files-2026-10-28.json",
+    "sha256": "3e69956d3d3b95dcd6f197940b0459e03f126d2d113bedeefe42aa0f9eaf8932"
+  },
+  "tests": 50,
+  "passed": 50,
+  "breakdown": {
+    "reviewerVerification": 14,
+    "ownerVerification": 17,
+    "reviewerCurrentPost": 8,
+    "ownerCurrentPost": 11
+  },
+  "nativeScenarios": 6,
+  "nativeOutcomes": 18,
+  "ownedManifestHashes": 21,
+  "isolatedNativeBuildHashesBeforeRun": 65,
+  "files": [
+    {
+      "path": "tests/facebook-post-route-verification-review.test.ts",
+      "sha256": "3cbbe924f9c5d978cdc74b384e8f260a190ed9ee61d30acf640d66a488495c24"
+    },
+    {
+      "path": ".test-build-adapter-candidate/subframe-final/src/main/facebook-post-route-verification.js",
+      "sha256": "84657c05fa61115f4c6e6e85489d02a140b12d8207c851d8f541f76a447397f6"
+    },
+    {
+      "path": ".test-build-adapter-candidate/subframe-final/src/main/facebook-public-candidate.js",
+      "sha256": "d2309718815267a5bbd4bddb5728f172a9c07d1f0b81d71c50403f4997eb5558"
+    },
+    {
+      "path": ".test-build-adapter-candidate/subframe-final/tests/facebook-post-route-verification-review.test.js",
+      "sha256": "9b2835edb3fde9a9cb35b5e43ba1689bcbf40ac22f66c8153568e34390ad58ab"
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "src/main/index.ts",
+      "sha256": "3bc7eeb410009929e86ab2c1399ef4039fee6edabd32c3378dc9042f7eee9096",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic.ts",
+      "sha256": "834b6ed4373f905974d4beb88d28183a8dc55fca4a2600de99dd5f4a8c34bd10",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-dom-diagnostic-menu.ts",
+      "sha256": "332d18e7eff9d1ddf23f030d48bd436571eb755aa799120d7daea31403f4ae8d",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate.ts",
+      "sha256": "828d32b849d5120a4e35bf5a96c9d6d35143eb2d21b34f6d1a92d75c25509537",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fields.ts",
+      "sha256": "f76176df6d7de6b1f402a04bab5b16aa8b0f5200c3594cd7e9f278f45bd617cb",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate-script.ts",
+      "sha256": "331a5f5a804a8e5984f8f9243e2ad2af553346c61b31e5e577da3dd53b6ef583",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-public-candidate-fixture.ts",
+      "sha256": "b820f2bf7d8ac4395c03c872da6e6af24bce2d8d37eeef4aa27fd13a0ac68f5c",
+      "match": true
+    },
+    {
+      "path": "tests/facebook-public-candidate.test.ts",
+      "sha256": "6472577a2a8d2256d58c2dd0c703e33231d698d4e8e7c509934d1e0abd25f4a3",
+      "match": true
+    },
+    {
+      "path": "scripts/facebook-dom-diagnostic-build.mjs",
+      "sha256": "bfa9de393112b82de2dca8a5c53db4f0c7ed2dffdc65a1ee4745018b2519936a",
+      "match": true
+    },
+    {
+      "path": "scripts/facebook-public-candidate-smoke.mjs",
+      "sha256": "76fe73f5a7c2a1dd9ede1a4ab8feee76274179dd4f77643e33902605ed9fce7f",
+      "match": true
+    },
+    {
+      "path": "tests/facebook-current-post.test.ts",
+      "sha256": "774289f6c3d4b3aadcac16e54d41cda744fb02b493cd3f828232722a6f36f6e4",
+      "match": true
+    },
+    {
+      "path": "tests/fixtures/facebook-current-post-v14-script.json",
+      "sha256": "f599368c4268b3cb85dfad5d8d364dd52e1dd28805298bb4cfcbe6d6fdca95ba",
+      "match": true
+    },
+    {
+      "path": "src/main/facebook-post-route-verification.ts",
+      "sha256": "ab0e8943ef71c9b4471a8b98eeadf26e522cd86c4c951718d8b2fe1da1b37b9b",
+      "match": true
+    },
+    {
+      "path": "tests/facebook-post-route-verification.test.ts",
+      "sha256": "229974d65091ef92f7d99f5b9b582f61f22ff347f8002a52a88cc5e4a21ac0de",
+      "match": true
+    },
+    {
+      "path": ".brain/handoffs/p02-subframe-2026-10-28.md",
+      "sha256": "67384264d75f093b2300a456e50d34ad101e5e0a0f0952f4d85e181a575ff492",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-subframe-loading-2026-10-28.json",
+      "sha256": "fc79011e1eab34911551a55a291d830b96173f694dd5f0a22e21a14485fc6209",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-subframe-read-2026-10-28.json",
+      "sha256": "3958623169d4ddbc5f0caefc249640e1547e0fc385d1362a9e223611deb30982",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-subframe-main-change-2026-10-28.json",
+      "sha256": "4a97c24169404ea1c5bbc9b5516d7b3ce21ef2a36f5839dd5c08724d10e33f14",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-subframe-barrier-2026-10-28.json",
+      "sha256": "59073614897b75ac13e9856239502010fea52b8b412aff1eccfb2cfc41d7888a",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-subframe-stop-2026-10-28.json",
+      "sha256": "5690ddc56165bc9acb672bfcf7e1e65daf3171718d5c2719125bad7a15194c26",
+      "match": true
+    },
+    {
+      "path": ".brain/evidence/p02-subframe-full-navigation-2026-10-28.json",
+      "sha256": "d78b88c7824f9d7115adb0047f0a70f9440c65c16aa73e1b7bc2568400166a72",
+      "match": true
+    }
+  ],
+  "native": [
+    {
+      "kind": "iframe-loading",
+      "path": ".brain/evidence/adapter-p02-subframe-iframe-loading-2026-10-28.json",
+      "sha256": "a5f11c924ae6e13ea01d5b4a74a396999a2f8a9218e8b068ade41a2eecac245e",
+      "result": "REOPEN_MATCH",
+      "reason": "MATCHED",
+      "nativeSubframeHistoryEvents": 2,
+      "traceEntries": 4,
+      "firstCancellation": null
+    },
+    {
+      "kind": "iframe-read",
+      "path": ".brain/evidence/adapter-p02-subframe-iframe-read-2026-10-28.json",
+      "sha256": "fe74c4f8f9bb172e83374bb9e8e680ff05c465f67a465bbc8cc635b9788924c2",
+      "result": "REOPEN_MATCH",
+      "reason": "MATCHED",
+      "nativeSubframeHistoryEvents": 2,
+      "traceEntries": 4,
+      "firstCancellation": null
+    },
+    {
+      "kind": "iframe-main-change",
+      "path": ".brain/evidence/adapter-p02-subframe-iframe-main-change-2026-10-28.json",
+      "sha256": "a2111c19aaaa8d8d2c332336f7cf49cf5c6ffc1fe44eb3e3f67984aa9c97e929",
+      "result": "INCONCLUSIVE",
+      "reason": "ROUTE_CHANGED",
+      "nativeSubframeHistoryEvents": 0,
+      "traceEntries": 3,
+      "firstCancellation": {
+        "reason": "ROUTE_CHANGED",
+        "cause": "URL_CHANGED",
+        "phase": "READING",
+        "event_index": 2
+      }
+    },
+    {
+      "kind": "iframe-barrier",
+      "path": ".brain/evidence/adapter-p02-subframe-iframe-barrier-2026-10-28.json",
+      "sha256": "731d1d81b858e03c08784d230b80be0e19cc6049703af13200d790fe88878496",
+      "result": "INCONCLUSIVE",
+      "reason": "CHALLENGE",
+      "nativeSubframeHistoryEvents": 2,
+      "traceEntries": 4,
+      "firstCancellation": {
+        "reason": "CHALLENGE",
+        "cause": "READER_RESULT",
+        "phase": "READING",
+        "event_index": null
+      }
+    },
+    {
+      "kind": "stop",
+      "path": ".brain/evidence/adapter-p02-subframe-stop-2026-10-28.json",
+      "sha256": "6cb009d22df99bdff6e8577a85d81a1be8262fa6ac54a60293ffd1a54e2ffce0",
+      "result": "INCONCLUSIVE",
+      "reason": "STOPPED",
+      "nativeSubframeHistoryEvents": 0,
+      "traceEntries": 1,
+      "firstCancellation": {
+        "reason": "STOPPED",
+        "cause": "STOP",
+        "phase": "NAVIGATING",
+        "event_index": null
+      }
+    },
+    {
+      "kind": "full-same",
+      "path": ".brain/evidence/adapter-p02-subframe-full-same-2026-10-28.json",
+      "sha256": "c86bfaf7ec48daee0da8fa510307045e9880604b1f14566fe4c57bc82ce0323e",
+      "result": "INCONCLUSIVE",
+      "reason": "ROUTE_CHANGED",
+      "nativeSubframeHistoryEvents": 0,
+      "traceEntries": 3,
+      "firstCancellation": {
+        "reason": "ROUTE_CHANGED",
+        "cause": "FULL_NAVIGATION_DURING_READ",
+        "phase": "READING",
+        "event_index": 2
+      }
+    }
+  ]
+}

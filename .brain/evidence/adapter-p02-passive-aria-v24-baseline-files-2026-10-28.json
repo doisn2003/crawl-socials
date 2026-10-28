@@ -1,0 +1,8 @@
+{
+  "phase": "FROZEN_V24_PASSIVE_ARIA_BASELINE",
+  "discoveryScriptSha256": "ccc77bf47819d90adc50593ddf35511549efd52fac642401859b9a1a68476743",
+  "clickScriptSha256": "63101ccc55f04092566181e9657763680ae43c48d236e6ecda0d30b4bd07a361",
+  "reviewerSourceSha256": "ca51793f2ff82e6759a74b1f55d4e6718a5896334a714f6d7876c5f30e8e530b",
+  "compiledTestSha256": "e7d6e086a3b1ba72f3fe2a015e4a6edbbd47b1d750aafc559a829ea3df41045b",
+  "output": ".test-build-adapter-candidate/passive-aria-v24-baseline"
+}

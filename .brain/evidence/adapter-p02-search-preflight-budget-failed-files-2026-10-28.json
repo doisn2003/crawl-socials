@@ -1,0 +1,39 @@
+{
+  "phase": "FROZEN_PREFLIGHT_R_PF1_FAILED",
+  "result": "FAIL",
+  "createdAt": "2026-10-27T23:42:17.784Z",
+  "finding": "R-PF1_HARD_ACTION_BUDGET",
+  "targetedTests": 2,
+  "passed": 0,
+  "failed": 2,
+  "manifest": {
+    "path": ".brain/evidence/p02-search-target-preflight-files-2026-10-28.json",
+    "sha256": "2f1c47773cd22ae9f79250bea87e866408d5ac5ca4924ddd8ff154f62d77a2a1",
+    "savedCopy": ".test-build-adapter-candidate/search-preflight-budget-failed/owner-manifest-at-failed-review.json"
+  },
+  "discoverySha256": "02d434e668e92878cefe14c9baab3de18158c452311b2d8509016380758cbbce",
+  "clickSha256": "26f3f51153a38d00e9798d25d59a682724d51aecc964c2234df419e067e666b9",
+  "matchesManifest": true,
+  "files": [
+    {
+      "path": ".test-build-adapter-candidate/search-preflight-budget-failed/src/main/facebook-public-candidate-script.js",
+      "sha256": "adf5f3707267d886f9a16234084be9773e2c018a79cbfe9bc5ceac392d18116d"
+    },
+    {
+      "path": ".test-build-adapter-candidate/search-preflight-budget-failed/src/main/facebook-search-post-open-script-hooks.js",
+      "sha256": "c14d0b72dd0d1481d8c433cb789a8b6fc7d811758a710204dc2d653c44f5e0ab"
+    },
+    {
+      "path": ".test-build-adapter-candidate/search-preflight-budget-failed/src/main/facebook-search-post-open.js",
+      "sha256": "c11f5f9193a4598fee036931ab6a141fb76a5f4266dcbf3cd1331719a773f594"
+    },
+    {
+      "path": ".test-build-adapter-candidate/search-preflight-budget-failed/tests/facebook-search-post-open-review.test.js",
+      "sha256": "2d6dcc2af08d2b8480a8742f006e8ae0ab32ff9b7ac5216e0673285910f1d515"
+    }
+  ],
+  "reviewerSource": {
+    "path": "tests/facebook-search-post-open-review.test.ts",
+    "sha256": "63991a28c38619d6068c84f2342150a4af50223a63b1aedc14617fe39acdafc1"
+  }
+}

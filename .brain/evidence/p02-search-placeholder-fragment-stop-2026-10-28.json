@@ -1,0 +1,29 @@
+{
+  "task": "P02_OBSERVED_SEARCH_POST_OPEN",
+  "caseKind": "stop",
+  "result": "PASS",
+  "mode": "FIXTURE",
+  "schemaVersion": 2,
+  "geometryRects": 0,
+  "cases": [
+    {
+      "result": "INCONCLUSIVE",
+      "reason": "STOPPED",
+      "clickAttempts": 0,
+      "clicks": 0,
+      "postReads": 0,
+      "discovery": null,
+      "click": null,
+      "eventTrace": [],
+      "summarySha256": "19b5427fb66d3a9f757aafe83b3bfc600f8ce10b4218c0c9df9648d3eefc4ee8"
+    }
+  ],
+  "browserClicks": 0,
+  "clickedObservedHrefUnchanged": null,
+  "placeholderRequests": 1,
+  "externalNetworkRequests": 0,
+  "verifiedValidCount": 0,
+  "observerAttached": false,
+  "windowsAfterClose": 0,
+  "webContentsAfterClose": 0
+}
