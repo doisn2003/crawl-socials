@@ -2,6 +2,7 @@ import { appendFileSync, closeSync, existsSync, fsyncSync, mkdirSync, openSync, 
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { EmbeddedSearchRecord } from './facebook-search-embedded-parser.js';
+import { classifyObservedFacebookSource, type SourceAudit } from './facebook-source-audit.js';
 
 export interface CollectorProvenance {
   run_id: string; batch_id: string; query_index: number; scroll_index: number;
@@ -62,10 +63,31 @@ export function createFacebookCollectorStore(directory: string) {
       renameSync(temp, join(runDirectory, 'checkpoint.json'));
     },
     export() {
-      const records = [...posts.values()];
+      // Early pilot records used the parser's embedded label for both transports.
+      // Preserve the append-only observations; export the recorded batch transport.
+      const sourceAudits = new Map<string, SourceAudit>();
+      const auditFile = join(directory, 'source-audits.jsonl');
+      if (existsSync(auditFile)) for (const line of readFileSync(auditFile,'utf8').split('\n').filter(Boolean)) {
+        const audit = JSON.parse(line) as SourceAudit;
+        // Latest observation wins, including one that no longer supports classification.
+        sourceAudits.set(audit.source_url, audit);
+      }
+      const records = [...posts.values()].map(r => {
+        const audit = r.source_url ? sourceAudits.get(r.source_url) : undefined;
+        const resolved = r.source_type === 'UNKNOWN' && audit && classifyObservedFacebookSource(audit) === 'PROFILE';
+        const missing = { ...r.missing_reasons };
+        if (resolved) { delete missing.source_type; delete missing.source_name; }
+        return { ...r, extraction_method: r.first_observation.method,
+          source_type: resolved ? 'PROFILE' : r.source_type,
+          source_name: resolved ? audit.source_name : r.source_name,
+          source_evidence: resolved ? 'observed_source_header_name_friend_count_add_friend' : r.source_evidence,
+          source_audit_ref: resolved ? { file: 'source-audits.jsonl', at: audit.at, document_json_sha256: audit.document_json_sha256 } : null,
+          missing_reasons: missing };
+      });
       writeFileSync(join(directory, 'posts.json'), JSON.stringify(records, null, 2), { flush: true });
       const summary = { unique: records.length, public: records.filter(r => r.visibility === 'PUBLIC').length,
-        sources: Object.fromEntries(['PAGE', 'GROUP', 'UNKNOWN'].map(type => [type, records.filter(r => r.source_type === type).length])),
+        sources: Object.fromEntries(['PAGE', 'GROUP', 'PROFILE', 'UNKNOWN'].map(type => [type, records.filter(r => r.source_type === type).length])),
+        export_method_normalizations: [...posts.values()].filter(r => r.extraction_method !== r.first_observation.method).length,
         missing: Object.fromEntries(['published_at', 'reactions_total', 'love_count', 'comments_count', 'shares_count'].map(k =>
           [k, records.filter(r => r[k as keyof CollectedPost] === null).length])),
         sha256: existsSync(file) ? createHash('sha256').update(readFileSync(file)).digest('hex') : null };

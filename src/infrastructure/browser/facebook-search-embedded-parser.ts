@@ -20,7 +20,7 @@ export interface EmbeddedSearchRecord {
   published_at: string | null; published_at_raw: number | null;
   reactions_total: number | null; love_count: number | null;
   comments_count: number | null; shares_count: number | null;
-  query: string; collected_at: string; extraction_method: 'EMBEDDED_DOCUMENT_JSON';
+  query: string; collected_at: string; extraction_method: 'EMBEDDED_DOCUMENT_JSON' | 'BROWSER_RESPONSE';
   text_completeness: 'UNKNOWN'; relevance: 'UNVERIFIED';
   evidence_ref: { document_url: string; json_path: (string | number)[] };
   missing_reasons: Record<string, string>;
@@ -32,7 +32,7 @@ export interface EmbeddedSearchResult {
   connections: number; has_next_page: boolean | null;
   // Deliberately does not export or use opaque cursors. They do not authorize replay.
 }
-export interface EmbeddedSearchContext { query: string; collectedAt: string; documentUrl: string; }
+export interface EmbeddedSearchContext { query: string; collectedAt: string; documentUrl: string; extractionMethod?: EmbeddedSearchRecord['extraction_method']; }
 
 export function parseFacebookEmbeddedSearch(blocks: unknown[], context: EmbeddedSearchContext): EmbeddedSearchResult {
   const document = new URL(context.documentUrl);
@@ -130,12 +130,13 @@ export function parseFacebookEmbeddedSearch(blocks: unknown[], context: Embedded
       }
       if (source === 'UNKNOWN') missing.source_type = 'NO_MATCHED_PUBLICATION_CONTEXT_EVIDENCE';
       if (!sourceName) missing.source_name = 'NOT_OBSERVED';
+      if (!(source === 'GROUP' ? str(destination.url) : str(actor.url))) missing.source_url = 'NOT_OBSERVED';
       if (!publicScope && !privateScope) missing.visibility = 'NO_UNAMBIGUOUS_PER_STORY_AUDIENCE_LABEL';
       result.records.push({ post_id: id, observed_post_url: url, text, source_type: source, source_name: sourceName,
         source_evidence: sourceEvidence, source_url: source === 'GROUP' ? str(destination.url) : str(actor.url),
         author_name: str(actor.name), author_url: str(actor.url), visibility: publicScope ? 'PUBLIC' : privateScope ? 'PRIVATE' : 'UNKNOWN', visibility_evidence: privacy,
         published_at: time, published_at_raw: epoch, reactions_total: reactions, love_count: love, comments_count: comments,
-        shares_count: shares, query: context.query, collected_at: context.collectedAt, extraction_method: 'EMBEDDED_DOCUMENT_JSON',
+        shares_count: shares, query: context.query, collected_at: context.collectedAt, extraction_method: context.extractionMethod ?? 'EMBEDDED_DOCUMENT_JSON',
         text_completeness: 'UNKNOWN', relevance: 'UNVERIFIED', evidence_ref: { document_url: context.documentUrl,
           json_path: [...at, 'rendering_strategy', 'view_model', 'click_model', 'story'] }, missing_reasons: missing, source_signals: sourceSignals });
       ids.add(id); urls.add(url);

@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { resolve, join, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const args=process.argv.slice(2),queries=[];let configPath=null,output=null,profile='CSD Facebook',resume=false,stop=false,exportOnly=false,target=100,maxMinutes=30,maxScrolls=20;
@@ -14,7 +14,9 @@ if(!configPath){
  if(resume||stop||exportOnly)throw new Error('--config is required for resume/stop/export');
  if(!queries.length)throw new Error('Provide --query (repeat for multiple queries) or --config');
  const id='coffee-'+new Date().toISOString().replace(/[^0-9]/g,'').slice(0,17);
- output??=join(process.env.APPDATA,'csd-desktop','data','collections',id);mkdirSync(output,{recursive:true});configPath=join(output,id+'.json');
+ output??=join(process.env.APPDATA,'csd-desktop','data','collections',id);
+ const rel=relative(root,output);if(rel!=='..'&&!rel.startsWith('..'+sep)&&!isAbsolute(rel))throw new Error('OUTPUT_MUST_BE_OUTSIDE_WORKSPACE');
+ mkdirSync(output,{recursive:true});configPath=join(output,id+'.json');
  writeFileSync(configPath,JSON.stringify({runId:id,output,profileLabel:profile,queries,maxScrollsPerQuery:maxScrolls,maxMinutes,targetNewRecords:target,settleMs:3000},null,2),{flush:true});
 }
 const config=JSON.parse(readFileSync(configPath,'utf8'));console.log('Config: '+configPath);console.log('Dataset: '+join(config.output,'posts.jsonl'));

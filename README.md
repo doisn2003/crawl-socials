@@ -1,6 +1,6 @@
 # CSD — Crawl Socials Data
 
-Bộ khung desktop Windows x64 cho campaign Facebook theo chủ đề. Phiên bản `0.1.0` mặc định chạy offline: xem cấu hình, kiểm tra fixture và tạo/mở/đóng các phiên riêng. Chưa thử đăng nhập hoặc thu thập bài Facebook thật.
+Ứng dụng Electron Windows x64 cho campaign Facebook theo chủ đề. Giao diện mặc định quản lý cấu hình và phiên; collector CLI tự thu JSON nhúng và response phân trang trong phiên Facebook đã đăng nhập, lưu JSONL theo batch và loại trùng qua restart. Mức nghiệm thu và dữ liệu LIVE nằm trong `.brain/evidence/collector-continuation-result.md`.
 
 Campaign đã chốt: tối thiểu 1.000 bài đúng chủ đề, không trùng trong tối đa 24 giờ; được lấy bài cũ; ưu tiên Hà Nội nhưng nhận địa phương khác; có kết quả từ Page, nhóm công khai và trang cá nhân công khai, báo số lượng riêng. Cho phép mở rộng từ khóa liên quan. Mục tiêu này chưa được benchmark chứng minh.
 
@@ -21,7 +21,38 @@ Nút **Đăng nhập Facebook** mặc định bị tắt. Người vận hành c
 
 Rendering reCAPTCHA Enterprise cho phép HTTPS **đúng** `www.google.com`, `www.gstatic.com`, `recaptcha.google.com` và prefix `/recaptcha/` trong cùng owned Facebook context (bao gồm child fbsbx). Gstatic chỉ static resources, Google frame/XHR/rendering resources; main navigation/popup/general Google vẫn deny. Diagnostics dùng category RECAPTCHA, không query/token. [Handoff rendering fix](.brain/handoffs/csd-recaptcha-rendering-fix-2026-10-27.md); challenge vẫn do human thực hiện.
 
-## Kiểm tra
+## Thu Facebook bằng một lệnh
+
+Đóng phiên CSD khác trước khi chạy để tránh hai process dùng cùng profile. Dùng cửa sổ Electron có render; không thu bằng cách agent mở từng bài. Collector chỉ đọc, không like/comment/share/post.
+
+```powershell
+npm run collect:facebook -- --query "cafe Hồ Tây" --query "review cafe Hà Nội" --target 100 --minutes 30 --scrolls 20
+```
+
+Lệnh in đường dẫn config và dataset dưới `%APPDATA%/csd-desktop/data/collections/`. `--profile` chọn tên profile đã có (mặc định `CSD Facebook`); `--output` chọn thư mục ngoài repo. `--query` lặp được. Config JSON cho nhiều query có `runId`, `output`, `profileLabel`, `queries`, `maxScrollsPerQuery`, `maxMinutes`, `targetNewRecords`, `settleMs` (2–15 giây). Chạy config đã lưu bằng `npm run collect:facebook -- --config "C:/.../run.json"`.
+
+```powershell
+npm run collector:control -- --config "C:/.../run.json" --stop
+npm run collect:facebook -- --config "C:/.../run.json" --resume
+npm run collector:control -- --config "C:/.../run.json" --export
+```
+
+Stop được kiểm giữa các thao tác có timeout; Ctrl+C của launcher cũng yêu cầu Stop. Resume giữ deadline ban đầu, đọc lại ID từ dữ liệu bền vững, phát lại query đang dở để bắt kịp và bỏ các bài trùng. Cursor/auth chỉ ở trong bộ nhớ, không lưu để replay sau restart. Run đã hoàn thành không tự tìm lại; muốn mở đợt mới dùng `runId` mới và có thể dùng chung `output` để tiếp tục dedup. Không thay config của run đang dở.
+
+`posts.jsonl` là dữ liệu first-observation; `posts.json` là export JSON. `batches.jsonl` lưu provenance và số mới/trùng; `runs/<runId>/` có manifest, checkpoint, events, kiểm text mẫu và receipt. Định danh là string; trường thiếu null kèm lý do. Tổng reactions khác love; nguồn đăng khác tác giả. `source_type=UNKNOWN` được giữ khi không đủ bằng chứng, không suy User thành PROFILE. Relevance vẫn UNVERIFIED nếu chưa có audit. Số ứng viên/public không phải số bài benchmark đã nghiệm thu.
+
+Sau khi collector đã dừng, kiểm tối đa 5 nguồn UNKNOWN đã lưu và tạo lại export:
+
+```powershell
+.\node_modules\.bin\electron.cmd scripts/audit-facebook-sources.mjs --collection "C:/.../collection" --limit 5
+node scripts/summarize-facebook-collection.mjs "C:/.../collection"
+```
+
+Audit chỉ mở URL nguồn đã quan sát, không mở từng bài. Hiện chỉ nhận PROFILE khi header đúng tên/URL có số bạn bè và nút Thêm bạn bè; trường hợp chuyên nghiệp/chỉ theo dõi vẫn UNKNOWN. `source-audits.jsonl` lưu bằng chứng; export áp dụng kết quả này và sửa nhãn extraction theo provenance batch của các pilot cũ, không ghi đè `posts.jsonl`. Summary thô vẫn đếm trạng thái ở thời điểm thu. Audit relevance mẫu được lưu riêng, chưa tự áp dụng cho toàn bộ dataset.
+
+Collector dừng theo deadline, target, nguồn cạn, yield không tăng ở đáy, Stop hoặc account barrier. Không vượt checkpoint/challenge/deny/rate limit. Quyền Meta vẫn UNKNOWN. Các giới hạn ADR-009/018 ở tài liệu lịch sử chỉ dành cho các probe cũ; collector hiện tại theo ADR-019 và config hữu hạn.
+
+## Kiểm tra hồi quy
 
 ```powershell
 npm run check
@@ -41,7 +72,7 @@ Lưu báo cáo/ảnh smoke khi cần bằng chứng:
 npm run test:smoke -- --output .brain/evidence/p01-bootstrap-smoke-2026-10-27.json --screenshot .brain/evidence/p01-bootstrap-offline.png
 ```
 
-Harness chỉ ghi keyword/config giả hoặc đã xác nhận, phiên bản runtime và kết quả kiểm tra vào evidence; cookie fixture chỉ tồn tại trong temp ngoài repo và được dọn sau kiểm. UI là PoC tối thiểu; observer transport có harness riêng bên dưới, chưa có parser/live Facebook. Ghi report session bằng `npm run test:session -- --output .brain/evidence/p01-session-smoke-2026-10-27.json`.
+Harness chỉ ghi keyword/config giả hoặc đã xác nhận, phiên bản runtime và kết quả kiểm tra vào evidence; cookie fixture chỉ tồn tại trong temp ngoài repo và được dọn sau kiểm. UI là PoC tối thiểu; collector LIVE hiện chạy bằng CLI ở trên. Ghi report session bằng `npm run test:session -- --output .brain/evidence/p01-session-smoke-2026-10-27.json`.
 
 ## Observer và debug offline
 

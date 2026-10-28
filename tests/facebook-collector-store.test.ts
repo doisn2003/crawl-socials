@@ -22,6 +22,13 @@ test('committed data survives checkpoint failure and replay does not double coun
   const blocked=join(directory,'not-a-directory');writeFileSync(blocked,'preserve');assert.throws(()=>a.checkpoint(blocked,{query_index:1}));
   const b=createFacebookCollectorStore(directory);assert.equal(b.persist([record('1234567890')],provenance).new_records,0);assert.equal(b.count,1);
 }));
+test('export uses batch transport for early pilot records without rewriting observations',()=>temporary(directory=>{
+  const a=createFacebookCollectorStore(directory);a.persist([record('1234567890')],provenance);
+  const original=readFileSync(join(directory,'posts.jsonl'),'utf8');
+  assert.equal(a.export().export_method_normalizations,1);
+  assert.equal(JSON.parse(readFileSync(join(directory,'posts.json'),'utf8'))[0].extraction_method,'BROWSER_RESPONSE');
+  assert.equal(readFileSync(join(directory,'posts.jsonl'),'utf8'),original);
+}));
 test('torn final write is backed up; corruption in a completed record is never silently dropped',()=>temporary(directory=>{
   const a=createFacebookCollectorStore(directory);a.persist([record('1234567890')],provenance);appendFileSync(join(directory,'posts.jsonl'),'{"post_id":');
   const b=createFacebookCollectorStore(directory);assert.equal(b.count,1);assert.equal(b.repairedTail,true);assert.ok(readdirSync(directory).some(f=>f.includes('.incomplete-')));
