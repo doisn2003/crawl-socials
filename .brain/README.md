@@ -1,6 +1,6 @@
 # Bộ nhớ làm việc của CSD
 
-> **DỪNG theo yêu cầu trực tiếp của người dùng ngày 28/10/2026 (Asia/Bangkok).** Đã xóa lịch `i-u-ph-i-csd`, gửi lệnh dừng CSD agent và dừng reviewer. Không tiếp tục triển khai, review, test/build hoặc LIVE; không tự khởi động lại theo các dispatch/heartbeat cũ. Giữ nguyên code/profile. Chỉ tiếp tục khi người dùng yêu cầu mới. Các trạng thái bên dưới là lịch sử tại thời điểm dừng, không phải lệnh giao việc còn hiệu lực.
+> **Đợt thử được user cho phép trong chat mới đã kết thúc — PARTIAL, 28/10/2026.** Đã lưu 5 link thật từ JSON nhúng, chưa có request continuation quan sát được; không merge code thử. Xem [kết quả](evidence/branch-request-pagination-result.md). Main được build lại; hai nhánh thử và dataset ngoài repo được giữ. Worker/automation cũ vẫn dừng, không có LIVE đang chạy. Các dispatch bên dưới là lịch sử, không phải lệnh tiếp tục.
 
 `.brain` lưu kế hoạch, quyết định, bằng chứng kiểm chứng và thông tin bàn giao nội bộ của CSD — Crawl Socials Data.
 

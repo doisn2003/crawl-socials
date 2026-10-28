@@ -1,19 +1,19 @@
 # CSD Master Plan
 
-> **DỪNG theo yêu cầu trực tiếp của người dùng ngày 28/10/2026 (Asia/Bangkok).** Lịch điều phối `i-u-ph-i-csd` đã xóa; đã gửi lệnh dừng hai worker. Không thực hiện dispatch/heartbeat cũ hoặc tự tiếp tục test/build/LIVE. Giữ nguyên task/gate và bằng chứng đã có; chỉ tiếp tục khi người dùng yêu cầu mới. 11/40 task DONE là số đếm công việc, không chứng minh mức hoàn thiện khả năng crawl. Mục tiêu 1.000 bài Facebook hợp lệ trong 24 giờ chưa được chứng minh.
+> **Đợt thử giới hạn theo chỉ thị mới đã kết thúc — PARTIAL, 28/10/2026.** Có 5 link thật từ JSON nhúng; chưa có request phân trang quan sát được, không gửi continuation. Đã giữ hai nhánh thử, quay main và build lại; không worker/automation/LIVE đang chạy. Xem [báo cáo](evidence/branch-request-pagination-result.md). Không tiếp tục dispatch cũ hoặc tự mở đợt nguồn mới. Mục tiêu 1.000 bài/24h và các gate chưa được chứng minh.
 
 > CSD = Crawl Socials Data. Đây là bản đồ triển khai và nguồn trạng thái công việc duy nhất cho các AI Agent làm việc trong dự án.
 
 | Thuộc tính | Giá trị |
 | --- | --- |
-| Phiên bản kế hoạch | 1.55 |
+| Phiên bản kế hoạch | 1.56 |
 | Ngày cập nhật | 2026-10-28, múi giờ Asia/Bangkok |
 | Workspace | `C:/OwnProject/crawl-socials` |
 | Nền tảng bắt buộc của bản đầu | Facebook |
 | Mục tiêu đã xác nhận | Tối thiểu 1.000 bài quán cà phê không trùng trong ≤24 giờ; có đủ ba loại nguồn công khai, được lấy bài cũ; ưu tiên Hà Nội, nhận địa phương khác |
-| Hiện trạng sản phẩm | CSD 0.1.0: v18 LIVE REOPEN_MATCH. V25 đã qua ARIA nhưng presentation whitelist còn loại SPAN/STYLE/D2 dù có observed post URL/header/visibility/viewport phù hợp, 0 action. ADR-017 chuyển sang mở exact observed URL sau binding/revalidation, tách identity khỏi trang trí timestamp. Chưa tự động search→post→read, pilot nhiều bài hoặc chứng minh 1.000 bài |
+| Hiện trạng sản phẩm | Đợt request pagination PARTIAL: 5 link thật, 2 PAGE/3 GROUP, 5 public, 2 relevance ACCEPT/3 UNVERIFIED; chưa có continuation. Dataset từ JSON nhúng, chưa nối collector. Hai nhánh thử giữ riêng, main build lại. [Báo cáo](evidence/branch-request-pagination-result.md) |
 | Hiện trạng tài liệu | P00.01–P00.04 đã nghiệm thu; protocol/checker đạt 51 tests sau sửa R04. ADR-009 chốt caps/data policy của thử nhỏ; session, điều kiện route và host live còn cần kiểm |
-| Điểm bắt đầu triển khai | [V25 review/LIVE](evidence/lead-p02-passive-aria-wrapper-review-2026-10-28.md) → [ADR-017](decisions/ADR-017-bound-observed-post-url.md) và [dispatch exact observed URL](handoffs/lead-p02-observed-url-open-dispatch-2026-10-28.md). Main triển khai; reviewer kiểm binding/validator/lifecycle. Lead giữ runtime 19440/main 591142/source 2098306, search công khai cafe Hà Nội, 1/3 starts đã dùng |
+| Điểm bắt đầu triển khai | Không có worker đang chạy. Đọc [kết quả request](evidence/branch-request-pagination-result.md) và [parser thay thế](evidence/embedded-link-first-followup-2026-10-28.md); cần phạm vi nguồn mới trước LIVE tiếp theo. Không chạy dispatch/runtime cũ |
 | Gate gần nhất cần đánh giá | `G00` — đủ điều kiện thử nguồn dữ liệu thật |
 | Nguồn trạng thái task | Bảng điều phối trong mục 5; không duy trì một backlog trạng thái cạnh tranh |
 | Hướng nguồn đang theo đuổi | Giữ CSD/Electron; kiểm chứng nguồn sớm; nhà cung cấp bên ngoài chưa được chọn. Đọc [ADR-008](C:/OwnProject/crawl-socials/.brain/decisions/ADR-008-direction-and-source-validation.md) trước khi làm P00.02/P02 hoặc đề xuất đổi route |
@@ -265,7 +265,7 @@ Sau contract chung, có thể phân công song song nhánh query/planner, nhánh
 | P01.02 | DONE | CSD agent | P01.01 | [Lead nghiệm thu](evidence/lead-p01-session-review-2026-10-27.md): R01 đã sửa; 35 unit tích hợp + 44 contract, session smoke 3 process/13 nhóm kiểm, bootstrap 2 lượt, manifest 30/30 khớp. Profile/session/secrets đạt offline; chưa có Facebook session live |
 | P01.03 | DONE | CSD agent | P01.02 | [Lead nghiệm thu](evidence/lead-p01-observer-review-2026-10-27.md): 53 unit + 44 contract, Electron 9 nhóm/10 captures, replay 3 captures, session/bootstrap regression đạt; 23 hashes khớp. Không Facebook live |
 | P02.01 | DONE | CSD adapter agent | P00.02, P01.01 | [Lead nghiệm thu](evidence/lead-p02-review-2026-10-27.md): R02/R03 đã sửa, compile + 21 contract tests + npm run check/44 ca P00 đạt; 10 hashes khớp. Fake FIXTURE, cursor SAME_INSTANCE; không có nguồn live |
-| P02.02 | IN_PROGRESS | CSD agent: exact observed URL open; csd_adapter: binding/validator/lifecycle review; lead: nghiệm thu/runtime | P00.04 + P01.02; diagnostic ADR-010/012/013/014/015/016/017; G00 cho collector/benchmark | [V25 review/LIVE](evidence/lead-p02-passive-aria-wrapper-review-2026-10-28.md): lead 4 focused/2 native, reviewer 5 focused/1 native PASS; 27 owned/69 isolated/135 frozen khớp. LIVE qua ARIA rồi dừng SPAN/STYLE/D2, 0 action. [ADR-017](decisions/ADR-017-bound-observed-post-url.md)/[dispatch](handoffs/lead-p02-observed-url-open-dispatch-2026-10-28.md): mở exact observed GROUP_QUERY URL sau fixed binding/revalidation bằng navigateObservedRoute; không phụ thuộc timestamp decoration, không URL tự tạo/IPC tùy ý. Runtime 19440/source 2098306,1/3starts. Permission UNKNOWN/benchmark OFF/valid0/gates giữ nguyên |
+| P02.02 | BLOCKED | —; đợt giới hạn của Codex /root đã kết thúc | P00.04 + P01.02; cần phạm vi nguồn mới để tiếp tục LIVE | [Request trial PARTIAL](evidence/branch-request-pagination-result.md): 5 unique links từ JSON nhúng, 0 request continuation; budget 2 search/2 scroll đã dùng. Không merge code thử. Parser thay thế giữ ở nhánh riêng, chưa LIVE. Permission UNKNOWN; benchmark OFF; gates giữ nguyên |
 | P02.03 | PLANNED | — | P02.02, P05.02 | Parser, phản hồi lỗi và schema drift |
 | P02.04 | PLANNED | — | P02.03, P05.03, P05.04 | Luồng thu nhỏ hoàn chỉnh, bằng chứng G01 |
 | P03.01 | DONE | CSD adapter subagent | P00.01, P01.01 | [Lead nghiệm thu sau R05](evidence/lead-p03-intent-review-2026-10-27.md): compile riêng/16 tests đạt, 9 hashes khớp; alias chỉ map ký tự tiếng Việt, giữ Greek/Cyrillic. Model explicit, chưa classifier/expansion |
