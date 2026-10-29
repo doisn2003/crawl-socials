@@ -17,6 +17,10 @@ export interface RunState {
 }
 export interface ProductionState { version: string; config: UserConfig; accounts: Account[]; run: RunState | null; }
 export interface ProductionApi {
+  cooler: {
+    get(): Promise<boolean>;
+    set(input: { enabled: boolean }): Promise<boolean>;
+  };
   getState(): Promise<ProductionState>;
   saveConfig(input: UserConfig): Promise<UserConfig>;
   login(input: { platform: Platform; profileId?: string }): Promise<void>;
@@ -25,3 +29,4 @@ export interface ProductionApi {
   exportResults(input: { format: 'json' | 'xlsx' }): Promise<{ canceled: boolean; path: string | null }>;
   openOutput(): Promise<void>;
 }
+export type CoolerProgress = (Pick<RunState, 'id' | 'state' | 'minimumPosts'> & { platforms: Omit<PlatformRun, 'profileId'>[] }) | null;

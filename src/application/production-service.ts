@@ -133,6 +133,10 @@ export function createProductionService(input: {
   }
   return {
     getState,
+    progress() {
+      return run ? { id: run.id, state: run.state, minimumPosts: run.minimumPosts,
+        platforms: run.platforms.map(p => ({ platform: p.platform, state: p.state, count: p.count, reason: p.reason })) } : null;
+    },
     saveConfig(value: unknown): UserConfig {
       if (active(run) || starting) throw Error('COLLECTION_BUSY');
       return configStore.save(value);

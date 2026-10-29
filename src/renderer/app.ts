@@ -350,3 +350,12 @@ element<HTMLButtonElement>('reload-state').addEventListener('click', () => { voi
 window.addEventListener('focus', () => { void refresh(); });
 void refresh();
 window.setInterval(() => { void refresh(); }, 2000);
+
+const coolerToggle = element<HTMLInputElement>('make-it-cooler');
+void window.csd.cooler.get().then(enabled => { coolerToggle.checked = enabled; coolerToggle.disabled = false; }).catch(() => operation('Chưa tải được tùy chọn Make it cooler. Hãy mở lại ứng dụng.', true));
+coolerToggle.addEventListener('change', () => {
+  const desired = coolerToggle.checked; coolerToggle.disabled = true;
+  void window.csd.cooler.set({ enabled: desired }).then(enabled => { coolerToggle.checked = enabled; }).catch(() => {
+    coolerToggle.checked = !desired; operation('Chưa lưu được tùy chọn Make it cooler. Hãy thử lại.', true);
+  }).finally(() => { coolerToggle.disabled = false; });
+});

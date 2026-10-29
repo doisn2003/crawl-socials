@@ -19,6 +19,7 @@
 | PROD-01 UI + cấu hình + tài khoản | Agent chính + renderer | DONE | Native UI/blur/restart + 800px PASS; bridge production, persistent config |
 | PROD-02 Ghép bộ thu thật | Agent chính + collectors | DONE | 14 lifecycle + 17 service/config tests PASS; chưa chạy thêm LIVE |
 | PROD-03 Excel | Agent exporter | DONE | Hai sheet, header/filter/freeze/ID text, 4 roundtrip tests PASS |
+| PROD-05 Make it cooler | Agent chính | DONE | Toggle persistent, terminal Facebook + Threads, canvas 8 fps, native UI và 447 tests PASS; xem báo cáo make-it-cooler |
 | PROD-04 Chọn nhánh + bàn giao | Agent chính | DONE | ADR-021, README, master plan, báo cáo kiểm chứng; tài liệu cũ có nhãn lịch sử |
 
 Kết quả kiểm chứng cuối được ghi tại [production-upgrade-2026-10-29.md](evidence/production-upgrade-2026-10-29.md). Không gán PASS cho benchmark chất lượng nội dung chỉ vì UI/collector build thành công. Agent tiếp theo sửa sản phẩm hiện hành trên nhánh đã chọn và cập nhật bảng này.

@@ -1,6 +1,10 @@
 import type { ProductionApi, UserConfig, Platform } from '../shared/production-api.js';
 const { contextBridge, ipcRenderer } = require('electron') as typeof import('electron');
 const api: ProductionApi = Object.freeze({
+  cooler: Object.freeze({
+    get: () => ipcRenderer.invoke('csd:cooler:get'),
+    set: (input: { enabled: boolean }) => ipcRenderer.invoke('csd:cooler:set', input),
+  }),
   getState: () => ipcRenderer.invoke('csd:state'),
   saveConfig: (input: UserConfig) => ipcRenderer.invoke('csd:config', input),
   login: (input: { platform: Platform; profileId?: string }) => ipcRenderer.invoke('csd:login', input),

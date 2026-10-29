@@ -253,3 +253,21 @@ test('a pending login cannot navigate a profile into authentication while a craw
   const rejected = assert.rejects(start, /BUSY|PENDING/); hold.resolve(); await login; await rejected;
   assert.equal((await service.getState()).run, null);
 }));
+
+test('terminal progress is detached and exposes no account, keyword, path or post data', async () => temporary(async directory => {
+  const fixture = hostWithProfiles(), entered = deferred<void>(), hold = deferred<void>();
+  const service = createProductionService({ directory, version: 'test', host: fixture.host, collect: async input => {
+    input.onProgress({ total: 42 }); entered.resolve(); await hold.promise;
+    return { stop_reason: 'USER_STOP', summary: { unique: 0 } };
+  } });
+  assert.equal(service.progress(), null);
+  service.saveConfig({ keywords: ['private keyword'], minimumPosts: 1000 });
+  await service.start({ profiles: [selection[0]] }); await entered.promise;
+  try {
+    const progress = service.progress()!;
+    assert.deepEqual(Object.keys(progress).sort(), ['id', 'minimumPosts', 'platforms', 'state']);
+    assert.deepEqual(Object.keys(progress.platforms[0]!).sort(), ['count', 'platform', 'reason', 'state']);
+    assert.equal(progress.platforms[0]!.count, 42); progress.platforms[0]!.count = 999;
+    assert.equal(service.progress()!.platforms[0]!.count, 42);
+  } finally { hold.resolve(); await service.settled(); }
+}));

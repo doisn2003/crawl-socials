@@ -10,6 +10,7 @@ import { createProductionService } from '../application/production-service.js';
 import type { CollectorInput, CollectorReceipt } from '../application/production-service.js';
 import { exportSocialWorkbook } from '../infrastructure/export/social-workbook.js';
 import { allowDesktopRequest } from './ipc-policy.js';
+import { createCoolerWindow } from './cooler-window.js';
 
 async function bootstrap() {
   const paths = runtimePaths(app.getPath('appData'));
@@ -36,10 +37,12 @@ async function bootstrap() {
       return collect({ config: value.config, host: browserHost, profileId: value.profileId,
         onProgress: value.onProgress, shouldStop: value.shouldStop });
     } });
+  let cooler: ReturnType<typeof createCoolerWindow> | null = null;
   let closing = false, shutdownComplete = false;
   app.on('before-quit', event => {
     if (shutdownComplete) return;
     event.preventDefault(); if (closing) return; closing = true;
+    cooler?.dispose();
     void service.shutdown().then(() => browserHost.shutdown()).then(() => {
       shutdownComplete = true; app.quit();
     }).catch(() => { console.error('CSD_SESSION_SAVE_FAILED'); app.exit(1); });
@@ -54,6 +57,7 @@ async function bootstrap() {
     current.webRequest.onBeforeRequest((details, callback) => callback({ cancel: !['file:', 'about:', 'data:'].includes(new URL(details.url).protocol) }));
   }
   const uiFile = fileURLToPath(new URL('../renderer/index.html', import.meta.url)), uiUrl = pathToFileURL(uiFile).href;
+  cooler = createCoolerWindow({ preferenceFile: join(paths.userData, 'data', 'cooler-preference.json'), session: uiSession, getProgress: () => service.progress() });
   window = new BrowserWindow({ title: 'CSD — Crawl Socials Data', width: 1240, height: 940, minWidth: 780, minHeight: 650,
     show: false, backgroundColor: '#080b0b', autoHideMenuBar: true,
     webPreferences: { preload: fileURLToPath(new URL('../preload/index.cjs', import.meta.url)), session: uiSession,
@@ -71,7 +75,9 @@ async function bootstrap() {
     'csd:state': () => service.getState(),
     'csd:config': value => service.saveConfig(value),
     'csd:login': value => service.login(value),
-    'csd:start': value => service.start(value),
+    'csd:start': async value => { const state = await service.start(value); cooler?.show(); return state; },
+    'csd:cooler:get': () => cooler!.get(),
+    'csd:cooler:set': value => cooler!.set(value),
     'csd:stop': () => service.stop(),
     'csd:open-output': async () => {
       const error = await shell.openPath(service.outputDirectory()); if (error) throw Error('OUTPUT_OPEN_FAILED');
@@ -93,7 +99,7 @@ async function bootstrap() {
       } finally { exporting = false; }
     },
   };
-  const noPayload = new Set(['csd:state', 'csd:stop', 'csd:open-output']);
+  const noPayload = new Set(['csd:state', 'csd:stop', 'csd:open-output', 'csd:cooler:get']);
   for (const [channel, handler] of Object.entries(handlers)) ipcMain.handle(channel, (event, ...args: unknown[]) => {
     if (closing || !allowDesktopRequest({ senderId: event.sender.id, expectedSenderId: mainWindow.webContents.id,
       isMainFrame: event.senderFrame === event.sender.mainFrame, frameUrl: event.senderFrame?.url || '', expectedUrl: uiUrl, args: [] }) ||

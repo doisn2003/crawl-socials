@@ -1,7 +1,7 @@
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 const root = new URL('../', import.meta.url);
-for (const name of ['index.html', 'styles.css']) {
+for (const name of ['index.html', 'styles.css', 'cooler.html', 'cooler.css']) {
   const target = new URL('dist/renderer/' + name, root);
   await mkdir(fileURLToPath(new URL('./', target)), { recursive: true });
   await copyFile(new URL('src/renderer/' + name, root), target);

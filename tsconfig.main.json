@@ -15,6 +15,7 @@
   "include": [
     "src/main/index.ts",
     "src/preload/index.cts",
+    "src/preload/cooler.cts",
     "src/infrastructure/browser/facebook-collector-store.ts",
     "src/infrastructure/browser/threads-collector-store.ts",
     "src/infrastructure/browser/facebook-search-embedded-parser.ts",

@@ -25,6 +25,10 @@ Giao diện không có dữ liệu mẫu, campaign nháp, offline-check, source-
 
 Mục tiêu là số bài thô không trùng trong từng lượt, không phải cam kết chắc chắn đạt được: dữ liệu nguồn, phiên hết hạn, mạng, giới hạn 4 giờ/mạng, 50 lần cuộn/từ khóa Facebook và 100 lần cuộn/từ khóa Threads có thể kết thúc lượt sớm. Ứng dụng báo chưa đạt nếu nguồn kết thúc trước mục tiêu. Không tự đánh giá mức liên quan của nội dung. Có thể vượt mục tiêu một batch hoặc khi đi qua các từ khóa.
 
+## Make it cooler
+
+Bật toggle ở góc dưới bên phải để mở cửa sổ terminal khi bắt đầu thu thập. Hai thanh Facebook/Threads cố định phía trên hiển thị tiến độ thật, nền nhị phân xanh hacker chạy nhẹ bên dưới. Bật khi đang thu cũng mở terminal; tắt hoặc đóng terminal không dừng lượt thu. Tùy chọn được lưu qua lần mở ứng dụng tiếp theo. Hiệu ứng dừng khi thu xong, cửa sổ bị ẩn hoặc hệ điều hành yêu cầu giảm chuyển động.
+
 ## Phiên và dữ liệu
 
 - `%APPDATA%/csd-desktop/data/user-config.json`: cấu hình thật, ghi nguyên tử; lần đầu danh sách từ khóa trống.

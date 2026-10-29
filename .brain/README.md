@@ -15,3 +15,5 @@ Các tài liệu 1.x, `branch_plan.md`, `agent_handoff_prompt.md`, `collector-co
 Bộ thu hiện tại kế thừa [Facebook collector ADR-019](decisions/ADR-019-automatic-facebook-collector.md) và [Threads ADR-020](decisions/ADR-020-threads-collector.md). Kết quả lịch sử: Facebook 1.156 link mới; Threads 1.004 post. Đây là bằng chứng thu thô, không tự chứng minh mọi bài đạt tiêu chí nội dung.
 
 `master_plan.md` giữ trạng thái hiện hành duy nhất. `decisions/` giữ quyết định; `evidence/` giữ kiểm chứng; tài liệu cũ giữ nguồn gốc kỹ thuật. Không lưu dữ liệu bài thô, cookie, token, mật khẩu hoặc profile vào `.brain`. Kiểm thử developer vẫn được giữ ngoài gói sản phẩm, không phải chế độ người dùng.
+
+Tính năng 0.2.1: [Make it cooler](evidence/make-it-cooler-2026-10-29.md) — toggle terminal trang trí, hai tiến độ thật Facebook + Threads theo xác nhận của người dùng.
