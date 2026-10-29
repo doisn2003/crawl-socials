@@ -1,4 +1,4 @@
-export interface BrowserPolicyOptions { fixtureOrigin?: string; manualLoginEnabled: boolean; }
+export interface BrowserPolicyOptions { fixtureOrigin?: string; manualLoginEnabled: boolean; platform?: 'facebook' | 'threads'; }
 export interface BrowserRequestContext { topLevelUrl: string; resourceType: string; }
 export interface OwnedContentsContext { id: number; isDestroyed(): boolean; getURL(): string; }
 export function isRecaptchaDependency(url: URL): boolean {
@@ -22,11 +22,13 @@ export function createBrowserPolicy(options: BrowserPolicyOptions) {
   }
   const facebook = (host: string) => host === 'facebook.com' || host.endsWith('.facebook.com');
   const family = (host: string, root: string) => host === root || host.endsWith('.' + root);
+  const threads = (host: string) => family(host, 'threads.com') || family(host, 'threads.net');
+  const platformHost = (host: string) => options.platform === 'threads' ? threads(host) : facebook(host);
   function manualAuthDependency(input: string, context: BrowserRequestContext | undefined, navigation: boolean): boolean {
     if (fixture || !options.manualLoginEnabled || !context) return false;
     try {
       const source = new URL(context.topLevelUrl), target = new URL(input);
-      if (source.protocol !== 'https:' || source.username || source.password || source.port || !facebook(source.hostname) ||
+      if (source.protocol !== 'https:' || source.username || source.password || source.port || !platformHost(source.hostname) ||
         target.protocol !== 'https:' || target.username || target.password || target.port) return false;
       const recaptcha = isRecaptchaDependency(target);
       const recaptchaFrame = recaptcha && target.hostname !== 'www.gstatic.com';
@@ -45,6 +47,8 @@ export function createBrowserPolicy(options: BrowserPolicyOptions) {
       if (url.username || url.password) return false;
       if (fixture) return url.origin === fixture.origin;
       if (!options.manualLoginEnabled || url.protocol !== 'https:' || url.port) return false;
+      if (options.platform === 'threads') return threads(url.hostname) ||
+        (resource && ['fbcdn.net', 'cdninstagram.com', 'instagram.com'].some(root => family(url.hostname, root)));
       return facebook(url.hostname) || (resource && (url.hostname === 'fbcdn.net' || url.hostname.endsWith('.fbcdn.net')));
     } catch { return false; }
   }
@@ -55,7 +59,7 @@ export function createBrowserPolicy(options: BrowserPolicyOptions) {
       const host = domain.replace(/^\./, '');
       if (!host || /[^a-z0-9.-]/i.test(host) || !path.startsWith('/')) return null;
       if (fixture) return host === fixture.hostname && !secure ? fixture.origin + path : null;
-      return facebook(host) ? 'https://' + host + path : null;
+      return platformHost(host) || (options.platform === 'threads' && family(host, 'instagram.com')) ? 'https://' + host + path : null;
     },
     fixtureOrigin: fixture?.origin || null,
   };

@@ -1,6 +1,7 @@
 export interface BrowserProfile {
   id: string;
   label: string;
+  platform?: 'facebook' | 'threads';
   createdAt: string;
   accountBinding: { status: 'UNVERIFIED'; accountId: null; revision: 0 };
 }

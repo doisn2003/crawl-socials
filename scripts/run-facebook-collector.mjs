@@ -13,7 +13,7 @@ for(let i=0;i<args.length;i++){
 if(!configPath){
  if(resume||stop||exportOnly)throw new Error('--config is required for resume/stop/export');
  if(!queries.length)throw new Error('Provide --query (repeat for multiple queries) or --config');
- const id='coffee-'+new Date().toISOString().replace(/[^0-9]/g,'').slice(0,17);
+ const id='facebook-'+new Date().toISOString().replace(/[^0-9]/g,'').slice(0,17);
  output??=join(process.env.APPDATA,'csd-desktop','data','collections',id);
  const rel=relative(root,output);if(rel!=='..'&&!rel.startsWith('..'+sep)&&!isAbsolute(rel))throw new Error('OUTPUT_MUST_BE_OUTSIDE_WORKSPACE');
  mkdirSync(output,{recursive:true});configPath=join(output,id+'.json');

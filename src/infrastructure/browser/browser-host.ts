@@ -6,12 +6,14 @@ import type { BrowserProfile } from '../../domain/browser-profile.js';
 import { createBrowserPolicy, ownedRequestContext } from './navigation-policy.js';
 import { createSessionSnapshotJournal } from './session-snapshot-journal.js';
 import type { PolicyDiagnostics } from './policy-diagnostics.js';
+import { hasAuthenticationCookies } from './authenticated-session.js';
 
 interface SessionCookie {
   name: string; value: string; domain: string; path: string; secure: boolean; httpOnly: boolean;
   hostOnly: boolean; sameSite: Cookie['sameSite'];
 }
 interface Entry {
+  policy: ReturnType<typeof createBrowserPolicy>;
   profile: BrowserProfile; session: Session; view: WebContentsView | null; window: BaseWindow | null;
   restoring: boolean; closing: boolean; timer: ReturnType<typeof setTimeout> | null;
   saves: Promise<void>; persistenceError: string | null; cookieRevision: number;
@@ -20,6 +22,7 @@ interface Entry {
 export function createBrowserHost(input: {
   profiles: BrowserProfiles; secrets: SecretStore; journalDirectory: string;
   manualLoginEnabled: boolean; fixtureOrigin?: string; hidden?: boolean; cookieSaveDelayMs?: number;
+  backgroundThrottling?: boolean;
   policyDiagnostics?: PolicyDiagnostics;
   sessionForPartition?: (partition: string) => Session;
 }) {
@@ -43,6 +46,7 @@ export function createBrowserHost(input: {
     return result;
   };
   async function save(entry: Entry) {
+    const policy = entry.policy;
     if (entry.timer) { clearTimeout(entry.timer); entry.timer = null; }
     const result = entry.saves.catch(() => {}).then(async () => {
       try {
@@ -67,11 +71,12 @@ export function createBrowserHost(input: {
   }
   async function ensure(id: string): Promise<Entry> {
     const profile = await input.profiles.get(id);
+    const policy = createBrowserPolicy({ ...input, platform: profile.platform || 'facebook' });
     if (journal.recoveryRequired(id)) throw new Error('SESSION_RECOVERY_REQUIRED');
     const existing = entries.get(id);
     if (existing) return existing;
     const current = (input.sessionForPartition || session.fromPartition)('persist:csd-v1-' + profile.id);
-    const entry: Entry = { profile, session: current, view: null, window: null, restoring: true, closing: false,
+    const entry: Entry = { policy, profile, session: current, view: null, window: null, restoring: true, closing: false,
       timer: null, saves: Promise.resolve(), persistenceError: null, cookieRevision: 0, viewGeneration: 0 };
     current.setPermissionRequestHandler((contents, _permission, callback) => {
       record('PERMISSION_DENIED', { url: contents.isDestroyed() ? undefined : contents.getURL(), view: entry.viewGeneration }); callback(false);
@@ -139,6 +144,7 @@ export function createBrowserHost(input: {
     return entry;
   }
   async function navigate(entry: Entry, url: string) {
+    const policy = entry.policy;
     if (!policy.navigationAllowed(url)) throw new Error('BROWSER_URL_DENIED');
     const wc = entry.view?.webContents;
     if (!wc || wc.isDestroyed()) throw new Error('BROWSER_VIEW_CLOSED');
@@ -153,6 +159,7 @@ export function createBrowserHost(input: {
   }
   async function openInternal(id: string) {
     const entry = await ensure(id);
+    const policy = entry.policy;
     const previousContents = entry.view?.webContents;
     if (previousContents && !previousContents.isDestroyed()) {
       if (!input.hidden) { entry.window?.show(); entry.window?.focus(); }
@@ -160,10 +167,10 @@ export function createBrowserHost(input: {
     }
     if (entry.window && !entry.window.isDestroyed()) entry.window.destroy();
     entry.view = null; entry.window = null;
-    const window = new BaseWindow({ title: 'CSD — Phiên ' + entry.profile.label, width: 1000, height: 760, show: !input.hidden });
+    const window = new BaseWindow({ title: 'CSD — ' + (entry.profile.platform === 'threads' ? 'Threads' : 'Facebook') + ' — ' + entry.profile.label, width: 1000, height: 760, show: !input.hidden });
     const view = new WebContentsView({ webPreferences: { session: entry.session, sandbox: true,
       contextIsolation: true, nodeIntegration: false, webviewTag: false,
-      ...(input.hidden ? { backgroundThrottling: false } : {}) } });
+      backgroundThrottling: input.backgroundThrottling ?? !input.hidden } });
     entry.window = window; entry.view = view; entry.closing = false; entry.viewGeneration = ++nextViewGeneration;
     const resize = () => {
       const bounds = window.getContentBounds();
@@ -220,17 +227,28 @@ export function createBrowserHost(input: {
   }
   function close(id: string) { return serial(id, async () => { await input.profiles.get(id); const entry = entries.get(id); if (entry) await closeEntry(entry); }); }
   return {
+    sessionStatus: (id: string) => serial(id, async () => {
+      const entry = await ensure(id);
+      if (entry.persistenceError) return false;
+      const contents = entry.view?.webContents;
+      if (contents && !contents.isDestroyed()) {
+        const url = contents.getURL();
+        if (url.startsWith('https:') && /\/(login|checkpoint|challenge|recover|blocked)(?:\/|\?|$)/i.test(new URL(url).pathname)) return false;
+      }
+      const platform = entry.profile.platform || 'facebook';
+      return hasAuthenticationCookies(platform, await entry.session.cookies.get({ url: platform === 'facebook' ? 'https://www.facebook.com/' : 'https://www.threads.com/' }));
+    }),
     async list() {
       return (await input.profiles.list()).map(profile => ({ ...profile,
         open: !!entries.get(profile.id)?.view?.webContents && !entries.get(profile.id)!.view!.webContents.isDestroyed(),
         persistenceError: journal.recoveryRequired(profile.id) ? 'SESSION_RECOVERY_REQUIRED' : entries.get(profile.id)?.persistenceError || null }));
     },
-    create: (label: string) => { if (stopping) return Promise.reject(new Error('BROWSER_STOPPING')); return input.profiles.create(label); },
+    create: (label: string, platform?: 'facebook' | 'threads') => { if (stopping) return Promise.reject(new Error('BROWSER_STOPPING')); return input.profiles.create(label, platform); },
     open: (id: string) => serial(id, async () => { await openInternal(id); }),
     close,
     openLogin: (id: string) => serial(id, async () => {
       if (!input.manualLoginEnabled || policy.fixtureOrigin) throw new Error('MANUAL_LOGIN_DISABLED');
-      const entry = await openInternal(id); await navigate(entry, 'https://www.facebook.com/login/');
+      const entry = await openInternal(id); await navigate(entry, entry.profile.platform === 'threads' ? 'https://www.threads.com/login' : 'https://www.facebook.com/login/');
     }),
     // Main-only ownership access for local diagnostics/future observer lifecycle; never bridged to website/UI.
     ownedContents: (id: string): WebContents | null => entries.get(id)?.view?.webContents || null,

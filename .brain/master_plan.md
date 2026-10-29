@@ -1,13 +1,45 @@
 # CSD Master Plan
 
+## Hiện hành 2.0 — sản phẩm dùng thật, 29/10/2026
+
+**Nhánh được người dùng chọn: `codex/csd-production`.** Đọc [ADR-021](decisions/ADR-021-production-branch.md) trước khi triển khai. Quyết định này thay mọi chỉ dẫn thử nghiệm mâu thuẫn ở phần lưu trữ bên dưới. Không cần quay lại xin người dùng chọn nhánh hoặc xin mở UI production.
+
+| Phạm vi | Trạng thái hiện hành |
+| --- | --- |
+| Nền sản phẩm | Electron Windows, Facebook + Threads; tiếp tục kết quả bộ thu hiện có |
+| Cấu hình | Keywords do người dùng nhập, Save on Blur, mục tiêu riêng mỗi mạng (người dùng xác nhận) |
+| Tài khoản | Đăng nhập trực tiếp, phiên persistent, tick nguồn chỉ khi có phiên; không hứa chống thu hồi phiên |
+| UI | Dark/hacker/monospace; TikTok, Instagram, X, Reddit chỉ badge mờ |
+| Thu và xuất | JSON thật, Stop giữ dữ liệu, Excel hai sheet theo ảnh tham chiếu |
+| Data mẫu/chế độ thử | Đã bỏ khỏi entrypoint/gói sản phẩm; fixtures developer không đóng gói |
+| Quyền điều phối | Các dispatch/worker/automation 1.x kết thúc; không tự khởi động lại |
+
+| Task | Owner | Trạng thái | Đầu ra / xác minh |
+| --- | --- | --- | --- |
+| PROD-01 UI + cấu hình + tài khoản | Agent chính + renderer | DONE | Native UI/blur/restart + 800px PASS; bridge production, persistent config |
+| PROD-02 Ghép bộ thu thật | Agent chính + collectors | DONE | 14 lifecycle + 17 service/config tests PASS; chưa chạy thêm LIVE |
+| PROD-03 Excel | Agent exporter | DONE | Hai sheet, header/filter/freeze/ID text, 4 roundtrip tests PASS |
+| PROD-04 Chọn nhánh + bàn giao | Agent chính | DONE | ADR-021, README, master plan, báo cáo kiểm chứng; tài liệu cũ có nhãn lịch sử |
+
+Kết quả kiểm chứng cuối được ghi tại [production-upgrade-2026-10-29.md](evidence/production-upgrade-2026-10-29.md). Không gán PASS cho benchmark chất lượng nội dung chỉ vì UI/collector build thành công. Agent tiếp theo sửa sản phẩm hiện hành trên nhánh đã chọn và cập nhật bảng này.
+
+---
+
+# Lưu trữ kế hoạch 1.58 — chỉ tham khảo lịch sử
+
+Toàn bộ trạng thái, bảng dispatch/gate và hạn chế PoC dưới đây thuộc các lượt cũ. Không dùng chúng để thay phần Hiện hành 2.0 phía trên.
+# CSD Master Plan
+
+> **Threads đã đạt mục tiêu lấy dữ liệu, 29/10/2026:** 1.004 post có ID/permalink không trùng từ sáu keyword, 900 post từ continuation; Stop/resume/export và phiên/cửa sổ riêng Facebook/Threads. User hoãn đánh giá nội dung. [Kết quả](evidence/threads-collector-result-2026-10-29.md), [ADR-020](decisions/ADR-020-threads-collector.md). Mọi collector đã dừng; gate Facebook giữ nguyên.
+
 > **Collector tiếp nối đã nghiệm thu mức sử dụng được, 28/10/2026.** Theo [ADR-019](decisions/ADR-019-automatic-facebook-collector.md): 1.156 link mới duy nhất, 1.155 PUBLIC; export 447 PAGE/703 GROUP/3 PROFILE/3 UNKNOWN. Có browser continuation, Stop/resume/dedup/export. Tích hợp main, giữ nhánh; không còn LIVE/worker/automation chạy. **Chưa PASS benchmark 1.000 bài hợp lệ/24h**: relevance/kiểm tổng hợp chưa phủ toàn tập. Xem [báo cáo tiếp nối](evidence/collector-continuation-result.md).
 
 > CSD = Crawl Socials Data. Đây là bản đồ triển khai và nguồn trạng thái công việc duy nhất cho các AI Agent làm việc trong dự án.
 
 | Thuộc tính | Giá trị |
 | --- | --- |
-| Phiên bản kế hoạch | 1.57 |
-| Ngày cập nhật | 2026-10-28, múi giờ Asia/Bangkok |
+| Phiên bản kế hoạch | 1.58 |
+| Ngày cập nhật | 2026-10-29, múi giờ Asia/Bangkok |
 | Workspace | `C:/OwnProject/crawl-socials` |
 | Nền tảng bắt buộc của bản đầu | Facebook |
 | Mục tiêu đã xác nhận | Tối thiểu 1.000 bài quán cà phê không trùng trong ≤24 giờ; có đủ ba loại nguồn công khai, được lấy bài cũ; ưu tiên Hà Nội, nhận địa phương khác |
@@ -298,7 +330,8 @@ Sau contract chung, có thể phân công song song nhánh query/planner, nhánh
 | P10.02 | PLANNED | — | P10.01 | Build Windows và kiểm tra bản phát hành |
 | P10.03 | PLANNED | — | P10.02 | Runbook, support và kết luận G04 |
 | P11.01 | DEFERRED | — | G04 | Đánh giá ưu tiên mở rộng từ nhu cầu thật |
-| P11.02 | DEFERRED | — | P11.01 | Connector nền tảng mới và gate riêng |
+| P11.02 | PLANNED | — | P11.01; thử Threads được user giao riêng trước G04 | Thử nghiệm lấy dữ liệu hoàn tất ở P11.02.T; tích hợp adapter/capability/gate sản phẩm đầy đủ còn ngoài phạm vi phiên này |
+| P11.02.T | DONE | Codex /root; đã bàn giao | User giao trực tiếp 2026-10-29, ADR-020 | [1.004 post Threads](evidence/threads-collector-result-2026-10-29.md), sáu keyword, dedup, 900 continuation, Stop/resume/export; mỗi cửa sổ một platform, session riêng; 410 tests/14 native checks. User chưa yêu cầu đánh giá nội dung. Mọi run đã dừng |
 | P11.03 | DEFERRED | — | P11.01 | Incremental collection hoặc scale theo mục tiêu mới |
 | P11.04 | DEFERRED | — | P11.01 | Contract JOINED_GROUPS, tài khoản và quyền đọc nhóm |
 | P11.05 | DEFERRED | — | P11.04 | Account/group inventory và kiểm tra membership/access |
@@ -830,6 +863,8 @@ Mục tiêu: mở rộng theo nhu cầu và số liệu vận hành, không tăn
 
 #### P11.02 — Connector nền tảng mới
 
+**Phạm vi thử riêng P11.02.T, 29/10/2026:** user chọn Threads và yêu cầu 1.000 post từ sáu keyword, chỉ lấy data. Đã thu 1.004 post theo [evidence](evidence/threads-collector-result-2026-10-29.md); không chờ Facebook G04 cho thử này. Phần product adapter/capability/gate dưới đây còn là phạm vi tiếp theo, không phải điều kiện thêm cho nhiệm vụ đã được user thu hẹp.
+
 - Thẩm định tài liệu chính thức hiện hành của nền tảng được chọn: search, lịch sử, quyền, phí, quota và hạn chế sử dụng.
 - Tận dụng contract chung nhưng khai báo capability riêng; triển khai mẫu nhỏ, normalization/identity, parser fixtures và benchmark riêng.
 - Các lựa chọn như Threads, YouTube, X, TikTok hoặc Reddit chỉ là ứng viên; lựa chọn cuối cùng phụ thuộc nhu cầu và đường dữ liệu thực tế.
@@ -1053,6 +1088,7 @@ Mẫu ADR: bối cảnh → quyết định → phương án đã cân nhắc �
 
 | Ngày | Phiên bản | Thay đổi |
 | --- | --- | --- |
+| 2026-10-29 | 1.58 | User mở thử Threads trước G04 và hoãn kiểm nội dung. P11.02.T hoàn tất 1.004 post/900 continuation; cửa sổ và session theo platform, Stop/resume/export. Không đổi gate Facebook hoặc phục hồi worker cũ |
 | 2026-10-28 | 1.57 | Collector CLI dùng được, 1.156 bài mới/1.155 PUBLIC, source audit có PROFILE, continuation cùng query, stop/resume/export. Tích hợp main, giữ nhánh; G02 chưa PASS vì audit chất lượng chưa phủ 1.000 bài. Không phục hồi worker/automation cũ |
 | 2026-10-27 | 1.14 | User nhắc ưu tiên duy nhất sửa login. Lead nhận v2 (10 tests/16 hashes), restart giữ profile, xác minh3XHR instagram.com bị chặn. Giao fix Instagram/fbsbx dependency với ownedFacebookcontext, subagent review read-only. Chưa claim hết trắng/session success |
 | 2026-10-27 | 1.15 | Nghiệm thu login: sửa Instagram/fbsbx rồi reCAPTCHA Enterprise theo domain/path/context; lead15tests/4fixture và109build/12fix hashes. Restart giữ profile, user xác nhận đã vào Facebook. Còn source probe, mọi gate chưa đổi; không hỏi lại login/grant hoặc tự đóng phiên |
@@ -1138,8 +1174,3 @@ Mẫu ADR: bối cảnh → quyết định → phương án đã cân nhắc �
 Các nguồn trên đã được dùng trong đợt thẩm định 27/10/2026. API, quyền, quota, giá và thư viện có thể đổi; Agent kiểm tra lại primary documentation khi chọn route, thay dependency hoặc chuẩn bị release. Ghi thời điểm xác minh vào source matrix/ADR, không sửa lịch sử benchmark cũ bằng thông tin mới.
 
 Kế hoạch chỉ được coi là hoàn tất ở mức sản phẩm khi các task thuộc phạm vi được chọn có bằng chứng hoàn thành và gate phát hành tương ứng PASS. Việc hoàn thành tài liệu master plan là bước chuẩn bị, không phải hoàn thành CSD.
-
-
-
-
-

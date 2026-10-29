@@ -33,13 +33,14 @@ export interface DesktopApi {
   };
   profiles: {
     list(): Promise<{ manualLoginEnabled: boolean; profiles: ProfileSummary[] }>;
-    create(input: { label: string }): Promise<void>;
+    create(input: { label: string; platform?: 'facebook' | 'threads' }): Promise<void>;
     open(input: { profileId: string }): Promise<void>;
     close(input: { profileId: string }): Promise<void>;
     openLogin(input: { profileId: string }): Promise<void>;
   };
 }
 export interface ProfileSummary {
+  platform?: 'facebook' | 'threads';
   id: string; label: string; createdAt: string;
   accountBinding: { status: 'UNVERIFIED'; accountId: null; revision: 0 };
   open: boolean; persistenceError: string | null;

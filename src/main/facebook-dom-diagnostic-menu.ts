@@ -95,7 +95,7 @@ export function installFacebookDomDiagnosticMenu(input: { host: BrowserHost; use
     const current = ++revision, profiles = await input.host.list(); if (disposed || current !== revision) return;
     const submenu = new Menu();
     submenu.append(new MenuItem({ label: 'Làm mới danh sách phiên', click: () => { void refresh().catch(() => {}); } }));
-    for (const profile of profiles.filter(profile => profile.open && !profile.persistenceError)) {
+    for (const profile of profiles.filter(profile => profile.open && !profile.persistenceError && profile.platform !== 'threads')) {
       submenu.append(new MenuItem({ id: 'csd-dom-read-' + profile.id, label: 'Đọc một lần: ' + profile.label,
         click: () => { void start(profile.id).catch(() => {}); } }));
       submenu.append(new MenuItem({id:'csd-public-candidate-read-'+profile.id,label:'Trích tối đa 5 ứng viên công khai: '+profile.label,

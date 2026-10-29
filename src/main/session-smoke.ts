@@ -41,7 +41,7 @@ export async function runSessionSmoke(input: {
       document.getElementById('profile-label').value = 'Fixture A';
       document.getElementById('profile-form').requestSubmit();
       await waitFor(() => document.getElementById('profiles').children.length === 1);
-      await window.csd.profiles.create({ label: 'Fixture B' });
+      await window.csd.profiles.create({ label: 'Fixture B', platform: 'threads' });
       window.dispatchEvent(new Event('focus'));
       await waitFor(() => document.getElementById('profiles').children.length === 2);
       document.querySelector('#profiles li button').click();
@@ -68,6 +68,11 @@ export async function runSessionSmoke(input: {
     await open(ids.b);
     assert.equal((await readPage(ids.b)).storage, null); assert.equal(await cookie(ids.b, 'session_cookie'), null);
     await open(ids.b, 'B');
+    assert.equal((await profiles.get(ids.a)).platform, 'facebook');
+    assert.equal((await profiles.get(ids.b)).platform, 'threads');
+    assert.ok(BaseWindow.getAllWindows().some(window => window.getTitle().includes('Threads')));
+    assert.ok(BaseWindow.getAllWindows().some(window => window.getTitle().includes('Facebook')));
+    pass('Facebook and Threads use separate titled windows and persisted platform profiles');
     assert.equal((await readPage(ids.a)).storage, 'A'); assert.equal((await readPage(ids.b)).storage, 'B');
     assert.equal(await cookie(ids.a, 'session_cookie'), 'session-A'); assert.equal(await cookie(ids.b, 'session_cookie'), 'session-B');
     pass('two profiles isolate localStorage and persistent/session/HttpOnly cookies');

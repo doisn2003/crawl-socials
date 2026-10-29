@@ -1,9 +1,25 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "module": "NodeNext", "moduleResolution": "NodeNext",
-    "lib": ["ES2022"], "types": ["node"],
-    "rootDir": "src", "outDir": "dist"
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": [
+      "ES2022"
+    ],
+    "types": [
+      "node"
+    ],
+    "rootDir": "src",
+    "outDir": "dist"
   },
-  "include": ["src/main/**/*", "src/preload/**/*", "src/domain/**/*", "src/application/**/*", "src/infrastructure/**/*", "src/shared/**/*"]
+  "include": [
+    "src/main/index.ts",
+    "src/preload/index.cts",
+    "src/infrastructure/browser/facebook-collector-store.ts",
+    "src/infrastructure/browser/threads-collector-store.ts",
+    "src/infrastructure/browser/facebook-search-embedded-parser.ts",
+    "src/infrastructure/browser/threads-search-parser.ts",
+    "src/infrastructure/browser/electron-observer-target.ts",
+    "src/infrastructure/browser/response-observer.ts"
+  ]
 }

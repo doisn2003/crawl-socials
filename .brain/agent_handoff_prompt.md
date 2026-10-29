@@ -1,3 +1,5 @@
+> **LỊCH SỬ — đã được thay từ 29/10/2026.** Người dùng chọn `codex/csd-production` để phát triển CSD dùng thật. Đọc [ADR-021](decisions/ADR-021-production-branch.md) và phần Hiện hành 2.0 của [master plan](master_plan.md). Prompt/dispatch/gate thử nghiệm bên dưới không còn là chỉ dẫn thực thi; không tự chạy lại.
+
 # Prompt bàn giao — CSD thử nhánh request pagination
 
 Sao chép nội dung bên dưới sang agent mới. Đây là prompt để người dùng giao việc, không tự khởi động lại agent trong chat cũ.

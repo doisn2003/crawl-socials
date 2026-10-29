@@ -50,7 +50,7 @@ try {
     else assert.equal(report.abruptExit, true);
     phases.push(report);
   }
-  const report = { task: 'P01.02', date: '2026-10-27', timezone: 'Asia/Bangkok', result: 'PASS',
+  const report = { task: 'P01.02', date: new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Bangkok'}).format(new Date()), timezone: 'Asia/Bangkok', result: 'PASS',
     electronVersion: require('electron/package.json').version, platform: process.platform, arch: process.arch,
     phaseCount: phases.length, phases,
     limitations: ['Local loopback fixtures only; no Facebook login or collection',

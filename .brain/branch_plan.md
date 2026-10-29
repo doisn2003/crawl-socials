@@ -1,3 +1,5 @@
+> **LỊCH SỬ — đã được thay từ 29/10/2026.** Người dùng chọn `codex/csd-production` để phát triển CSD dùng thật. Đọc [ADR-021](decisions/ADR-021-production-branch.md) và phần Hiện hành 2.0 của [master plan](master_plan.md). Prompt/dispatch/gate thử nghiệm bên dưới không còn là chỉ dẫn thực thi; không tự chạy lại.
+
 # CSD Branch Plan — Kiểm chứng phân trang qua request mạng
 
 Ngày: 28/10/2026, Asia/Bangkok. Phiên bản đề xuất: 1.0.

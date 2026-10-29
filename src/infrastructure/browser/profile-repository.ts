@@ -22,7 +22,8 @@ export function createBrowserProfiles(directory: string): BrowserProfiles {
         if (!item || !isBrowserProfileId(item.id) || ids.has(item.id) || profileLabel(item.label) !== item.label ||
           typeof item.createdAt !== 'string' || !Number.isFinite(Date.parse(item.createdAt)) ||
           item.accountBinding?.status !== 'UNVERIFIED' || item.accountBinding.accountId !== null || item.accountBinding.revision !== 0 ||
-          Object.keys(item).sort().join() !== 'accountBinding,createdAt,id,label' ||
+          (item.platform !== undefined && !['facebook', 'threads'].includes(item.platform)) ||
+          !['accountBinding,createdAt,id,label', 'accountBinding,createdAt,id,label,platform'].includes(Object.keys(item).sort().join()) ||
           Object.keys(item.accountBinding).sort().join() !== 'accountId,revision,status') throw new Error();
         ids.add(item.id);
       }
@@ -40,11 +41,12 @@ export function createBrowserProfiles(directory: string): BrowserProfiles {
       if (!profile) throw new Error('PROFILE_NOT_FOUND');
       return profile;
     }),
-    create: label => serial(async () => {
+    create: (label, platform = 'facebook') => serial(async () => {
       label = profileLabel(label);
+      if (!['facebook', 'threads'].includes(platform)) throw new Error('PROFILE_INPUT_INVALID');
       const profiles = await read();
       if (profiles.length >= 50) throw new Error('PROFILE_LIMIT_REACHED');
-      const item: BrowserProfile = { id: 'csd-' + randomUUID(), label, createdAt: new Date().toISOString(),
+      const item: BrowserProfile = { id: 'csd-' + randomUUID(), label, platform, createdAt: new Date().toISOString(),
         accountBinding: { status: 'UNVERIFIED', accountId: null, revision: 0 } };
       profiles.push(item);
       await mkdir(directory, { recursive: true });
