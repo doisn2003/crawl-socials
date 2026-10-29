@@ -113,7 +113,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
   const digest=hash(strings.join('\n'));if(digest===lastEmbeddedHash)return;lastEmbeddedHash=digest;
   const objects=strings.flatMap(s=>{try{return [JSON.parse(s)];}catch{return [];}});await persist(objects,'EMBEDDED_DOCUMENT_JSON',digest,null);
  }
- async function close(){closing=true;activeQuery=null;manager.stopAll();wc.debugger.removeListener('message',onRequest);await timed(Promise.allSettled([...readers,...pending.values()]),12000,'CAPTURE_DRAIN_TIMEOUT');await timed(host.close(profile.id),15000,'SESSION_FLUSH_TIMEOUT');profileClosed=true;}
+ async function close(){closing=true;activeQuery=null;manager.stopAll();if(!wc.isDestroyed())wc.debugger.removeListener('message',onRequest);await timed(Promise.allSettled([...readers,...pending.values()]),12000,'CAPTURE_DRAIN_TIMEOUT');await timed(host.close(profile.id),15000,'SESSION_FLUSH_TIMEOUT');profileClosed=true;}
  const started=Date.now();
  try{
   event({event:'START',run_id:config.runId,resumed:initialRunRecords>0,existing_records:store.count,code_hashes:{entry:hash(readFileSync(new URL(import.meta.url))),parser:hash(readFileSync(new URL('../dist/infrastructure/browser/facebook-search-embedded-parser.js',import.meta.url))),store:hash(readFileSync(new URL('../dist/infrastructure/browser/facebook-collector-store.js',import.meta.url)))}});
@@ -150,7 +150,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
  }
  } finally {
   closing=true;activeQuery=null;manager?.stopAll();
-  if(wc&&onRequest)wc.debugger.removeListener('message',onRequest);
+  if(wc&&onRequest&&!wc.isDestroyed())wc.debugger.removeListener('message',onRequest);
   if(!profileClosed)await timed(host.close(profile.id),15000,'SESSION_FLUSH_TIMEOUT');
  }
 }

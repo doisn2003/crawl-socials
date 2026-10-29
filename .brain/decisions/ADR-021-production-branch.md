@@ -24,7 +24,7 @@ Người dùng đã trả lời rõ: **mỗi mạng đạt riêng mục tiêu đ
 - Cấu hình thật ghi nguyên tử dưới appData, keywords ban đầu trống; validation 1–100 từ khóa khi chạy, 200 ký tự/từ khóa, target 1–3.000 do giới hạn hiện tại của bộ thu Facebook.
 - Hai mạng dùng profile, cookie, cửa sổ riêng; tự khôi phục session hiện có, không cần cờ cho phép login. Chỉ account có cookie phiên hợp lệ theo thời hạn cục bộ và không có barrier đã biết mới được chọn; bộ thu kiểm lại barrier từ nguồn.
 - Phiên được giữ lâu dài qua Chromium + backup session cookie mã hóa sẵn có. Không hứa gia hạn server-side hoặc đăng nhập vĩnh viễn nếu nền tảng thu hồi.
-- Một lượt UI có thư mục riêng, snapshot cấu hình và mục tiêu riêng từng mạng; Facebook/Threads chạy lần lượt, có Stop và giữ phần đã thu. Không tự resume khi khởi động; lượt bị gián đoạn vẫn xuất được dữ liệu bền vững.
+- Một lượt UI có thư mục riêng, snapshot cấu hình và mục tiêu riêng từng mạng. **Từ 0.2.2, theo yêu cầu sửa của người dùng, Facebook/Threads mở hai cửa sổ và chạy song song**, thay cách chạy lần lượt ban đầu. Nguồn xong/lỗi không chặn nguồn kia; Stop báo dừng cả hai và đợi cả hai dọn xong trước khi kết thúc lượt. Không tự resume khi khởi động; lượt bị gián đoạn vẫn xuất được dữ liệu bền vững.
 - JSON kết hợp hai mạng; Excel có `Facebook Posts` và `Thread Posts`, đúng trật tự cột đầu của ảnh tham chiếu Facebook, style xanh, filter, freeze A2, ID text, null trống. Threads giữ likes/replies/reposts/quotes/shares đúng nghĩa, không giả thành love_count.
 - Source/budget kết thúc trước target được báo chưa đạt. Không sinh số liệu, không tự coi nội dung là đã đánh giá liên quan.
 
@@ -35,3 +35,5 @@ Bản sản phẩm dùng Electron 44.10.0 (bản vá cùng major cho advisory ch
 ## Xác minh và giới hạn
 
 Xem [báo cáo triển khai](../evidence/production-upgrade-2026-10-29.md) cho kết quả build/tests/UI. Việc chọn nhánh đã được người dùng quyết định; không hỏi lại AI Agent sau về lựa chọn này. Không tuyên bố đã chạy crawl mới nếu chỉ kiểm tra tích hợp cục bộ.
+
+Cập nhật 0.2.2: [báo cáo crawl song song](../evidence/parallel-collection-2026-10-29.md), gồm hồi quy điều phối hai nguồn, dừng/đóng ứng dụng và sửa lỗi dọn webContents sau khi đóng cửa sổ.

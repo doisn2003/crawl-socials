@@ -118,7 +118,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
   stopReason??='QUERY_BUDGET_COMPLETE';
  }catch(e){stopReason=e.message;}
  finally{
-  try{await drain();}catch{stopReason='CAPTURE_DRAIN_TIMEOUT';}active=null;closing=true;manager.stopAll();wc.debugger.removeListener('message',onRequest);let sessionFlush='OK';
+  try{await drain();}catch{stopReason='CAPTURE_DRAIN_TIMEOUT';}active=null;closing=true;manager.stopAll();if(!wc.isDestroyed())wc.debugger.removeListener('message',onRequest);let sessionFlush='OK';
   try{await timed(Promise.allSettled([...readers,...pending.values()]),12000,'CAPTURE_DRAIN_TIMEOUT');await timed(host.close(profile.id),15000,'SESSION_FLUSH_TIMEOUT');profileClosed=true;}catch{sessionFlush='FAILED';}
   const receipt={run_id:config.runId,stop_reason:stopReason,new_this_run:store.records().filter(r=>r.first_observation.run_id===config.runId).length,new_this_invocation:store.count-initial,elapsed_ms:Date.now()-Date.parse(manifest.started_at),session_flush:sessionFlush,summary:store.export(),operations:Object.fromEntries(operations),checkpoint,content_review:'NOT_REQUESTED'};
   writeFileSync(join(runDirectory,'receipt.json'),JSON.stringify(receipt,null,2),{flush:true});event({event:'STOP',...receipt});
@@ -126,7 +126,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
  }
  } finally {
   active=null;closing=true;manager?.stopAll();
-  if(wc&&onRequest)wc.debugger.removeListener('message',onRequest);
+  if(wc&&onRequest&&!wc.isDestroyed())wc.debugger.removeListener('message',onRequest);
   if(!profileClosed)await timed(host.close(profile.id),15000,'SESSION_FLUSH_TIMEOUT');
  }
 }

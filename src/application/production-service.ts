@@ -93,18 +93,22 @@ export function createProductionService(input: {
   }
   async function execute() {
     if (!run) return;
+    const currentRun = run;
     try {
-      for (const item of run.platforms) {
-        if (stopped) { item.state = 'STOPPED'; item.reason = 'USER_STOP'; continue; }
-        item.state = 'RUNNING'; saveRun();
-        const output = join(run.outputDirectory, item.platform);
-        const config = { runId: run.id + '-' + item.platform, output, queries: run.keywords,
-          maxScrollsPerQuery: item.platform === 'facebook' ? 50 : 100, maxMinutes: 240, settleMs: 3000,
-          ...(item.platform === 'facebook' ? { targetNewRecords: run.minimumPosts } : { targetTotal: run.minimumPosts, modes: ['top', 'recent'] }) };
-        mkdirSync(output, { recursive: true }); atomicJson(join(output, 'config.json'), config);
-        let lastSaved = 0;
+      // Start every selected source before awaiting completion. A source failure must
+      // never release the run lock while another collector is still using its profile.
+      const outcomes = await Promise.allSettled(currentRun.platforms.map(async item => {
         try {
+          if (stopped) throw Error('USER_STOP');
+          item.state = 'RUNNING'; saveRun();
+          const output = join(currentRun.outputDirectory, item.platform);
+          const config = { runId: currentRun.id + '-' + item.platform, output, queries: [...currentRun.keywords],
+            maxScrollsPerQuery: item.platform === 'facebook' ? 50 : 100, maxMinutes: 240, settleMs: 3000,
+            ...(item.platform === 'facebook' ? { targetNewRecords: currentRun.minimumPosts } : { targetTotal: currentRun.minimumPosts, modes: ['top', 'recent'] }) };
+          mkdirSync(output, { recursive: true }); atomicJson(join(output, 'config.json'), config);
           if (!(await input.host.sessionStatus(item.profileId))) throw Error('LOGIN_REQUIRED');
+          if (stopped) throw Error('USER_STOP');
+          let lastSaved = 0;
           const receipt = await input.collect({ platform: item.platform, profileId: item.profileId, config, shouldStop: () => stopped,
             onProgress: value => {
               if (Number.isSafeInteger(value.total) && Number(value.total) >= 0) item.count = Number(value.total);
@@ -112,7 +116,7 @@ export function createProductionService(input: {
             } });
           item.count = rows(item.platform).length; item.reason = receipt.stop_reason;
           const regular = ['TARGET_REACHED', 'QUERY_BUDGET_COMPLETE', 'SOURCE_EXHAUSTED', 'NO_PROGRESS', 'USER_STOP', 'RUN_DEADLINE', 'WINDOW_CLOSED'];
-          item.state = !regular.includes(item.reason) ? 'FAILED' : item.count >= run.minimumPosts ? 'COMPLETED' : 'STOPPED';
+          item.state = !regular.includes(item.reason) ? 'FAILED' : item.count >= currentRun.minimumPosts ? 'COMPLETED' : 'STOPPED';
           if (receipt.session_flush && receipt.session_flush !== 'OK') { item.state = 'FAILED'; item.reason = 'SESSION_SAVE_FAILED'; }
           if (/ACCOUNT_BARRIER|LOGIN_REQUIRED/.test(item.reason)) blockedProfiles.add(item.profileId);
         } catch (error) {
@@ -120,8 +124,22 @@ export function createProductionService(input: {
           item.state = ['USER_STOP', 'RUN_DEADLINE', 'WINDOW_CLOSED'].includes(item.reason) ? 'STOPPED' : 'FAILED';
           if (/ACCOUNT_BARRIER|LOGIN_REQUIRED/.test(item.reason)) blockedProfiles.add(item.profileId);
         }
-        rebuildResults(); saveRun();
+        // Read only this finished source; the other source may still be writing.
+        const data = rows(item.platform);
+        item.count = data.length;
+        for (const row of data.slice(0, 3)) currentRun.preview.push({
+          platform: item.platform, post_id: String(row.post_id || ''), text: String(row.text || '').slice(0, 800),
+          query: String(row.query || ''), link: String(row.observed_post_url || row.post_url || ''),
+        });
+        saveRun();
+      }));
+      for (const [index, outcome] of outcomes.entries()) {
+        if (outcome.status === 'rejected') {
+          const item = currentRun.platforms[index]!;
+          item.state = 'FAILED'; item.reason = code(outcome.reason);
+        }
       }
+      rebuildResults();
       run.state = run.platforms.some(p => p.state === 'FAILED') ? 'FAILED' :
         run.platforms.every(p => p.state === 'COMPLETED') ? 'COMPLETED' : 'STOPPED';
     } catch (error) {

@@ -56,8 +56,13 @@ hook.deregister();
 
 function setup(platform, overrides = {}) {
   const output = mkdtempSync(join(tmpdir(), 'csd-collector-runtime-'));
+  let destroyed = false;
+  const debuggerEvents = new EventEmitter();
   const wc = {
-    debugger: new EventEmitter(), setBackgroundThrottling() {},
+    // Electron's native debugger getter is unavailable after host.close destroys
+    // webContents. Accessing it in the outer finally must not replace the receipt.
+    get debugger() { if (destroyed) throw Error('Object has been destroyed'); return debuggerEvents; },
+    isDestroyed: () => destroyed, setBackgroundThrottling() {},
     async loadURL() { throw Error('NAVIGATION_FAILED'); },
     async executeJavaScript() { throw Error('UNEXPECTED_EXECUTION'); },
   };
@@ -65,7 +70,7 @@ function setup(platform, overrides = {}) {
   const host = {
     list: async () => [{ id: 'profile', platform, persistenceError: null }],
     open: async () => { calls.open++; },
-    close: async () => { calls.close++; },
+    close: async () => { calls.close++; destroyed = true; },
     shutdown: async () => { calls.shutdown++; throw Error('SHARED_HOST_SHUTDOWN'); },
     observerTarget: () => ({ contents: wc, profileId: 'profile', webContentsId: 1, viewGeneration: 1 }),
     ...overrides,
@@ -74,7 +79,7 @@ function setup(platform, overrides = {}) {
     maxMinutes: 1, targetNewRecords: 10, targetTotal: 10, settleMs: 2000 };
   const progress = [];
   const run = platform === 'facebook' ? runFacebookCollector : runThreadsCollector;
-  return { output, wc, calls, host, config, progress,
+  return { output, wc, debuggerEvents, calls, host, config, progress,
     run: extra => run({ config, host, profileId: 'profile', onProgress: value => progress.push(value), ...extra }),
     clean() {
       assert.ok(resolve(output).startsWith(resolve(tmpdir(), 'csd-collector-runtime-')));
@@ -98,7 +103,7 @@ for (const platform of ['facebook', 'threads']) {
       assert.equal(s.calls.open, 1);
       assert.equal(s.calls.close, 1);
       assert.equal(s.calls.shutdown, 0);
-      assert.equal(s.wc.debugger.listenerCount('message'), 0);
+      assert.equal(s.debuggerEvents.listenerCount('message'), 0);
       assert.equal(s.progress.at(-1).event, 'STOP');
       assert.equal(s.progress.at(-1).total, 0);
       assert.ok(s.progress.every(row => Object.keys(row).every(key =>
@@ -140,7 +145,7 @@ for (const platform of ['facebook', 'threads']) {
       const receipt = await s.run();
       assert.notEqual(receipt.session_flush, 'OK');
       assert.equal(closes, 2);
-      assert.equal(s.wc.debugger.listenerCount('message'), 0);
+      assert.equal(s.debuggerEvents.listenerCount('message'), 0);
       assert.equal(s.calls.shutdown, 0);
     } finally { s.clean(); }
   });
@@ -149,11 +154,54 @@ for (const platform of ['facebook', 'threads']) {
     const s = setup(platform, { close: async () => { throw Error('SESSION_SAVE_FAILED'); } });
     try {
       await assert.rejects(s.run(), /SESSION_SAVE_FAILED/);
-      assert.equal(s.wc.debugger.listenerCount('message'), 0);
+      assert.equal(s.debuggerEvents.listenerCount('message'), 0);
       assert.equal(s.calls.shutdown, 0);
     } finally { s.clean(); }
   });
 }
+
+test('both real runners open separate profiles on a shared host before either closes', async () => {
+  const facebook = setup('facebook'), threads = setup('threads');
+  let releaseFacebook, releaseThreads;
+  const holds = {
+    facebook: new Promise(resolve => { releaseFacebook = resolve; }),
+    threads: new Promise(resolve => { releaseThreads = resolve; }),
+  };
+  const sources = { facebook, threads };
+  for (const platform of ['facebook', 'threads']) {
+    sources[platform].wc.loadURL = async () => { await holds[platform]; throw Error('NAVIGATION_FAILED'); };
+  }
+  const sharedHost = {
+    list: async () => ['facebook', 'threads'].map(platform => ({ id: platform, platform, persistenceError: null })),
+    open: id => sources[id].host.open(),
+    close: id => sources[id].host.close(),
+    shutdown: async () => { throw Error('SHARED_HOST_SHUTDOWN'); },
+    observerTarget: id => ({ contents: sources[id].wc, profileId: id, webContentsId: id === 'facebook' ? 1 : 2, viewGeneration: 1 }),
+  };
+  const work = [
+    runFacebookCollector({ config: facebook.config, host: sharedHost, profileId: 'facebook' }),
+    runThreadsCollector({ config: threads.config, host: sharedHost, profileId: 'threads' }),
+  ];
+  try {
+    await new Promise(setImmediate);
+    assert.equal(facebook.calls.open, 1); assert.equal(threads.calls.open, 1);
+    assert.equal(facebook.calls.close, 0); assert.equal(threads.calls.close, 0);
+    assert.equal(facebook.debuggerEvents.listenerCount('message'), 1);
+    assert.equal(threads.debuggerEvents.listenerCount('message'), 1);
+    releaseFacebook();
+    const receipt = await work[0];
+    assert.equal(receipt.session_flush, 'OK');
+    assert.equal(facebook.calls.close, 1); assert.equal(threads.calls.close, 0);
+    assert.equal(threads.debuggerEvents.listenerCount('message'), 1);
+    releaseThreads(); await work[1];
+    assert.equal(threads.calls.close, 1);
+    assert.equal(threads.debuggerEvents.listenerCount('message'), 0);
+    assert.equal(context.appCalls, 0);
+  } finally {
+    releaseFacebook(); releaseThreads(); await Promise.allSettled(work);
+    facebook.clean(); threads.clean();
+  }
+});
 
 test('Threads CLI requires the user to supply keywords, with no sample defaults', () => {
   const result = spawnSync(process.execPath, ['scripts/run-threads-collector.mjs'], { cwd: resolve('.'), encoding: 'utf8' });

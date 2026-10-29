@@ -17,3 +17,5 @@ Bộ thu hiện tại kế thừa [Facebook collector ADR-019](decisions/ADR-019
 `master_plan.md` giữ trạng thái hiện hành duy nhất. `decisions/` giữ quyết định; `evidence/` giữ kiểm chứng; tài liệu cũ giữ nguồn gốc kỹ thuật. Không lưu dữ liệu bài thô, cookie, token, mật khẩu hoặc profile vào `.brain`. Kiểm thử developer vẫn được giữ ngoài gói sản phẩm, không phải chế độ người dùng.
 
 Tính năng 0.2.1: [Make it cooler](evidence/make-it-cooler-2026-10-29.md) — toggle terminal trang trí, hai tiến độ thật Facebook + Threads theo xác nhận của người dùng.
+
+Hiện hành 0.2.2: [Crawl song song](evidence/parallel-collection-2026-10-29.md) — người dùng yêu cầu Facebook và Threads mở hai cửa sổ và thu đồng thời; cách chạy lần lượt trong báo cáo triển khai ban đầu đã được thay thế. Mỗi mạng vẫn có mục tiêu riêng; Stop dừng cả hai và chờ lưu xong.

@@ -18,7 +18,7 @@ npm start
 1. Nhập từ khóa, **mỗi dòng một từ khóa**. Rời ô để lưu tự động.
 2. Nhập mục tiêu tối thiểu (1–3.000 bài). Rời ô để lưu. **Mỗi mạng được chọn có mục tiêu riêng**; ví dụ nhập 1.000 và chọn cả hai thì mục tiêu là 1.000 Facebook + 1.000 Threads.
 3. Đăng nhập tài khoản trong cửa sổ của từng mạng. Chỉ nguồn có phiên đăng nhập mới được tick chọn.
-4. Bấm **Bắt đầu thu thập**. Hai mạng chạy lần lượt, có tiến độ riêng và nút Dừng. Có thể dừng và xuất số bài đã thu được.
+4. Bấm **Bắt đầu thu thập**. Facebook và Threads mở hai cửa sổ riêng và **chạy song song**, mỗi mạng có tiến độ và mục tiêu riêng. Một mạng xong hoặc gặp lỗi không chặn mạng còn lại. Nút **Dừng** dừng cả hai, chờ lưu dữ liệu rồi cho phép xuất số bài đã thu được.
 5. Bấm **Xuất Excel .xlsx** hoặc **Xuất JSON**, chọn nơi lưu. Workbook có hai sheet kể cả khi một mạng không có kết quả; hàng tiêu đề xanh, bộ lọc, cố định hàng đầu, ID dạng chuỗi, link bấm được. Giá trị thiếu để trống, không đổi thành 0.
 
 Giao diện không có dữ liệu mẫu, campaign nháp, offline-check, source-probe hoặc công tắc thử nghiệm. TikTok, Instagram, X, Reddit là badge mờ chưa thể chọn.

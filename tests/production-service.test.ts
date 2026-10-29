@@ -87,7 +87,40 @@ test('each selected network receives the full minimum and the combined JSON cont
   assert.equal(result.run.preview.length, 4);
 }));
 
-test('concurrent starts cannot run two collectors or mutate active configuration', async () => temporary(async directory => {
+for (const firstPlatform of ['facebook', 'threads'] as const) {
+  test(`both networks start together and ${firstPlatform} can finish without ending the other`, async () => temporary(async directory => {
+    const holds = { facebook: deferred<void>(), threads: deferred<void>() }, calls: CollectorInput[] = [];
+    const service = createProductionService({ directory, version: 'test', host: hostWithProfiles().host, collect: async input => {
+      calls.push(input); input.onProgress({ total: input.platform === 'facebook' ? 2 : 3 });
+      await holds[input.platform].promise;
+      return completed(input);
+    } });
+    service.saveConfig({ keywords: ['x'], minimumPosts: 1 });
+    try {
+      await service.start({ profiles: selection });
+      assert.deepEqual(calls.map(value => value.platform).sort(), ['facebook', 'threads']);
+      assert.deepEqual(calls.map(value => value.profileId), [fbId, threadId]);
+      assert.deepEqual(service.progress()!.platforms.map(value => value.state), ['RUNNING', 'RUNNING']);
+      let finished = false; void service.settled().then(() => { finished = true; });
+      holds[firstPlatform].resolve(); await new Promise<void>(setImmediate);
+      const other = firstPlatform === 'facebook' ? 'threads' : 'facebook';
+      const progress = service.progress()!;
+      assert.equal(progress.state, 'RUNNING'); assert.equal(finished, false);
+      assert.equal(progress.platforms.find(value => value.platform === firstPlatform)!.state, 'COMPLETED');
+      assert.equal(progress.platforms.find(value => value.platform === other)!.state, 'RUNNING');
+      assert.equal(progress.platforms.find(value => value.platform === other)!.count, other === 'facebook' ? 2 : 3);
+      assert.equal(calls.find(value => value.platform === other)!.shouldStop(), false);
+      assert.throws(() => service.results(), /RESULTS_UNAVAILABLE/);
+      await assert.rejects(service.start({ profiles: selection }), /COLLECTION_BUSY/);
+    } finally {
+      holds.facebook.resolve(); holds.threads.resolve(); await service.settled();
+    }
+    assert.equal(service.results().run.state, 'COMPLETED');
+    assert.deepEqual(service.results().run.platforms.map(value => value.count), [1, 1]);
+  }));
+}
+
+test('concurrent starts cannot launch duplicate runs or mutate active configuration', async () => temporary(async directory => {
   const hold = deferred<void>(), fixture = hostWithProfiles(); let calls = 0;
   const service = createProductionService({ directory, version: 'test', host: fixture.host, collect: async input => {
     calls++; await hold.promise; return completed(input);
@@ -102,24 +135,33 @@ test('concurrent starts cannot run two collectors or mutate active configuration
   hold.resolve(); await service.settled(); assert.equal(calls, 1);
 }));
 
-test('Stop preserves partial JSON and stops a queued network before it begins', async () => temporary(async directory => {
-  const hold = deferred<void>(), entered = deferred<CollectorInput>(), fixture = hostWithProfiles(); let calls = 0;
+test('Stop signals both active networks and waits for both to preserve their partial JSON', async () => temporary(async directory => {
+  const holds = { facebook: deferred<void>(), threads: deferred<void>() }, calls: CollectorInput[] = [];
+  const fixture = hostWithProfiles();
   const service = createProductionService({ directory, version: 'test', host: fixture.host, collect: async input => {
-    calls++; posts(input, 1); entered.resolve(input); await hold.promise;
+    calls.push(input); posts(input, 1); await holds[input.platform].promise;
     return { stop_reason: 'USER_STOP', summary: { unique: 1 } };
   } });
   service.saveConfig({ keywords: ['x'], minimumPosts: 10 });
-  await service.start({ profiles: selection }); const input = await entered.promise;
-  assert.equal((await service.stop()).run!.state, 'STOPPING'); assert.equal(input.shouldStop(), true);
-  hold.resolve(); await service.settled();
+  try {
+    await service.start({ profiles: selection });
+    assert.equal(calls.length, 2);
+    assert.equal((await service.stop()).run!.state, 'STOPPING');
+    assert.ok(calls.every(input => input.shouldStop()));
+    holds.facebook.resolve(); await new Promise<void>(setImmediate);
+    assert.equal(service.progress()!.state, 'STOPPING');
+    assert.equal((await service.getState()).run!.finishedAt, null);
+    assert.throws(() => service.results(), /RESULTS_UNAVAILABLE/);
+  } finally { holds.facebook.resolve(); holds.threads.resolve(); await service.settled(); }
   const result = service.results();
-  assert.equal(calls, 1); assert.equal(result.run.state, 'STOPPED');
+  assert.equal(result.run.state, 'STOPPED');
   assert.deepEqual(result.run.platforms.map(value => value.state), ['STOPPED', 'STOPPED']);
-  assert.equal(result.facebook.length, 1); assert.equal(result.threads.length, 0);
-  assert.equal(JSON.parse(readFileSync(join(result.run.outputDirectory, 'results.json'), 'utf8')).facebook.length, 1);
+  assert.equal(result.facebook.length, 1); assert.equal(result.threads.length, 1);
+  const json = JSON.parse(readFileSync(join(result.run.outputDirectory, 'results.json'), 'utf8'));
+  assert.equal(json.facebook.length, 1); assert.equal(json.threads.length, 1);
 }));
 
-test('Stop during collector setup is a stopped run and never starts the queued network', async () => temporary(async directory => {
+test('Stop during simultaneous collector setup stops both sources without creating posts', async () => temporary(async directory => {
   const hold = deferred<void>(), entered = deferred<CollectorInput>(); let calls = 0;
   const service = createProductionService({ directory, version: 'test', host: hostWithProfiles().host, collect: async input => {
     calls++; entered.resolve(input); await hold.promise;
@@ -131,7 +173,7 @@ test('Stop during collector setup is a stopped run and never starts the queued n
   await service.start({ profiles: selection }); await entered.promise;
   await service.stop(); hold.resolve(); await service.settled();
   const result = service.results();
-  assert.equal(calls, 1);
+  assert.equal(calls, 2);
   assert.equal(result.run.state, 'STOPPED');
   assert.deepEqual(result.run.platforms.map(value => ({ state: value.state, reason: value.reason, count: value.count })), [
     { state: 'STOPPED', reason: 'USER_STOP', count: 0 },
@@ -140,6 +182,27 @@ test('Stop during collector setup is a stopped run and never starts the queued n
   assert.deepEqual(result.facebook, []); assert.deepEqual(result.threads, []);
   const json = JSON.parse(readFileSync(join(result.run.outputDirectory, 'results.json'), 'utf8'));
   assert.deepEqual(json.facebook, []); assert.deepEqual(json.threads, []);
+}));
+
+test('Stop while both sessions are being rechecked prevents either collector from opening', async () => temporary(async directory => {
+  const fixture = hostWithProfiles(), hold = deferred<void>(), reached = deferred<void>();
+  const checks = new Map<string, number>(); let waiting = 0, calls = 0;
+  fixture.host.sessionStatus = async id => {
+    const count = (checks.get(id) || 0) + 1; checks.set(id, count);
+    if (count === 2) { if (++waiting === 2) reached.resolve(); await hold.promise; }
+    return true;
+  };
+  const service = createProductionService({ directory, version: 'test', host: fixture.host, collect: async input => {
+    calls++; return completed(input);
+  } });
+  service.saveConfig({ keywords: ['x'], minimumPosts: 1 });
+  const started = service.start({ profiles: selection });
+  try {
+    await reached.promise; await service.stop();
+  } finally { hold.resolve(); await started; await service.settled(); }
+  assert.equal(calls, 0);
+  assert.equal(service.results().run.state, 'STOPPED');
+  assert.deepEqual(service.results().run.platforms.map(value => value.reason), ['USER_STOP', 'USER_STOP']);
 }));
 
 test('a failed session flush overrides a reached target while preserving exported post data', async () => temporary(async directory => {
@@ -163,17 +226,67 @@ test('a failed session flush overrides a reached target while preserving exporte
 }));
 
 test('a collector failure preserves its partial data and allows the other selected network to finish', async () => temporary(async directory => {
-  const fixture = hostWithProfiles();
+  const fixture = hostWithProfiles(), hold = deferred<void>();
   const service = createProductionService({ directory, version: 'test', host: fixture.host, collect: async input => {
     posts(input, 1); if (input.platform === 'facebook') throw Error('ACCOUNT_BARRIER');
+    await hold.promise;
     return { stop_reason: 'TARGET_REACHED', summary: { unique: 1 } };
   } });
   service.saveConfig({ keywords: ['x'], minimumPosts: 1 });
-  await service.start({ profiles: selection }); await service.settled();
+  try {
+    await service.start({ profiles: selection }); await new Promise<void>(setImmediate);
+    assert.equal(service.progress()!.state, 'RUNNING');
+    assert.deepEqual(service.progress()!.platforms.map(value => value.state), ['FAILED', 'RUNNING']);
+    assert.throws(() => service.results(), /RESULTS_UNAVAILABLE/);
+    await assert.rejects(service.start({ profiles: selection }), /COLLECTION_BUSY/);
+  } finally { hold.resolve(); await service.settled(); }
   const result = service.results();
   assert.equal(result.run.state, 'FAILED'); assert.equal(result.facebook.length, 1); assert.equal(result.threads.length, 1);
   assert.equal(result.run.platforms[0]!.reason, 'ACCOUNT_BARRIER'); assert.equal(result.run.platforms[1]!.state, 'COMPLETED');
   assert.equal((await service.getState()).accounts.find(value => value.id === fbId)!.authenticated, false);
+}));
+
+test('shutdown signals both sources and waits for each profile cleanup before resolving', async () => temporary(async directory => {
+  const holds = { facebook: deferred<void>(), threads: deferred<void>() }, calls: CollectorInput[] = [];
+  const service = createProductionService({ directory, version: 'test', host: hostWithProfiles().host, collect: async input => {
+    calls.push(input); posts(input, 1); await holds[input.platform].promise;
+    return { stop_reason: 'USER_STOP', summary: { unique: 1 } };
+  } });
+  service.saveConfig({ keywords: ['x'], minimumPosts: 10 });
+  try {
+    await service.start({ profiles: selection }); assert.equal(calls.length, 2);
+    let closed = false; const shutdown = service.shutdown().then(() => { closed = true; });
+    assert.ok(calls.every(input => input.shouldStop()));
+    holds.threads.resolve(); await new Promise<void>(setImmediate);
+    assert.equal(closed, false);
+    holds.facebook.resolve(); await shutdown;
+    assert.equal(closed, true);
+    assert.deepEqual(service.results().run.platforms.map(value => value.count), [1, 1]);
+  } finally { holds.facebook.resolve(); holds.threads.resolve(); await service.settled(); }
+}));
+
+test('an unexpected source finalization failure cannot unlock a run while the other collector is active', async () => temporary(async directory => {
+  const hold = deferred<void>(); let threadsInput: CollectorInput | undefined;
+  const service = createProductionService({ directory, version: 'test', host: hostWithProfiles().host, collect: async input => {
+    if (input.platform === 'facebook') {
+      writeFileSync(join(String(input.config.output), 'posts.jsonl'), 'invalid committed record\n');
+    } else { threadsInput = input; await hold.promise; posts(input, 1); }
+    return { stop_reason: 'TARGET_REACHED', summary: { unique: 1 } };
+  } });
+  service.saveConfig({ keywords: ['x'], minimumPosts: 1 });
+  try {
+    await service.start({ profiles: selection }); await new Promise<void>(setImmediate);
+    assert.ok(threadsInput); assert.equal(threadsInput.shouldStop(), false);
+    assert.equal(service.progress()!.state, 'RUNNING');
+    assert.equal((await service.getState()).run!.finishedAt, null);
+    await assert.rejects(service.start({ profiles: selection }), /COLLECTION_BUSY/);
+    await service.stop(); assert.equal(threadsInput.shouldStop(), true);
+  } finally { hold.resolve(); await service.settled(); }
+  const final = service.progress()!;
+  assert.equal(final.state, 'FAILED');
+  assert.equal(final.platforms[0]!.reason, 'COLLECTION_DATA_INVALID');
+  assert.equal(final.platforms[1]!.state, 'COMPLETED');
+  assert.equal(final.platforms[1]!.count, 1);
 }));
 
 test('restart marks an unfinished run interrupted and recovers committed JSONL without a torn final line', async () => temporary(async directory => {

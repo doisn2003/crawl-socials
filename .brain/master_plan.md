@@ -10,7 +10,7 @@
 | Cấu hình | Keywords do người dùng nhập, Save on Blur, mục tiêu riêng mỗi mạng (người dùng xác nhận) |
 | Tài khoản | Đăng nhập trực tiếp, phiên persistent, tick nguồn chỉ khi có phiên; không hứa chống thu hồi phiên |
 | UI | Dark/hacker/monospace; TikTok, Instagram, X, Reddit chỉ badge mờ |
-| Thu và xuất | JSON thật, Stop giữ dữ liệu, Excel hai sheet theo ảnh tham chiếu |
+| Thu và xuất | Facebook + Threads mở hai cửa sổ và chạy song song; mục tiêu riêng mỗi mạng; Stop cả hai giữ dữ liệu; JSON thật, Excel hai sheet theo ảnh tham chiếu |
 | Data mẫu/chế độ thử | Đã bỏ khỏi entrypoint/gói sản phẩm; fixtures developer không đóng gói |
 | Quyền điều phối | Các dispatch/worker/automation 1.x kết thúc; không tự khởi động lại |
 
@@ -20,9 +20,10 @@
 | PROD-02 Ghép bộ thu thật | Agent chính + collectors | DONE | 14 lifecycle + 17 service/config tests PASS; chưa chạy thêm LIVE |
 | PROD-03 Excel | Agent exporter | DONE | Hai sheet, header/filter/freeze/ID text, 4 roundtrip tests PASS |
 | PROD-05 Make it cooler | Agent chính | DONE | Toggle persistent, terminal Facebook + Threads, canvas 8 fps, native UI và 447 tests PASS; xem báo cáo make-it-cooler |
+| PROD-06 Crawl song song | Agent chính | DONE | 0.2.2: hai collector đồng thời, lỗi độc lập, Stop/shutdown đợi cả hai; sửa cleanup webContents; check/build + 453 tests PASS; xem báo cáo parallel-collection |
 | PROD-04 Chọn nhánh + bàn giao | Agent chính | DONE | ADR-021, README, master plan, báo cáo kiểm chứng; tài liệu cũ có nhãn lịch sử |
 
-Kết quả kiểm chứng cuối được ghi tại [production-upgrade-2026-10-29.md](evidence/production-upgrade-2026-10-29.md). Không gán PASS cho benchmark chất lượng nội dung chỉ vì UI/collector build thành công. Agent tiếp theo sửa sản phẩm hiện hành trên nhánh đã chọn và cập nhật bảng này.
+Kết quả kiểm chứng gần nhất được ghi tại [parallel-collection-2026-10-29.md](evidence/parallel-collection-2026-10-29.md); lần nâng cấp sản phẩm đầu tiên ở [production-upgrade-2026-10-29.md](evidence/production-upgrade-2026-10-29.md). Không gán PASS cho benchmark chất lượng nội dung chỉ vì UI/collector build thành công. Agent tiếp theo sửa sản phẩm hiện hành trên nhánh đã chọn và cập nhật bảng này.
 
 ---
 

@@ -1,5 +1,7 @@
 # CSD production upgrade — 29/10/2026
 
+> Báo cáo này ghi nhận bản triển khai ban đầu. Cơ chế chạy lần lượt đã được thay bằng **crawl song song ở 0.2.2** theo yêu cầu người dùng; xem [kiểm chứng cập nhật](parallel-collection-2026-10-29.md).
+
 ## Quyết định và phạm vi
 
 Người dùng chọn nhánh mới làm nền phát triển; nhánh được tạo là **`codex/csd-production`**, từ working tree đang có Facebook/Threads. Người dùng xác nhận **mục tiêu tối thiểu được áp dụng riêng cho mỗi mạng**. Quyết định gốc: [ADR-021](../decisions/ADR-021-production-branch.md).
