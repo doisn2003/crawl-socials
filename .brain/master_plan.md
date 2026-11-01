@@ -1,18 +1,38 @@
 # CSD Master Plan
 
-## Hiện hành 2.0 — sản phẩm dùng thật, 29/10/2026
+## Hiện hành 3.0 — kế hoạch nâng cấp hội thoại, 30/10/2026
+
+**Checkpoint theo chỉ đạo người dùng, 01/11/2026:** đã commit baseline runtime/tests/benchmark tại cee0e8b và helper Excel tại 0689653; tài liệu/evidence/handoff được checkpoint riêng. Check kiểu và 889/889 tests PASS; origin được cấu hình tới https://github.com/doisn2003/crawl-socials.git để push nhánh codex/csd-production. Đây là bảo toàn thành tựu hiện có, không nghiệm thu production hoặc thực hiện hướng cloud/multi-window/binary. Các đoạn trước đây nói chưa commit mô tả thời điểm nghiên cứu trước checkpoint; yêu cầu tạm dừng triển khai vẫn được giữ.
+
+**Bổ sung phạm vi thiết kế, 01/11/2026:** người dùng yêu cầu planner hỏi–đáp có cấu trúc để hiểu nhu cầu; quản lý nhiều cấu hình tới kết quả, vòng đời/version, gộp không trùng và tái lọc; hướng dịch vụ có quyền API theo gói, điều khiển, backup/download từ xa. Đã cập nhật mục 4.4, 10–13 của [some-problems-in-this-branch.md](../some-problems-in-this-branch.md). Supabase/PostgreSQL là ứng viên, phương án SQLite cục bộ + đồng bộ/backend/object storage là đề xuất chưa chốt. Chỉ sửa tài liệu; không đổi runtime, cấp key, tạo cloud resource hoặc chuyển dữ liệu. Chưa nối lại công việc triển khai.
+
+**Nghiên cứu và tài liệu, 01/11/2026:** theo yêu cầu mới, đã viết [some-problems-in-this-branch.md](../some-problems-in-this-branch.md): chẩn đoán có bằng chứng từ source/run BDS; giải thích planner, classifier/ranking và các lớp version; đề xuất bảo toàn checkpoint trước khi phát triển tiếp. Người dùng muốn bàn kỹ ở chat mới về nhiều cửa sổ, ingest chung chống trùng, giới hạn raw chung, **đầu ra hai nhóm** và kho/worker bình luận riêng. Đây là hướng thiết kế tiếp theo; code/schema/UI còn ba nhóm. Chưa có quyết định A/B/C/D; chưa commit/tag/merge, sửa runtime hoặc khởi động campaign. Phạm vi phát triển trước đó vẫn tạm dừng, lượt này chỉ nghiên cứu/tài liệu.
+
+**Bàn giao UI key, 31/10/2026:** theo yêu cầu tiếp theo, RC4 thêm ô nhập/lưu/xóa Gemini API Key trong app, Windows-encrypted storage riêng, không đưa key ra status/export/config. Main truyền key cho planner/pipeline và chặn đổi khi đang chạy. Check/build/889 tests PASS; Windows encryption/restart + gateway mock smoke PASS; portable RC4 đã chép Downloads. [Bằng chứng](evidence/gemini-key-ui-rc4-2026-10-31.md). Không tiếp tục chiến dịch hoặc cải tiến thuật toán.
+
+**Bàn giao hẹp sau điểm dừng, 31/10/2026:** theo yêu cầu mới của người dùng, đã hoàn tất UI xuất Excel theo workbook café (4 sheet, có comments), chọn nhóm đang xem/toàn bộ và portable 0.3.0-rc.3 để chuyển máy. Check/build/885 tests PASS; native EXE mở được, exporter lấy từ ASAR kiểm tra đủ 4 nhóm với dữ liệu thật. [Artifact và bằng chứng](evidence/portable-excel-rc3-2026-10-31.md). Phát triển thuật toán/chiến dịch tiếp tục tạm dừng; các gate chất lượng chưa đổi.
+
+**TẠM DỪNG THEO YÊU CẦU NGƯỜI DÙNG, 31/10/2026.** Lượt tai nghe, kiểm tra ngoại tuyến và tài liệu tiến độ/thành tựu/khó khăn đã hoàn tất. Chờ người dùng quyết định làm tiếp hay chuyển hướng. **Không mở chiến dịch mới, sửa tiếp bộ lọc, khởi động jobs cũ, đóng gói hoặc phát triển tính năng mới.** Xem [báo cáo tại điểm dừng](reports/csd-progress-review-2026-10-31.md).
+
+**Chỉ đạo mới nhất: phát triển bộ máy thu thập/lọc đa chủ đề, không chỉnh một bộ kết quả café để đủ 1.000.** Café là dữ liệu kiểm thử khả năng của sản phẩm. Dừng các vòng nắn nhãn, tinh chỉnh theo từng bài và thu bổ sung chỉ để đủ số. Ưu tiên cơ chế dùng lại: CampaignPlan từ prompt, lưu/lọc khi đang thu, ngữ cảnh bình luận, hàng chờ bền vững, ngân sách và tỷ lệ nguồn theo cấu hình, kiểm thử nhiều chủ đề. Không đưa ID bài, danh sách quán hoặc ngoại lệ của bộ café vào runtime. Mốc 1.000 là mục tiêu vận hành của công cụ, không phải cam kết mọi chủ đề đều có đủ nguồn hoặc đạt chất lượng đã chứng nhận.
 
 **Nhánh được người dùng chọn: `codex/csd-production`.** Đọc [ADR-021](decisions/ADR-021-production-branch.md) trước khi triển khai. Quyết định này thay mọi chỉ dẫn thử nghiệm mâu thuẫn ở phần lưu trữ bên dưới. Không cần quay lại xin người dùng chọn nhánh hoặc xin mở UI production.
+
+**Kiến trúc nâng cấp đã chốt tại [ADR-022](decisions/ADR-022-conversation-opportunity-architecture.md); triển khai theo [đặc tả conversation opportunity v1](specs/conversation-opportunity-v1.md).** Ưu tiên tìm thảo luận để thương hiệu tham gia, vẫn giữ dữ liệu nghiên cứu; ba nhóm Phù hợp / Chưa phù hợp / Không phù hợp. **Vừa thu, vừa lưu toàn bộ nội dung raw đã quan sát, vừa lọc và trả kết quả tăng dần**, không chờ hết crawl. Comment mới kích hoạt đánh giá lại; check-in chưa có trao đổi chỉ theo dõi. Agent hoàn tất nhãn/phân xử, không chờ người dùng gán thêm. Người dùng đã giao triển khai bằng multi-agents ngày 30/10; sản phẩm nền hiện hành vẫn 0.2.2, pipeline mới đang xây.
+
+**Đính chính mục tiêu mới nhất của người dùng, ưu tiên mọi diễn giải cũ:** 1.000 bài tinh **TỔNG Facebook + Threads**, chủ đề tìm quán cafe; ưu tiên Threads:Facebook 8:2, chấp nhận 7:3. Kế hoạch chạy nhắm 800 Threads + 200 Facebook, có thể điều chỉnh 700 + 300 theo chất lượng; không đòi 1.000 mỗi mạng. Báo số lượng/chất lượng/chi phí từng nguồn, không cộng revision/comment thành bài mới. Mục tiêu riêng mỗi mạng của chế độ thu thô legacy giữ nguyên cho run cũ, không áp vào chiến dịch này.
 
 | Phạm vi | Trạng thái hiện hành |
 | --- | --- |
 | Nền sản phẩm | Electron Windows, Facebook + Threads; tiếp tục kết quả bộ thu hiện có |
-| Cấu hình | Keywords do người dùng nhập, Save on Blur, mục tiêu riêng mỗi mạng (người dùng xác nhận) |
+| Cấu hình | Chế độ intent: prompt, mục tiêu tổng, tỷ lệ nguồn, raw cap, budget; legacy keywords giữ mục tiêu riêng mỗi mạng |
 | Tài khoản | Đăng nhập trực tiếp, phiên persistent, tick nguồn chỉ khi có phiên; không hứa chống thu hồi phiên |
 | UI | Dark/hacker/monospace; TikTok, Instagram, X, Reddit chỉ badge mờ |
-| Thu và xuất | Facebook + Threads mở hai cửa sổ và chạy song song; mục tiêu riêng mỗi mạng; Stop cả hai giữ dữ liệu; JSON thật, Excel hai sheet theo ảnh tham chiếu |
+| Thu và xuất | Hai collector song song; raw + phân loại tăng dần; JSON/Excel4tabs có evidence/history cho intent, legacy Excel2sheet |
 | Data mẫu/chế độ thử | Đã bỏ khỏi entrypoint/gói sản phẩm; fixtures developer không đóng gói |
 | Quyền điều phối | Các dispatch/worker/automation 1.x kết thúc; không tự khởi động lại |
+| Nâng cấp đang kiểm chứng | CampaignPlan đa ngành; streaming raw + filter; conversations/comments/revisions; ba nhóm; watch có giới hạn; provenance/cost ledger đã có code và tests; chưa nghiệm thu chất lượng production |
+| Bình luận hiện tại | Lượt chính có 570 bình luận; pilot 24 bài/227 bình luận/52 trả lời lồng; tìm bài gốc từ reply đạt 3/3 trường hợp thật, thêm 8 bình luận. Chỉ thu có chọn lọc, coverage còn partial |
 
 | Task | Owner | Trạng thái | Đầu ra / xác minh |
 | --- | --- | --- | --- |
@@ -22,14 +42,39 @@
 | PROD-05 Make it cooler | Agent chính | DONE | Toggle persistent, terminal Facebook + Threads, canvas 8 fps, native UI và 447 tests PASS; xem báo cáo make-it-cooler |
 | PROD-06 Crawl song song | Agent chính | DONE | 0.2.2: hai collector đồng thời, lỗi độc lập, Stop/shutdown đợi cả hai; sửa cleanup webContents; check/build + 453 tests PASS; xem báo cáo parallel-collection |
 | PROD-04 Chọn nhánh + bàn giao | Agent chính | DONE | ADR-021, README, master plan, báo cáo kiểm chứng; tài liệu cũ có nhãn lịch sử |
+| BENCH-01 Lọc intent café trước tích hợp | Agent chính | BASELINE DONE / RUBRIC V2 CHƯA ĐÁNH GIÁ | Đã thử 2.160 bài: 2.103 output hợp lệ, 57 lỗi; precision theo tham chiếu AI cũ FB 73,1%, Threads 83,6%. Người dùng đã gán 158/300 nhãn; giữ nguyên bản gốc. Agent làm tiếp ánh xạ/nhãn/phân xử ở CSD3-01. Đây là post-only baseline lịch sử, không chứng nhận rubric ba nhóm hay comments. Xem [bằng chứng](evidence/intent-benchmark-2026-10-30.md) |
 
-Kết quả kiểm chứng gần nhất được ghi tại [parallel-collection-2026-10-29.md](evidence/parallel-collection-2026-10-29.md); lần nâng cấp sản phẩm đầu tiên ở [production-upgrade-2026-10-29.md](evidence/production-upgrade-2026-10-29.md). Không gán PASS cho benchmark chất lượng nội dung chỉ vì UI/collector build thành công. Agent tiếp theo sửa sản phẩm hiện hành trên nhánh đã chọn và cập nhật bảng này.
+### Công việc nâng cấp theo ADR-022
+
+Các task READY chưa có owner triển khai; agent nhận task phải ghi owner/phạm vi trước khi sửa. Chi tiết contract, dependency và Definition of Done nằm ở spec; chỉ bảng này giữ trạng thái. Không khởi động lại các task/gate lưu trữ 1.x.
+
+| Task | Owner | Trạng thái | Đầu ra / phụ thuộc / bước tiếp |
+| --- | --- | --- | --- |
+| CSD3-00 Kiến trúc và kế hoạch | Agent chính | DONE | ADR-022 + spec + master: streaming save/filter, ba nhóm, comments hai mạng, AI reference, migration và gate |
+| CSD3-01 Contracts + reference v2 | conversation_core + intent_filter | IMPLEMENTED / CALIBRATING | Contracts và 300 reference hoàn tất, giữ 158 nhãn người dùng, agent hoàn tất/phân xử phần còn lại. Reference đã dùng để chỉnh prompt nên không phải holdout mới |
+| CSD3-02 Probe comments Facebook + Threads | comments_collectors | DONE | Pilot 24 roots/227 comments; group/page/profile Facebook và Threads; coverage partial được giữ. Evidence conversation-comments-2026-10-30.md |
+| CSD3-03 Durable streaming core | conversation_core + storage_backpressure + root | IMPLEMENTED / VERIFIED | Raw journal trước projections/jobs, SQLite worker, revisions/stale guards, lease/replay/budget/cache. Thu trực tiếp có byte/disk reserve + backlog-byte admission, atomic no-replace pin sống qua crash/Resume, giữ batch đã nhận; 885 tests PASS. Retained import chưa có storage admission; retention tự động chưa triển khai |
+| CSD3-04 Discovery + Threads conversations | comments_collectors + root | IMPLEMENTED / HARDENING | Có frontier bền vững từng query/mode, Resume trong cùng attempt quay lại độ sâu cũ có giới hạn; chưa kiểm chứng live continuation mới. Pilot tìm bài gốc từ reply đạt 3/3; giữ riêng 770 reply chưa xác định bài gốc tại baseline |
+| CSD3-05 Planner tổng quát | intent_filter + conversation_core + root | IMPLEMENTED / INTEGRATION VERIFIED | Xem/sửa criteria, immutable revisions, preset, chi phí cùng draft retry; compiler có quote/offset, required/soft, Việt/Anh; planner recipe pin trước API, legacy retry giữ recipe. Replay 6/6 và 3 biến thể API mới PASS; 9 API calls $0.0161083. Smoke không thay semantic benchmark đa ngành, các trường legacy chưa áp dụng vẫn có ghi chú UI |
+| CSD3-06 Lọc và ranking trực tiếp | intent_filter + source_priority_engine + root | IMPLEMENTED / GENERAL ENGINE HARDENING | Primary v2.0.3: precision FB 78,95%/TH 87,30%; recall 88,24%/93,22% trên café. source_priority áp dụng trước SQL LIMIT và thống nhất preview/export; recipe pin giữ Resume/legacy order. 2.1 còn thử nghiệm, không bật mặc định; benchmark piano/HUST đóng băng tham chiếu trước dự đoán |
+| CSD3-07 Theo dõi và đánh giá lại | conversation_core + intent_filter + root | IMPLEMENTED / LIFECYCLE VERIFIED | Revisit có lịch/TTL/max attempts chỉnh được; thử nghiệm2.1 thêm evaluated_at/valid_until/evidence, đánh giá lại không cần browser, budget pause chỉ cập nhật expiry đọc; chưa bật mặc định/chưa semantic gate. Chưa tự hết hạn từ max_age_days hoặc quan sát live72h |
+| CSD3-08 Facebook conversations + nguồn | comments_collectors + root | COMMENTS IMPLEMENTED / SOURCE DISCOVERY INCOMPLETE | Pilot profile/group/page, replies/pagination bounded, source metadata; chưa có source registry/collector feed riêng. Metadata nguồn không thay discovery từ nguồn |
+| CSD3-09 UI và export | root + comments_collectors | IMPLEMENTED / VERIFIED | UI xem/sửa/lưu/apply bộ lọc đã native smoke với transport giả lập; JSON/Excel thêm as-of/deadline/proof và history, giữ snapshot nhất quán. Dataset giao trước giữ nguyên; không gọi là 1.000 bài tinh đã kiểm chứng |
+| CSD3-10 Evaluation và shadow | cross_topic_adjudicate_run + audio_final_evaluation + root | THREE-DOMAIN AUDITED / QUALITY NOT PASSED / PAUSED | Piano/HUST323 mẫu, hai pass+54phânxử,41unresolved;2.1 có48validationfailures,$0.5430968. Tai nghe310roots cócomments,reviewall+62đọcchéo:75TP22FP1unresolved trong98model-selected;TH P88,1%/R86,8%,FB53,3%/69,6%;bỏsót9/13commentopportunities. Có3ngành ngoài café nhưng gateprecision/sample-size/coverage chưa đạt. [Báo cáo](reports/csd-progress-review-2026-10-31.md) |
+| CSD3-11 Release và rollback | root | RC2 BUILT / SEMANTIC GATE OPEN | 0.3.0-rc.2 portable đóng gói; 767 tests + TypeScript PASS; exact ASAR worker PASS; native editor1100px + packaged-entry800px khôi phục synthetic draft/preset. Không gọi API/crawl. RC1 giữ nguyên; chưa chứng nhận precision đa chủ đề hoặc 1.000 bài tinh đã xác nhận |
+| CSD3-12 Tái lọc dữ liệu đã lưu | conversation_core + comments_collectors + root | IMPLEMENTED / SOURCE VERIFIED | UI/IPC/service fresh draft, frozen prefix/hash, journal + legacy, no browser/auth, checkpoint idempotent. Native source-root picker + opaque ID, lỗi nguồn độc lập, Resume pin nguồn. Native UI nguồn ngoài 2 roots/1 comment PASS; probe café thật16TH4FB/43comments, checksum nguồn giữ nguyên. Chưa nằm trong RC2 |
+
+Cập nhật mã nguồn 31/10: `npm run check`, build và **885/885 tests PASS**; native nguồn ngoài dùng transport giả; paired benchmark piano/HUST đã kết thúc dưới cap $1. CLI có maxRunMinutes và chọn đúng profile, giữ plan cũ qua Resume. Pilot tai nghe thật `crawl-4ed260d9-9a37-4f2b-9e3d-6ff2b080e329` đã `STOPPED`:310roots/198comments/98model-selected,0pendingclassification,$0.2247048; PID19756 không còn,watch tắt. Cap300 giữ batch đang nhận; target100/80TH20FB chưa đạt. Còn34root-resolutionjobs và525revisitjobs chưa kích hoạt; không tự tiếp tục khi người dùng chưa quyết định. `dist` mới hơn portable RC2, chưa tạo portable mới. Dataset đã giao giữ nguyên checksum. [Bằng chứng mới](evidence/external-source-storage-ranking-2026-10-31.md); [mốc833tests](evidence/retained-grounded-engine-2026-10-31.md) là lịch sử.
+
+Gate chất lượng primary hiện **FAIL** về precision. Mục tiêu: precision Phù hợp ≥90%, recall trong candidate đã thu ≥85%, chi phí vận hành AI <$3/1.000 cơ hội được tham chiếu xác nhận, báo từng mạng và khoảng bất định. Primary chọn 1.029 bài từ 3.001 bài gốc, chi phí token $1.464612, cận trên bảo thủ $1.5068945. Reference mới đã đóng băng ngoài repo ở `data/benchmarks/cafe-live-20261030/fresh-holdout-v1`; xem `baseline-summary.md`. Khi dùng lỗi baseline để sửa, mẫu 300 trở thành dữ liệu phát triển cho bản sửa; phải giữ mẫu mới để đánh giá phát hành. Không nới nhãn để đạt quota. Chi phí crawl/hạ tầng đo riêng; chưa thể gọi là tổng chi phí end-to-end <$3. [Bằng chứng](evidence/conversation-production-2026-10-30.md).
+
+Kiểm chứng sản phẩm 0.2.2 ở [parallel-collection-2026-10-29.md](evidence/parallel-collection-2026-10-29.md); baseline nội dung ở [intent-benchmark-2026-10-30.md](evidence/intent-benchmark-2026-10-30.md); lần nâng cấp sản phẩm đầu tiên ở [production-upgrade-2026-10-29.md](evidence/production-upgrade-2026-10-29.md). Không gán PASS cho chất lượng nội dung/comments chỉ vì UI/collector build thành công. Bước tiếp theo: hoàn tất benchmark đã đóng băng, thu mẫu ngành mới có bình luận bằng pipeline thật; source-feed, storage cho retained import/retention, áp dụng đủ constraints/expiry. Không tiếp tục chiến dịch café để làm đẹp chỉ số. `max_age_days` chưa tự sinh expiry, watch72h/live continuation chưa nghiệm thu; không coi lifecycle test hiện tại là hoàn tất các phần đó.
 
 ---
 
 # Lưu trữ kế hoạch 1.58 — chỉ tham khảo lịch sử
 
-Toàn bộ trạng thái, bảng dispatch/gate và hạn chế PoC dưới đây thuộc các lượt cũ. Không dùng chúng để thay phần Hiện hành 2.0 phía trên.
+Toàn bộ trạng thái, bảng dispatch/gate và hạn chế PoC dưới đây thuộc các lượt cũ. Không dùng chúng để thay phần Hiện hành 3.0 phía trên.
 # CSD Master Plan
 
 > **Threads đã đạt mục tiêu lấy dữ liệu, 29/10/2026:** 1.004 post có ID/permalink không trùng từ sáu keyword, 900 post từ continuation; Stop/resume/export và phiên/cửa sổ riêng Facebook/Threads. User hoãn đánh giá nội dung. [Kết quả](evidence/threads-collector-result-2026-10-29.md), [ADR-020](decisions/ADR-020-threads-collector.md). Mọi collector đã dừng; gate Facebook giữ nguyên.

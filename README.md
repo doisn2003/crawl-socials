@@ -1,6 +1,12 @@
 # CSD — Crawl Socials Data
 
-Ứng dụng desktop Windows thu bài viết theo từ khóa từ Facebook và Threads, lưu JSON và xuất một workbook Excel gồm `Facebook Posts` và `Thread Posts`.
+**Portable 0.3.0-rc.4:** nhập **Gemini API Key → Lưu key** ngay trong Cấu hình thu thập của chế độ tìm cuộc thảo luận. Key được mã hóa bằng Windows, lưu riêng theo máy, không đưa vào config/preset hoặc Excel/JSON. Đã lưu trên máy được ưu tiên hơn biến môi trường; xóa key riêng sẽ dùng lại biến môi trường nếu có. Dừng lượt chạy/theo dõi trước khi thay key. Sang máy khác nhập lại key trong giao diện, không cần cấu hình biến môi trường.
+
+**Portable 0.3.0-rc.3 (31/10/2026):** giao diện xuất Excel có phạm vi **Nhóm đang xem** hoặc **Tất cả bài đã thu**. Chế độ intent dùng 4 sheet `Conversations`, `Comments`, `DecisionHistory`, `Manifest`, cùng cấu trúc cột chính của dataset café đã giao; bình luận/trả lời đi kèm đúng các bài được xuất. `Manifest` ghi phạm vi và số dòng xuất. Bản Windows x64 kèm runtime; máy mới cần đăng nhập lại mạng xã hội và cấu hình `GEMINI_API_KEY`. Dataset, tài khoản và key trên máy cũ không nằm trong `.exe`.
+
+Ứng dụng desktop Windows thu bài viết và bình luận từ Facebook và Threads. Chế độ tìm cuộc thảo luận nhận mô tả nhu cầu, lưu dữ liệu thô và phân loại ngay trong lúc thu; kết quả xuất được dưới dạng JSON hoặc Excel. Bộ thu theo từ khóa cũ vẫn có thể dùng riêng.
+
+CSD nhận chủ đề từ prompt, chẳng hạn tìm dịch vụ sửa đàn, lựa chọn tai nghe, học ngoại ngữ hoặc tìm quán café. Café là chiến dịch kiểm thử hiện có, không phải chủ đề cố định của bộ máy. Mục tiêu 1.000 là số bài phù hợp cần tìm trong giới hạn nguồn/ngân sách; kết thúc sớm phải báo thiếu, không nới tiêu chí hoặc đếm bình luận thành bài mới.
 
 ## Nhánh phát triển được chọn
 
@@ -15,15 +21,45 @@ npm ci
 npm start
 ```
 
+### Tìm cuộc thảo luận theo nhu cầu
+
+1. Cấu hình `GEMINI_API_KEY` trong biến môi trường Windows của người dùng hoặc môi trường tiến trình. Không ghi key vào repository hay file cấu hình chiến dịch. Key được dùng cho Gemini API; ngân sách API được theo dõi riêng trong ứng dụng.
+2. Bật **Tìm cuộc thảo luận phù hợp để thương hiệu tham gia**, nhập nhu cầu và bối cảnh thương hiệu nếu có. Chọn **tổng** mục tiêu, tỷ trọng Threads, giới hạn bài thô và ngân sách AI. Ví dụ 1.000 bài tinh là tổng hai mạng, ưu tiên 800 Threads + 200 Facebook; 700 + 300 cũng được chấp nhận.
+3. Đăng nhập và chọn nguồn, rồi bấm **Bắt đầu thu thập**. CSD lưu quan sát thô trước, đồng thời chạy bộ lọc; bình luận thu được sau đó sẽ cập nhật kết luận cho cùng bài gốc.
+4. Xem ba nhóm **Phù hợp**, **Chưa phù hợp** và **Không phù hợp**, cùng bằng chứng dẫn đến kết luận. Bài liên quan nhưng chưa có trao đổi phù hợp được giữ để nghiên cứu/theo dõi. Lỗi API hoặc thiếu dữ liệu nằm ở trạng thái chờ, không tự biến thành bài không liên quan.
+5. Chọn nhóm rồi xuất Excel hoặc JSON, kể cả khi lượt thu đang chạy. Workbook có `Conversations`, `Comments`, `DecisionHistory`, `Manifest`, lưu bằng chứng, phiên bản bộ lọc, chi phí và mốc dữ liệu của lần xuất.
+
+Thu bình luận được giới hạn theo lượt và ghi rõ mức bao phủ; CSD không khẳng định đã đọc toàn bộ bình luận của mạng xã hội. Sau khám phá, ứng dụng có thể theo dõi những bài đủ điều kiện theo lịch 2/8/24 giờ, tối đa 72 giờ. **Dừng** lưu hàng chờ; **Tiếp tục** tiếp nối lượt hiện có. Chỉ mở lại ứng dụng không tự chạy lại. CSD tìm cơ hội tham gia, không tự đăng bình luận.
+
+Trước khi thu, có thể chọn **Xem tiêu chí trước khi thu** để sửa chủ đề, nhu cầu, điều kiện giữ/loại, khu vực, truy vấn và lịch theo dõi. Bấm **Lưu tiêu chí** trước khi bắt đầu. Kế hoạch và chi phí lập kế hoạch được giữ qua restart; khi thử lại sau lỗi, CSD dùng cùng mã lượt và sổ chi phí. Các trường mà bộ lọc hiện tại chưa áp dụng riêng được hiển thị chỉ đọc cùng hướng dẫn đặt điều kiện.
+
+Đặt tên rồi **Lưu bộ lọc** để tái sử dụng toàn bộ tiêu chí. **Áp dụng** khôi phục nhu cầu và bối cảnh thương hiệu của bộ lọc, giữ mục tiêu/tỷ lệ/ngân sách đang chọn và tạo lượt mới; bước này không gọi AI lập lại kế hoạch. Mỗi lượt giữ phiên bản tiêu chí riêng để đối chiếu kết quả.
+
+Chi phí hiển thị được tính từ token sử dụng và bảng giá lưu cùng lượt chạy; các lần gọi không biết mức sử dụng được giữ khoản dự phòng riêng. Hết ngân sách hoặc quota model sẽ tạm dừng, giữ dữ liệu và hàng chờ. Kết quả phân loại là đánh giá của model, cần đọc cùng báo cáo kiểm chứng tại [.brain/evidence/conversation-production-2026-10-30.md](.brain/evidence/conversation-production-2026-10-30.md).
+
+Bản **0.3.0-rc.2** là bản thử nghiệm tích hợp bộ máy này. Kiểm thử phần mềm đã bao phủ nhiều chủ đề; độ chính xác ngữ nghĩa trên nhiều ngành chưa được chứng nhận. Bộ kiểm tra bổ sung và chính sách tự đánh giá lại theo thời hạn đang nghiên cứu không bật mặc định. Bài quảng bá liên quan cũng có thể được theo dõi để phát hiện câu hỏi mới; số đếm bình luận bị thiếu được giữ là chưa biết.
+
+Mã nguồn sau RC2 đã thêm **Tái lọc dữ liệu đã lưu**: lập/lưu một kế hoạch mới, tải danh sách nguồn, chọn lượt dữ liệu rồi bắt đầu tái lọc. Không cần phiên Facebook/Threads cho thao tác này. Hỗ trợ journal hội thoại và file `posts.jsonl` do collector cũ tạo; giữ nguyên nguồn, cố định mốc đọc và tạo sổ chi phí riêng cho lượt mới. Khi cap bài thô nhỏ hơn nguồn, chọn theo tỷ lệ Threads/Facebook của kế hoạch và dùng phần còn lại nếu một mạng không đủ bài. Lượt nhập dở có thể Dừng/Tiếp tục; phân loại chỉ bắt đầu sau khi dựng đủ ngữ cảnh của phần dữ liệu đã chọn. Chưa có nội dung bình luận trong dữ liệu cũ thì không suy ra bình luận từ số đếm.
+
+Nút **Thêm thư mục dữ liệu** cho phép chọn thêm thư mục CSD có `collections`, kể cả dữ liệu nằm ở AppData khác trên Windows. Thư mục nguồn được cố định cho lượt tái lọc; lỗi một nguồn không làm mất danh sách nguồn còn lại. Lượt thu mới áp dụng thứ tự nguồn của kế hoạch như tiêu chí xếp hạng phụ và giữ nguyên thứ tự đó khi Tiếp tục.
+
+Thu trực tiếp có giới hạn dung lượng riêng cho mỗi lượt và kiểm tra dung lượng trống trước khi lấy thêm trang/bình luận. Khi bộ lọc chậm, collector chờ xử lý backlog; khi chạm ngưỡng lưu trữ, nó dừng nhận thêm và giữ dữ liệu đã quan sát. Giới hạn này chưa áp dụng cho đường nhập dữ liệu đã lưu; không tự xóa dữ liệu. [Bằng chứng tích hợp và giới hạn](.brain/evidence/external-source-storage-ranking-2026-10-31.md).
+
+Planner mới lưu trích dẫn và vị trí làm căn cứ cho khu vực, ngôn ngữ, tuổi bài và ưu tiên nguồn; phân biệt bắt buộc với ưu tiên mềm. Khả năng áp dụng từng trường vẫn phụ thuộc phiên bản bộ lọc, được ghi trên giao diện. Planner/chi phí của lượt thử lại được giữ cùng phiên bản; bản nháp đã hoàn tất không phải lập lại. Các thay đổi này đã kiểm thử ở mã nguồn, **chưa nằm trong portable RC2**. Xem [bằng chứng và giới hạn](.brain/evidence/retained-grounded-engine-2026-10-31.md), gồm trường hợp Windows ánh xạ dữ liệu sang AppData riêng của một gói ứng dụng.
+
+### Thu thô theo từ khóa
+
+Tắt chế độ tìm cuộc thảo luận để dùng luồng cũ:
+
 1. Nhập từ khóa, **mỗi dòng một từ khóa**. Rời ô để lưu tự động.
 2. Nhập mục tiêu tối thiểu (1–3.000 bài). Rời ô để lưu. **Mỗi mạng được chọn có mục tiêu riêng**; ví dụ nhập 1.000 và chọn cả hai thì mục tiêu là 1.000 Facebook + 1.000 Threads.
 3. Đăng nhập tài khoản trong cửa sổ của từng mạng. Chỉ nguồn có phiên đăng nhập mới được tick chọn.
 4. Bấm **Bắt đầu thu thập**. Facebook và Threads mở hai cửa sổ riêng và **chạy song song**, mỗi mạng có tiến độ và mục tiêu riêng. Một mạng xong hoặc gặp lỗi không chặn mạng còn lại. Nút **Dừng** dừng cả hai, chờ lưu dữ liệu rồi cho phép xuất số bài đã thu được.
 5. Bấm **Xuất Excel .xlsx** hoặc **Xuất JSON**, chọn nơi lưu. Workbook có hai sheet kể cả khi một mạng không có kết quả; hàng tiêu đề xanh, bộ lọc, cố định hàng đầu, ID dạng chuỗi, link bấm được. Giá trị thiếu để trống, không đổi thành 0.
 
-Giao diện không có dữ liệu mẫu, campaign nháp, offline-check, source-probe hoặc công tắc thử nghiệm. TikTok, Instagram, X, Reddit là badge mờ chưa thể chọn.
+TikTok, Instagram, X, Reddit là badge mờ chưa thể chọn.
 
-Mục tiêu là số bài thô không trùng trong từng lượt, không phải cam kết chắc chắn đạt được: dữ liệu nguồn, phiên hết hạn, mạng, giới hạn 4 giờ/mạng, 50 lần cuộn/từ khóa Facebook và 100 lần cuộn/từ khóa Threads có thể kết thúc lượt sớm. Ứng dụng báo chưa đạt nếu nguồn kết thúc trước mục tiêu. Không tự đánh giá mức liên quan của nội dung. Có thể vượt mục tiêu một batch hoặc khi đi qua các từ khóa.
+Trong chế độ từ khóa, mục tiêu là số bài thô không trùng trong từng lượt: dữ liệu nguồn, phiên hết hạn, mạng, giới hạn 4 giờ/mạng, 50 lần cuộn/từ khóa Facebook và 100 lần cuộn/từ khóa Threads có thể kết thúc lượt sớm. Ứng dụng báo chưa đạt nếu nguồn kết thúc trước mục tiêu. Chế độ này không tự đánh giá mức liên quan. Có thể vượt mục tiêu một batch hoặc khi đi qua các từ khóa.
 
 ## Make it cooler
 
@@ -37,6 +73,9 @@ Bật toggle ở góc dưới bên phải để mở cửa sổ terminal khi b�
 - `secrets/`: bản sao session cookie mã hóa bằng Windows safeStorage, không có plaintext fallback.
 - `data/collections/crawl-<uuid>/facebook/` và `threads/`: `posts.jsonl`, `posts.json`, config và nhật ký lượt chạy.
 - `results.json`: kết quả kết hợp của lượt; `data/latest-run.json`: trạng thái lượt gần nhất. Sau khi đóng bất thường, mở lại sẽ báo gián đoạn và giữ dữ liệu đã ghi; không tự chạy lại.
+- `opportunity/`: tiêu chí chiến dịch, công thức lọc bất biến, nhật ký dữ liệu thô, SQLite chứa hội thoại/hàng chờ, lịch sử quyết định và sổ chi phí từng model. `opportunity-results.json` là bản xuất có mốc dữ liệu. Không xóa riêng sổ chi phí khi tiếp tục lượt hoặc đổi model.
+- Kế hoạch nháp và các lần sửa được lưu trong thư mục của lượt đã cấp mã trước khi gọi AI; bộ lọc lưu riêng dưới `data/filter-presets/`. Chúng giữ nguồn gốc, phiên bản và recipe, không chứa khóa API.
+- `user-config.json.v1.backup`: bản sao cấu hình cũ trước lần lưu cấu hình v2 đầu tiên. Khi quay về binary chỉ hỗ trợ v1, đóng CSD, giữ bản v2 rồi khôi phục bản sao v1; giữ nguyên các thư mục dữ liệu.
 
 Đóng ứng dụng hoặc cửa sổ tài khoản không xóa đăng nhập. Facebook/Threads vẫn có quyền hết hạn hoặc thu hồi phiên; lúc đó phải đăng nhập lại. Ứng dụng chỉ đưa trạng thái phiên ra UI, không đưa cookie hay mật khẩu qua IPC. Khi checkpoint/challenge xuất hiện, bộ thu dừng; người dùng xử lý trực tiếp trong cửa sổ đăng nhập.
 
@@ -60,4 +99,4 @@ npm run dist:portable
 
 `src/main/index.ts` chỉ có composition root production. `src/application/production-service.ts` quản lý config, đăng nhập, lượt thu và kết quả. `scripts/*-collector.mjs` dùng chung bộ thu đã có cho CLI và UI. `src/infrastructure/export/social-workbook.ts` xuất Excel bằng ExcelJS. `src/renderer/` chỉ gọi bridge hẹp trong preload, không có Node hoặc truy cập tài khoản trực tiếp.
 
-Build xóa output cũ rồi chỉ biên dịch dependency production, copy hai bộ thu và tài nguyên UI; không đóng gói dữ liệu mẫu, fixture, bootstrap hoặc probe. Unit fixtures và các kiểm tra hồi quy cũ chỉ phục vụ phát triển, không xuất hiện trong ứng dụng. Hướng dẫn cho AI Agent bắt đầu ở [.brain/README.md](.brain/README.md).
+Build xóa output cũ rồi chỉ biên dịch dependency production, copy các bộ thu bài/bình luận, bộ tìm bài gốc và trạng thái tiếp tục truy vấn cùng tài nguyên UI; không đóng gói dữ liệu mẫu, fixture, bootstrap hoặc probe. Unit fixtures và các kiểm tra hồi quy cũ chỉ phục vụ phát triển, không xuất hiện trong ứng dụng. Hướng dẫn cho AI Agent bắt đầu ở [.brain/README.md](.brain/README.md).
