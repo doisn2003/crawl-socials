@@ -1,4 +1,5 @@
 import type { CoolerProgress } from '../shared/production-api.js';
+import { allocatePlatformTargets } from '../shared/platform-targets.js';
 declare global { interface Window { readonly cooler: { progress(): Promise<CoolerProgress> }; } }
 const node = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = node<HTMLCanvasElement>('binary'), region = node('binary-region');
@@ -41,12 +42,18 @@ function syncAnimation() {
   if (running && !document.hidden && !reducedMotion.matches) frame = requestAnimationFrame(animate);
 }
 function render(progress: CoolerProgress) {
-  running = progress?.state === 'RUNNING' || progress?.state === 'STOPPING';
+  const monitoring = progress?.opportunity?.watchActive || progress?.opportunity?.assessmentActive;
+  running = progress?.state === 'RUNNING' || progress?.state === 'STOPPING' || !!monitoring;
   node('phase').textContent = progress ? ({ RUNNING: 'ĐANG THU THẬP', STOPPING: 'ĐANG LƯU VÀ DỪNG', COMPLETED: 'ĐÃ HOÀN THÀNH', STOPPED: 'ĐÃ DỪNG', FAILED: 'CÓ LỖI', INTERRUPTED: 'BỊ GIÁN ĐOẠN' }[progress.state]) : 'CHƯA CÓ LƯỢT THU';
+  if (monitoring) node('phase').textContent = 'ĐANG THEO DÕI CUỘC THẢO LUẬN';
+  const targets = progress?.opportunity ? allocatePlatformTargets(progress.opportunity.totalTarget,
+    { threads: progress.opportunity.threadsShare, facebook: 1 - progress.opportunity.threadsShare }, progress.platforms.map(item => item.platform)) : null;
   for (const platform of ['facebook', 'threads'] as const) {
-    const item = progress?.platforms.find(p => p.platform === platform), target = progress?.minimumPosts || 1;
-    const bar = node<HTMLProgressElement>(platform + '-progress'); bar.max = target; bar.value = item?.count || 0;
-    node(platform + '-count').textContent = (item?.count || 0).toLocaleString('vi-VN') + ' / ' + (progress ? target.toLocaleString('vi-VN') : '—') + ' bài';
+    const item = progress?.platforms.find(p => p.platform === platform), opportunity = progress?.opportunity;
+    const target = targets ? targets[platform] : progress?.minimumPosts || 1;
+    const count = opportunity ? opportunity.byPlatform[platform].suitable : item?.count || 0;
+    const bar = node<HTMLProgressElement>(platform + '-progress'); bar.max = Math.max(1, target); bar.value = count; bar.hidden = target === 0;
+    node(platform + '-count').textContent = count.toLocaleString('vi-VN') + ' / ' + (progress ? target.toLocaleString('vi-VN') : '—') + (opportunity ? ' bài tinh' : ' bài');
     node(platform + '-state').textContent = item ? ({ QUEUED: 'Đang chờ', RUNNING: 'Đang thu thập', COMPLETED: 'Đã đạt mục tiêu', STOPPED: 'Đã dừng', FAILED: 'Có lỗi · xem cửa sổ CSD' }[item.state]) : 'Không chọn nguồn này';
   }
   syncAnimation();

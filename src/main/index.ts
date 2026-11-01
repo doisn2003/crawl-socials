@@ -9,8 +9,15 @@ import { createElectronSecretStore } from '../infrastructure/secrets/electron-se
 import { createProductionService } from '../application/production-service.js';
 import type { CollectorInput, CollectorReceipt } from '../application/production-service.js';
 import { exportSocialWorkbook } from '../infrastructure/export/social-workbook.js';
+import { exportOpportunityWorkbook, selectOpportunityExport } from '../infrastructure/export/opportunity-workbook.js';
+import type { ConversationClassification } from '../domain/conversation-decision.js';
 import { allowDesktopRequest } from './ipc-policy.js';
 import { createCoolerWindow } from './cooler-window.js';
+import { createGeminiKeySettings } from '../application/gemini-key-settings.js';
+import { resolveGeminiApiKey } from '../infrastructure/llm/gemini-gateway.js';
+import { createCampaignModelGateway } from '../infrastructure/llm/campaign-model-gateway.js';
+import { createOpportunityPipeline } from '../application/opportunity-pipeline.js';
+import { prepareDraft } from '../application/campaign-drafts.js';
 
 async function bootstrap() {
   const paths = runtimePaths(app.getPath('appData'));
@@ -25,17 +32,40 @@ async function bootstrap() {
   let window: BrowserWindow | null = null;
   app.on('second-instance', () => { window?.restore(); window?.show(); window?.focus(); });
   await app.whenReady(); nativeTheme.themeSource = 'dark';
+  const environmentKey = resolveGeminiApiKey();
+  const geminiKey = await createGeminiKeySettings(createElectronSecretStore(join(paths.userData, 'secrets')), () => environmentKey);
   const profiles = createBrowserProfiles(join(paths.userData, 'data'));
   const browserHost = createBrowserHost({ profiles, secrets: createElectronSecretStore(join(paths.userData, 'secrets')),
     journalDirectory: join(paths.userData, 'data', 'session-snapshots'), manualLoginEnabled: true, backgroundThrottling: false });
   const service = createProductionService({ directory: join(paths.userData, 'data'), version: app.getVersion(), host: browserHost,
+    createOpportunity: value => createOpportunityPipeline({ ...value, gateway: createCampaignModelGateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd, apiKey: geminiKey.current }) }),
+    prepareCampaignDraft: value => prepareDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current }) }),
     async collect(value: CollectorInput): Promise<CollectorReceipt> {
       const moduleUrl = new URL('../collectors/' + value.platform + '-collector.mjs', import.meta.url).href;
       const runner = await import(moduleUrl) as Record<string, (options: object) => Promise<CollectorReceipt>>;
       const collect = runner[value.platform === 'facebook' ? 'runFacebookCollector' : 'runThreadsCollector'];
       if (!collect) throw Error('COLLECTOR_UNAVAILABLE');
       return collect({ config: value.config, host: browserHost, profileId: value.profileId,
-        onProgress: value.onProgress, shouldStop: value.shouldStop });
+        onProgress: value.onProgress, shouldStop: value.shouldStop, resume: value.resume,
+        onRecords: value.onRecords, onQueryEnd: value.onQueryEnd, beforeNextPage: value.beforeNextPage, collectionLimitReason: value.collectionLimitReason });
+    },
+    async collectConversation(value) {
+      const moduleUrl = new URL('../collectors/conversation-collector.mjs', import.meta.url).href;
+      const runner = await import(moduleUrl) as { collectConversation(input: object): Promise<unknown> };
+      return runner.collectConversation(value);
+    },
+    async resolveThreadsReplyRoot(value) {
+      const moduleUrl = new URL('../collectors/conversation-collector.mjs', import.meta.url).href;
+      const runner = await import(moduleUrl) as { resolveThreadsReplyRoot(input: object): Promise<import('../application/opportunity-pipeline.js').ReplyRootResolveReceipt> };
+      return runner.resolveThreadsReplyRoot(value);
+    },
+    async withConversationWindow(profileId, work) {
+      if (!(await browserHost.sessionStatus(profileId))) throw Error('LOGIN_REQUIRED');
+      try {
+        await browserHost.open(profileId);
+        const target = browserHost.observerTarget(profileId); if (!target) throw Error('PROFILE_UNAVAILABLE');
+        await work(target.contents);
+      } finally { await browserHost.close(profileId); }
     } });
   let cooler: ReturnType<typeof createCoolerWindow> | null = null;
   let closing = false, shutdownComplete = false;
@@ -70,36 +100,80 @@ async function bootstrap() {
   mainWindow.webContents.on('will-navigate', event => event.preventDefault());
   mainWindow.webContents.on('will-redirect', event => event.preventDefault());
   mainWindow.webContents.on('will-attach-webview', event => event.preventDefault());
-  let exporting = false;
+  let exporting = false, choosingRetainedRoot = false;
+  let keyChanging = false, modelCommands = 0;
+  async function modelCommand<T>(work: () => Promise<T>): Promise<T> {
+    if (keyChanging) throw Error('GEMINI_KEY_BUSY');
+    modelCommands++; try { return await work(); } finally { modelCommands--; }
+  }
+  const requireIdleForKey = async () => {
+    const state = await service.getState();
+    if (state.run?.state === 'RUNNING' || state.run?.state === 'STOPPING' || state.run?.opportunity?.watchActive || state.run?.opportunity?.assessmentActive || state.campaignDraftPreparing) throw Error('GEMINI_KEY_RUN_ACTIVE');
+  };
+  async function changeKey(work: () => Promise<unknown>) {
+    if (keyChanging || modelCommands) throw Error('GEMINI_KEY_BUSY');
+    keyChanging = true;
+    try { await requireIdleForKey(); return await work(); } finally { keyChanging = false; }
+  }
   const handlers: Record<string, (value?: unknown) => unknown> = {
+    'csd:gemini-key:status': () => geminiKey.status(),
+    'csd:gemini-key:save': value => changeKey(() => geminiKey.save(value)),
+    'csd:gemini-key:remove': () => changeKey(() => geminiKey.remove()),
     'csd:state': () => service.getState(),
     'csd:config': value => service.saveConfig(value),
     'csd:login': value => service.login(value),
-    'csd:start': async value => { const state = await service.start(value); cooler?.show(); return state; },
+    'csd:campaign:prepare': () => modelCommand(() => service.prepareCampaign()),
+    'csd:campaign:update': value => service.updateCampaign(value),
+    'csd:preset:save': value => service.saveCampaignPreset(value),
+    'csd:preset:apply': value => service.applyCampaignPreset(value),
+    'csd:retained:list': () => service.listRetainedSources(),
+    'csd:retained:choose-root': async () => {
+      if (choosingRetainedRoot) throw Error('RETAINED_PICKER_BUSY');
+      choosingRetainedRoot = true;
+      try {
+        const choice = await dialog.showOpenDialog(mainWindow, { title: 'Chọn thư mục dữ liệu CSD chứa thư mục collections',
+          properties: ['openDirectory'], buttonLabel: 'Dùng nguồn dữ liệu này' });
+        if (choice.canceled || choice.filePaths.length !== 1) return null;
+        return service.registerRetainedSourceRoot(choice.filePaths[0]!);
+      } finally { choosingRetainedRoot = false; }
+    },
+    'csd:retained:start': value => modelCommand(() => service.startRetained(value)),
+    'csd:start': value => modelCommand(async () => { const state = await service.start(value); cooler?.show(); return state; }),
     'csd:cooler:get': () => cooler!.get(),
     'csd:cooler:set': value => cooler!.set(value),
     'csd:stop': () => service.stop(),
+    'csd:resume': () => modelCommand(async () => { const state = await service.resume(); cooler?.show(); return state; }),
+    'csd:open-post': async value => {
+      if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).join() !== 'url' || typeof (value as { url: unknown }).url !== 'string') throw Error('POST_URL_INVALID');
+      const url = new URL((value as { url: string }).url);
+      if (url.protocol !== 'https:' || url.username || url.password || !['facebook.com', 'www.facebook.com', 'm.facebook.com', 'threads.com', 'www.threads.com', 'threads.net', 'www.threads.net'].includes(url.hostname) || /\/(?:l\.php|login|logout)(?:\/|$)/.test(url.pathname)) throw Error('POST_URL_INVALID');
+      await shell.openExternal(url.href);
+    },
     'csd:open-output': async () => {
       const error = await shell.openPath(service.outputDirectory()); if (error) throw Error('OUTPUT_OPEN_FAILED');
     },
     'csd:export': async value => {
-      if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).join() !== 'format' ||
+      if (!value || typeof value !== 'object' || Array.isArray(value) || !['format', 'format,group'].includes(Object.keys(value).sort().join()) ||
           !['json', 'xlsx'].includes(String((value as { format: unknown }).format))) throw Error('EXPORT_INPUT_INVALID');
+      const group = (value as { group?: ConversationClassification }).group;
+      if (group !== undefined && !['SUITABLE', 'NOT_YET', 'UNRELATED'].includes(group)) throw Error('EXPORT_INPUT_INVALID');
       if (exporting) throw Error('EXPORT_BUSY');
       exporting = true;
       try {
-        const format = (value as { format: 'json' | 'xlsx' }).format, result = service.results();
+        const format = (value as { format: 'json' | 'xlsx' }).format, result = await service.snapshotResults();
         const choice = await dialog.showSaveDialog(mainWindow, { title: format === 'xlsx' ? 'Xuất kết quả Excel' : 'Xuất kết quả JSON',
-          defaultPath: join(app.getPath('downloads'), 'CSD-' + result.run.id + '.' + format),
+          defaultPath: join(app.getPath('downloads'), 'CSD-' + result.run.id + (result.opportunity ? '-' + (group ?? 'ALL') : '') + '.' + format),
           filters: [{ name: format === 'xlsx' ? 'Excel Workbook' : 'JSON', extensions: [format] }] });
         if (choice.canceled || !choice.filePath) return { canceled: true, path: null };
-        if (format === 'xlsx') await exportSocialWorkbook(choice.filePath, result.facebook, result.threads);
-        else writeFileSync(choice.filePath, JSON.stringify(result, null, 2), { flush: true });
+        if (format === 'xlsx') {
+          if (result.opportunity) await exportOpportunityWorkbook(choice.filePath, result.opportunity, group);
+          else await exportSocialWorkbook(choice.filePath, result.facebook, result.threads);
+        } else writeFileSync(choice.filePath, JSON.stringify(result.opportunity ? selectOpportunityExport(result.opportunity, group) : result, null, 2), { flush: true });
         return { canceled: false, path: choice.filePath };
       } finally { exporting = false; }
     },
   };
-  const noPayload = new Set(['csd:state', 'csd:stop', 'csd:open-output', 'csd:cooler:get']);
+  const noPayload = new Set(['csd:gemini-key:status', 'csd:gemini-key:remove', 'csd:state', 'csd:stop', 'csd:resume', 'csd:open-output', 'csd:cooler:get', 'csd:campaign:prepare', 'csd:retained:list', 'csd:retained:choose-root']);
   for (const [channel, handler] of Object.entries(handlers)) ipcMain.handle(channel, (event, ...args: unknown[]) => {
     if (closing || !allowDesktopRequest({ senderId: event.sender.id, expectedSenderId: mainWindow.webContents.id,
       isMainFrame: event.senderFrame === event.sender.mainFrame, frameUrl: event.senderFrame?.url || '', expectedUrl: uiUrl, args: [] }) ||

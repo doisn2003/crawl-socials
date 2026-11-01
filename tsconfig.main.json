@@ -20,6 +20,12 @@
     "src/infrastructure/browser/threads-collector-store.ts",
     "src/infrastructure/browser/facebook-search-embedded-parser.ts",
     "src/infrastructure/browser/threads-search-parser.ts",
+    "src/infrastructure/browser/conversation-parser.ts",
+    "src/infrastructure/browser/threads-reply-root-parser.ts",
+    "src/infrastructure/storage/async-conversation-store.ts",
+    "src/application/classification-service.ts",
+    "src/application/compile-campaign.ts",
+    "src/infrastructure/llm/gemini-gateway.ts",
     "src/infrastructure/browser/electron-observer-target.ts",
     "src/infrastructure/browser/response-observer.ts"
   ]

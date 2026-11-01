@@ -1,6 +1,11 @@
 import type { ProductionApi, UserConfig, Platform } from '../shared/production-api.js';
 const { contextBridge, ipcRenderer } = require('electron') as typeof import('electron');
 const api: ProductionApi = Object.freeze({
+  geminiKey: Object.freeze({
+    status: () => ipcRenderer.invoke('csd:gemini-key:status'),
+    save: (input: { key: string }) => ipcRenderer.invoke('csd:gemini-key:save', input),
+    remove: () => ipcRenderer.invoke('csd:gemini-key:remove'),
+  }),
   cooler: Object.freeze({
     get: () => ipcRenderer.invoke('csd:cooler:get'),
     set: (input: { enabled: boolean }) => ipcRenderer.invoke('csd:cooler:set', input),
@@ -8,9 +13,18 @@ const api: ProductionApi = Object.freeze({
   getState: () => ipcRenderer.invoke('csd:state'),
   saveConfig: (input: UserConfig) => ipcRenderer.invoke('csd:config', input),
   login: (input: { platform: Platform; profileId?: string }) => ipcRenderer.invoke('csd:login', input),
-  start: (input: { profiles: { platform: Platform; profileId: string }[] }) => ipcRenderer.invoke('csd:start', input),
+  prepareCampaign: () => ipcRenderer.invoke('csd:campaign:prepare'),
+  updateCampaign: (input: Parameters<ProductionApi['updateCampaign']>[0]) => ipcRenderer.invoke('csd:campaign:update', input),
+  saveCampaignPreset: (input: Parameters<ProductionApi['saveCampaignPreset']>[0]) => ipcRenderer.invoke('csd:preset:save', input),
+  applyCampaignPreset: (input: Parameters<ProductionApi['applyCampaignPreset']>[0]) => ipcRenderer.invoke('csd:preset:apply', input),
+  listRetainedSources: () => ipcRenderer.invoke('csd:retained:list'),
+  chooseRetainedSourceRoot: () => ipcRenderer.invoke('csd:retained:choose-root'),
+  startRetained: (input: Parameters<ProductionApi['startRetained']>[0]) => ipcRenderer.invoke('csd:retained:start', input),
+  start: (input: Parameters<ProductionApi['start']>[0]) => ipcRenderer.invoke('csd:start', input),
   stop: () => ipcRenderer.invoke('csd:stop'),
-  exportResults: (input: { format: 'json' | 'xlsx' }) => ipcRenderer.invoke('csd:export', input),
+  resume: () => ipcRenderer.invoke('csd:resume'),
+  exportResults: (input: { format: 'json' | 'xlsx'; group?: 'SUITABLE' | 'NOT_YET' | 'UNRELATED' }) => ipcRenderer.invoke('csd:export', input),
   openOutput: () => ipcRenderer.invoke('csd:open-output'),
+  openPost: (input: { url: string }) => ipcRenderer.invoke('csd:open-post', input),
 });
 contextBridge.exposeInMainWorld('csd', api);

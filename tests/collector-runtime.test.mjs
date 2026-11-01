@@ -38,6 +38,7 @@ const compiled = new URL('../.test-build/src/', import.meta.url);
 const runtimeRoot = existsSync(new URL('infrastructure/browser/threads-collector-store.js', compiled))
   ? compiled.href : new URL('../dist/', import.meta.url).href;
 const moduleDirectory = mkdtempSync(join(tmpdir(), 'csd-collector-modules-'));
+writeFileSync(join(moduleDirectory, 'discovery-frontier.mjs'), readFileSync(new URL('../scripts/discovery-frontier.mjs', import.meta.url)));
 const hostDouble = join(moduleDirectory, 'browser-host.js');
 writeFileSync(hostDouble, replacements.get('browser-host.js'));
 for (const platform of ['facebook', 'threads']) {

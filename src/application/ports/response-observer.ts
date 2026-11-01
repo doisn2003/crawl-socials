@@ -32,6 +32,9 @@ export interface ResponseObserver {
   readonly owner: ObserverOwner;
   read(timeoutMs?: number): Promise<ObserverRead>;
   snapshot(): ObserverSnapshot;
+  /** Freeze admission of new requests while already admitted responses finish. Does not discard buffered bodies. */
+  pauseRequests?(): void;
+  resumeRequests?(): void;
   suspend(): void;
   resume(): Promise<void>;
   stop(): void;

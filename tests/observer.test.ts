@@ -67,6 +67,23 @@ test('navigation cancels old pending generation and rejects late response body c
   if (captured.kind === 'BODY') assert.equal(Buffer.from(captured.body).toString(), 'new');
   assert.ok(captured.captureGeneration > oldGeneration);
 }));
+test('request admission pause drains admitted bodies without waiting for or capturing future requests', () => setup(async ({ target, handle }) => {
+  await event(handle, e => e.kind === 'STATE');
+  request(target, 'admitted');
+  handle.pauseRequests!();
+  request(target, 'future'); response(target, 'future', { body: 'outside capture boundary', base64Encoded: false });
+  assert.equal(handle.snapshot().pendingRequests, 1);
+  response(target, 'admitted', { body: 'preserved body', base64Encoded: false });
+  const received = await event(handle, e => e.kind === 'BODY');
+  assert.equal(received.kind === 'BODY' && Buffer.from(received.body).toString(), 'preserved body');
+  assert.equal(handle.snapshot().pendingRequests, 0);
+  assert.equal(handle.snapshot().filtered.ADMISSION_PAUSED, 1);
+  assert.deepEqual(handle.snapshot().dropped, {});
+  assert.equal((await handle.read(5)).kind, 'TIMEOUT');
+  handle.resumeRequests!(); request(target, 'resumed'); response(target, 'resumed', { body: 'next capture', base64Encoded: false });
+  const resumed = await event(handle, e => e.kind === 'BODY');
+  assert.equal(resumed.kind === 'BODY' && Buffer.from(resumed.body).toString(), 'next capture');
+}));
 test('detach/close clean listeners, cancel pending records, and cannot deliver late body data', async () => {
   for (const close of ['externalDetach', 'destroy'] as const) await setup(async ({ target, handle }) => {
     await event(handle, e => e.kind === 'STATE');

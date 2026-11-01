@@ -44,6 +44,7 @@ export function createResponseObserverManager(input: {
     private state: ObserverSnapshot['state'] = 'ATTACHING';
     private generation = 1;
     private ownedDebugger = false;
+    private acceptingRequests = true;
     private pending = new Map<string, Pending>();
     private queue: ObserverEvent[] = [];
     private buffered = 0;
@@ -178,6 +179,7 @@ export function createResponseObserverManager(input: {
       if (typeof id !== 'string' || id.length > 256) return;
       let record = this.pending.get(id);
       if (method === 'Network.requestWillBeSent') {
+        if (!this.acceptingRequests) { this.count(this.filtered, 'ADMISSION_PAUSED'); return; }
         if (record) { this.forget(record); record.cancel?.(); this.count(this.dropped, 'REQUEST_REPLACED'); }
         const request = object(params.request);
         if (params.redirectResponse || (request.method !== 'GET' && request.method !== 'POST') ||
@@ -255,6 +257,8 @@ export function createResponseObserverManager(input: {
         capturedResponses: this.captures, totalCapturedBytes: this.totalBytes,
         filtered: { ...this.filtered }, dropped: { ...this.dropped }, rawCommandsInFlight: nativeBudget.active };
     }
+    pauseRequests() { this.acceptingRequests = false; }
+    resumeRequests() { this.acceptingRequests = true; }
     suspend() {
       if (this.state === 'STOPPED' || this.state === 'SUSPENDED') return;
       this.state = 'SUSPENDED'; this.invalidate('SUSPENDED'); this.cleanup();
