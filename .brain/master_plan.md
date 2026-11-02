@@ -1,6 +1,18 @@
 # CSD Master Plan
 
-## Hiện hành 3.0 — kế hoạch nâng cấp hội thoại, 30/10/2026
+## Hiện hành 3.1 — ứng viên AI và hai nhánh phát triển, 02/11/2026
+
+Người dùng đã DUYỆT tích hợp phân rã prompt/hỏi ngược và bộ lọc hai nhãn trong các lượt trước; hiện chấp nhận tạm các kết quả để phát triển tiếp, đồng thời giao agent quyết định cách quản lý Git. Quy tắc hiện hành là [ADR-023](decisions/ADR-023-ai-candidate-and-crawl-branches.md).
+
+- `codex/ai-foundation` giữ ứng viên RC6 và các cải tiến ngữ nghĩa tiếp theo. 950 kiểm thử phần mềm đạt, bốn bộ/5.778 hội thoại đã replay; chất lượng ngữ nghĩa và ranking còn vấn đề đã ghi nhận, không coi là nghiệm thu toàn diện.
+- `codex/crawl-throughput` xuất phát độc lập từ nền RC4, dành cho nhiều cửa sổ Electron và scheduler băng thông Gemini. Tính năng mới chưa được triển khai trong lượt tổ chức Git.
+- `codex/csd-next` là bản tích hợp để thử chung, nằm tại workspace gốc. Mã tính năng được sửa tại worktree tương ứng rồi merge sang đây.
+- `codex/csd-production` là đích nhận các mốc đã chốt; lượt tổ chức chỉ thêm tài liệu quy trình vào nền này, chưa merge source RC6. `main` vẫn là mốc lịch sử.
+- Các lệnh tạm dừng/dispatch trong phần lịch sử bên dưới không phủ định phạm vi người dùng đã cho tiếp tục ở trên. Không tự khởi động lại campaign, worker hoặc automation lịch sử.
+
+
+
+## Lịch sử 3.0 — kế hoạch nâng cấp hội thoại, 30/10/2026
 
 **Checkpoint theo chỉ đạo người dùng, 01/11/2026:** đã commit baseline runtime/tests/benchmark tại cee0e8b và helper Excel tại 0689653; tài liệu/evidence/handoff được checkpoint riêng. Check kiểu và 889/889 tests PASS; origin được cấu hình tới https://github.com/doisn2003/crawl-socials.git để push nhánh codex/csd-production. Đây là bảo toàn thành tựu hiện có, không nghiệm thu production hoặc thực hiện hướng cloud/multi-window/binary. Các đoạn trước đây nói chưa commit mô tả thời điểm nghiên cứu trước checkpoint; yêu cầu tạm dừng triển khai vẫn được giữ.
 

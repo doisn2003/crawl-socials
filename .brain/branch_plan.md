@@ -1,3 +1,16 @@
+# Kế hoạch nhánh hiện hành — 02/11/2026
+
+Theo quyết định người dùng giao agent thực hiện, dùng [ADR-023](decisions/ADR-023-ai-candidate-and-crawl-branches.md):
+
+- `codex/csd-production`: mốc sản phẩm; hiện giữ runtime RC4.
+- `codex/ai-foundation`: ứng viên RC6, gồm phân rã prompt/hỏi ngược và bộ lọc hai nhãn.
+- `codex/crawl-throughput`: crawl nhiều cửa sổ và scheduler băng thông, xuất phát độc lập từ nền RC4.
+- `codex/csd-next`: nhận hai nhánh để thử kết hợp; workspace gốc mở nhánh này.
+
+Tag cố định: `csd-pre-ai-rc4-20261102` và `csd-ai-candidate-rc6-20261102`. Sửa AI trên nhánh AI rồi merge vào bản kết hợp; không quay lùi nhánh có tính năng crawl mới. Xem ADR để biết worktree và cách nhận từng phần khi phát hành.
+
+---
+
 > **LỊCH SỬ — đã được thay từ 29/10/2026.** Người dùng chọn `codex/csd-production` để phát triển CSD dùng thật. Đọc [ADR-021](decisions/ADR-021-production-branch.md) và phần Hiện hành 2.0 của [master plan](master_plan.md). Prompt/dispatch/gate thử nghiệm bên dưới không còn là chỉ dẫn thực thi; không tự chạy lại.
 
 # CSD Branch Plan — Kiểm chứng phân trang qua request mạng
