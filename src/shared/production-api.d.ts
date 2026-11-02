@@ -14,16 +14,18 @@ export interface PlatformRun {
   count: number; reason: string | null;
 }
 export interface PostPreview { platform: Platform; post_id: string; text: string; query: string; link: string; }
-export interface OpportunityCounts { raw: number; comments: number; suitable: number; notYet: number; unrelated: number; pending: number; failed: number; }
+export interface OpportunityCounts { raw: number; comments: number; suitable: number; notSuitable?: number; /** Legacy count fields retained for historical runs. */ notYet: number; unrelated: number; pending: number; failed: number; }
 export interface OpportunityPreview {
-  platform: Platform; rootId: string; classification: 'SUITABLE' | 'NOT_YET' | 'UNRELATED';
+  platform: Platform; rootId: string; classification: 'SUITABLE' | 'NOT_SUITABLE' | 'NOT_YET' | 'UNRELATED';
   text: string; link: string; reason: string; evidence: string[]; observedAt: string; coverage: string;
+  conditions?: { label: string; status: 'PASS' | 'FAIL' | 'UNKNOWN'; evidence: string[] }[];
 }
 export interface OpportunityProgress {
   campaignId: string; totalTarget: number; threadsShare: number;
   counts: OpportunityCounts; byPlatform: Record<Platform, OpportunityCounts>;
   costUsd: number; costUpperUsd: number; usageUnknown: number; budgetUsd: number;
   phase: string; lastError: string | null; preview: OpportunityPreview[];
+  evaluationPolicy?: 'GOAL_EVIDENCE' | 'LEGACY';
   watchPending?: number; watchNextAt?: string | null; watchActive?: boolean;
   assessmentPending?: number; assessmentNextAt?: string | null; assessmentActive?: boolean;
 }
@@ -50,6 +52,7 @@ export interface RetainedSourceCatalog {
 export interface ProductionState {
   version: string; config: UserConfig; accounts: Account[]; run: RunState | null;
   campaignDraft?: CampaignDraftView;
+  campaignDialogue?: import('./semantic-intent.js').CampaignDialogueView;
   campaignDraftPreparing?: { runId: string; cost: CampaignDraftCost };
   campaignDraftError?: { code: string; runId: string; cost: CampaignDraftCost };
   campaignPresets?: CampaignPresetView[];
@@ -65,6 +68,7 @@ export interface ProductionApi {
   saveConfig(input: UserConfig): Promise<UserConfig>;
   login(input: { platform: Platform; profileId?: string }): Promise<void>;
   prepareCampaign(): Promise<ProductionState>;
+  continueCampaign(request: import('./semantic-intent.js').ContinueCampaignRequest): Promise<ProductionState>;
   updateCampaign(input: UpdateCampaignDraftRequest): Promise<ProductionState>;
   saveCampaignPreset(input: SaveCampaignPresetRequest): Promise<ProductionState>;
   applyCampaignPreset(input: ApplyCampaignPresetRequest): Promise<ProductionState>;
@@ -74,7 +78,7 @@ export interface ProductionApi {
   start(input: { profiles: { platform: Platform; profileId: string }[]; draft?: CampaignDraftReference }): Promise<ProductionState>;
   stop(): Promise<ProductionState>;
   resume(): Promise<ProductionState>;
-  exportResults(input: { format: 'json' | 'xlsx'; group?: 'SUITABLE' | 'NOT_YET' | 'UNRELATED' }): Promise<{ canceled: boolean; path: string | null }>;
+  exportResults(input: { format: 'json' | 'xlsx'; group?: 'SUITABLE' | 'NOT_SUITABLE' | 'NOT_YET' | 'UNRELATED' }): Promise<{ canceled: boolean; path: string | null }>;
   openOutput(): Promise<void>;
   openPost(input: { url: string }): Promise<void>;
 }

@@ -1,6 +1,7 @@
 import type { ConversationSnapshot, EvaluationContext } from './conversation.js';
 
-export type ConversationClassification = 'SUITABLE' | 'NOT_YET' | 'UNRELATED';
+/** The last two values are readable legacy history only; new policy emits two outcomes. */
+export type ConversationClassification = 'SUITABLE' | 'NOT_SUITABLE' | 'NOT_YET' | 'UNRELATED';
 export type AssessmentStatus = 'ASSESSED' | 'PENDING' | 'FAILED';
 export interface ConversationActionTarget { entity_id: string; type: 'POST' | 'COMMENT' }
 export interface ConversationTemporalEvidence {
@@ -30,6 +31,16 @@ export interface ConversationDecisionInput extends EvaluationContext {
   evaluated_at?: string;
   valid_until?: string | null;
   temporal_evidence?: ConversationTemporalEvidence[];
+  goal_assessment?: { contract_hash: string; contract: import('./goal-filter.js').GoalContract; candidate_entity_id: string; candidate_description: string;
+    checks: import('./goal-filter.js').GoalCheck[]; branches: { id: string; state: string }[] };
+  goal_review?: { primary_classification: ConversationClassification | null; primary_reason: string;
+    primary_assessment: ConversationDecisionInput['goal_assessment'] | null };
+  goal_scope_review?: { verdict: 'IN_SCOPE' | 'OUT_OF_SCOPE' | 'UNCLEAR'; explanation: string;
+    evidence: { id: string; quote: string }[]; model: string };
+  goal_comment_review?: { primary_classification: ConversationClassification | null; primary_reason: string;
+    primary_assessment: ConversationDecisionInput['goal_assessment'] | null;
+    comment_classification: ConversationClassification | null; comment_assessment_status: AssessmentStatus;
+    comment_reason: string; comment_assessment: ConversationDecisionInput['goal_assessment'] | null };
 }
 export interface ConversationDecision extends ConversationDecisionInput {
   id: string;
@@ -41,7 +52,7 @@ export interface ConversationDecision extends ConversationDecisionInput {
 export function validateConversationDecision(input: ConversationDecisionInput, snapshot: ConversationSnapshot): void {
   if (input.snapshot_id !== snapshot.id) throw Error('DECISION_SNAPSHOT_MISMATCH');
   if (!['ASSESSED', 'PENDING', 'FAILED'].includes(input.assessment_status)) throw Error('INVALID_ASSESSMENT_STATUS');
-  if (input.classification !== null && !['SUITABLE', 'NOT_YET', 'UNRELATED'].includes(input.classification)) throw Error('INVALID_CLASSIFICATION');
+  if (input.classification !== null && !['SUITABLE', 'NOT_SUITABLE', 'NOT_YET', 'UNRELATED'].includes(input.classification)) throw Error('INVALID_CLASSIFICATION');
   if (input.assessment_status === 'ASSESSED' && input.classification === null) throw Error('ASSESSED_CLASSIFICATION_REQUIRED');
   if (input.assessment_status !== 'ASSESSED' && input.classification !== null) throw Error('TECHNICAL_FAILURE_IS_NOT_CLASSIFICATION');
   if (!input.reason_code?.trim() || !input.model?.trim()) throw Error('DECISION_PROVENANCE_REQUIRED');

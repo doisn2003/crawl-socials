@@ -14,6 +14,7 @@ const api: ProductionApi = Object.freeze({
   saveConfig: (input: UserConfig) => ipcRenderer.invoke('csd:config', input),
   login: (input: { platform: Platform; profileId?: string }) => ipcRenderer.invoke('csd:login', input),
   prepareCampaign: () => ipcRenderer.invoke('csd:campaign:prepare'),
+  continueCampaign: (request: import('../shared/semantic-intent.js').ContinueCampaignRequest) => ipcRenderer.invoke('csd:campaign:continue', request),
   updateCampaign: (input: Parameters<ProductionApi['updateCampaign']>[0]) => ipcRenderer.invoke('csd:campaign:update', input),
   saveCampaignPreset: (input: Parameters<ProductionApi['saveCampaignPreset']>[0]) => ipcRenderer.invoke('csd:preset:save', input),
   applyCampaignPreset: (input: Parameters<ProductionApi['applyCampaignPreset']>[0]) => ipcRenderer.invoke('csd:preset:apply', input),
@@ -23,7 +24,7 @@ const api: ProductionApi = Object.freeze({
   start: (input: Parameters<ProductionApi['start']>[0]) => ipcRenderer.invoke('csd:start', input),
   stop: () => ipcRenderer.invoke('csd:stop'),
   resume: () => ipcRenderer.invoke('csd:resume'),
-  exportResults: (input: { format: 'json' | 'xlsx'; group?: 'SUITABLE' | 'NOT_YET' | 'UNRELATED' }) => ipcRenderer.invoke('csd:export', input),
+  exportResults: (input: { format: 'json' | 'xlsx'; group?: 'SUITABLE' | 'NOT_SUITABLE' | 'NOT_YET' | 'UNRELATED' }) => ipcRenderer.invoke('csd:export', input),
   openOutput: () => ipcRenderer.invoke('csd:open-output'),
   openPost: (input: { url: string }) => ipcRenderer.invoke('csd:open-post', input),
 });

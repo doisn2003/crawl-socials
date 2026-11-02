@@ -23,7 +23,8 @@ import type { ConversationObservation, ConversationSnapshot, EvaluationContext, 
 import { contentHash } from '../domain/conversation.js';
 import type { OpportunityConfig, OpportunityCounts, OpportunityProgress, Platform } from '../shared/production-api.js';
 import { allocatePlatformTargets } from '../shared/platform-targets.js';
-import { isAssessmentTime } from '../domain/conversation-decision.js';
+import { isAssessmentTime, type ConversationDecisionInput } from '../domain/conversation-decision.js';
+import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
 
 export interface ConversationCollectInput {
   window: WebContents; platform: Platform; root: { id: string; url: string }; runId: string;
@@ -60,11 +61,25 @@ export interface OpportunityPipelineInput {
 type Row = Record<string, unknown>;
 const safeCode = (error: unknown) => error instanceof Error && /^[A-Z][A-Z0-9_]{1,100}$/.test(error.message) ? error.message : 'PIPELINE_FAILED';
 const counts = (s: ConversationStats): OpportunityCounts => ({ raw: s.raw_unique_posts, comments: s.observed_comments, suitable: s.suitable,
-  notYet: s.not_yet, unrelated: s.unrelated, pending: s.pending, failed: s.failed });
+  notSuitable: s.not_yet + s.unrelated, notYet: s.not_yet, unrelated: s.unrelated, pending: s.pending, failed: s.failed });
 const emptyCounts = (): OpportunityCounts => ({ raw: 0, comments: 0, suitable: 0, notYet: 0, unrelated: 0, pending: 0, failed: 0 });
 const nullableText = (v: unknown): string | null => typeof v === 'string' && v ? v : null;
 const fatalModelCode = (code: string) => code === 'GEMINI_API_KEY_MISSING' || /^MODEL_(?:BUDGET|AUTHENTICATION|BILLING|PERMISSION|NOT_AVAILABLE|KEY|QUOTA|DAILY_QUOTA|REQUEST_INVALID)/.test(code);
 const retryableModelCode = (code: string) => /^MODEL_(?:HTTP_(?:429|5\d\d)|NETWORK_USAGE_UNKNOWN|ATTEMPTS_EXHAUSTED)/.test(code);
+function goalConditions(decision:ConversationDecisionInput) {
+  const conditions:NonNullable<OpportunityProgress['preview'][number]['conditions']> = decision.goal_assessment?.checks.map(check=>({
+    label:decision.goal_assessment!.contract.criteria.find(c=>c.id===check.criterion_id)?.description??check.criterion_id,
+    status:check.status,evidence:check.evidence.map(p=>p.quote)
+  }))??[];
+  const preferredPlatforms=decision.goal_assessment?.contract.platform_preferences;
+  if(preferredPlatforms?.length)conditions.push({label:'Ưu tiên nền tảng (không bắt buộc): '+preferredPlatforms.map(p=>p.platform==='threads'?'Threads':'Facebook').join(' → '),
+    status:Number(decision.attributes?.goal_platform_preference)>0?'PASS':'FAIL',
+    evidence:['Nguồn đã thu: '+String(decision.attributes?.goal_platform??'UNKNOWN')]});
+  if(decision.goal_scope_review)conditions.push({label:'Đúng ngữ cảnh của mục tiêu: '+decision.goal_scope_review.explanation,
+    status:decision.goal_scope_review.verdict==='IN_SCOPE'?'PASS':decision.goal_scope_review.verdict==='OUT_OF_SCOPE'?'FAIL':'UNKNOWN',
+    evidence:decision.goal_scope_review.evidence.map(p=>p.quote)});
+  return conditions;
+}
 
 /** Runs inference beside discovery; browser enrichment uses the collector's explicit profile yield. */
 export async function createOpportunityPipeline(input: OpportunityPipelineInput) {
@@ -117,7 +132,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   if (!campaignExisted) atomicJson(campaignFile, baselineCampaign);
   const activeEvaluation = readActiveEvaluation(directory, baselineCampaign), focusedEnabled = activeEvaluation !== null;
   const campaign = activeEvaluation?.campaign ?? baselineCampaign;
-  const temporalEnabled = campaign.filter_version === TEMPORAL_OPPORTUNITY_FILTER_VERSION;
+  const temporalEnabled = [TEMPORAL_OPPORTUNITY_FILTER_VERSION, GOAL_FILTER_VERSION].includes(campaign.filter_version);
   const platformTargets = allocatePlatformTargets(campaign.suitable_target, campaign.desired_platform_weights, input.platforms);
   const runtimeLimits = readEffectiveLimits(directory, baselineCampaign);
   const store = input.store ?? await createAsyncConversationStore(join(directory, 'store'));
@@ -132,6 +147,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   const activeEnrich = new Set<string>();
   const enrichmentBlocked = new Set<Platform>();
   let progress: OpportunityProgress = { campaignId: campaign.campaign_id, totalTarget: campaign.suitable_target,
+    evaluationPolicy: campaign.filter_version === GOAL_FILTER_VERSION ? 'GOAL_EVIDENCE' : 'LEGACY',
     threadsShare: campaign.desired_platform_weights.threads, counts: emptyCounts(), byPlatform: { facebook: emptyCounts(), threads: emptyCounts() },
     costUsd: 0, costUpperUsd: 0, usageUnknown: 0, budgetUsd: input.config.budgetUsd, phase: 'COLLECTING', lastError: null, preview: [] };
 
@@ -144,14 +160,18 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       publishDirty = false;
       const [total, facebook, threads] = await Promise.all([store.stats(context), store.stats(context, 'facebook'), store.stats(context, 'threads')]);
       const preview: OpportunityProgress['preview'] = [];
-      for (const classification of ['SUITABLE', 'NOT_YET', 'UNRELATED'] as const) {
+      for (const classification of ['SUITABLE', 'NOT_SUITABLE'] as const) {
         const results = await store.results(context, { classification, ranked: true, ...rankingOptions, limit: 20 });
         results.sort((a, b) => { const aa = opportunityRank(a.decision, a.snapshot, rankingOptions.source_priority), bb = opportunityRank(b.decision, b.snapshot, rankingOptions.source_priority); for (let i = 0; i < aa.length; i++) if (aa[i] !== bb[i]) return bb[i]! - aa[i]!; return 0; });
-        for (const { snapshot, decision } of results.slice(0, 20)) preview.push({ platform: snapshot.platform, rootId: snapshot.root_post_id,
-          classification, text: (snapshot.post?.text ?? '').slice(0, 900), link: snapshot.post?.permalink ?? '',
+        for (const { snapshot, decision } of results.slice(0, 20)) {
+          const target = [snapshot.post, ...snapshot.comments].find(e => e?.entity_id === (decision.action_target?.entity_id ?? decision.goal_assessment?.candidate_entity_id)) ?? snapshot.post;
+          preview.push({ platform: snapshot.platform, rootId: snapshot.root_post_id,
+          classification, text: (target?.text ?? '').slice(0, 900), link: target?.permalink ?? snapshot.post?.permalink ?? '',
           reason: String(decision.attributes?.need_summary ?? decision.reason_code),
+          ...(decision.goal_assessment ? { conditions: goalConditions(decision) } : {}),
           evidence: snapshot.spans.filter(s => decision.evidence_ids.includes(s.id)).map(s => s.text.slice(0, 600)),
           observedAt: snapshot.observed_at, coverage: snapshot.coverage.status });
+        }
       }
       const money = modelCost();
       const watch = await store.watchSummary(input.platforms);
@@ -182,7 +202,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   }
   async function markWatch(snapshot: ConversationSnapshot, reason: string) {
     if (retained) return;
-    if (!campaign.watch.enabled || !input.config.commentsEnabled || enrichmentBlocked.has(snapshot.platform) || !['RELATED_CHECKIN', 'RELATED_NO_OPENING', 'RELATED_PROMOTION'].includes(reason)) return;
+    if (!campaign.watch.enabled || !input.config.commentsEnabled || enrichmentBlocked.has(snapshot.platform) || !['RELATED_CHECKIN', 'RELATED_NO_OPENING', 'RELATED_PROMOTION', 'GOAL_EVIDENCE_REQUIRED', 'GOAL_TIME_EVIDENCE_REQUIRED'].includes(reason)) return;
     const first = Date.parse(snapshot.observed_at);
     for (const [index, hours] of campaign.watch.revisit_hours.slice(0, campaign.watch.max_attempts).entries()) {
       await store.enqueue({ type: 'REVISIT', idempotency_key: `${context.campaign_id}:${context.campaign_version}:${context.filter_version}:${snapshot.platform}:${snapshot.root_post_id}:revisit:${index}`,
@@ -241,7 +261,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
             continue;
           }
           await store.recordDecision(decision);
-          if (decision.classification === 'NOT_YET') await markWatch(snapshot, String(decision.attributes?.case_code ?? decision.reason_code));
+          if (decision.classification === 'NOT_YET' || decision.assessment_status === 'PENDING') await markWatch(snapshot, String(decision.attributes?.case_code ?? decision.reason_code));
         }
         const fatal = result.failures.find(f => fatalModelCode(f.code));
         for (const job of jobs) {
@@ -546,10 +566,13 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     async results() {
       await publish();
       const exported = await store.exportSnapshot(context, rankingOptions), preview: OpportunityProgress['preview'] = [];
-      for (const classification of ['SUITABLE', 'NOT_YET', 'UNRELATED'] as const) {
-        for (const { snapshot, decision } of exported.conversations.filter(result => result.decision.classification === classification).slice(0, 20)) {
-          preview.push({ platform: snapshot.platform, rootId: snapshot.root_post_id, classification, text: (snapshot.post?.text ?? '').slice(0, 900), link: snapshot.post?.permalink ?? '',
+      for (const classification of ['SUITABLE', 'NOT_SUITABLE'] as const) {
+        for (const { snapshot, decision } of exported.conversations.filter(result => classification === 'SUITABLE'
+          ? result.decision.classification === 'SUITABLE' : result.decision.classification !== null && result.decision.classification !== 'SUITABLE').slice(0, 20)) {
+          const target = [snapshot.post, ...snapshot.comments].find(e => e?.entity_id === (decision.action_target?.entity_id ?? decision.goal_assessment?.candidate_entity_id)) ?? snapshot.post;
+          preview.push({ platform: snapshot.platform, rootId: snapshot.root_post_id, classification, text: (target?.text ?? '').slice(0, 900), link: target?.permalink ?? snapshot.post?.permalink ?? '',
             reason: String(decision.attributes?.need_summary ?? decision.reason_code), evidence: snapshot.spans.filter(span => decision.evidence_ids.includes(span.id)).map(span => span.text.slice(0, 600)),
+            ...(decision.goal_assessment ? { conditions: goalConditions(decision) } : {}),
             observedAt: snapshot.observed_at, coverage: snapshot.coverage.status });
         }
       }

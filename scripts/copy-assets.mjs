@@ -1,5 +1,6 @@
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import './copy-semantic-assets.mjs';
 const root = new URL('../', import.meta.url);
 for (const name of ['index.html', 'styles.css', 'opportunity.css', 'cooler.html', 'cooler.css']) {
   const target = new URL('dist/renderer/' + name, root);

@@ -4,9 +4,10 @@ import type { CampaignPlan } from '../domain/campaign-plan.js';
 import { contentHash, type SourceKind } from '../domain/conversation.js';
 import { sourcePriorityScores } from '../domain/source-priority.js';
 import { atomicJson } from '../infrastructure/config/user-config.js';
+import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
 
 export interface RankingRecipePin {
-  recipe: { schema_version: 1; policy: 'legacy-source-priority-v1' | 'campaign-source-priority-v1'; source_priority: SourceKind[] | null };
+  recipe: { schema_version: 1; policy: 'legacy-source-priority-v1' | 'campaign-source-priority-v1' | 'goal-evidence-rank-v3'; source_priority: SourceKind[] | null };
   recipe_sha256: string;
 }
 
@@ -23,16 +24,16 @@ export function pinRankingRecipe(input: { directory: string; campaign: CampaignP
         || pin.recipe.schema_version !== 1 || contentHash(pin.recipe) !== pin.recipe_sha256) throw Error();
       if (pin.recipe.policy === 'legacy-source-priority-v1') {
         if (pin.recipe.source_priority !== null) throw Error();
-      } else if (pin.recipe.policy === 'campaign-source-priority-v1') sourcePriorityScores(pin.recipe.source_priority ?? []);
+      } else if (['campaign-source-priority-v1', 'goal-evidence-rank-v3'].includes(pin.recipe.policy)) sourcePriorityScores(pin.recipe.source_priority ?? []);
       else throw Error();
     } catch { throw Error('RANKING_RECIPE_PIN_INVALID'); }
-    if (pin.recipe.policy === 'campaign-source-priority-v1'
+    if (pin.recipe.policy !== 'legacy-source-priority-v1'
       && contentHash(pin.recipe.source_priority) !== contentHash(input.campaign.source_priority)) throw Error('RANKING_SOURCE_PRIORITY_MISMATCH');
   } else {
     if (!input.campaignExisted) sourcePriorityScores(input.campaign.source_priority);
     const recipe: RankingRecipePin['recipe'] = { schema_version: 1,
-      policy: input.campaignExisted ? 'legacy-source-priority-v1' : 'campaign-source-priority-v1',
-      source_priority: input.campaignExisted ? null : [...input.campaign.source_priority] };
+      policy: input.campaign.filter_version === GOAL_FILTER_VERSION ? 'goal-evidence-rank-v3' : input.campaignExisted ? 'legacy-source-priority-v1' : 'campaign-source-priority-v1',
+      source_priority: input.campaignExisted && input.campaign.filter_version !== GOAL_FILTER_VERSION ? null : [...input.campaign.source_priority] };
     pin = { recipe, recipe_sha256: contentHash(recipe) };
     atomicJson(file, pin);
   }

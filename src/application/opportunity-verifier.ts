@@ -1,4 +1,7 @@
 import type { CampaignPlan } from '../domain/campaign-plan.js';
+import { INTENT_OPPORTUNITY_FILTER_VERSION } from '../domain/campaign-plan.js';
+import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
+import { classifyGoalConversations } from './goal-classifier.js';
 import type { ConversationSnapshot } from '../domain/conversation.js';
 import type { ConversationDecisionInput } from '../domain/conversation-decision.js';
 import { validateConversationDecision } from '../domain/conversation-decision.js';
@@ -7,6 +10,7 @@ import { ModelGatewayError } from './ports/model-gateway.js';
 import type { ModelGateway, JsonModelResult } from './ports/model-gateway.js';
 
 export const OPPORTUNITY_VERIFIER_VERSION = 'conversation-opportunity-verifier-v1';
+const verifierVersion = (filter: string) => filter === INTENT_OPPORTUNITY_FILTER_VERSION ? 'conversation-opportunity-verifier-v1.1-intent' : OPPORTUNITY_VERIFIER_VERSION;
 const verdictCases = {
   CONFIRM_REQUEST: 'OPPORTUNITY_REQUEST', CONFIRM_EXPERIENCE: 'OPPORTUNITY_EXPERIENCE', CONFIRM_DISCUSSION: 'OPPORTUNITY_DISCUSSION',
   RESEARCH_PROMOTION: 'RELATED_PROMOTION', RESEARCH_CHECKIN: 'RELATED_CHECKIN', RESEARCH_NO_OPENING: 'RELATED_NO_OPENING',
@@ -60,7 +64,7 @@ export interface VerificationBatchResult {
 
 function pending(proposed: ConversationDecisionInput, code: string, model: string): ConversationDecisionInput {
   return { ...proposed, classification: null, assessment_status: 'PENDING', reason_code: code, evidence_ids: [],
-    action_target: null, intents: [], model, attributes: { verifier_version: OPPORTUNITY_VERIFIER_VERSION,
+    action_target: null, intents: [], model, attributes: { verifier_version: verifierVersion(proposed.filter_version),
       verification_status: 'PENDING', primary_model: proposed.model, primary_reason: proposed.reason_code } };
 }
 
@@ -81,7 +85,7 @@ function validateVerification(value: unknown, campaign: CampaignPlan, snapshot: 
   const decision = validateClassificationItem({ snapshot_id: item.snapshot_id, case_code: verdictCases[item.verdict as VerifierVerdict],
     evidence_ids: item.evidence_ids, need_summary: item.explanation }, campaign, snapshot, model);
   return { ...decision, reason_code: 'VERIFIER_' + item.verdict, attributes: { ...decision.attributes,
-    verifier_version: OPPORTUNITY_VERIFIER_VERSION, verification_status: decision.classification === 'SUITABLE' ? 'CONFIRMED'
+    verifier_version: verifierVersion(campaign.filter_version), verification_status: decision.classification === 'SUITABLE' ? 'CONFIRMED'
       : decision.assessment_status === 'ASSESSED' ? 'DOWNGRADED' : 'PENDING', primary_model: proposed.model, primary_reason: proposed.reason_code } };
 }
 
@@ -115,6 +119,20 @@ export async function verifyTentativeOpportunities(campaign: CampaignPlan, snaps
     }
     eligible.push(snapshot);
   }
+  if (campaign.filter_version === GOAL_FILTER_VERSION) {
+    if (!eligible.length) return { decisions: [...decisions.values()], reviews: [], model_results: [], failures };
+    const contract = proposed.find(d => d.goal_assessment)?.goal_assessment?.contract;
+    const result = await classifyGoalConversations(campaign, eligible, gateway, { ...options, goalReview: false,
+      ...(contract ? { goalContract: contract } : {}),
+      evaluationTimes: Object.fromEntries(eligible.map(s => [s.id, proposed.find(d => d.snapshot_id === s.id)?.evaluated_at ?? s.observed_at])),
+      cacheNamespace: (options.cacheNamespace ?? '') + ':independent-goal-review',
+      systemSuffix: 'Kiểm định độc lập: tìm phản chứng sai vai trò, sai sản phẩm, sai quan điểm, nhầm phòng hoặc hết hạn. Không giả định ứng viên đúng. Giữ UNKNOWN nếu thiếu dữ kiện.' });
+    const byId = new Map(result.decisions.map(d => [d.snapshot_id, d]));
+    return { ...result, failures: [...failures,...result.failures], decisions: proposed.map(d => byId.get(d.snapshot_id) ?? decisions.get(d.snapshot_id)!), reviews: proposed.flatMap(p => {
+      const verified = byId.get(p.snapshot_id); return verified ? [{ snapshot_id: p.snapshot_id, proposed: p, verified,
+        outcome: verified.classification === 'SUITABLE' ? 'CONFIRMED' as const : verified.assessment_status === 'ASSESSED' ? 'DOWNGRADED' as const : 'PENDING' as const }] : [];
+    }) };
+  }
   let haltCode: string | null = null;
   for (let offset = 0; offset < eligible.length; offset += batchSize) {
     let waiting = eligible.slice(offset, offset + batchSize);
@@ -123,12 +141,15 @@ export async function verifyTentativeOpportunities(campaign: CampaignPlan, snaps
     for (let round = 0; round < rounds && waiting.length; round++) {
       let result: JsonModelResult;
       try {
-        result = await gateway.generateJson({ purpose: OPPORTUNITY_VERIFIER_VERSION,
-          system: VERIFIER_SYSTEM + (round ? '\nSửa lỗi định dạng: trả đủ từng ID, chỉ dùng evidence ID được cung cấp.' : ''),
+        const intentAware = campaign.filter_version === INTENT_OPPORTUNITY_FILTER_VERSION;
+        result = await gateway.generateJson({ purpose: verifierVersion(campaign.filter_version),
+          system: VERIFIER_SYSTEM + (intentAware ? '\nƯu tiên audience, inclusions và exclusions hiện tại đã được người dùng xác nhận/sửa hơn các ví dụ mặc định. Không mặc định chỉ nhận người tiêu dùng: nếu mục tiêu là người bán, bài chào bán đúng tiêu chí có thể CONFIRM_REQUEST hoặc CONFIRM_DISCUSSION. Nếu chỉ tìm người thuê luật sư, không nhận tư vấn chung hay quảng cáo luật sư. Xét cả điều kiện địa bàn/thời gian bằng ngôn ngữ tự nhiên trong inclusions; không tự mở rộng phạm vi từ từ khóa hoặc prompt gốc.' : '')
+            + (round ? '\nSửa lỗi định dạng: trả đủ từng ID, chỉ dùng evidence ID được cung cấp.' : ''),
           input: { campaign: { prompt: campaign.prompt, topic: campaign.topic, needs: campaign.needs,
             participation_intents: campaign.participation_intents, inclusions: campaign.inclusions, exclusions: campaign.exclusions,
             brand_context: campaign.brand_context, required_geographies: campaign.required_geographies,
-            preferred_geographies: campaign.preferred_geographies, max_age_days: campaign.max_age_days },
+            preferred_geographies: campaign.preferred_geographies, max_age_days: campaign.max_age_days,
+            ...(intentAware ? { audience: campaign.audience, languages: campaign.languages, research_intents: campaign.research_intents } : {}) },
           conversations: waiting.map(modelSnapshot) }, schema: VERIFIER_SCHEMA, max_output_tokens: 400 * waiting.length + 256,
           ...(options.signal ? { signal: options.signal } : {}), ...(options.cacheNamespace ? { cache_namespace: options.cacheNamespace } : {}) });
         model_results.push(result);

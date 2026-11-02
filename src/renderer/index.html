@@ -128,10 +128,11 @@
             <div class="planner-actions">
               <button id="prepare-campaign" type="button" class="secondary-button" disabled>Xem tiêu chí trước khi
                 thu</button>
-              <span class="helper">Không bắt buộc · Có thể bắt đầu trực tiếp từ nhu cầu đã nhập</span>
+              <span class="helper">Làm rõ nhu cầu → xem từ khóa và tiêu chí → bắt đầu thu</span>
             </div>
             <p id="campaign-plan-cost" class="helper"></p>
             <p id="campaign-plan-status" class="helper" role="status" aria-live="polite"></p>
+            <section id="campaign-dialogue" class="campaign-plan-editor" aria-label="Làm rõ nhu cầu" hidden></section>
             <details id="campaign-plan-editor" class="campaign-plan-editor" hidden>
               <summary>Tiêu chí và truy vấn của lượt thu</summary>
               <p class="helper">Mỗi dòng là một ý hoặc một truy vấn. Chỉnh sửa ở đây không gọi AI thêm.</p>
@@ -319,8 +320,7 @@
           <p id="opportunity-summary" class="helper" aria-live="polite"></p>
           <div class="opportunity-tabs" role="group" aria-label="Nhóm kết quả">
             <button type="button" data-result-group="SUITABLE" class="secondary-button">Phù hợp</button>
-            <button type="button" data-result-group="NOT_YET" class="secondary-button">Chưa phù hợp</button>
-            <button type="button" data-result-group="UNRELATED" class="secondary-button">Không phù hợp</button>
+            <button type="button" data-result-group="NOT_SUITABLE" class="secondary-button">Không phù hợp</button>
           </div>
           <div id="opportunity-cards" class="opportunity-cards"></div>
         </div>

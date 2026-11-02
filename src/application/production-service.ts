@@ -15,6 +15,8 @@ import { contentHash } from '../domain/conversation.js';
 import { applyPreset, CampaignDraftPreparationError, listPresets, markDraftStarted, prepareDraft, readDraft, readDraftCost,
   resolveDraftForStart, savePreset, updateDraft } from './campaign-drafts.js';
 import type { ResolvedCampaignDraft } from './campaign-drafts.js';
+import { prepareSemanticDraft, continueSemanticDraft, readDialogue } from './campaign-drafts.js';
+import type { ContinueCampaignRequest } from '../shared/semantic-intent.js';
 import type { ApplyCampaignPresetRequest, CampaignDraftReference, SaveCampaignPresetRequest, UpdateCampaignDraftRequest } from '../shared/campaign-drafts.js';
 import { listRetainedSources as catalogRetainedSources } from './retained-source-catalog.js';
 import { listRegisteredRetainedSourceRoots, registerRetainedSourceRoot, resolveRetainedSourceRoot } from './retained-source-roots.js';
@@ -50,26 +52,29 @@ export function createProductionService(input: {
   collectConversation?(value: ConversationCollectInput): Promise<unknown>;
   resolveThreadsReplyRoot?(value: ReplyRootResolveInput): Promise<ReplyRootResolveReceipt>;
   createOpportunity?: typeof createOpportunityPipeline;
-  prepareCampaignDraft?: typeof prepareDraft;
+  prepareCampaignDraft?: typeof prepareSemanticDraft;
+  continueCampaignDraft?: typeof continueSemanticDraft;
   importRetainedData?: typeof importRetainedData;
   withConversationWindow?(profileId: string, work: (window: WebContents) => Promise<void>): Promise<void>;
   watchAfterDiscovery?: boolean;
 }) {
   const configStore = createUserConfigStore(input.directory), latestFile = join(input.directory, 'latest-run.json');
   const activeDraftFile = join(input.directory, 'active-campaign-draft.json');
-  type ActiveDraftPointer = { schemaVersion: 1; state: 'READY' | 'FAILED' | 'PREPARING'; runId: string; configHash: string; errorCode?: string };
+  type ActiveDraftPointer = { schemaVersion: 1; state: 'READY' | 'CLARIFYING' | 'FAILED' | 'PREPARING'; runId: string; configHash: string; errorCode?: string };
   function readDraftPointer(): ActiveDraftPointer | null {
     if (!existsSync(activeDraftFile)) return null;
     const pointer = JSON.parse(readFileSync(activeDraftFile, 'utf8')) as ActiveDraftPointer | { schemaVersion: 1; state: 'EMPTY' };
-    if (pointer.schemaVersion === 1 && pointer.state === 'EMPTY') return null;
-    if (pointer.schemaVersion !== 1 || (pointer.state !== 'READY' && pointer.state !== 'FAILED' && pointer.state !== 'PREPARING') || !/^crawl-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(pointer.runId)
+    if (pointer.state === 'EMPTY') { if (pointer.schemaVersion !== 1) throw Error('CAMPAIGN_DRAFT_STATE_INVALID'); return null; }
+    if (pointer.schemaVersion !== 1 || !['READY', 'CLARIFYING', 'FAILED', 'PREPARING'].includes(pointer.state) || !/^crawl-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(pointer.runId)
       || !/^[0-9a-f]{64}$/u.test(pointer.configHash) || (pointer.state === 'FAILED' && (typeof pointer.errorCode !== 'string' || !/^[A-Z][A-Z0-9_]{1,100}$/u.test(pointer.errorCode)))) throw Error('CAMPAIGN_DRAFT_STATE_INVALID');
     return pointer;
   }
-  function campaignState(): Pick<ProductionState, 'campaignDraft' | 'campaignDraftPreparing' | 'campaignDraftError' | 'campaignPresets'> {
+  function campaignState(): Pick<ProductionState, 'campaignDraft' | 'campaignDialogue' | 'campaignDraftPreparing' | 'campaignDraftError' | 'campaignPresets'> {
     const pointer = readDraftPointer(), presets = listPresets({ directory: input.directory });
     const draft = pointer?.state === 'READY' ? readDraft({ directory: input.directory, runId: pointer.runId }) : null;
-    return { ...(presets.length ? { campaignPresets: presets } : {}), ...(pointer?.state === 'READY'
+    const dialogue = pointer && (pointer.state === 'CLARIFYING' || (pointer.state === 'READY' && draft?.status === 'DRAFT'))
+      ? readDialogue({ directory: input.directory, runId: pointer.runId }) : null;
+    return { ...(dialogue ? { campaignDialogue: dialogue } : {}), ...(presets.length ? { campaignPresets: presets } : {}), ...(pointer?.state === 'READY'
       ? draft?.status === 'DRAFT' ? { campaignDraft: draft } : {}
       : pointer?.state === 'PREPARING' && preparingDraft ? { campaignDraftPreparing: { runId: pointer.runId, cost: readDraftCost({ directory: input.directory, runId: pointer.runId }) } }
       : pointer?.state === 'FAILED' || pointer?.state === 'PREPARING' ? { campaignDraftError: {
@@ -503,18 +508,38 @@ export function createProductionService(input: {
       try {
         const config = configStore.read().opportunity; if (!config?.enabled) throw Error('DRAFT_OPPORTUNITY_REQUIRED');
         const configHash = contentHash(config), pointer = readDraftPointer();
+        if (pointer?.state === 'CLARIFYING' && pointer.configHash === configHash) return await getState();
         if (pointer?.state === 'READY' && pointer.configHash === configHash) {
           const existing = readDraft({ directory: input.directory, runId: pointer.runId });
           if (existing.status === 'DRAFT' && existing.configHash === configHash) return await getState();
         }
         try {
-          const draft = await (input.prepareCampaignDraft ?? prepareDraft)({ directory: input.directory, config,
+          const draft = await (input.prepareCampaignDraft ?? prepareSemanticDraft)({ directory: input.directory, config,
             ...((pointer?.state === 'FAILED' || pointer?.state === 'PREPARING') && pointer.configHash === configHash ? { resumeRunId: pointer.runId } : {}),
             onAllocated: allocation => atomicJson(activeDraftFile, { schemaVersion: 1, state: 'PREPARING', ...allocation }) });
-          atomicJson(activeDraftFile, { schemaVersion: 1, state: 'READY', runId: draft.runId, configHash: draft.configHash });
+          atomicJson(activeDraftFile, { schemaVersion: 1, state: 'plan' in draft ? 'CLARIFYING' : 'READY', runId: draft.runId, configHash: draft.configHash });
         } catch (error) {
           if (!(error instanceof CampaignDraftPreparationError)) throw error;
           atomicJson(activeDraftFile, { schemaVersion: 1, state: 'FAILED', runId: error.runId, configHash, errorCode: error.code });
+        }
+        return await getState();
+      } finally { starting = false; preparingDraft = false; }
+    },
+    async continueCampaign(value: unknown): Promise<ProductionState> {
+      if (active(run) || starting || executing) throw Error('COLLECTION_BUSY');
+      starting = true; preparingDraft = true;
+      try {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('DRAFT_INPUT_INVALID');
+        const request = value as ContinueCampaignRequest, pointer = readDraftPointer(), config = configStore.read().opportunity;
+        if (!pointer || !['READY', 'CLARIFYING'].includes(pointer.state) || pointer.runId !== request.runId) throw Error('DRAFT_NOT_ACTIVE');
+        if (!config || contentHash(config) !== pointer.configHash) throw Error('DRAFT_CONFIG_MISMATCH');
+        try {
+          const result = await (input.continueCampaignDraft ?? continueSemanticDraft)({ directory: input.directory, request,
+            onAllocated: allocation => atomicJson(activeDraftFile, { schemaVersion: 1, state: 'PREPARING', ...allocation }) });
+          atomicJson(activeDraftFile, { schemaVersion: 1, state: 'plan' in result ? 'CLARIFYING' : 'READY', runId: result.runId, configHash: result.configHash });
+        } catch (error) {
+          if (!(error instanceof CampaignDraftPreparationError)) throw error;
+          atomicJson(activeDraftFile, { schemaVersion: 1, state: 'FAILED', runId: error.runId, configHash: pointer.configHash, errorCode: error.code });
         }
         return await getState();
       } finally { starting = false; preparingDraft = false; }
@@ -583,6 +608,10 @@ export function createProductionService(input: {
         let selectedDraft: ResolvedCampaignDraft | null = null;
         const pointer = readDraftPointer();
         let draftReference = request.draft;
+        if (config.opportunity?.enabled && pointer?.configHash === contentHash(config.opportunity)
+          && pointer.state === 'CLARIFYING') throw Error('CAMPAIGN_INTENT_UNRESOLVED');
+        if (config.opportunity?.enabled && pointer?.configHash === contentHash(config.opportunity)
+          && (pointer.state === 'FAILED' || pointer.state === 'PREPARING')) throw Error('DRAFT_PREPARATION_INCOMPLETE');
         if (draftReference !== undefined && (!draftReference || typeof draftReference !== 'object' || Array.isArray(draftReference)
           || Object.keys(draftReference).sort().join() !== 'configHash,revision,runId')) throw Error('DRAFT_INPUT_INVALID');
         if (!draftReference && config.opportunity?.enabled && pointer?.configHash === contentHash(config.opportunity)) {
@@ -596,6 +625,7 @@ export function createProductionService(input: {
             expectedRevision: draftReference.revision, expectedConfigHash: contentHash(config.opportunity) });
           if (selectedDraft.status !== 'DRAFT') throw Error('DRAFT_ALREADY_STARTED');
         }
+        if (config.opportunity?.enabled && !selectedDraft) throw Error('DRAFT_REQUIRED');
         const selections = (value as { profiles: unknown }).profiles;
         if (!Array.isArray(selections) || selections.length < 1 || selections.length > 2) throw Error('COLLECTION_INPUT_INVALID');
         const available = await accounts(), platforms = new Set<Platform>();

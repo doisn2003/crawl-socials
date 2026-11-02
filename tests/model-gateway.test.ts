@@ -30,6 +30,15 @@ test('usage includes cached discounts and thinking tokens without double billing
   assert.equal(parseGeminiUsage({ promptTokenCount: -1 }), null);
 });
 
+test('explicit thinking effort reaches the provider and cannot reuse a lower-effort cache result', () => temporary(async directory => {
+  const levels: unknown[] = [];
+  const gateway = createGeminiGateway({ directory, budgetUsd: 1, model: 'gemini-3.5-flash-lite', price: GEMINI_FLASH_LITE_PRICE, apiKey: 'fake', minRequestIntervalMs: 0,
+    fetch: async (_url, init) => { levels.push(JSON.parse(String(init?.body)).generationConfig.thinkingConfig.thinkingLevel); return success(); } });
+  await gateway.generateJson(request); await gateway.generateJson({ ...request, thinking_level: 'low' });
+  await gateway.generateJson({ ...request, thinking_level: 'medium' }); await gateway.generateJson({ ...request, thinking_level: 'medium' });
+  assert.deepEqual(levels, ['minimal','low','medium']); assert.equal(gateway.summary().cache_hits, 1);
+}));
+
 test('optional 3.8 verifier uses supported low thinking and omits deprecated temperature', () => temporary(async directory => {
   const gateway = createGeminiGateway({ directory, budgetUsd: 1, model: 'gemini-3.8-flash', apiKey: 'fake', minRequestIntervalMs: 0,
     price: { ...GEMINI_FLASH_LITE_PRICE, input_per_million: 0.75, output_per_million: 3.75, cached_input_per_million: 0.075 },

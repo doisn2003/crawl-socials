@@ -179,9 +179,13 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
     }
     const generationConfig: Record<string, unknown> = { responseMimeType: 'application/json',
       responseJsonSchema: geminiWireSchema(request.schema), maxOutputTokens: request.max_output_tokens };
+    if (request.thinking_level !== undefined) {
+      if (!['minimal','low','medium','high'].includes(request.thinking_level)) throw new ModelGatewayError('MODEL_THINKING_LEVEL_INVALID');
+      generationConfig.thinkingConfig = { thinkingLevel: request.thinking_level };
+    }
     // 3.8 rejects minimal thinking and deprecated sampling parameters; 3.1/3.5 Lite
     // retain the tested compact configuration. Thinking tokens are metered as output.
-    if (/^gemini-3\.8-flash(?:$|-)/u.test(model)) generationConfig.thinkingConfig = { thinkingLevel: 'low' };
+    if (/^gemini-3\.8-flash(?:$|-)/u.test(model)) generationConfig.thinkingConfig ??= { thinkingLevel: 'low' };
     else generationConfig.temperature = 0;
     if (/^gemini-3/u.test(model) && !generationConfig.thinkingConfig) generationConfig.thinkingConfig = { thinkingLevel: 'minimal' };
     else if (/^gemini-2\.5/u.test(model)) generationConfig.thinkingConfig = { thinkingBudget: 0 };
@@ -252,7 +256,8 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
   return { summary, generateJson(request) {
     if (request.signal?.aborted) return Promise.reject(new ModelGatewayError('MODEL_ABORTED'));
     const hash = modelHash({ model, price, purpose: request.purpose, system: request.system, input: request.input,
-      schema: request.schema, max_output_tokens: request.max_output_tokens, cache_namespace: request.cache_namespace ?? '' });
+      schema: request.schema, max_output_tokens: request.max_output_tokens, cache_namespace: request.cache_namespace ?? '',
+      ...(request.thinking_level === undefined ? {} : { thinking_level: request.thinking_level }) });
     const cached = cache.get(hash);
     if (cached) { cacheHits++; return Promise.resolve({ ...cached, cache_hit: true, elapsed_ms: 0 }); }
     const existing = inFlight.get(hash);

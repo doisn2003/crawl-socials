@@ -6,7 +6,9 @@ export const OPPORTUNITY_FILTER_VERSION = 'conversation-opportunity-v2.0.3';
 /** Opt-in policy until its semantic evaluation is complete; legacy recipes stay immutable. */
 export const TEMPORAL_OPPORTUNITY_FILTER_VERSION = 'conversation-opportunity-v2.1.0';
 export const GROUNDED_CONSTRAINT_PLANNER_POLICY = 'grounded-constraints-v1';
-export type CampaignPlannerPolicy = 'legacy-short-v1' | typeof GROUNDED_CONSTRAINT_PLANNER_POLICY;
+export const SEMANTIC_PLANNER_POLICY = 'controlled-semantic-dialogue-v1';
+export const INTENT_OPPORTUNITY_FILTER_VERSION = 'conversation-opportunity-v2.0.4-intent';
+export type CampaignPlannerPolicy = 'legacy-short-v1' | typeof GROUNDED_CONSTRAINT_PLANNER_POLICY | typeof SEMANTIC_PLANNER_POLICY;
 export type CampaignConstraintField = 'required_geographies' | 'preferred_geographies' | 'languages' | 'max_age_days' | 'source_priority';
 export type CampaignConstraintSource = 'PROMPT' | 'BRAND_CONTEXT';
 export type CampaignConstraintIssue = 'AMBIGUOUS_SCOPE' | 'MENTION_NOT_CONSTRAINT' | 'STRENGTH_MISMATCH' |
@@ -63,6 +65,7 @@ export interface CampaignPlan {
   filter_version: string;
   planner_policy?: CampaignPlannerPolicy;
   constraint_provenance?: CampaignConstraintProvenance;
+  intent_resolution?: import('../shared/semantic-intent.js').IntentResolution;
 }
 
 export interface CampaignPlanInput {
@@ -102,7 +105,14 @@ export function validateCampaignPlan(plan: CampaignPlan): void {
     if (!query.text.trim() || query.text.length > 200 || !['REQUEST', 'EXPERIENCE', 'COMPARISON', 'PROBLEM', 'USE_CASE', 'BROAD'].includes(query.family)
       || !query.platforms.length || query.platforms.some(p => p !== 'facebook' && p !== 'threads')) throw Error('CAMPAIGN_QUERY_INVALID');
   }
-  if (plan.planner_policy !== undefined && !['legacy-short-v1', GROUNDED_CONSTRAINT_PLANNER_POLICY].includes(plan.planner_policy)) throw Error('CAMPAIGN_PLANNER_POLICY_INVALID');
+  if (plan.planner_policy !== undefined && !['legacy-short-v1', GROUNDED_CONSTRAINT_PLANNER_POLICY, SEMANTIC_PLANNER_POLICY].includes(plan.planner_policy)) throw Error('CAMPAIGN_PLANNER_POLICY_INVALID');
+  if (plan.planner_policy === SEMANTIC_PLANNER_POLICY) {
+    const resolution = plan.intent_resolution;
+    if (!resolution || resolution.schema_version !== 1 || !/^[a-f0-9]{64}$/u.test(resolution.recipe_hash)
+      || resolution.input.prompt !== plan.prompt || resolution.plan.state !== 'READY'
+      || resolution.plan.intent_revision !== resolution.input.revision || resolution.plan.unresolved_fields.length
+      || resolution.plan.uncovered.length || !resolution.plan.queries.some(query => !query.rejection)) throw Error('CAMPAIGN_INTENT_UNRESOLVED');
+  }
   if (plan.constraint_provenance !== undefined) {
     const provenance = plan.constraint_provenance;
     if (plan.planner_policy !== GROUNDED_CONSTRAINT_PLANNER_POLICY || !provenance || provenance.schema_version !== 1

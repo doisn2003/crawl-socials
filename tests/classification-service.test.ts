@@ -7,6 +7,19 @@ import type { ConversationEntity, ConversationSnapshot } from '../src/domain/con
 import type { JsonModelRequest, ModelGateway } from '../src/application/ports/model-gateway.js';
 import { ModelGatewayError } from '../src/application/ports/model-gateway.js';
 import { GEMINI_FLASH_LITE_PRICE } from '../src/infrastructure/llm/gemini-gateway.js';
+import { INTENT_OPPORTUNITY_FILTER_VERSION } from '../src/domain/campaign-plan.js';
+
+test('intent classifier receives current confirmed criteria and target role instead of assuming a consumer audience', async () => {
+  const s = snapshot(), gateway = fakeGateway(() => [item(s)]);
+  const edited = { ...campaign, filter_version: INTENT_OPPORTUNITY_FILTER_VERSION, audience: ['Người rao bán đàn piano'],
+    inclusions: ['Chỉ tại Đà Nẵng'], exclusions: ['Người hỏi mua'], languages: ['vi'], research_intents: [] };
+  await classifyConversations(edited, [s], gateway);
+  const request = gateway.requests[0]!;
+  assert.equal(request.purpose, INTENT_OPPORTUNITY_FILTER_VERSION);
+  const goal = (request.input as { campaign: Record<string, unknown> }).campaign;
+  assert.deepEqual(goal.audience, edited.audience); assert.deepEqual(goal.inclusions, edited.inclusions);
+  assert.deepEqual(goal.exclusions, edited.exclusions); assert.match(request.system, /ƯU TIÊN MỤC TIÊU ĐÃ CHỐT/);
+});
 
 const campaign = literalCampaign({ prompt: 'Tìm cuộc thảo luận về quán cà phê' });
 function snapshot(id = 'root', withQuestion = true): ConversationSnapshot {

@@ -9,6 +9,11 @@ import { createCampaignModelGateway } from '../infrastructure/llm/campaign-model
 import { classifierRecipe } from './classification-service.js';
 import { compileCampaign, plannerRecipeHash } from './compile-campaign.js';
 import { pinPlannerRecipe } from './planner-recipe-pin.js';
+import { SEMANTIC_PLANNER_POLICY, INTENT_OPPORTUNITY_FILTER_VERSION } from '../domain/campaign-plan.js';
+import { compileSemanticTurn } from './semantic-campaign.js';
+import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
+import { reviseAnswers, reviseIntent } from '../domain/semantic-keywords.mjs';
+import type { CampaignDialogueView, ContinueCampaignRequest, IntentInput } from '../shared/semantic-intent.js';
 import type { ModelGateway } from './ports/model-gateway.js';
 import type { OpportunityConfig } from '../shared/production-api.js';
 import type { ApplyCampaignPresetRequest, CampaignCriteria, CampaignCriteriaOverride, CampaignCriteriaPatch,
@@ -153,7 +158,7 @@ function gatewayFor(input: Located, config: OpportunityConfig) {
 function view(record: DraftRecord, pointer: DraftPointer, receipt: CampaignDraftCost): CampaignDraftView {
   let supported = true; try { assertRecipe(record.campaign, record.recipe, record.recipeHash); } catch { supported = false; }
   return structuredClone({ runId: record.runId, revision: pointer.revision, status: pointer.status, supported, config: record.config,
-    criteriaCapabilities: { extendedClassificationCriteria: supported && record.campaign.filter_version === TEMPORAL_OPPORTUNITY_FILTER_VERSION },
+    criteriaCapabilities: { extendedClassificationCriteria: supported && [TEMPORAL_OPPORTUNITY_FILTER_VERSION, INTENT_OPPORTUNITY_FILTER_VERSION, GOAL_FILTER_VERSION].includes(record.campaign.filter_version) },
     configHash: contentHash(record.config), campaign: record.campaign, criteria: criteria(record.campaign), recipeHash: record.recipeHash,
     source: record.source, sourceHash: contentHash(record.source), cost: receipt, createdAt: record.createdAt,
     updatedAt: record.updatedAt, userOverrides: record.userOverrides });
@@ -254,12 +259,117 @@ export function updateDraft(input: { directory: string } & UpdateCampaignDraftRe
   return view(updated, save(input, updated), readDraftCost(input));
 }
 export function resolveDraftForStart(input: StartInput): ResolvedCampaignDraft {
+  if (existsSync(join(paths(input).opportunity, 'intent-pending.json'))) throw Error('CAMPAIGN_INTENT_UNRESOLVED');
+  const dialogue = readDialogue(input);
+  if (dialogue && dialogue.plan.state !== 'READY') throw Error('CAMPAIGN_INTENT_UNRESOLVED');
   const { record, pointer } = load(input);
   if (pointer.revision !== input.expectedRevision) throw Error('DRAFT_REVISION_CONFLICT');
   if (contentHash(record.config) !== input.expectedConfigHash) throw Error('DRAFT_CONFIG_MISMATCH');
   const campaignFile = join(paths(input).opportunity, 'campaign.json');
   if (existsSync(campaignFile) && contentHash(read(campaignFile)) !== contentHash(record.campaign)) throw Error('DRAFT_ALREADY_CONSUMED');
   return { ...view(record, pointer, readDraftCost(input)), outputDirectory: paths(input).output };
+}
+
+type PrepareInput = Parameters<typeof prepareDraft>[0];
+type DialogueRecord = Omit<CampaignDialogueView, 'revision' | 'cost'>;
+function dialogueFile(input: Located) { return join(paths(input).opportunity, 'intent-dialogue.json'); }
+export function readDialogue(input: Located): CampaignDialogueView | null {
+  const file = dialogueFile(input); if (!existsSync(file)) return null;
+  const pointer = read(file) as { revision: string };
+  if (!hashPattern.test(pointer.revision)) throw Error('DRAFT_REVISION_INVALID');
+  const record = read(join(paths(input).opportunity, 'intent-revisions', pointer.revision + '.json')) as DialogueRecord;
+  if (contentHash(record) !== pointer.revision || record.runId !== input.runId || contentHash(record.config) !== record.configHash) throw Error('DRAFT_REVISION_INVALID');
+  return { ...record, revision: pointer.revision, cost: readDraftCost(input) };
+}
+function saveDialogue(input: Located, record: DialogueRecord): CampaignDialogueView {
+  const revision = contentHash(record);
+  immutable(join(paths(input).opportunity, 'intent-revisions', revision + '.json'), record);
+  atomic(dialogueFile(input), { revision }); return { ...record, revision, cost: readDraftCost(input) };
+}
+/** New desktop campaigns use the approved dialogue. Historical allocations retain their exact recipe. */
+export async function prepareSemanticDraft(input: PrepareInput): Promise<CampaignDraftView | CampaignDialogueView> {
+  const config = parseOpportunityConfig(input.config); if (!config.enabled) throw Error('DRAFT_OPPORTUNITY_REQUIRED');
+  const location = input.resumeRunId ? { directory: input.directory, runId: input.resumeRunId } : allocated(input.directory, config, SEMANTIC_PLANNER_POLICY);
+  const allocation = readAllocation(location);
+  if (allocation.configHash !== contentHash(config)) throw Error('DRAFT_CONFIG_MISMATCH');
+  if (allocation.plannerPolicy !== SEMANTIC_PLANNER_POLICY) return prepareDraft({ ...input, resumeRunId: location.runId });
+  const files = paths(location), pendingFile = join(files.opportunity, 'intent-pending.json');
+  if (existsSync(join(files.opportunity, 'campaign.json')) || (existsSync(files.pointer) && load(location).pointer.status === 'STARTED')) throw Error('DRAFT_ALREADY_CONSUMED');
+  const previous = readDialogue(location);
+  if (previous && !existsSync(pendingFile)) return previous.plan.state === 'READY' ? readDraft(location) : previous;
+  const planner = pinPlannerRecipe({ directory: files.opportunity, defaultPolicy: SEMANTIC_PLANNER_POLICY,
+    requiredPolicy: SEMANTIC_PLANNER_POLICY, requiredHash: allocation.plannerRecipeHash! });
+  const intent: IntentInput = existsSync(pendingFile) ? (read(pendingFile) as { input: IntentInput }).input
+    : { stage: 'S2', prompt: config.prompt, context: config.brandContext, seeds: [], revision: 1, answers: [], edits: [] };
+  const gateway = input.gateway ?? (input.gatewayFactory ? input.gatewayFactory({ directory: files.opportunity, budgetUsd: config.budgetUsd }) : gatewayFor(location, config));
+  const generationFile = join(files.opportunity, 'intent-generation.json');
+  const oldGeneration = existsSync(generationFile) ? read(generationFile) as { inputHash: string; id: string; status: string; code?: string } : null;
+  const generation = { inputHash: contentHash(intent), id: oldGeneration?.inputHash === contentHash(intent)
+    && !(oldGeneration.status === 'FAILED' && oldGeneration.code === 'CAMPAIGN_SEMANTIC_VALIDATION_FAILED') ? oldGeneration.id : randomUUID() };
+  try {
+    // An interrupted request replays its cache. An explicit retry after invalid model output
+    // gets a new generation, otherwise both invalid cached responses would fail forever.
+    atomic(generationFile, { ...generation, status: 'STARTED' });
+    atomic(join(files.opportunity, 'draft-cost.json'), cost(gateway));
+    input.onAllocated?.({ runId: location.runId, configHash: contentHash(config) });
+    const result = await compileSemanticTurn({ campaign_id: location.runId, prompt: config.prompt, brand_context: config.brandContext,
+      suitable_target: config.totalTarget, desired_platform_weights: { threads: config.threadsShare, facebook: 1 - config.threadsShare },
+      raw_cap: config.rawCap, model_usd: config.budgetUsd }, intent, gateway, {
+      cacheNamespace: 'semantic-dialogue:' + generation.id,
+      ...(input.signal ? { signal: input.signal } : {}),
+      onAttempt: attempt => { immutable(join(files.opportunity, 'intent-attempts', randomUUID() + '.json'), { revision: intent.revision, generationId: generation.id, ...attempt });
+        atomic(join(files.opportunity, 'draft-cost.json'), cost(gateway)); },
+    });
+    const receipt = cost(gateway), at = now(); atomic(join(files.opportunity, 'draft-cost.json'), receipt);
+    let draft: CampaignDraftView | null = null;
+    if (result.campaign) {
+      const campaign = result.campaign; validateCampaign(campaign, config);
+      const recipe = classifierRecipe(campaign.filter_version);
+      const record: DraftRecord = { schemaVersion: 1, runId: location.runId, config, campaign, recipe, recipeHash: contentHash(recipe),
+        source: { kind: 'PLANNER', sourceCampaignVersion: campaign.version, plannerRequestHash: result.model_result.request_hash,
+          plannerInvocationId: result.model_result.invocation_id, plannerPolicy: planner.planner_policy, plannerRecipeHash: planner.recipe_sha256 },
+        createdAt: previous?.createdAt ?? at, updatedAt: at, userOverrides: [] };
+      draft = view(record, save(location, record), receipt);
+    }
+    const dialogue = saveDialogue(location, { runId: location.runId, config, configHash: contentHash(config), input: intent,
+      plan: result.plan, createdAt: previous?.createdAt ?? at, updatedAt: at });
+    if (existsSync(pendingFile)) unlinkSync(pendingFile);
+    atomic(generationFile, { ...generation, status: 'SUCCEEDED' });
+    return draft ?? dialogue;
+  } catch (error) {
+    const receipt = cost(gateway), errorCode = safeCode(error);
+    atomic(generationFile, { ...generation, status: 'FAILED', code: errorCode });
+    atomic(join(files.opportunity, 'draft-cost.json'), receipt);
+    atomic(join(files.opportunity, 'draft-failure.json'), { code: errorCode, at: now(), cost: receipt });
+    throw new CampaignDraftPreparationError(errorCode, location.runId, receipt);
+  }
+}
+export async function continueSemanticDraft(input: { directory: string; request: ContinueCampaignRequest } & Pick<PrepareInput, 'gateway' | 'gatewayFactory' | 'onAllocated' | 'signal'>) {
+  const request = input.request;
+  if (!object(request) || Object.keys(request).some(key => !['runId', 'expectedRevision', 'answers', 'editAnswerId', 'edits'].includes(key))
+    || (!!request.answers === !!request.edits) || (request.editAnswerId !== undefined && !request.answers)) throw Error('DRAFT_INPUT_INVALID');
+  const location = { directory: input.directory, runId: request.runId }, files = paths(location), previous = readDialogue(location);
+  if (!previous || previous.revision !== request.expectedRevision) throw Error('DRAFT_REVISION_CONFLICT');
+  if (existsSync(files.pointer) && contentHash(load(location).record.config) !== previous.configHash) throw Error('DRAFT_CONFIG_MISMATCH');
+  if (existsSync(join(files.opportunity, 'campaign.json')) || (existsSync(files.pointer) && load(location).pointer.status !== 'DRAFT')) throw Error('DRAFT_ALREADY_STARTED');
+  if (existsSync(join(files.opportunity, 'intent-pending.json'))) throw Error('DRAFT_PREPARATION_INCOMPLETE');
+  if (previous.input.revision >= 100) throw Error('DRAFT_EDIT_LIMIT');
+  let revised: IntentInput;
+  try {
+    if (request.edits) {
+      if (request.edits.some(edit => typeof edit.value !== 'string' || edit.value.length > 600)) throw Error('CAMPAIGN_ANSWER_INVALID');
+      revised = reviseIntent(previous.input, request.edits, request.runId, previous.input.revision);
+    }
+    else {
+      const oldAnswer = request.editAnswerId ? previous.input.answers.find(answer => answer.answer_id === request.editAnswerId) : null;
+      if (request.editAnswerId && !oldAnswer) throw Error('DRAFT_INPUT_INVALID');
+      const questions = oldAnswer ? [oldAnswer.question_snapshot] : previous.plan.questions;
+      revised = reviseAnswers(previous.input, { ...previous.plan, questions }, request.answers!, request.runId, previous.input.revision, previous.plan);
+    }
+  } catch { throw Error('CAMPAIGN_ANSWER_INVALID'); }
+  // Persist the submitted revision before billing. Retry/restart replays exactly these answers.
+  atomic(join(files.opportunity, 'intent-pending.json'), { input: revised, baseRevision: previous.revision });
+  return prepareSemanticDraft({ ...input, config: previous.config, resumeRunId: request.runId });
 }
 /** The service calls this only after validated startup succeeds; retrying the same run is idempotent. */
 export function markDraftStarted(input: StartInput): CampaignDraftView {

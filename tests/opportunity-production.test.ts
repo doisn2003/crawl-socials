@@ -4,12 +4,28 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { createProductionService, type ProductionHost } from '../src/application/production-service.js';
+import { createProductionService as productionService, type ProductionHost } from '../src/application/production-service.js';
+import { prepareDraft } from '../src/application/campaign-drafts.js';
 import { createOpportunityPipeline, type OpportunityPipeline, type OpportunityPipelineInput } from '../src/application/opportunity-pipeline.js';
 import { literalCampaign } from '../src/application/compile-campaign.js';
 import type { ModelGateway } from '../src/application/ports/model-gateway.js';
 import type { OpportunityProgress } from '../src/shared/production-api.js';
 import { DEFAULT_STORAGE_LIMITS } from '../src/application/storage-backpressure.js';
+
+// Lifecycle tests start with a reviewed historical plan. Dialogue behavior is covered separately.
+function createProductionService(input: Parameters<typeof productionService>[0]) {
+  const service = productionService({ ...input, prepareCampaignDraft: options => prepareDraft({ ...options, gateway: {
+    summary: () => ({ model: 'fixture', budget_usd: options.config.budgetUsd, measured_cost_usd: 0, unmetered_cost_upper_usd: 0,
+      reserved_usd: 0, remaining_usd: options.config.budgetUsd, billable_attempts: 0, cache_hits: 0, cost_basis: 'TOKEN_USAGE_AT_SNAPSHOT_LIST_PRICE_NOT_INVOICE' }),
+    generateJson: async () => ({ value: { topic: 'Quán cafe', audience: [], needs: [], participation_intents: [], research_intents: [],
+      inclusions: [], exclusions: [], assumptions: [], queries: [{ text: options.config.prompt.includes('piano') ? 'học piano' : 'quán cafe', family: 'BROAD' }],
+      constraints: { geographies: [], languages: [], max_age_days: null, source_priority: null, unresolved: [] } },
+      invocation_id: 'fixture', request_hash: 'fixture', model: 'fixture', model_version: null, usage: null, cost_usd: 0,
+      unmetered_cost_upper_usd: 0, cache_hit: false, elapsed_ms: 0,
+      price: { input_per_million: 0, output_per_million: 0, cached_input_per_million: 0, observed_at: 'fixture', source: 'fixture' } }),
+  } }) });
+  return { ...service, start: async (value: unknown) => { await service.prepareCampaign(); return service.start(value); } };
+}
 
 test('production classifies during parallel collection and completes a TOTAL target with Threads preference', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'csd-opportunity-production-'));
@@ -34,7 +50,7 @@ test('production classifies during parallel collection and completes a TOTAL tar
     async list() { return profiles; }, async sessionStatus() { return true; },
     async create() { throw Error('NOT_EXPECTED'); }, async openLogin() { throw Error('NOT_EXPECTED'); },
   }, createOpportunity: options => createOpportunityPipeline({ ...options, gateway,
-    campaign: literalCampaign({ prompt: 'Tìm quán cafe', campaign_id: options.runId, suitable_target: 10, raw_cap: 30, seed_queries: ['quán cafe'] }) }),
+    campaign: options.campaign! }),
   async collectConversation() { throw Error('NOT_EXPECTED'); },
   async collect(input) {
     opened++;
@@ -366,7 +382,7 @@ test('production storage stop resumes against the same pinned limit and cumulati
     createOpportunity(options) {
       constructions++;
       return createOpportunityPipeline({ ...options, gateway,
-        ...(!existsSync(join(options.directory, 'opportunity', 'campaign.json')) ? { campaign: literalCampaign({ prompt: 'Tìm chỗ học piano', campaign_id: options.runId, suitable_target: 10, raw_cap: 30, seed_queries: ['học piano'] }) } : {}),
+        ...(options.campaign ? { campaign: options.campaign } : {}),
         storageLimits: constructions === 1 ? { ...DEFAULT_STORAGE_LIMITS, max_run_bytes: 2 * 1024 * 1024, in_flight_reserve_bytes: 65536 } : { ...DEFAULT_STORAGE_LIMITS },
       });
     }, async collectConversation() { throw Error('UNEXPECTED_COMMENTS'); }, async withConversationWindow() { windows++; },

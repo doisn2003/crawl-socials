@@ -22,6 +22,8 @@ export interface JsonModelRequest {
   signal?: AbortSignal;
   /** Distinguishes deliberate independent annotations, never exposes secrets. */
   cache_namespace?: string;
+  /** Explicit reasoning effort is part of the cache identity; omitted preserves legacy transport. */
+  thinking_level?: 'minimal' | 'low' | 'medium' | 'high';
 }
 
 export interface JsonModelResult {

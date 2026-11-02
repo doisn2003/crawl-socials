@@ -17,7 +17,8 @@ export interface CampaignDraftPlan extends CampaignCriteria {
   desired_platform_weights: Record<'facebook' | 'threads', number>;
   budget: { raw_cap: number; model_usd: number; max_run_minutes: number; comments_per_capture: number; comment_pages: number };
   filter_version: string;
-  planner_policy?: 'legacy-short-v1' | 'grounded-constraints-v1';
+  intent_resolution?: import('./semantic-intent.js').IntentResolution;
+  planner_policy?: 'legacy-short-v1' | 'grounded-constraints-v1' | 'controlled-semantic-dialogue-v1';
   constraint_provenance?: {
     schema_version: 1; sources: Record<'PROMPT' | 'BRAND_CONTEXT', string>;
     compiled_values: Pick<CampaignCriteria, 'required_geographies' | 'preferred_geographies' | 'languages' | 'max_age_days' | 'source_priority'>;
@@ -42,7 +43,7 @@ export interface CampaignDraftSource {
   sourceCampaignVersion: string;
   presetId?: string; presetVersion?: string; sourceRunId?: string;
   plannerRequestHash?: string; plannerInvocationId?: string;
-  plannerPolicy?: 'legacy-short-v1' | 'grounded-constraints-v1'; plannerRecipeHash?: string;
+  plannerPolicy?: 'legacy-short-v1' | 'grounded-constraints-v1' | 'controlled-semantic-dialogue-v1'; plannerRecipeHash?: string;
 }
 export interface CampaignCriteriaOverride {
   at: string; previousRevision: string; patch: CampaignCriteriaPatch;

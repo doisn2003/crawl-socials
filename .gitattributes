@@ -1,0 +1,2 @@
+# Preserve the approved semantic engine bytes across Windows worktrees.
+src/domain/semantic-keywords.mjs text eol=lf

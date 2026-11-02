@@ -22,7 +22,7 @@ const threadsShare = element<HTMLSelectElement>('threads-share');
 const rawCap = element<HTMLInputElement>('raw-cap');
 const modelBudget = element<HTMLInputElement>('model-budget');
 const intentInputs = [intentEnabled, campaignPrompt, brandContext, suitableTarget, threadsShare, rawCap, modelBudget];
-let resultGroup: 'SUITABLE' | 'NOT_YET' | 'UNRELATED' = 'SUITABLE';
+let resultGroup: 'SUITABLE' | 'NOT_SUITABLE' = 'SUITABLE';
 const startButton = element<HTMLButtonElement>('start');
 const stopButton = element<HTMLButtonElement>('stop');
 const selectedProfiles = new Map<Platform, string>();
@@ -95,6 +95,9 @@ function selectableProfiles() {
 }
 function friendlyError(error: unknown, fallback: string): string {
   const text = error instanceof Error ? error.message : String(error);
+  if (/CAMPAIGN_INTENT_UNRESOLVED|DRAFT_REQUIRED/.test(text)) return 'Hãy làm rõ nhu cầu và xem kế hoạch trước khi thu thập.';
+  if (/CAMPAIGN_ANSWER_INVALID/.test(text)) return 'Hãy trả lời các câu hỏi bắt buộc hoặc nhập nội dung sửa mục tiêu trước khi gửi.';
+  if (/CAMPAIGN_SEMANTIC_VALIDATION_FAILED/.test(text)) return 'AI chưa tạo được bộ từ khóa hợp lệ sau một lượt sửa. Chọn Thử lại kế hoạch; câu trả lời và chi phí vẫn được giữ.';
   if (/RETAINED_OPPORTUNITY_JOURNAL_REQUIRED/.test(text))
     return 'Lượt dữ liệu này chưa có lịch sử hội thoại để tái lọc. Hãy chọn một lượt thu theo nhu cầu khác.';
   if (/RETAINED_.*(?:CHANGED|MISMATCH|TRUNCATED|CORRUPT)/.test(text))
@@ -324,14 +327,15 @@ function renderOpportunities() {
   element('opportunity-results').hidden = !opportunity;
   element('export-scope-field').hidden = !opportunity;
   const all = element<HTMLSelectElement>('export-scope').value === 'ALL';
-  const groupNames = { SUITABLE: 'Phù hợp', NOT_YET: 'Chưa phù hợp', UNRELATED: 'Không phù hợp' };
+  const groupNames = { SUITABLE: 'Phù hợp', NOT_SUITABLE: 'Không phù hợp' };
   setText('export-description', opportunity ? (all ? 'Tất cả bài đã thu, gồm cả bài đang chờ lọc.' : 'Nhóm ' + groupNames[resultGroup] + ' đang xem.')
-    + ' Excel gồm 4 sheet: Conversations, Comments, DecisionHistory, Manifest. Bình luận và trả lời đã thu đi kèm đúng bài được xuất.' : 'Một file Excel · Hai trang tính Facebook Posts + Thread Posts.');
+    + ' Excel gồm Conversations, Comments, DecisionHistory, Manifest và thêm GoalEvidence khi có đánh giá theo mục tiêu. Bình luận và trả lời đã thu đi kèm đúng bài được xuất.' : 'Một file Excel · Hai trang tính Facebook Posts + Thread Posts.');
   if (!opportunity) return;
   element('preview-wrapper').hidden = true; element('empty-result').hidden = true;
   const counts = opportunity.counts;
   setText('result-count', number(counts.suitable) + ' / ' + number(opportunity.totalTarget) + ' BÀI TINH');
-  setText('opportunity-summary', number(counts.raw) + ' bài thô · ' + number(counts.comments) + ' bình luận · ' + number(counts.pending) + ' đang chờ · Chi phí AI $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2));
+  setText('opportunity-summary', number(counts.raw) + ' bài thô · ' + number(counts.comments) + ' bình luận · ' + number(counts.pending) + ' đang chờ · Chi phí AI $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2)
+    + (opportunity.evaluationPolicy === 'GOAL_EVIDENCE' ? '' : ' · Kết quả cũ: cần tái lọc để áp dụng cách đánh giá mới.'));
   const retained = state?.run?.mode === 'RETAINED' ? state.run.retained : undefined;
   const importProgress = retained && retained.status !== 'IMPORTED'
     ? 'Đã đọc ' + number(retained.importedObservations) + '/' + number(retained.totalObservations) + ' bản ghi. ' : '';
@@ -351,18 +355,25 @@ function renderOpportunities() {
       + (opportunity.assessmentNextAt ? ' (kế tiếp ' + new Date(opportunity.assessmentNextAt).toLocaleString('vi-VN') + ')' : ''));
     setText('start-help', 'Đang theo dõi ' + monitoring.join(' và ') + '. Dừng để kết thúc theo dõi.');
   }
-  const labels = { SUITABLE: 'Phù hợp', NOT_YET: 'Chưa phù hợp', UNRELATED: 'Không phù hợp' };
-  const totals = { SUITABLE: counts.suitable, NOT_YET: counts.notYet, UNRELATED: counts.unrelated };
+  const labels = { SUITABLE: 'Phù hợp', NOT_SUITABLE: 'Không phù hợp' };
+  const totals = { SUITABLE: counts.suitable, NOT_SUITABLE: counts.notSuitable ?? counts.notYet + counts.unrelated };
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-result-group]')) {
     const group = button.dataset.resultGroup as keyof typeof labels;
     button.textContent = labels[group] + ' · ' + number(totals[group]); button.setAttribute('aria-pressed', String(resultGroup === group));
   }
-  const cards = opportunity.preview.filter(result => result.classification === resultGroup).map(result => {
+  const cards = opportunity.preview.filter(result => (result.classification === 'SUITABLE' ? 'SUITABLE' : 'NOT_SUITABLE') === resultGroup).slice(0, 20).map(result => {
     const card = document.createElement('article'); card.className = 'opportunity-card';
     const meta = document.createElement('small'); meta.textContent = platformNames[result.platform] + ' · ' + result.reason + ' · ' + (coverageLabels[result.coverage] ?? result.coverage);
     const text = document.createElement('p'); text.textContent = result.text;
     card.append(meta, text);
-    for (const evidence of result.evidence) { const quote = document.createElement('blockquote'); quote.textContent = evidence; card.append(quote); }
+    if (result.conditions?.length) {
+      const details = document.createElement('details'), summary = document.createElement('summary'); summary.textContent = 'Đối chiếu điều kiện'; details.append(summary);
+      const statusNames = { PASS: 'Đạt', FAIL: 'Vi phạm', UNKNOWN: 'Chưa rõ' };
+      for (const condition of result.conditions) { const line = document.createElement('p'); line.textContent = statusNames[condition.status] + ' · ' + condition.label; details.append(line);
+        for (const evidence of condition.evidence) { const quote = document.createElement('blockquote'); quote.textContent = evidence; details.append(quote); }
+      }
+      card.append(details);
+    } else for (const evidence of result.evidence) { const quote = document.createElement('blockquote'); quote.textContent = evidence; card.append(quote); }
     if (result.link) { const open = document.createElement('button'); open.type = 'button'; open.textContent = 'Mở cuộc thảo luận ↗'; open.addEventListener('click', () => { void window.csd.openPost({ url: result.link }).catch(() => operation('Không mở được liên kết của bài viết.', true)); }); card.append(open); }
     return card;
   });
@@ -490,6 +501,13 @@ startButton.addEventListener('click', () => {
       const config = readConfig(), selected = selectableProfiles();
       if (!(config.opportunity?.enabled ? config.opportunity.prompt.trim() : config.keywords.length) || !selected.length) { operation('Nhập nhu cầu/từ khóa và chọn ít nhất một nguồn đã đăng nhập.', true); return; }
       const draft = config.opportunity?.enabled ? planner.draftReference() : undefined;
+      if (config.opportunity?.enabled && !draft) {
+        stateEpoch++; const next = await window.csd.prepareCampaign(); applyState(next);
+        operation(next.campaignDraftError ? friendlyError(next.campaignDraftError.code, 'Chưa lập được kế hoạch. Hãy thử lại.')
+          : next.campaignDialogue?.plan.state === 'NEEDS_CLARIFICATION' ? 'Trả lời phần làm rõ nhu cầu trước khi thu thập.'
+          : 'Kế hoạch đã sẵn sàng. Xem từ khóa và tiêu chí, rồi bấm bắt đầu để thu thập.', !!next.campaignDraftError);
+        return;
+      }
       stateEpoch++; const next = await window.csd.start({ profiles: selected, ...(draft ? { draft } : {}) }); applyState(next);
     } catch (error) { operation(friendlyError(error, 'Chưa bắt đầu được lượt thu thập. Hãy kiểm tra tài khoản và thử lại.'), true); }
     finally { commandPending = false; updateControls(); }

@@ -1,5 +1,6 @@
 import type { ProductionApi, ProductionState, RetainedSourceCatalog, RetainedSourceSummary, UserConfig } from '../shared/production-api.js';
 import type { CampaignCriteriaPatch, CampaignDraftReference, CampaignDraftView } from '../shared/campaign-drafts.js';
+import { createIntentDialogue } from './intent-dialogue.js';
 
 interface PlannerHost {
   api: ProductionApi;
@@ -15,10 +16,15 @@ const listFields = ['audience', 'needs', 'participation_intents', 'research_inte
 const inputId = (key: string) => 'criteria-' + key.replaceAll('_', '-');
 const sourceKey = (source: RetainedSourceSummary) => source.sourceRootId ? source.sourceRootId + '|' + source.runId : source.runId;
 
-/** Optional plan review; normal Start can still compile directly from the user's prompt. */
+/** Review and clarification precede collection; historical ready drafts remain reusable. */
 export function createCampaignPlanner(host: PlannerHost) {
   let displayedRevision = '', editedRevision = '', dirty = false, presetKey = '';
   let sources: RetainedSourceSummary[] = [], loadingSources = false;
+  const dialogue = createIntentDialogue({ ...host, submit: request => host.execute(async () => {
+    const next = await host.api.continueCampaign(request);
+    if (!next.campaignDraftError) { dirty = false; displayedRevision = ''; }
+    return next;
+  }, 'Đã cập nhật cách hiểu nhu cầu. Kiểm tra câu hỏi hoặc từ khóa bên dưới.') });
   const controls = [node<HTMLInputElement>('criteria-topic'), ...listFields.map(key => node<HTMLTextAreaElement>(inputId(key))),
     node<HTMLTextAreaElement>('criteria-queries'), node<HTMLInputElement>('criteria-max-age-days'),
     node<HTMLInputElement>('criteria-watch-enabled'), node<HTMLInputElement>('criteria-watch-hours'), node<HTMLInputElement>('criteria-watch-ttl'),
@@ -29,7 +35,7 @@ export function createCampaignPlanner(host: PlannerHost) {
   };
   function draftReference(): CampaignDraftReference | undefined {
     const draft = host.state()?.campaignDraft;
-    return draft?.supported && draft.status === 'DRAFT' && matches(draft) && !dirty
+    return draft?.supported && draft.status === 'DRAFT' && matches(draft) && !dirty && !dialogue.hasUnsavedEdits()
       ? { runId: draft.runId, revision: draft.revision, configHash: draft.configHash } : undefined;
   }
   function fill(draft: CampaignDraftView) {
@@ -45,6 +51,7 @@ export function createCampaignPlanner(host: PlannerHost) {
     displayedRevision = draft.revision; editedRevision = draft.revision;
   }
   function render() {
+    dialogue.render();
     const state = host.state(), draft = state?.campaignDraft, config = host.config().opportunity;
     node('campaign-planning').hidden = !config?.enabled;
     const busy = host.busy(), staleEdits = dirty && draft?.revision !== editedRevision;
@@ -64,7 +71,7 @@ export function createCampaignPlanner(host: PlannerHost) {
       : !matches(draft) ? 'Nhu cầu hoặc giới hạn đã thay đổi. Xem kế hoạch mới để cập nhật tiêu chí.'
         : dirty ? 'Tiêu chí đang có thay đổi chưa lưu.' : draft.status === 'STARTED' ? 'Tiêu chí của lượt đã bắt đầu; giữ nguyên để đối chiếu kết quả.'
           : 'Kế hoạch sẵn sàng. Bạn có thể sửa tiêu chí hoặc bắt đầu thu thập.';
-    const cost = state?.campaignDraftPreparing?.cost ?? state?.campaignDraftError?.cost ?? draft?.cost;
+    const cost = state?.campaignDraftPreparing?.cost ?? state?.campaignDraftError?.cost ?? draft?.cost ?? state?.campaignDialogue?.cost;
     node('campaign-plan-cost').textContent = cost ? `Chi phí lập kế hoạch: $${cost.measuredUsd.toFixed(4)}`
       + (cost.unknownUpperUsd + cost.reservedUsd > 0 ? `–$${(cost.measuredUsd + cost.unknownUpperUsd + cost.reservedUsd).toFixed(4)}` : '')
       + ' · Được tính trong ngân sách của lượt thu.' : 'Bước này dùng AI để lập tiêu chí; chưa thu thập bài viết.';
@@ -133,7 +140,7 @@ export function createCampaignPlanner(host: PlannerHost) {
     const next = await host.api.prepareCampaign();
     if (!next.campaignDraftError) { dirty = false; displayedRevision = ''; node<HTMLDetailsElement>('campaign-plan-editor').open = true; }
     return next;
-  }, 'Đã lập tiêu chí và truy vấn. Chi phí được giữ cho cùng lượt thu.'); });
+  }, 'Đã phân tích nhu cầu. Xem câu hỏi làm rõ hoặc tiêu chí và từ khóa bên dưới.'); });
   node('save-campaign-criteria').addEventListener('click', () => { void host.execute(async () => {
     const draft = host.state()?.campaignDraft; if (!draft || !matches(draft)) throw Error('DRAFT_CONFIG_MISMATCH');
     const queries = lines(node<HTMLTextAreaElement>('criteria-queries').value).flatMap(text => {
@@ -178,5 +185,5 @@ export function createCampaignPlanner(host: PlannerHost) {
       if (event.button === 0 && document.activeElement?.matches('input, textarea, select')) event.preventDefault();
     });
   }
-  return { render, draftReference, hasUnsavedEdits: () => dirty };
+  return { render, draftReference, hasUnsavedEdits: () => dirty || dialogue.hasUnsavedEdits() };
 }

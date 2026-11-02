@@ -6,6 +6,7 @@ import { assertEvaluationContext, contentHash, contextKey, evidenceSpans, stable
 import { isAssessmentTime, validateConversationDecision, type ConversationDecision, type ConversationDecisionInput, type ConversationClassification } from '../../domain/conversation-decision.js';
 import type { SourceKind } from '../../domain/conversation.js';
 import { sourcePriorityScores } from '../../domain/source-priority.js';
+import { GOAL_FILTER_VERSION } from '../../domain/goal-filter.js';
 
 export type ConversationJobType = 'DISCOVER' | 'ENRICH_CONVERSATION' | 'ROOT_RESOLVE' | 'CLASSIFY' | 'VERIFY' | 'REVISIT';
 export type ConversationJobState = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'RETRY' | 'PAUSED' | 'FAILED' | 'SUPERSEDED';
@@ -433,13 +434,20 @@ export class ConversationStore {
     const params: Array<string | number> = [contextKey(context)];
     let where = ' WHERE c.context_key=?';
     if (options.platform) { where += ' AND c.platform=?'; params.push(options.platform); }
-    if (options.classification) { where += ' AND d.classification=?'; params.push(options.classification); }
+    if (options.classification === 'NOT_SUITABLE') where += " AND d.classification IN ('NOT_SUITABLE','NOT_YET','UNRELATED')";
+    else if (options.classification) { where += ' AND d.classification=?'; params.push(options.classification); }
     if (!options.include_stale) {
       where += " AND c.snapshot_revision=roots.revision AND (json_extract(d.payload,'$.valid_until') IS NULL OR julianday(json_extract(d.payload,'$.valid_until'))>julianday(?)) AND (ar.evaluated_at IS NULL OR julianday(COALESCE(json_extract(d.payload,'$.evaluated_at'),s.observed_at))>=julianday(ar.evaluated_at))";
       params.push(asOf);
     }
     const sources = options.ranked ? sourcePriorityScores(options.source_priority) : null;
-    const rank = options.ranked ? `CASE d.classification WHEN 'SUITABLE' THEN 3 WHEN 'NOT_YET' THEN 2 WHEN 'UNRELATED' THEN 1 ELSE 0 END DESC,
+    const rank = options.ranked && context.filter_version === GOAL_FILTER_VERSION ? `CASE d.classification WHEN 'SUITABLE' THEN 3 WHEN 'NOT_SUITABLE' THEN 1 ELSE 0 END DESC,
+      COALESCE(json_extract(d.payload,'$.attributes.goal_preferred'),0) DESC,
+      COALESCE(json_extract(d.payload,'$.attributes.goal_actionability'),0) DESC,
+      COALESCE(json_extract(d.payload,'$.attributes.goal_freshness'),0) DESC,
+      COALESCE(json_extract(d.payload,'$.attributes.goal_published_at'),0) DESC,
+      CASE json_extract(s.payload,'$.post.source.kind') WHEN 'PROFILE' THEN ${sources!.PROFILE} WHEN 'GROUP' THEN ${sources!.GROUP} WHEN 'PAGE' THEN ${sources!.PAGE} ELSE ${sources!.UNKNOWN} END DESC,`
+      : options.ranked ? `CASE d.classification WHEN 'SUITABLE' THEN 3 WHEN 'NOT_YET' THEN 2 WHEN 'UNRELATED' THEN 1 ELSE 0 END DESC,
       CASE json_extract(d.payload,'$.attributes.observed_need') WHEN 'REQUEST' THEN 3 WHEN 'DISCUSSION' THEN 2 WHEN 'EXPERIENCE' THEN 1 ELSE 0 END DESC,
       CASE json_extract(d.payload,'$.attributes.brand_fit') WHEN 'ALIGNED' THEN 2 WHEN 'TOPIC_ONLY' THEN 1 ELSE 0 END DESC,
       CASE json_extract(d.payload,'$.attributes.participation_context') WHEN 'OPEN' THEN 2 WHEN 'UNKNOWN' THEN 1 ELSE 0 END DESC,
@@ -478,7 +486,7 @@ export class ConversationStore {
       COALESCE(SUM(CASE WHEN d.assessment_status='ASSESSED' AND ${valid} THEN 1 ELSE 0 END),0) AS assessed,
       COALESCE(SUM(CASE WHEN d.classification='SUITABLE' AND d.assessment_status='ASSESSED' AND ${valid} THEN 1 ELSE 0 END),0) AS suitable,
       COALESCE(SUM(CASE WHEN d.classification='NOT_YET' AND d.assessment_status='ASSESSED' AND ${valid} THEN 1 ELSE 0 END),0) AS not_yet,
-      COALESCE(SUM(CASE WHEN d.classification='UNRELATED' AND d.assessment_status='ASSESSED' AND ${valid} THEN 1 ELSE 0 END),0) AS unrelated,
+      COALESCE(SUM(CASE WHEN d.classification IN ('UNRELATED','NOT_SUITABLE') AND d.assessment_status='ASSESSED' AND ${valid} THEN 1 ELSE 0 END),0) AS unrelated,
       COALESCE(SUM(CASE WHEN d.assessment_status='FAILED' AND ${valid} THEN 1 ELSE 0 END),0) AS failed,
       COALESCE(SUM(CASE WHEN cd.snapshot_revision<>r.revision OR julianday(json_extract(d.payload,'$.valid_until'))<=julianday(clock.as_of)
         OR julianday(COALESCE(json_extract(d.payload,'$.evaluated_at'),s.observed_at))<julianday(ar.evaluated_at) THEN 1 ELSE 0 END),0) AS stale

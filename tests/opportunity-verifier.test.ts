@@ -8,6 +8,17 @@ import type { ConversationEntity, ConversationSnapshot } from '../src/domain/con
 import type { JsonModelRequest, ModelGateway } from '../src/application/ports/model-gateway.js';
 import { ModelGatewayError } from '../src/application/ports/model-gateway.js';
 import { GEMINI_FLASH_LITE_PRICE } from '../src/infrastructure/llm/gemini-gateway.js';
+import { INTENT_OPPORTUNITY_FILTER_VERSION } from '../src/domain/campaign-plan.js';
+
+test('intent verifier preserves target-side criteria and records its distinct recipe version', async () => {
+  const s = snapshot('seller'), model = gateway(() => [response(s)]);
+  const updated = { ...campaign, filter_version: INTENT_OPPORTUNITY_FILTER_VERSION, audience: ['Người rao bán đàn piano'] };
+  const p = { ...proposal(s), filter_version: INTENT_OPPORTUNITY_FILTER_VERSION };
+  const result = await verifyTentativeOpportunities(updated, [s], [p], model);
+  assert.deepEqual((model.requests[0]!.input as { campaign: { audience: string[] } }).campaign.audience, updated.audience);
+  assert.equal(model.requests[0]!.purpose, 'conversation-opportunity-verifier-v1.1-intent');
+  assert.equal(result.decisions[0]!.attributes?.verifier_version, model.requests[0]!.purpose);
+});
 
 const campaign = literalCampaign({ prompt: 'Tìm cuộc thảo luận về cafe' });
 function snapshot(id: string, comment = false): ConversationSnapshot {

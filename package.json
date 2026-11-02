@@ -1,6 +1,6 @@
 {
   "name": "csd-desktop",
-  "version": "0.3.0-rc.4",
+  "version": "0.3.0-rc.6",
   "description": "CSD — Crawl Socials Data",
   "private": true,
   "license": "UNLICENSED",
@@ -19,7 +19,7 @@
     "build": "node scripts/clean-build.mjs && tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && node scripts/copy-assets.mjs",
     "check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.tests.json --noEmit",
     "test": "npm run build && npm run test:unit",
-    "test:unit": "tsc -p tsconfig.tests.json && node --test .test-build/tests/*.test.js tests/*.test.mjs",
+    "test:unit": "tsc -p tsconfig.tests.json && node scripts/copy-semantic-assets.mjs .test-build/src/domain && node --test .test-build/tests/*.test.js tests/*.test.mjs",
     "pack:dir": "npm run build && electron-builder --dir --win --x64",
     "dist:portable": "npm run build && electron-builder --win portable --x64"
   },

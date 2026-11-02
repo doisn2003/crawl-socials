@@ -3,6 +3,8 @@ import type { CampaignConstraintEvidence, CampaignConstraintField, CampaignConst
   CampaignConstraintSource, CampaignConstraintUnresolved, CampaignConstraintValues, CampaignPlan, CampaignPlanInput, CampaignPlannerPolicy, CampaignQuery, QueryFamily } from '../domain/campaign-plan.js';
 import type { SourceKind } from '../domain/conversation.js';
 import { contentHash } from '../domain/conversation.js';
+import { SEMANTIC_PLANNER_POLICY } from '../domain/campaign-plan.js';
+import { EXPERIMENT_SYSTEM, EXPERIMENT_SCHEMA, VALIDATOR } from '../domain/semantic-keywords.mjs';
 import type { ModelGateway, JsonModelResult } from './ports/model-gateway.js';
 
 const listSchema = { type: 'array', items: { type: 'string' }, maxItems: 20 };
@@ -80,6 +82,7 @@ Do not add missing geography/language/age/source constraints to inclusions or ex
 Existing default source ordering is a product default, not a fact extracted from the user's prompt.`;
 
 const plannerRecipes = {
+  [SEMANTIC_PLANNER_POLICY]: { planner_policy: SEMANTIC_PLANNER_POLICY, version: 'campaign-planner-v2.0.0-semantic-dialogue', system: EXPERIMENT_SYSTEM, schema: EXPERIMENT_SCHEMA, validator: VALIDATOR },
   'legacy-short-v1': { planner_policy: 'legacy-short-v1', version: 'campaign-planner-v1.1-grounded-short', system: PLANNER_SYSTEM, schema: CAMPAIGN_MODEL_SCHEMA },
   [GROUNDED_CONSTRAINT_PLANNER_POLICY]: { planner_policy: GROUNDED_CONSTRAINT_PLANNER_POLICY, version: 'campaign-planner-v1.2.1-grounded-constraints',
     constraint_validator_version: 'grounded-constraints-validator-v1.1', system: GROUNDED_PLANNER_SYSTEM, schema: GROUNDED_CAMPAIGN_MODEL_SCHEMA },
@@ -308,6 +311,13 @@ export function literalCampaign(input: CampaignPlanInput, now = new Date().toISO
 }
 
 export async function compileCampaign(input: CampaignPlanInput, gateway: ModelGateway, options: { signal?: AbortSignal } = {}): Promise<{ campaign: CampaignPlan; model_result: JsonModelResult }> {
+  if (input.planner_policy === SEMANTIC_PLANNER_POLICY) {
+    const { compileSemanticTurn } = await import('./semantic-campaign.js');
+    const result = await compileSemanticTurn(input, { stage: 'S2', prompt: input.prompt.normalize('NFC').trim(), context: input.brand_context?.trim() ?? '',
+      seeds: input.seed_queries ?? [], revision: 1, answers: [], edits: [] }, gateway, options);
+    if (!result.campaign) throw Error('CAMPAIGN_INTENT_UNRESOLVED');
+    return { campaign: result.campaign, model_result: result.model_result };
+  }
   literalCampaign(input); // Reject malformed local limits/weights/queries before billing.
   const recipe = plannerRecipe(input.planner_policy), grounded = input.planner_policy === GROUNDED_CONSTRAINT_PLANNER_POLICY;
   const modelInput = grounded ? { prompt: input.prompt.normalize('NFC').trim(), brand_context: input.brand_context?.trim() ?? null,

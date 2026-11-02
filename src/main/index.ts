@@ -17,7 +17,7 @@ import { createGeminiKeySettings } from '../application/gemini-key-settings.js';
 import { resolveGeminiApiKey } from '../infrastructure/llm/gemini-gateway.js';
 import { createCampaignModelGateway } from '../infrastructure/llm/campaign-model-gateway.js';
 import { createOpportunityPipeline } from '../application/opportunity-pipeline.js';
-import { prepareDraft } from '../application/campaign-drafts.js';
+import { prepareSemanticDraft, continueSemanticDraft } from '../application/campaign-drafts.js';
 
 async function bootstrap() {
   const paths = runtimePaths(app.getPath('appData'));
@@ -39,7 +39,8 @@ async function bootstrap() {
     journalDirectory: join(paths.userData, 'data', 'session-snapshots'), manualLoginEnabled: true, backgroundThrottling: false });
   const service = createProductionService({ directory: join(paths.userData, 'data'), version: app.getVersion(), host: browserHost,
     createOpportunity: value => createOpportunityPipeline({ ...value, gateway: createCampaignModelGateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd, apiKey: geminiKey.current }) }),
-    prepareCampaignDraft: value => prepareDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current }) }),
+    prepareCampaignDraft: value => prepareSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current }) }),
+    continueCampaignDraft: value => continueSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current }) }),
     async collect(value: CollectorInput): Promise<CollectorReceipt> {
       const moduleUrl = new URL('../collectors/' + value.platform + '-collector.mjs', import.meta.url).href;
       const runner = await import(moduleUrl) as Record<string, (options: object) => Promise<CollectorReceipt>>;
@@ -123,6 +124,7 @@ async function bootstrap() {
     'csd:config': value => service.saveConfig(value),
     'csd:login': value => service.login(value),
     'csd:campaign:prepare': () => modelCommand(() => service.prepareCampaign()),
+    'csd:campaign:continue': value => modelCommand(() => service.continueCampaign(value)),
     'csd:campaign:update': value => service.updateCampaign(value),
     'csd:preset:save': value => service.saveCampaignPreset(value),
     'csd:preset:apply': value => service.applyCampaignPreset(value),
@@ -156,7 +158,7 @@ async function bootstrap() {
       if (!value || typeof value !== 'object' || Array.isArray(value) || !['format', 'format,group'].includes(Object.keys(value).sort().join()) ||
           !['json', 'xlsx'].includes(String((value as { format: unknown }).format))) throw Error('EXPORT_INPUT_INVALID');
       const group = (value as { group?: ConversationClassification }).group;
-      if (group !== undefined && !['SUITABLE', 'NOT_YET', 'UNRELATED'].includes(group)) throw Error('EXPORT_INPUT_INVALID');
+      if (group !== undefined && !['SUITABLE', 'NOT_SUITABLE', 'NOT_YET', 'UNRELATED'].includes(group)) throw Error('EXPORT_INPUT_INVALID');
       if (exporting) throw Error('EXPORT_BUSY');
       exporting = true;
       try {

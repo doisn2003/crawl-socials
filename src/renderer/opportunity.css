@@ -17,6 +17,15 @@
 .campaign-plan-editor{margin-top:16px;padding:16px;border:1px solid var(--line);background:#0e140c}
 .campaign-plan-editor summary{cursor:pointer;font-size:12px;color:#c4d2b8;line-height:1.6}
 .campaign-plan-editor summary:focus-visible{outline:2px solid var(--green);outline-offset:4px}
+#campaign-dialogue{font-size:12px;line-height:1.7}
+#campaign-dialogue h3{font-size:15px;color:var(--green);margin:0 0 10px}
+#campaign-dialogue fieldset{border:1px solid var(--line);padding:14px;margin:14px 0}
+#campaign-dialogue legend{padding:0 6px;color:#dce8d1}
+#campaign-dialogue label{display:block;margin:10px 0;color:#c4d2b8}
+#campaign-dialogue input{margin-right:9px;accent-color:var(--green)}
+#campaign-dialogue textarea{display:block;width:100%;margin-top:6px;padding:10px;background:#0b0f0c;color:#dce8d1;border:1px solid #30392b;resize:vertical;font:inherit}
+#campaign-dialogue button{margin:8px 8px 8px 0;padding:10px 14px;border:1px solid #526442;background:#1b2813;color:#dce8d1;cursor:pointer;font:inherit}
+#campaign-dialogue details{margin:12px 0}
 .criteria-grid,.preset-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:18px}
 .criteria-grid .criteria-wide{grid-column:1/-1}
 .criteria-grid .field textarea{min-height:76px}

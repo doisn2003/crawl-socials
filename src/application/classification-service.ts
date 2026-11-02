@@ -1,10 +1,12 @@
 import type { CampaignPlan } from '../domain/campaign-plan.js';
-import { OPPORTUNITY_FILTER_VERSION, TEMPORAL_OPPORTUNITY_FILTER_VERSION } from '../domain/campaign-plan.js';
+import { OPPORTUNITY_FILTER_VERSION, TEMPORAL_OPPORTUNITY_FILTER_VERSION, INTENT_OPPORTUNITY_FILTER_VERSION } from '../domain/campaign-plan.js';
 import type { ConversationSnapshot, EvidenceSpan, SourceKind } from '../domain/conversation.js';
 import { sourcePriorityScores } from '../domain/source-priority.js';
 import { isAssessmentTime, validateConversationDecision } from '../domain/conversation-decision.js';
 import type { ConversationDecisionInput } from '../domain/conversation-decision.js';
 import { ModelGatewayError } from './ports/model-gateway.js';
+import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
+import { GOAL_RECIPE, classifyGoalConversations } from './goal-classifier.js';
 import type { ModelGateway, JsonModelResult } from './ports/model-gateway.js';
 
 export const OPPORTUNITY_CASES = [
@@ -93,12 +95,24 @@ freezeRecipe(TEMPORAL_RECIPE);
  * escalation add instructions at invocation time; they are not part of this base recipe.
  */
 export function classifierRecipe(version: string = OPPORTUNITY_FILTER_VERSION): Readonly<typeof CLASSIFIER_RECIPE> {
+  if (version === GOAL_FILTER_VERSION) return GOAL_RECIPE;
+  if (version === INTENT_OPPORTUNITY_FILTER_VERSION) return INTENT_RECIPE;
   if (version === TEMPORAL_OPPORTUNITY_FILTER_VERSION) return TEMPORAL_RECIPE;
   if (version === OPPORTUNITY_FILTER_VERSION || new RegExp('^' + OPPORTUNITY_FILTER_VERSION.replaceAll('.', '\\.') + '\\+focused-[a-f0-9]{16}$').test(version)) return CLASSIFIER_RECIPE;
   throw Error('CLASSIFIER_POLICY_UNSUPPORTED');
 }
 
+const INTENT_RECIPE = { filter_version: INTENT_OPPORTUNITY_FILTER_VERSION, schema: CLASSIFICATION_SCHEMA,
+  system: CLASSIFIER_SYSTEM + CASE_EXAMPLES + `\nƯU TIÊN MỤC TIÊU ĐÃ CHỐT: audience, needs, participation_intents, inclusions và exclusions là tiêu chí hiện tại người dùng đã xem/sửa. Các ví dụ mặc định ở trên chỉ áp dụng khi phù hợp tiêu chí này.
+Không mặc định chỉ tìm người tiêu dùng: nếu audience yêu cầu người bán/nhà cung cấp, bài chào bán đúng mục tiêu có thể là OPPORTUNITY_REQUEST hoặc OPPORTUNITY_DISCUSSION. Ngược lại, tìm người muốn thuê luật sư không tự nhận mọi bài tư vấn pháp luật hay quảng cáo luật sư. Điều kiện ghi ưu tiên/không bắt buộc không được dùng để loại bài.
+Từ khóa chỉ phục vụ khám phá; không tự mở rộng phạm vi nhận bài. Không biến giả định, đề xuất tùy chọn, hay thiếu giới hạn thành điều kiện bắt buộc. Xét đủ địa bàn/thời gian và điều kiện bằng ngôn ngữ tự nhiên trong inclusions, không chỉ các trường máy.
+Nếu trái tiêu chí xác nhận thì RELATED_CONSTRAINT_MISMATCH; nếu thiếu bằng chứng quyết định thì INSUFFICIENT_CONTEXT. Các sửa đổi tiêu chí hiện tại có ưu tiên hơn prompt gốc. Giữ nguyên yêu cầu bằng chứng và action target.` };
+freezeRecipe(INTENT_RECIPE);
+
 export interface ClassifyOptions {
+  goalContract?: import('../domain/goal-filter.js').GoalContract;
+  /** Independent review of accepted or non-obvious rejected candidates; disable only for the review itself. */
+  goalReview?: boolean;
   signal?: AbortSignal;
   /** Stable request time, including retries; makes time-only reassessment a distinct cache input. */
   evaluatedAt?: string;
@@ -219,6 +233,7 @@ function modelSnapshot(snapshot: ConversationSnapshot, evaluatedAt?: string): Re
 
 export async function classifyConversations(campaign: CampaignPlan, snapshots: ConversationSnapshot[], gateway: ModelGateway,
   options: ClassifyOptions = {}): Promise<ClassificationBatchResult> {
+  if (campaign.filter_version === GOAL_FILTER_VERSION) return classifyGoalConversations(campaign, snapshots, gateway, options);
   const recipe = classifierRecipe(campaign.filter_version), temporal = campaign.filter_version === TEMPORAL_OPPORTUNITY_FILTER_VERSION;
   const requestTime = options.evaluatedAt ?? (temporal ? new Date().toISOString() : undefined);
   const evaluationTimes = Object.fromEntries(snapshots.map(snapshot => [snapshot.id, options.evaluationTimes?.[snapshot.id] ?? requestTime ?? snapshot.observed_at]));
@@ -249,7 +264,7 @@ export async function classifyConversations(campaign: CampaignPlan, snapshots: C
           input: { campaign: { prompt: campaign.prompt, topic: campaign.topic, needs: campaign.needs, participation_intents: campaign.participation_intents,
             inclusions: campaign.inclusions, exclusions: campaign.exclusions, brand_context: campaign.brand_context,
             required_geographies: campaign.required_geographies, preferred_geographies: campaign.preferred_geographies, max_age_days: campaign.max_age_days,
-            ...(temporal ? { audience: campaign.audience, languages: campaign.languages, research_intents: campaign.research_intents } : {}) },
+            ...(temporal || campaign.filter_version === INTENT_OPPORTUNITY_FILTER_VERSION ? { audience: campaign.audience, languages: campaign.languages, research_intents: campaign.research_intents } : {}) },
           conversations: pending.map(snapshot => modelSnapshot(snapshot, evaluationTimes[snapshot.id])) }, schema: recipe.schema,
           max_output_tokens: Math.min(24_000, (temporal ? 1000 : 750) * pending.length + 256),
           ...(options.signal ? { signal: options.signal } : {}), ...(options.cacheNamespace ? { cache_namespace: options.cacheNamespace } : {}) });
@@ -316,6 +331,9 @@ export async function classifyConversations(campaign: CampaignPlan, snapshots: C
 /** Transparent lexicographic ranking; metadata does not override eligibility. */
 export function opportunityRank(decision: ConversationDecisionInput, snapshot: ConversationSnapshot, sourcePriority?: readonly SourceKind[]): number[] {
   const attrs = decision.attributes ?? {};
+  if (decision.filter_version === GOAL_FILTER_VERSION) return [decision.classification === 'SUITABLE' ? 3 : decision.classification === 'NOT_SUITABLE' ? 1 : 0,
+    Number(attrs.goal_preferred ?? 0), Number(attrs.goal_actionability ?? 0), Number(attrs.goal_freshness ?? 0),
+    Number(attrs.goal_published_at ?? 0), sourcePriorityScores(sourcePriority)[snapshot.post?.source.kind ?? 'UNKNOWN']];
   return [decision.classification === 'SUITABLE' ? 3 : decision.classification === 'NOT_YET' ? 2 : decision.classification === 'UNRELATED' ? 1 : 0,
     attrs.observed_need === 'REQUEST' ? 3 : attrs.observed_need === 'DISCUSSION' ? 2 : attrs.observed_need === 'EXPERIENCE' ? 1 : 0,
     attrs.brand_fit === 'ALIGNED' ? 2 : attrs.brand_fit === 'TOPIC_ONLY' ? 1 : 0,
