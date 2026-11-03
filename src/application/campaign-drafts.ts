@@ -1,3 +1,4 @@
+import { withFilterPolicy } from './filter-policy.js';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -158,7 +159,7 @@ function gatewayFor(input: Located, config: OpportunityConfig) {
 function view(record: DraftRecord, pointer: DraftPointer, receipt: CampaignDraftCost): CampaignDraftView {
   let supported = true; try { assertRecipe(record.campaign, record.recipe, record.recipeHash); } catch { supported = false; }
   return structuredClone({ runId: record.runId, revision: pointer.revision, status: pointer.status, supported, config: record.config,
-    criteriaCapabilities: { extendedClassificationCriteria: supported && [TEMPORAL_OPPORTUNITY_FILTER_VERSION, INTENT_OPPORTUNITY_FILTER_VERSION, GOAL_FILTER_VERSION].includes(record.campaign.filter_version) },
+    criteriaCapabilities: { extendedClassificationCriteria: supported && [TEMPORAL_OPPORTUNITY_FILTER_VERSION, INTENT_OPPORTUNITY_FILTER_VERSION, GOAL_FILTER_VERSION, 'coverage-standard-v1', 'coverage-quality-v1'].includes(record.campaign.filter_version) },
     configHash: contentHash(record.config), campaign: record.campaign, criteria: criteria(record.campaign), recipeHash: record.recipeHash,
     source: record.source, sourceHash: contentHash(record.source), cost: receipt, createdAt: record.createdAt,
     updatedAt: record.updatedAt, userOverrides: record.userOverrides });
@@ -212,9 +213,10 @@ export async function prepareDraft(input: { directory: string; config: Opportuni
   try {
     atomic(join(paths(location).opportunity, 'draft-cost.json'), cost(gateway));
     input.onAllocated?.({ runId: location.runId, configHash: contentHash(config) });
-    const { campaign, model_result } = await compileCampaign({ campaign_id: location.runId, prompt: config.prompt, brand_context: config.brandContext,
+    const { campaign: compiled, model_result } = await compileCampaign({ campaign_id: location.runId, prompt: config.prompt, brand_context: config.brandContext,
       suitable_target: config.totalTarget, desired_platform_weights: { threads: config.threadsShare ?? 0.5, facebook: 1 - (config.threadsShare ?? 0.5) },
       raw_cap: config.rawCap, model_usd: config.budgetUsd, planner_policy: planner.planner_policy }, gateway, input.signal ? { signal: input.signal } : {});
+    const campaign = withFilterPolicy(compiled, config.filterMode);
     validateCampaign(campaign, config);
     const recipe = classifierRecipe(campaign.filter_version), at = now();
     const record: DraftRecord = { schemaVersion: 1, runId: location.runId, config, campaign, recipe, recipeHash: contentHash(recipe),
@@ -323,7 +325,7 @@ export async function prepareSemanticDraft(input: PrepareInput): Promise<Campaig
     const receipt = cost(gateway), at = now(); atomic(join(files.opportunity, 'draft-cost.json'), receipt);
     let draft: CampaignDraftView | null = null;
     if (result.campaign) {
-      const campaign = result.campaign; validateCampaign(campaign, config);
+      const campaign = withFilterPolicy(result.campaign, config.filterMode); validateCampaign(campaign, config);
       const recipe = classifierRecipe(campaign.filter_version);
       const record: DraftRecord = { schemaVersion: 1, runId: location.runId, config, campaign, recipe, recipeHash: contentHash(recipe),
         source: { kind: 'PLANNER', sourceCampaignVersion: campaign.version, plannerRequestHash: result.model_result.request_hash,
@@ -431,11 +433,12 @@ export function applyPreset(input: { directory: string } & ApplyCampaignPresetRe
   if (!object(input.runtime) || !exactKeys(input.runtime, ['totalTarget', input.runtime.filterMode ? 'filterMode' : 'threadsShare', 'rawCap', 'budgetUsd', 'commentsEnabled'])) throw Error('PRESET_RUNTIME_INVALID');
   const config = parseOpportunityConfig({ ...input.runtime, enabled: true, prompt: preset.campaign.prompt, brandContext: preset.campaign.brand_context ?? '' });
   const location = allocated(input.directory, config), at = now();
-  const campaign = { ...structuredClone(preset.campaign), campaign_id: location.runId, created_at: at, suitable_target: config.totalTarget,
+  let campaign = { ...structuredClone(preset.campaign), campaign_id: location.runId, created_at: at, suitable_target: config.totalTarget,
     desired_platform_weights: { threads: config.threadsShare ?? 0.5, facebook: 1 - (config.threadsShare ?? 0.5) },
     budget: { ...preset.campaign.budget, raw_cap: config.rawCap, model_usd: config.budgetUsd } };
+  campaign = withFilterPolicy(campaign, config.filterMode);
   const { version: _version, created_at: _created, ...base } = campaign; campaign.version = campaignVersion(base); validateCampaign(campaign, config);
-  const record: DraftRecord = { schemaVersion: 1, runId: location.runId, config, campaign, recipe: preset.recipe, recipeHash: preset.recipeHash,
+  const record: DraftRecord = { schemaVersion: 1, runId: location.runId, config, campaign, recipe: classifierRecipe(campaign.filter_version), recipeHash: contentHash(classifierRecipe(campaign.filter_version)),
     source: { kind: 'PRESET', presetId: preset.presetId, presetVersion: input.presetVersion, sourceRunId: preset.sourceRunId, sourceCampaignVersion: preset.campaign.version },
     createdAt: at, updatedAt: at, userOverrides: [] };
   const receipt: CampaignDraftCost = { capturedAt: at, model: 'NOT_SELECTED', budgetUsd: config.budgetUsd, measuredUsd: 0,

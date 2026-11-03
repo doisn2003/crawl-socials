@@ -27,6 +27,7 @@ import { allocatePlatformTargets } from '../shared/platform-targets.js';
 import { isAssessmentTime, type ConversationDecisionInput } from '../domain/conversation-decision.js';
 import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
 import { manualCollectionPlan, unassessedGateway, withFilterPolicy } from './filter-policy.js';
+import { createCoverageExpansion } from './coverage-queries.js';
 
 export interface ConversationCollectInput {
   window: WebContents; platform: Platform; root: { id: string; url: string }; runId: string;
@@ -60,6 +61,7 @@ export interface OpportunityPipelineInput {
   /** Initial uncompiled campaigns only; a committed campaign keeps its own deadline on Resume. */
   maxRunMinutes?: number;
   classificationWorkers?: number;
+  assessmentCacheDirectory?: string;
 }
 type Row = Record<string, unknown>;
 const safeCode = (error: unknown) => error instanceof Error && /^[A-Z][A-Z0-9_]{1,100}$/.test(error.message) ? error.message : 'PIPELINE_FAILED';
@@ -67,7 +69,7 @@ const counts = (s: ConversationStats): OpportunityCounts => ({ raw: s.raw_unique
   notSuitable: s.not_yet + s.unrelated, notYet: s.not_yet, unrelated: s.unrelated, pending: s.pending, failed: s.failed });
 const emptyCounts = (): OpportunityCounts => ({ raw: 0, comments: 0, suitable: 0, notYet: 0, unrelated: 0, pending: 0, failed: 0 });
 const nullableText = (v: unknown): string | null => typeof v === 'string' && v ? v : null;
-const fatalModelCode = (code: string) => code === 'GEMINI_API_KEY_MISSING' || /^MODEL_(?:BUDGET|AUTHENTICATION|BILLING|PERMISSION|NOT_AVAILABLE|KEY|QUOTA|DAILY_QUOTA|REQUEST_INVALID)/.test(code);
+const fatalModelCode = (code: string) => code === 'GEMINI_API_KEY_MISSING' || /^MODEL_(?:BUDGET|GLOBAL_BUDGET|SPEND|CALL_LIMIT|NOT_AUTHORIZED|AUTHENTICATION|BILLING|PERMISSION|NOT_AVAILABLE|KEY|QUOTA|DAILY_QUOTA|REQUEST_INVALID)/.test(code);
 const retryableModelCode = (code: string) => /^MODEL_(?:HTTP_(?:429|5\d\d)|NETWORK_USAGE_UNKNOWN|ATTEMPTS_EXHAUSTED)/.test(code);
 function goalConditions(decision:ConversationDecisionInput) {
   const conditions:NonNullable<OpportunityProgress['preview'][number]['conditions']> = decision.goal_assessment?.checks.map(check=>({
@@ -150,6 +152,8 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   try { if (activeEvaluation?.state === 'MIGRATING') await resumeEvaluationMigration(directory, store); }
   catch (error) { await leases.close(); if (!input.store) await store.close(); throw error; }
   const context: EvaluationContext = evaluationContext(campaign);
+  const expandCoverage = createCoverageExpansion(directory, campaign, gateway, controller.signal);
+  let queryScores: Awaited<ReturnType<AsyncConversationStore['queryYield']>> = [];
   let stopped = false, closed = false, modelHalted = false, pumpWork: Promise<void> | null = null, publishWork: Promise<void> | null = null;
   let pendingTimer: ReturnType<typeof setTimeout> | null = null, lastError: string | null = null, discoveryEnded = false, publishDirty = false;
   let watchEnabled = false, watchTimer: ReturnType<typeof setTimeout> | null = null, watchWork: Promise<void> | null = null, watchRetryAt = 0;
@@ -187,11 +191,16 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       }
       const money = modelCost();
       const selected = rebuild ? await store.selectTarget(context, campaign.suitable_target, off) : null;
+      if (rebuild && !off) queryScores = await store.queryYield(context);
       const watch = await store.watchSummary(input.platforms);
       const assessment = temporalEnabled ? await store.assessmentSummary(context, { now: now().toISOString() }) : null;
       const hasClassificationWork = discoveryEnded && !stopped && !modelHalted && (await classificationBacklog()).length > 0;
+      const assessed = total.raw_unique_posts - total.pending;
+      const projected = assessed > 0 ? Math.floor(total.suitable / assessed * runtimeLimits.effective_raw_cap) : 0;
       progress = { ...progress, counts: counts(total), byPlatform: { facebook: counts(facebook), threads: counts(threads) },
         ...(selected ? { targetCount: selected.target.length, extraCount: selected.extra.length } : {}),
+        ...(rebuild ? { shortfallWarning: !off && assessed >= 20 && projected < campaign.suitable_target
+          ? `Theo tỷ lệ được model nhận hiện tại, trần bài thô có thể chỉ cho khoảng ${projected}/${campaign.suitable_target} bài. Đây chưa phải độ chính xác đã đo. Xem query chưa chạy, bài đang chờ hoặc mở rộng phạm vi trước khi tăng tiền.` : null } : {}),
         classificationWorkers: workerCount, modelScheduling: gateway.summary().scheduling,
         costUsd: money.measured_cost_usd, costUpperUsd: money.measured_cost_usd + money.unmetered_cost_upper_usd + money.reserved_usd,
         usageUnknown: money.unmetered_cost_upper_usd > 0 ? 1 : 0, lastError, preview,
@@ -262,6 +271,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
           break;
         }
         const result = await classifyConversations(campaign, snapshots, gateway, { signal: controller.signal, maxBatchSize: 8,
+          ...(input.assessmentCacheDirectory ? { assessmentCacheDirectory: input.assessmentCacheDirectory } : {}),
           ...(retained && !temporalEnabled ? { evaluatedAt: input.assessmentTime! } : {}),
           ...(temporalEnabled ? { evaluationTimes: Object.fromEntries(jobs.map(job => [String(job.payload.snapshot_id), String(job.payload.evaluated_at)])) } : {}) });
         if (!focusedEnabled && input.verifierGateway && result.decisions.some(d => d.classification === 'SUITABLE')) {
@@ -568,6 +578,12 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     campaign, baselineCampaign, context, store, gateway, runtimeLimits, ingest, ingestRows, enrich, startWatching, isWatching: () => watchEnabled || assessmentActive,
     progress: (): OpportunityProgress => structuredClone({ ...progress, modelScheduling: gateway.summary().scheduling }), refreshProgress: publish,
     queries: (platform: Platform) => campaign.queries.filter(q => q.platforms.includes(platform)).map(q => q.text),
+    queryPriority: (platform: Platform, query: string) => { const score = queryScores.find(s => s.platform === platform && s.query === query); return score ? score.accepted / Math.max(1, score.observed) : 0; },
+    async expandQueries() {
+      if (!rebuild || off || stopped || modelHalted || targetReached()) return [];
+      try { return await expandCoverage(); }
+      catch (error) { lastError = safeCode(error); if (fatalModelCode(lastError)) modelHalted = true; await publish(); return []; }
+    },
     targetReached, discoveryStopReason,
     discoveryShouldStop: (platform: Platform) => discoveryStopReason(platform) !== null,
     backpressure,

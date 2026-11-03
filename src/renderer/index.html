@@ -88,8 +88,8 @@
         </div>
         <div class="field"><label for="performance-mode">Tốc độ thu thập &amp; xử lý AI</label>
           <select id="performance-mode" disabled>
-            <option value="STANDARD">Nhẹ — 1 cửa sổ/mạng · 1 yêu cầu AI</option>
-            <option value="BALANCED" selected>Cân bằng Tier 1 — 2 cửa sổ/mạng · tối đa 8 yêu cầu AI</option>
+            <option value="STANDARD">Tự động — điều chỉnh theo tài nguyên</option>
+            <option value="BALANCED" selected>Tự động — RAM/CPU và hàng đợi công bằng</option>
             <option value="FAST">Mở mọi từ khóa — khi tài nguyên cho phép</option>
           </select>
           <p class="helper">Mỗi từ khóa trên mỗi mạng có tác vụ và checkpoint riêng. Tự động tăng số cửa sổ theo RAM/CPU; mở mọi từ khóa vẫn tạm nhường khi máy thiếu tài nguyên. Số cửa sổ độc lập với tốc độ gọi AI.</p>

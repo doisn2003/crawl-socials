@@ -351,6 +351,7 @@ function renderOpportunities() {
   setText('result-count', number(opportunity.targetCount ?? counts.suitable) + ' / ' + number(opportunity.totalTarget) + (opportunity.filterMode === 'OFF' ? ' BÀI CHƯA ĐÁNH GIÁ' : ' BÀI ĐƯỢC NHẬN'));
   setText('opportunity-summary', number(counts.raw) + ' bài thô · ' + number(counts.comments) + ' bình luận · ' + number(counts.pending) + (opportunity.filterMode === 'OFF' ? ' chưa đánh giá' : ' đang chờ') + ' · Chi phí AI $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2)
     + (opportunity.resultPolicy === 'GLOBAL_FIRST_QUALIFIED' || opportunity.evaluationPolicy === 'GOAL_EVIDENCE' ? '' : ' · Kết quả cũ: cần tái lọc để áp dụng cách đánh giá mới.'));
+  if (opportunity.shortfallWarning) element('opportunity-summary').textContent += ' · ' + opportunity.shortfallWarning;
   const scheduling = opportunity.modelScheduling;
   if (scheduling) element('opportunity-summary').append(document.createTextNode(' · AI ' + scheduling.active + '/' + scheduling.concurrency + ' đang xử lý · ' + scheduling.queued + ' chờ' + (scheduling.cooldownUntil ? ' · Đang giảm tốc theo hạn mức' : '')));
   const retained = state?.run?.mode === 'RETAINED' ? state.run.retained : undefined;

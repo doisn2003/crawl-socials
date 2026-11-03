@@ -16,7 +16,7 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
   const directory = join(output, 'runs', runId), file = join(directory, 'query-tasks.json'); mkdirSync(directory, { recursive: true });
   const fingerprint = createHash('sha256').update(JSON.stringify(input.config)).digest('hex');
   const saved = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as { fingerprint: string; startedAt: string; tasks: Task[] } : null;
-  if (saved && (saved.fingerprint !== fingerprint || saved.tasks.length !== queries.length)) throw Error('RUN_CONFIG_CHANGED');
+  if (saved && (saved.fingerprint !== fingerprint || saved.tasks.length < queries.length || queries.some((q, i) => saved.tasks[i]?.query !== q))) throw Error('RUN_CONFIG_CHANGED');
   const startedAt = saved?.startedAt ?? new Date().toISOString();
   const tasks = saved?.tasks ?? queries.map((query, i) => ({ id: createHash('sha256').update(input.platform + ':' + input.profileId + ':' + query).digest('hex').slice(0, 16),
     worker: i + 1, query, state: 'QUEUED', reason: null, slices: 0, newRecords: 0, attempts: 0 }));
@@ -30,7 +30,8 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
   // Every task gets its first bounded slice before any task receives a deeper slice.
   while (tasks.some(t => t.state === 'QUEUED') && !stopReason()) {
     const round = Math.min(...tasks.filter(t => t.state === 'QUEUED').map(t => t.slices));
-    const pending = tasks.filter(t => t.state === 'QUEUED' && t.slices === round).sort((a, b) => b.newRecords - a.newRecords || a.worker - b.worker);
+    const pending = tasks.filter(t => t.state === 'QUEUED' && t.slices === round).sort((a, b) =>
+      (input.queryPriority?.(b.query) ?? 0) - (input.queryPriority?.(a.query) ?? 0) || b.newRecords - a.newRecords || a.worker - b.worker);
     await Promise.all(pending.map(async task => {
       let lease: Awaited<ReturnType<typeof windows.acquire>> | undefined;
       try {
@@ -61,6 +62,12 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
       } catch (error) { task.state = 'FAILED'; task.reason = stopReason() ?? code(error); }
       finally { lease?.release(); publish(); }
     }));
+    if (!stopReason() && round === 0 && input.expandQueries) {
+      for (const query of await input.expandQueries()) if (tasks.length < 100 && !tasks.some(t => t.query === query)) tasks.push({
+        id: createHash('sha256').update(input.platform + ':' + input.profileId + ':' + query).digest('hex').slice(0, 16),
+        worker: tasks.length + 1, query, state: 'QUEUED', reason: null, slices: 0, newRecords: 0, attempts: 0 });
+      publish();
+    }
   }
   await ingestion;
   for (const task of tasks) if (task.state === 'QUEUED') { task.state = 'STOPPED'; task.reason = stopReason() ?? 'QUERY_NOT_RUN'; }

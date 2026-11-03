@@ -39,6 +39,8 @@ export interface CollectorInput {
   onRecords?(rows: Record<string, unknown>[], provenance: Record<string, unknown>): Promise<void>;
   onQueryEnd?(value: { window: WebContents; platform: Platform; query?: string; shouldStop(): boolean }): Promise<void>;
   beforeNextPage?(): Promise<void>;
+  expandQueries?(): Promise<string[]>;
+  queryPriority?(query: string): number;
 }
 export interface CollectorReceipt { stop_reason: string; summary: { unique: number }; session_flush?: string; }
 type Row = Record<string, unknown>;
@@ -357,6 +359,8 @@ export function createProductionService(input: {
               onRecords: (records: Row[], provenance: Row) => pipeline!.ingestRows(item.platform, records, provenance),
               onQueryEnd: (value: { window: WebContents; query?: string; shouldStop(): boolean }) => pipeline!.enrich(item.platform, value.window, () => stopped || value.shouldStop(), 3, undefined, value.query),
               beforeNextPage: () => pipeline!.backpressure(),
+              expandQueries: () => pipeline!.expandQueries(),
+              queryPriority: query => pipeline!.queryPriority(item.platform, query),
             } : {}),
             onProgress: value => {
               if (value.workers) item.workers = value.workers;
