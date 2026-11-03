@@ -26,6 +26,7 @@ import type { OpportunityConfig, OpportunityCounts, OpportunityProgress, Platfor
 import { allocatePlatformTargets } from '../shared/platform-targets.js';
 import { isAssessmentTime, type ConversationDecisionInput } from '../domain/conversation-decision.js';
 import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
+import { vietnameseOnly } from '../domain/content-language.js';
 import { manualCollectionPlan, unassessedGateway, withFilterPolicy } from './filter-policy.js';
 import { createCoverageExpansion } from './coverage-queries.js';
 
@@ -118,6 +119,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   else if (existsSync(campaignFile)) baselineCampaign = JSON.parse(readFileSync(campaignFile, 'utf8')) as CampaignPlan;
   else if (off) baselineCampaign = manualCollectionPlan(input.runId, input.config, input.seedQueries ?? []);
   else baselineCampaign = (await compileCampaign({ prompt: input.config.prompt, brand_context: input.config.brandContext || null,
+    ...(input.config.languageScope === 'VIETNAMESE' ? { languages: ['vi'] } : {}),
     planner_policy: plannerPin!.planner_policy,
     campaign_id: input.runId, suitable_target: input.config.totalTarget,
     desired_platform_weights: { threads: input.config.threadsShare ?? 0.5, facebook: 1 - (input.config.threadsShare ?? 0.5) },
@@ -127,6 +129,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   { signal: controller.signal })).campaign;
   if (!campaignExisted) baselineCampaign = withFilterPolicy(baselineCampaign, input.config.filterMode);
   if (campaignExisted && baselineCampaign.filter_mode !== input.config.filterMode) throw Error('FILTER_MODE_REVISION_REQUIRED');
+  if (!off && input.config.languageScope === 'VIETNAMESE' && !vietnameseOnly(baselineCampaign)) throw Error('LANGUAGE_SCOPE_REVISION_REQUIRED');
   validateCampaignPlan(baselineCampaign);
   let recipe: ReturnType<typeof classifierRecipe>;
   try { recipe = classifierRecipe(baselineCampaign.filter_version); } catch { throw Error('CAMPAIGN_FILTER_UPGRADE_REQUIRED'); }

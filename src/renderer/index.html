@@ -100,6 +100,13 @@
         <datalist id="filter-levels"><option value="0" label="Không lọc"></option><option value="1" label="Tiêu chuẩn"></option><option value="2" label="Chất lượng"></option></datalist>
         <p id="filter-mode-help" class="helper">Không lọc — miễn phí API. Nhập từ khóa, thu và khử trùng bài gốc.</p>
         <div id="opportunity-config" hidden>
+          <div class="field"><label for="content-language">Ngôn ngữ nội dung khi lọc</label>
+            <select id="content-language" disabled>
+              <option value="VIETNAMESE" selected>Tiếng Việt — kể cả người Việt ở nước ngoài</option>
+              <option value="PROMPT">Theo yêu cầu trong prompt — không giới hạn nếu chưa nêu</option>
+            </select>
+            <p class="helper">Áp dụng cho Tiêu chuẩn và Chất lượng. Không suy địa điểm hay quốc tịch từ tên người đăng. Chế độ Không lọc giữ dữ liệu thô.</p>
+          </div>
           <div class="config-grid">
             <div class="field"><label for="campaign-prompt">Bạn muốn tìm điều gì?</label><textarea id="campaign-prompt"
                 rows="4" maxlength="10000"

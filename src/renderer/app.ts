@@ -20,11 +20,12 @@ const campaignPrompt = element<HTMLTextAreaElement>('campaign-prompt');
 const brandContext = element<HTMLTextAreaElement>('brand-context');
 const suitableTarget = element<HTMLInputElement>('suitable-target');
 const filterMode = element<HTMLInputElement>('filter-mode');
+const languageScope = element<HTMLSelectElement>('content-language');
 const spendTotal = element<HTMLInputElement>('spend-total'), spendDaily = element<HTMLInputElement>('spend-daily'), spendCalls = element<HTMLInputElement>('spend-calls');
 const currentFilter = () => (['OFF', 'STANDARD', 'QUALITY'] as const)[Number(filterMode.value)] ?? 'OFF';
 const rawCap = element<HTMLInputElement>('raw-cap');
 const modelBudget = element<HTMLInputElement>('model-budget');
-const intentInputs = [intentEnabled, campaignPrompt, brandContext, suitableTarget, filterMode, rawCap, modelBudget, spendTotal, spendDaily, spendCalls];
+const intentInputs = [intentEnabled, campaignPrompt, brandContext, suitableTarget, filterMode, languageScope, rawCap, modelBudget, spendTotal, spendDaily, spendCalls];
 let resultGroup: 'SUITABLE' | 'NOT_SUITABLE' = 'SUITABLE';
 const startButton = element<HTMLButtonElement>('start');
 const stopButton = element<HTMLButtonElement>('stop');
@@ -69,6 +70,7 @@ function readConfig(): UserConfig {
     ...(intentEnabled.checked || state?.config.schemaVersion === 2 ? {
       schemaVersion: 2 as const, opportunity: {
         enabled: true, filterMode: currentFilter(), prompt: campaignPrompt.value, brandContext: brandContext.value,
+        languageScope: languageScope.value as 'VIETNAMESE' | 'PROMPT',
         totalTarget: Number(suitableTarget.value),
         rawCap: Number(rawCap.value), budgetUsd: currentFilter() === 'OFF' ? 0 : Number(modelBudget.value), commentsEnabled: state?.config.opportunity?.commentsEnabled ?? true,
       }
@@ -434,6 +436,7 @@ function applyState(next: ProductionState, replaceConfig = false) {
     const o = next.config.opportunity;
     intentEnabled.checked = !!o?.enabled; campaignPrompt.value = o?.prompt || ''; brandContext.value = o?.brandContext || '';
     suitableTarget.value = String(o?.totalTarget || 1000); filterMode.value = String(['OFF', 'STANDARD', 'QUALITY'].indexOf(o?.filterMode ?? 'OFF'));
+    languageScope.value = o?.languageScope ?? 'VIETNAMESE';
     intentEnabled.checked = true; spendTotal.value = String(next.config.spendLimits?.totalUsd ?? 0); spendDaily.value = String(next.config.spendLimits?.dailyUsd ?? 0); spendCalls.value = String(next.config.spendLimits?.maxCalls ?? 0);
     rawCap.value = String(o?.rawCap || 3000); modelBudget.value = String(o?.budgetUsd || 0.2);
     savedConfig = key(next.config); initialized = true; configDirty = false; setSaveStatus('Đã lưu trên máy', 'saved');

@@ -32,7 +32,7 @@ export interface CampaignDraftPlan extends CampaignCriteria {
   };
 }
 export type CampaignCriteriaPatch = Partial<CampaignCriteria>;
-export type CampaignPresetRuntime = Pick<OpportunityConfig, 'filterMode' | 'totalTarget' | 'threadsShare' | 'rawCap' | 'budgetUsd' | 'commentsEnabled'>;
+export type CampaignPresetRuntime = Pick<OpportunityConfig, 'filterMode' | 'languageScope' | 'totalTarget' | 'threadsShare' | 'rawCap' | 'budgetUsd' | 'commentsEnabled'>;
 export interface CampaignDraftCost {
   /** Persisted cost receipt; live collection spend may be newer than this timestamp. */
   capturedAt: string;

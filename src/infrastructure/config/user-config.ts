@@ -9,7 +9,8 @@ export function parseOpportunityConfig(value: unknown): OpportunityConfig {
   const v = value as Record<string, unknown>;
   const modern = v.filterMode !== undefined;
   const off = v.filterMode === 'OFF';
-  if ((modern ? !FILTER_MODES.includes(v.filterMode as never) || Object.keys(v).filter(k => k !== 'filterMode' && k !== 'threadsShare').sort().join() !== 'brandContext,budgetUsd,commentsEnabled,enabled,prompt,rawCap,totalTarget' : Object.keys(v).sort().join() !== 'brandContext,budgetUsd,commentsEnabled,enabled,prompt,rawCap,threadsShare,totalTarget') ||
+  if ((modern ? !FILTER_MODES.includes(v.filterMode as never) || Object.keys(v).filter(k => !['filterMode', 'threadsShare', 'languageScope'].includes(k)).sort().join() !== 'brandContext,budgetUsd,commentsEnabled,enabled,prompt,rawCap,totalTarget' : Object.keys(v).sort().join() !== 'brandContext,budgetUsd,commentsEnabled,enabled,prompt,rawCap,threadsShare,totalTarget') ||
+      (v.languageScope !== undefined && v.languageScope !== 'VIETNAMESE' && v.languageScope !== 'PROMPT') ||
       typeof v.enabled !== 'boolean' || typeof v.commentsEnabled !== 'boolean' ||
       typeof v.prompt !== 'string' || v.prompt.length > 10000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(v.prompt) ||
       typeof v.brandContext !== 'string' || v.brandContext.length > 10000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(v.brandContext) ||
@@ -20,7 +21,7 @@ export function parseOpportunityConfig(value: unknown): OpportunityConfig {
       (v.enabled && !off && !v.prompt.trim())) throw Error('CONFIG_INVALID');
   return { enabled: v.enabled, prompt: v.prompt.normalize('NFC').trim(), brandContext: v.brandContext.normalize('NFC').trim(),
     totalTarget: Number(v.totalTarget), ...(modern ? { filterMode: v.filterMode as NonNullable<OpportunityConfig['filterMode']> } : { threadsShare: v.threadsShare as 0.7 | 0.8 }), rawCap: Number(v.rawCap), budgetUsd: v.budgetUsd,
-    commentsEnabled: v.commentsEnabled };
+    commentsEnabled: v.commentsEnabled, ...(v.languageScope === undefined ? {} : { languageScope: v.languageScope as NonNullable<OpportunityConfig['languageScope']> }) };
 }
 
 export function parseUserConfig(value: unknown): UserConfig {

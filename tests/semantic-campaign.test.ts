@@ -54,6 +54,18 @@ const answer = (view: CampaignDialogueView, option = 'buyer') => ({ runId: view.
   answers: [{ question_id: 'who', selected_option_ids: [option], raw_text: '' }] });
 const reference = (draft: CampaignDraftView) => ({ runId: draft.runId, expectedRevision: draft.revision, expectedConfigHash: draft.configHash });
 
+test('explicit Vietnamese collection setting survives semantic planning and presets without inventing a country', async () => temporary(async directory => {
+  const h = harness(directory);
+  const draft = await prepareSemanticDraft({ ...h, config: { enabled: true, filterMode: 'STANDARD', languageScope: 'VIETNAMESE',
+    prompt: 'tìm người muốn thuê luật sư', brandContext: '', totalTarget: 10, rawCap: 30, budgetUsd: 3, commentsEnabled: false } });
+  assert.ok('campaign' in draft); assert.deepEqual(draft.campaign.languages, ['vi']);
+  assert.deepEqual(draft.campaign.required_geographies, []); assert.equal(draft.config.languageScope, 'VIETNAMESE');
+  const saved = savePreset({ directory, name: 'Vietnamese scope', source: { kind: 'DRAFT', runId: draft.runId, revision: draft.revision } });
+  const applied = applyPreset({ directory, presetId: saved.presetId, presetVersion: saved.version,
+    runtime: { filterMode: 'STANDARD', languageScope: 'VIETNAMESE', totalTarget: 10, rawCap: 30, budgetUsd: 3, commentsEnabled: false } });
+  assert.deepEqual(applied.campaign.languages, ['vi']); assert.equal(h.requests.length, 1);
+}));
+
 test('lawyer regression repairs a literal anchor without losing paraphrases, intent revision or paid attempts', async () => temporary(async directory => {
   const h = harness(directory); h.invalid(1);
   const draft = await prepareSemanticDraft({ ...h, config: { ...config, prompt: 'tìm người muốn thuê luật sư' } });

@@ -1,6 +1,8 @@
 export type Platform = 'facebook' | 'threads';
 export interface OpportunityConfig {
   filterMode?: import('./filter-policy.js').FilterMode;
+  /** Explicit collection setting; absent on historical configurations. */
+  languageScope?: 'VIETNAMESE' | 'PROMPT';
   enabled: boolean; prompt: string; brandContext: string;
   totalTarget: number; threadsShare?: 0.7 | 0.8; rawCap: number; budgetUsd: number; commentsEnabled: boolean;
 }
