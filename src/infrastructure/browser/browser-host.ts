@@ -167,7 +167,9 @@ export function createBrowserHost(input: {
     let slot: WindowSlot = entry;
     if (workerId) {
       if (!entry.workers.has(workerId)) {
-        if (entry.workers.size >= 8) throw Error('BROWSER_WORKER_LIMIT');
+        // Query plans allow 100 terms. The shared resource scheduler owns live
+        // admission; a legacy eight-window ceiling silently dropped later terms.
+        if (entry.workers.size >= 100) throw Error('BROWSER_WORKER_LIMIT');
         entry.workers.set(workerId, { view: null, window: null, closing: false, viewGeneration: 0 });
       }
       slot = entry.workers.get(workerId)!;

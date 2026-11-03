@@ -25,6 +25,18 @@ const request: JsonModelRequest = { purpose: 'same-filter', system: 'EXACT_UNCHA
 const success = () => new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{"ok":true}' }] } }],
   usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 100, totalTokenCount: 1100 } }));
 
+test('explicit rebuild selection moves a pending 2.5 draft to 3.1 without clearing its old charges', () => temporary(async directory => {
+  createCampaignModelGateway({ mockTransport: true, directory, budgetUsd: 1, primaryModel: 'gemini-2.5-flash-lite' });
+  ledger(join(directory, 'model-gemini-2.5-flash-lite'), .01, .02);
+  const selected = createCampaignModelGateway({ mockTransport: true, directory, budgetUsd: 1,
+    primaryModel: 'gemini-3.1-flash-lite', selectionReason: 'REBUILD_SELECTED_MODEL' });
+  assert.equal(selected.summary().model, 'gemini-3.1-flash-lite');
+  assert.equal(selected.summary().measured_cost_usd, .01); assert.equal(selected.summary().unmetered_cost_upper_usd, .02);
+  const routing = JSON.parse(readFileSync(join(directory, 'model-routing.json'), 'utf8'));
+  assert.equal(routing.history.at(-1).from_model, 'gemini-2.5-flash-lite');
+  assert.equal(routing.history.at(-1).to_model, 'gemini-3.1-flash-lite');
+}));
+
 test('both legacy and new ledgers are registered before calls and summaries count known plus unresolved cost once', () => temporary(async directory => {
   ledger(join(directory, 'model'), 0.4, 0.2); ledger(join(directory, 'model-gemini-3.5-flash-lite'), 0.1, 0.05);
   const pool = createSharedModelBudget(1);
@@ -49,16 +61,16 @@ test('explicit switch records reason and prior spend, then UI-style resume reads
   assert.equal(readFileSync(file, 'utf8'), saved);
 }));
 
-test('new campaigns default to2.5 at its explicit price, preserve caller prompt, and aggregate cache hits without rebilling', () => temporary(async directory => {
+test('new campaigns default to 3.1 at its explicit price, preserve caller prompt, and aggregate cache hits without rebilling', () => temporary(async directory => {
   let calls = 0;
   const gateway = createCampaignModelGateway({ mockTransport: true, directory, budgetUsd: 1, apiKey: 'fixture', minRequestIntervalMs: 0,
-    fetch: async (url, init) => { calls++; assert.match(String(url), /gemini-2\.5-flash-lite:generateContent$/);
+    fetch: async (url, init) => { calls++; assert.match(String(url), /gemini-3\.1-flash-lite:generateContent$/);
       const body = JSON.parse(String(init?.body)); assert.equal(body.systemInstruction.parts[0].text, request.system);
       assert.deepEqual(JSON.parse(body.contents[0].parts[0].text), request.input); return success(); } });
   const first = await gateway.generateJson(request); await gateway.generateJson(request);
-  assert.equal(first.cost_usd, 0.00014); assert.equal(calls, 1); assert.equal(gateway.summary().cache_hits, 1);
-  assert.equal(gateway.summary().measured_cost_usd, 0.00014);
-  assert.equal(gateway.summary().components?.find(p => p.model === 'gemini-3.1-flash-lite')?.billable_attempts, 0);
+  assert.equal(first.cost_usd, 0.0004); assert.equal(calls, 1); assert.equal(gateway.summary().cache_hits, 1);
+  assert.equal(gateway.summary().measured_cost_usd, 0.0004);
+  assert.equal(gateway.summary().components?.find(p => p.model === 'gemini-2.5-flash-lite')?.billable_attempts, 0);
 }));
 
 test('old known and unresolved costs prevent a new-model request from escaping the campaign cap', () => temporary(async directory => {
@@ -72,11 +84,11 @@ test('old known and unresolved costs prevent a new-model request from escaping t
 test('a quota error on the selected model never triggers an automatic API call to the other model', () => temporary(async directory => {
   let calls = 0;
   const gateway = createCampaignModelGateway({ mockTransport: true, directory, budgetUsd: 1, apiKey: 'fixture', minRequestIntervalMs: 0,
-    fetch: async url => { calls++; assert.match(String(url), /gemini-2\.5-flash-lite:generateContent$/);
+    fetch: async url => { calls++; assert.match(String(url), /gemini-3\.1-flash-lite:generateContent$/);
       return new Response(JSON.stringify({ error: { details: [{ violations: [{ quotaId: 'RequestsPerDay', quotaValue: 0 }] }] } }), { status: 429 }); } });
   await assert.rejects(gateway.generateJson(request), /MODEL_DAILY_QUOTA_EXHAUSTED/);
   await assert.rejects(gateway.generateJson({ ...request, input: { next: true } }), /MODEL_DAILY_QUOTA_EXHAUSTED/);
-  assert.equal(calls, 1); assert.equal(gateway.summary().components?.[0]?.billable_attempts, 0);
+  assert.equal(calls, 1); assert.equal(gateway.summary().components?.find(p => p.model === 'gemini-2.5-flash-lite')?.billable_attempts, 0);
 }));
 
 test('invalid persisted routing and unsafe reason fail before any model request', () => temporary(async directory => {

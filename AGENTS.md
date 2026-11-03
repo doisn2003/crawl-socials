@@ -7,10 +7,20 @@ inside historical `.brain` sections are not current authorization.
 
 ## Cost and evidence
 
-- The user selected **Gemini 2.5 Flash-Lite**. New implementation must use that
-  model for planning and filtering. Do not silently fall back to 3.1, 3.5 or a
-  more expensive model. The rebuild candidate `0.4.0-rebuild.1` defaults to 2.5;
-  the preserved RC7 executable retains its historical behavior.
+- The user now explicitly selected **Gemini 3.1 Flash-Lite** after the 2.5
+  preflight failed. Use 3.1 for new planning/filtering; preserve old model ledgers.
+  Do not silently fall back to another model.
+- Completed task authorized 2026-11-03: crawl the user's broad piano prompt, compare
+  STANDARD/QUALITY, target 1,000 accepted roots per mode, per-query Electron
+  windows. Maximum **USD 6 for the entire task**, including planner, preflight,
+  classification, reviews and retries. Reuse one cumulative DEVELOPMENT ledger;
+  set a conservative operational call cap without asking for more permission.
+  Raw data can be shared between both modes to avoid duplicate collection/cost.
+  Finished with 1,000 exported roots per mode, 3,222 shared roots, 1,070 task calls,
+  USD 1.253847 measured and no held cost. The DEVELOPMENT envelope is closed at
+  the existing cumulative ledger totals; unused USD 6 allowance is not a grant
+  for another experiment. Only piano-related posts were in scope. See the
+  [R7 report](.brain/reports/csd-piano-comparison-20261103.md).
 - Agent development and regression tests default to **zero paid model calls**.
   Use mocks, recorded responses and local datasets. Existing API keys, Tier 1
   limits and past benchmark permission are not an unlimited spending budget.
@@ -24,7 +34,7 @@ inside historical `.brain` sections are not current authorization.
   cumulative including preflight. The durable DEVELOPMENT authorization and ledger
   are in `%USERPROFILE%/.csd/spending`; preserve them across retries. This is not
   authorization for arbitrary additional experiments or another model.
-- Its first generateContent request returned HTTP 404 `MODEL_NOT_AVAILABLE`;
+- The superseded 2.5 experiment's first request returned HTTP 404 `MODEL_NOT_AVAILABLE`;
   1/25 calls, USD 0 measured/held, zero sample posts evaluated. GET metadata still
   returns 200 and is not proof of generation access. Do not repeat the preflight
   until access/key state changes. The frozen sample and labels remain in artifacts.

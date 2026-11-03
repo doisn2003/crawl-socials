@@ -53,11 +53,11 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
  await host.open(profile.id);const target=host.observerTarget(profile.id);
  if(!target)throw new Error('PROFILE_UNAVAILABLE');
  wc=target.contents;
- const execute=script=>timed(wc.executeJavaScript(script),8000,'RENDERER_TIMEOUT');
+ const execute=script=>timed(wc.executeJavaScript(script),15000,'RENDERER_TIMEOUT');
  wc.setBackgroundThrottling(false);
  manager=createResponseObserverManager({resolveOwned:createOwnedObserverResolver(host),urlAllowed:url=>{try{const u=new URL(url);return u.origin==='https://www.facebook.com'&&u.pathname.startsWith('/api/graphql/');}catch{return false;}},resourceTypes:['XHR','Fetch'],mimeTypes:['application/json','text/plain','text/html','text/javascript'],limits:{maxBodyBytes:8*1024*1024,maxBufferedBytes:32*1024*1024,maxTotalCapturedBytes:64*1024*1024,maxPendingRequests:100,maxResults:100,maxCapturedResponses:150,maxRunMs:60000,requestTimeoutMs:30000,commandTimeoutMs:5000}});
  const current=()=>{const t=host.observerTarget(profile.id);if(!t||t.webContentsId!==target.webContentsId||t.viewGeneration!==target.viewGeneration)throw new Error('OWNER_CHANGED');};
- const snapshotScript=`(()=>{const root=document.scrollingElement;const main=document.querySelector('[role="main"]');const text=main?.innerText||'';const login=!!document.querySelector('input[type="password"]');const path=location.pathname;const barrier=/checkpoint|challenge|login|recover|blocked/.test(path)||login;const visible=[...document.querySelectorAll('[role="alert"],[role="dialog"]')].map(e=>e.innerText).join(' ').slice(0,3000);return {url:location.href,title:document.title,ready:document.readyState,visibility:document.visibilityState,focused:document.hasFocus(),barrier,alert:visible,scrollY,root:{tag:root?.tagName,top:root?.scrollTop,height:root?.scrollHeight,client:root?.clientHeight},mainText:text.slice(0,22000),scrollers:[...document.querySelectorAll('main,[role="main"],[role="feed"],div')].filter(e=>e.clientHeight>300&&e.scrollHeight>e.clientHeight+200&&/auto|scroll/.test(getComputedStyle(e).overflowY)).slice(0,8).map(e=>({tag:e.tagName,role:e.getAttribute('role'),height:e.scrollHeight,client:e.clientHeight,top:e.scrollTop})),blocks:[...document.querySelectorAll('script[type="application/json"]')].length}})()`;
+ const snapshotScript=`(()=>{const root=document.scrollingElement;const main=document.querySelector('[role="main"]');const text=main?.innerText||'';const login=!!document.querySelector('input[type="password"]');const path=location.pathname;const barrier=/checkpoint|challenge|login|recover|blocked/.test(path)||login;const visible=[...document.querySelectorAll('[role="alert"],[role="dialog"]')].map(e=>e.innerText).join(' ').slice(0,3000);return {url:location.href,title:document.title,ready:document.readyState,visibility:document.visibilityState,focused:document.hasFocus(),barrier,alert:visible,scrollY,root:{tag:root?.tagName,top:root?.scrollTop,height:root?.scrollHeight,client:root?.clientHeight},mainText:text.slice(0,22000),scrollers:[...document.querySelectorAll('main,[role="main"],[role="feed"]')].filter(e=>e.clientHeight>300&&e.scrollHeight>e.clientHeight+200&&/auto|scroll/.test(getComputedStyle(e).overflowY)).slice(0,8).map(e=>({tag:e.tagName,role:e.getAttribute('role'),height:e.scrollHeight,client:e.clientHeight,top:e.scrollTop})),blocks:[...document.querySelectorAll('script[type="application/json"]')].length}})()`;
  async function snapshot(){current();const s=await execute(snapshotScript);if(s.barrier||/temporarily blocked|try again later|quá nhiều yêu cầu|tạm thời bị chặn/i.test(s.alert)){stopReason='ACCOUNT_BARRIER';event({event:'BARRIER',path:new URL(s.url).pathname});throw new Error(stopReason);}if(activeQuery&&new URL(s.url).searchParams.get('q')!==activeQuery)throw new Error('NAVIGATION_CHANGED');return s;}
  async function persist(objects,method,responseHash,info){
   if(!activeQuery||closing)return;current();
@@ -133,7 +133,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
   }
   throw new Error('CAPTURE_DRAIN_TIMEOUT');
  }
- async function close(){closing=true;activeQuery=null;manager.stopAll();if(!wc.isDestroyed())wc.debugger.removeListener('message',onRequest);await timed(Promise.allSettled([...readers,...pending.values()]),12000,'CAPTURE_DRAIN_TIMEOUT');await timed(host.close(profile.id),15000,'SESSION_FLUSH_TIMEOUT');profileClosed=true;}
+ async function close(){closing=true;activeQuery=null;manager.stopAll();if(!wc.isDestroyed())wc.debugger.removeListener('message',onRequest);await timed(Promise.allSettled([...readers,...pending.values()]),12000,'CAPTURE_DRAIN_TIMEOUT');await timed(host.close(profile.id),60000,'SESSION_FLUSH_TIMEOUT');profileClosed=true;}
  const started=Date.now();
  try{
   event({event:'START',run_id:config.runId,resumed:initialRunRecords>0,existing_records:store.count,code_hashes:{entry:hash(readFileSync(new URL(import.meta.url))),parser:hash(readFileSync(new URL('../dist/infrastructure/browser/facebook-search-embedded-parser.js',import.meta.url))),store:hash(readFileSync(new URL('../dist/infrastructure/browser/facebook-collector-store.js',import.meta.url)))}});
@@ -151,7 +151,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
     check();if(beforeNextPage)await beforeNextPage();check();if(newThisRun>=config.targetNewRecords&&qi>=Math.min(1,config.queries.length-1))break;
     if(lastHasNext===false){queryStop='NATIVE_END_OBSERVED';event({event:'SOURCE_EXHAUSTED',query_index:qi});break;}
     await attach();scrollIndex=scroll;const count=store.count;
-    const geometry=await execute(`(()=>{const root=document.scrollingElement;const candidates=[...document.querySelectorAll('[role="main"],[role="feed"],main,div')].filter(e=>e.clientHeight>300&&e.scrollHeight>e.clientHeight+200&&/auto|scroll/.test(getComputedStyle(e).overflowY));const e=candidates.sort((a,b)=>b.clientHeight-a.clientHeight)[0]||root;const before=e.scrollTop;e.scrollTo({top:e.scrollHeight,behavior:'instant'});return {tag:e.tagName,role:e.getAttribute('role'),before,after:e.scrollTop,height:e.scrollHeight,client:e.clientHeight,root:e===root};})()`);
+    const geometry=await execute(`(()=>{const root=document.scrollingElement;const scrollable=e=>e.clientHeight>300&&e.scrollHeight>e.clientHeight+200&&/auto|scroll/.test(getComputedStyle(e).overflowY);const primary=[...document.querySelectorAll('[role="main"],[role="feed"],main')].filter(scrollable);const candidates=primary.length?primary:root.scrollHeight>root.clientHeight+100?[]:[...document.querySelectorAll('div')].filter(scrollable);const e=candidates.sort((a,b)=>b.clientHeight-a.clientHeight)[0]||root;const before=e.scrollTop;e.scrollTo({top:e.scrollHeight,behavior:'instant'});return {tag:e.tagName,role:e.getAttribute('role'),before,after:e.scrollTop,height:e.scrollHeight,client:e.clientHeight,root:e===root};})()`);
     event({event:'SCROLL',query_index:qi,scroll_index:scroll,...geometry});await sleep(config.settleMs);check();await snapshot();await embedded();
     await drain();
     const gained=store.count-count;noProgress=scroll<=slice.replayDepth||gained?0:noProgress+1;
@@ -178,7 +178,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
  } finally {
   closing=true;activeQuery=null;manager?.stopAll();
   if(wc&&onRequest&&!wc.isDestroyed())wc.debugger.removeListener('message',onRequest);
-  if(!profileClosed)await timed(host.close(profile.id),15000,'SESSION_FLUSH_TIMEOUT');
+  if(!profileClosed)await timed(host.close(profile.id),60000,'SESSION_FLUSH_TIMEOUT');
  }
 }
 

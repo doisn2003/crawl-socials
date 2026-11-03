@@ -141,8 +141,8 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
   const model = options.model ?? REBUILD_MODEL;
   if (!/^[a-z0-9][a-z0-9.-]{2,100}$/u.test(model)) throw new ModelGatewayError('MODEL_ID_INVALID');
   if (!Number.isFinite(options.budgetUsd) || options.budgetUsd <= 0) throw new ModelGatewayError('MODEL_BUDGET_INVALID');
-  if (![REBUILD_MODEL, 'gemini-3.1-flash-lite'].includes(model) && !options.price) throw new ModelGatewayError('MODEL_EXPLICIT_PRICE_REQUIRED');
-  const price = options.price ?? (model === REBUILD_MODEL ? GEMINI_25_FLASH_LITE_PRICE : GEMINI_FLASH_LITE_PRICE);
+  if (!['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite'].includes(model) && !options.price) throw new ModelGatewayError('MODEL_EXPLICIT_PRICE_REQUIRED');
+  const price = options.price ?? (model === 'gemini-2.5-flash-lite' ? GEMINI_25_FLASH_LITE_PRICE : GEMINI_FLASH_LITE_PRICE);
   if (![price.input_per_million, price.output_per_million, price.cached_input_per_million].every(n => Number.isFinite(n) && n >= 0)) {
     throw new ModelGatewayError('MODEL_PRICE_INVALID');
   }
@@ -236,7 +236,7 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
       attempts++;
       } catch (error) {
         try { if (spendingId) spending!.settle(spendingId, 0); } // Transport has not started.
-        finally { reserved -= upper; accountBudget(); }
+        finally { reserved = Math.max(0, reserved - upper); if (reserved < 1e-12) reserved = 0; accountBudget(); }
         throw error;
       }
       let response: Response | null = null, payload: Record<string, unknown> | null = null;
@@ -268,15 +268,15 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
       const cost = usage ? pricedUsage(usage, price) : response && !response.ok && response.status < 500 ? 0 : null;
       const unknown = cost === null ? upper : 0;
       try { if (spendingId) spending!.settle(spendingId, cost); }
-      catch (error) { reserved -= upper; unknownUpper += upper; accountBudget(); throw error; }
+      catch (error) { reserved = Math.max(0, reserved - upper); if (reserved < 1e-12) reserved = 0; unknownUpper += upper; accountBudget(); throw error; }
       const result: JsonModelResult | null = valid ? { value, invocation_id: invocation, request_hash: hash, model,
         model_version: typeof payload?.modelVersion === 'string' ? payload.modelVersion : null, usage, cost_usd: cost,
         unmetered_cost_upper_usd: unknown, cache_hit: false, elapsed_ms: Date.now() - started, price } : null;
       // A failed disk write leaves START unresolved; restart reserves its full cost conservatively.
       try { append({ type: 'FINISH', invocation_id: invocation, request_hash: hash, model, finished_at: new Date().toISOString(),
         result, cost_usd: cost, unmetered_cost_upper_usd: unknown, error_code: errorCode, http_status: response?.status ?? null }); }
-      catch (error) { reserved -= upper; unknownUpper += upper; accountBudget(); throw error; }
-      reserved -= upper; spent += cost ?? 0; unknownUpper += unknown;
+      catch (error) { reserved = Math.max(0, reserved - upper); if (reserved < 1e-12) reserved = 0; unknownUpper += upper; accountBudget(); throw error; }
+      reserved = Math.max(0, reserved - upper); if (reserved < 1e-12) reserved = 0; spent += cost ?? 0; unknownUpper += unknown;
       accountBudget();
       if (response?.status === 429 || response?.status === 503) scheduler.cooldown(retryDelayMs(response, payload, 5000 * attempt));
       if (result) { cache.set(hash, result); return result; }
