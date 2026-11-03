@@ -2,6 +2,8 @@
 
 Ngày 03/11/2026, múi giờ Asia/Bangkok. Bản ứng viên **0.4.0-rebuild.2**.
 
+**Cập nhật R8:** người dùng đã chốt chỉ nhận nội dung tiếng Việt, kể cả người Việt ở nước ngoài. Các file 1.000 bài và số đo bên dưới là hồ sơ phạm vi cũ, đã được thay bằng bản sửa: **980 bài Tiêu chuẩn / 819 bài Chất lượng**. Xem [bản sửa ngôn ngữ](csd-vietnamese-language-fix-20261103.md). Không sử dụng precision/recall cũ làm điểm chất lượng của phạm vi mới.
+
 **Đã xuất đủ 1.000 bài được bộ lọc nhận cho mỗi mức.** Trên cùng 3.222 bài gốc, Tiêu chuẩn nhận 1.356 và Chất lượng nhận 1.005. Toàn nhiệm vụ dùng **1,253847 USD / trần 6 USD**, gồm cả lập kế hoạch, kiểm tra truy cập, mở rộng query, lỗi và các lần xử lý lại. Kiểm tra mẫu cho thấy Tiêu chuẩn giữ được nhiều bài đúng hơn, còn Chất lượng sạch hơn nhưng bỏ sót thêm. Bộ lọc vẫn cần cải tiến vai cung–cầu và cách xét các nhánh thảo luận/đam mê.
 
 ## Phạm vi và file bàn giao

@@ -1,4 +1,5 @@
 import { withFilterPolicy } from './filter-policy.js';
+import { vietnameseOnly } from '../domain/content-language.js';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -125,6 +126,7 @@ export function validateCriteriaPatch(value: unknown): CampaignCriteriaPatch {
 }
 function validateCampaign(campaign: CampaignPlan, config: OpportunityConfig) {
   validateCampaignPlan(campaign); validateCriteriaPatch(criteria(campaign));
+  if (config.languageScope === 'VIETNAMESE' && config.filterMode !== 'OFF' && !vietnameseOnly(campaign)) throw Error('DRAFT_LANGUAGE_SCOPE_MISMATCH');
   if (contentHash(parseOpportunityConfig(config)) !== contentHash(config) || !config.enabled || campaign.prompt !== config.prompt
     || (campaign.brand_context ?? '') !== config.brandContext || campaign.suitable_target !== config.totalTarget
     || campaign.desired_platform_weights.threads !== (config.threadsShare ?? 0.5) || Math.abs(campaign.desired_platform_weights.facebook - (1 - (config.threadsShare ?? 0.5))) > 1e-9
@@ -214,6 +216,7 @@ export async function prepareDraft(input: { directory: string; config: Opportuni
     atomic(join(paths(location).opportunity, 'draft-cost.json'), cost(gateway));
     input.onAllocated?.({ runId: location.runId, configHash: contentHash(config) });
     const { campaign: compiled, model_result } = await compileCampaign({ campaign_id: location.runId, prompt: config.prompt, brand_context: config.brandContext,
+      ...(config.languageScope === 'VIETNAMESE' ? { languages: ['vi'] } : {}),
       suitable_target: config.totalTarget, desired_platform_weights: { threads: config.threadsShare ?? 0.5, facebook: 1 - (config.threadsShare ?? 0.5) },
       raw_cap: config.rawCap, model_usd: config.budgetUsd, planner_policy: planner.planner_policy }, gateway, input.signal ? { signal: input.signal } : {});
     const campaign = withFilterPolicy(compiled, config.filterMode);
@@ -254,7 +257,9 @@ export function updateDraft(input: { directory: string } & UpdateCampaignDraftRe
   if (existsSync(join(paths(input).opportunity, 'campaign.json'))) throw Error('DRAFT_PLAN_COMMITTED');
   const patch = validateCriteriaPatch(input.criteriaPatch), campaign = { ...record.campaign, ...patch };
   const { version: _version, created_at: _created, ...base } = campaign; campaign.version = campaignVersion(base);
-  const config = { ...record.config, brandContext: campaign.brand_context ?? '' }; validateCampaign(campaign, config);
+  const config = { ...record.config, brandContext: campaign.brand_context ?? '',
+    ...(patch.languages && record.config.languageScope ? { languageScope: patch.languages.length === 1 && patch.languages[0] === 'vi' ? 'VIETNAMESE' as const : 'PROMPT' as const } : {}) };
+  validateCampaign(campaign, config);
   const updated: DraftRecord = { ...record, config, campaign, updatedAt: now(),
     userOverrides: [...record.userOverrides, { at: now(), previousRevision: pointer.revision, patch }] };
   if (updated.userOverrides.length > 100) throw Error('DRAFT_EDIT_LIMIT');
@@ -315,6 +320,7 @@ export async function prepareSemanticDraft(input: PrepareInput): Promise<Campaig
     atomic(join(files.opportunity, 'draft-cost.json'), cost(gateway));
     input.onAllocated?.({ runId: location.runId, configHash: contentHash(config) });
     const result = await compileSemanticTurn({ campaign_id: location.runId, prompt: config.prompt, brand_context: config.brandContext,
+      ...(config.languageScope === 'VIETNAMESE' ? { languages: ['vi'] } : {}),
       suitable_target: config.totalTarget, desired_platform_weights: { threads: config.threadsShare ?? 0.5, facebook: 1 - (config.threadsShare ?? 0.5) },
       raw_cap: config.rawCap, model_usd: config.budgetUsd }, intent, gateway, {
       cacheNamespace: 'semantic-dialogue:' + generation.id,
@@ -430,12 +436,16 @@ export function listPresets(input: { directory: string }): CampaignPresetView[] 
 }
 export function applyPreset(input: { directory: string } & ApplyCampaignPresetRequest): CampaignDraftView {
   const preset = readPreset(input.directory, input.presetId, input.presetVersion); assertRecipe(preset.campaign, preset.recipe, preset.recipeHash);
-  if (!object(input.runtime) || !exactKeys(input.runtime, ['totalTarget', input.runtime.filterMode ? 'filterMode' : 'threadsShare', 'rawCap', 'budgetUsd', 'commentsEnabled'])) throw Error('PRESET_RUNTIME_INVALID');
+  if (!object(input.runtime) || !exactKeys(input.runtime, ['totalTarget', input.runtime.filterMode ? 'filterMode' : 'threadsShare', 'rawCap', 'budgetUsd', 'commentsEnabled',
+    ...(input.runtime.languageScope === undefined ? [] : ['languageScope'])])) throw Error('PRESET_RUNTIME_INVALID');
   const config = parseOpportunityConfig({ ...input.runtime, enabled: true, prompt: preset.campaign.prompt, brandContext: preset.campaign.brand_context ?? '' });
   const location = allocated(input.directory, config), at = now();
   let campaign = { ...structuredClone(preset.campaign), campaign_id: location.runId, created_at: at, suitable_target: config.totalTarget,
     desired_platform_weights: { threads: config.threadsShare ?? 0.5, facebook: 1 - (config.threadsShare ?? 0.5) },
     budget: { ...preset.campaign.budget, raw_cap: config.rawCap, model_usd: config.budgetUsd } };
+  if (config.languageScope === 'VIETNAMESE') {
+    campaign.languages = ['vi'];
+  }
   campaign = withFilterPolicy(campaign, config.filterMode);
   const { version: _version, created_at: _created, ...base } = campaign; campaign.version = campaignVersion(base); validateCampaign(campaign, config);
   const record: DraftRecord = { schemaVersion: 1, runId: location.runId, config, campaign, recipe: classifierRecipe(campaign.filter_version), recipeHash: contentHash(classifierRecipe(campaign.filter_version)),

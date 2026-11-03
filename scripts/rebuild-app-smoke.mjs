@@ -31,17 +31,19 @@ if (!process.versions.electron) {
         const state = await run('window.csd.getState()');
         assert.equal(state.run, null); assert.equal(state.accounts.length, 0); assert.equal(state.spending.calls, 0);
         assert.equal(await run("document.getElementById('filter-mode').value"), '0');
+        assert.equal(await run("document.getElementById('content-language').value"), 'VIETNAMESE');
         assert.equal(await run("document.getElementById('spend-total').value"), '0');
         const config = { schemaVersion: 2, keywords: ['piano'], minimumPosts: 3, spendLimits: { totalUsd: 0, dailyUsd: 0, maxCalls: 0 },
-          opportunity: { enabled: true, filterMode: 'OFF', prompt: '', brandContext: '', totalTarget: 3, rawCap: 10, budgetUsd: 0, commentsEnabled: false } };
+          opportunity: { enabled: true, filterMode: 'OFF', languageScope: 'VIETNAMESE', prompt: '', brandContext: '', totalTarget: 3, rawCap: 10, budgetUsd: 0, commentsEnabled: false } };
         await run('window.csd.saveConfig(' + JSON.stringify(config) + ')');
         assert.equal((await run('window.csd.getState()')).config.opportunity.filterMode, 'OFF');
+        assert.equal((await run('window.csd.getState()')).config.opportunity.languageScope, 'VIETNAMESE');
         const refusal = await run("window.csd.prepareCampaign().then(()=>null,e=>String(e.message))");
         assert.match(refusal, /OFF_MODEL_CALL_FORBIDDEN/);
         assert.deepEqual(errors, []);
         writeFileSync(join(output, 'main-ui.png'), (await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
         const report = { passed: true, actualMainPreloadRenderer: true, module: entry, appDataIsolated: true, globalSpendIsolated: true,
-          defaultFilter: 'OFF', zeroInitialSpend: true, settingsRoundTrip: true, offRejectsPlanner: true, calls: 0, rendererErrors: errors };
+          defaultFilter: 'OFF', defaultLanguageScope: 'VIETNAMESE', zeroInitialSpend: true, settingsRoundTrip: true, offRejectsPlanner: true, calls: 0, rendererErrors: errors };
         writeFileSync(join(output, 'app-smoke.json'), JSON.stringify(report, null, 2)); console.log(JSON.stringify(report));
         clearTimeout(timer); app.quit();
       } catch (error) { console.error(error); clearTimeout(timer); app.exit(1); }

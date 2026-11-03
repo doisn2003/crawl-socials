@@ -5,6 +5,7 @@ import { contentHash, type ConversationSnapshot } from '../domain/conversation.j
 import { validateConversationDecision, type ConversationDecisionInput } from '../domain/conversation-decision.js';
 import type { CampaignPlan } from '../domain/campaign-plan.js';
 import { FILTER_VERSIONS } from '../shared/filter-policy.js';
+import { beforeLanguageAssessment, enforceContentLanguage, CONTENT_LANGUAGE_POLICY, vietnameseOnly, vietnameseEvidence } from '../domain/content-language.js';
 import type { ClassificationBatchResult, ClassifyOptions } from './classification-service.js';
 import { ModelGatewayError, type ModelGateway } from './ports/model-gateway.js';
 
@@ -27,11 +28,11 @@ const REVIEW_SYSTEM = COVERAGE_SYSTEM + `\nLượt kiểm tra bổ sung có ch�
 export const QUALITY_RECIPE = Object.freeze({ filter_version: FILTER_VERSIONS.QUALITY, system: REVIEW_SYSTEM, schema: COVERAGE_SCHEMA });
 type Verdict = { i: number; candidate: string; role: 'TARGET' | 'REPRESENTATIVE' | 'WRONG' | 'UNKNOWN'; fit: 'DIRECT' | 'PLAUSIBLE' | 'NONE' | 'UNKNOWN';
   hard: 'PASS' | 'FAIL' | 'UNKNOWN'; ev: number[]; why: string; flags: string[] };
-function document(snapshot: ConversationSnapshot) {
+function document(snapshot: ConversationSnapshot, checkLanguage = false) {
   const entities = [snapshot.post, ...snapshot.comments].filter(e => e !== null);
   const alias = new Map(entities.map((entity, i) => [entity.entity_id, i === 0 && snapshot.post ? 'p' : 'c' + i]));
   return { entities: entities.map(e => ({ candidate: alias.get(e.entity_id), type: e.entity_type, parent: alias.get(e.parent_id ?? '') ?? null,
-    published_at: e.published_at ?? null })), spans: snapshot.spans.map((s, i) => ({ e: i, candidate: alias.get(s.entity_id), text: s.text })) };
+    published_at: e.published_at ?? null, ...(checkLanguage ? { vietnamese_content: vietnameseEvidence(e.text).state } : {}) })), spans: snapshot.spans.map((s, i) => ({ e: i, candidate: alias.get(s.entity_id), text: s.text })) };
 }
 function goal(plan: CampaignPlan) {
   return { prompt: plan.prompt, brand: plan.brand_context, criteria: { topic: plan.topic, audience: plan.audience, needs: plan.needs,
@@ -65,15 +66,18 @@ function decision(plan: CampaignPlan, snapshot: ConversationSnapshot, v: Verdict
     evidence_ids: v.ev.map(i => snapshot.spans[i]!.id), model, action_target: positive && entity ? { entity_id: entity.entity_id, type: entity.entity_type } : null,
     attributes: { need_summary: v.why, signal_strength: positive ? v.fit === 'DIRECT' ? 3 : 2 : 0, role: v.role, fit: v.fit, hard: v.hard,
       review_flags: v.flags.join(','), recipe: FILTER_VERSIONS.STANDARD } };
-  validateConversationDecision(result, snapshot); return result;
+  const guarded = enforceContentLanguage(plan, snapshot, result);
+  validateConversationDecision(guarded, snapshot); return guarded;
 }
 
 export async function classifyCoverage(plan: CampaignPlan, snapshots: ConversationSnapshot[], gateway: ModelGateway, options: ClassifyOptions = {}): Promise<ClassificationBatchResult> {
   const output: ClassificationBatchResult = { decisions: [], model_results: [], failures: [] };
-  const docs = snapshots.map(document), target = goal(plan);
+  const checkLanguage = vietnameseOnly(plan);
+  const docs = snapshots.map(s => document(s, checkLanguage)), target = goal(plan);
   const asOf = (options.evaluatedAt ?? new Date().toISOString()).slice(0, 10);
   const model = gateway.summary().model;
-  const entries = snapshots.map((snapshot, i) => ({ snapshot, doc: docs[i]!, key: contentHash({ recipe: COVERAGE_RECIPE, target, model, asOf, document: docs[i] }) }));
+  const entries = snapshots.map((snapshot, i) => ({ snapshot, doc: docs[i]!, key: contentHash({ recipe: COVERAGE_RECIPE, target, model, asOf, document: docs[i],
+    ...(checkLanguage ? { languagePolicy: CONTENT_LANGUAGE_POLICY } : {}) }) }));
   const verdicts = new Map<string, Verdict>();
   function pending(snapshot: ConversationSnapshot, error: unknown) {
     const code = error instanceof ModelGatewayError ? error.code : error instanceof Error && /^[A-Z][A-Z0-9_]+$/.test(error.message) ? error.message : 'COVERAGE_LOCAL_FAILURE';
@@ -83,6 +87,8 @@ export async function classifyCoverage(plan: CampaignPlan, snapshots: Conversati
   }
   const uncached: typeof entries = [];
   for (const entry of entries) {
+    const languageDecision = beforeLanguageAssessment(plan, entry.snapshot);
+    if (languageDecision) { output.decisions.push(languageDecision); continue; }
     if (!entry.doc.spans.length) { pending(entry.snapshot, Error('COVERAGE_NO_TEXT_EVIDENCE')); continue; }
     const file = options.assessmentCacheDirectory ? join(options.assessmentCacheDirectory, entry.key + '.json') : null;
     try {

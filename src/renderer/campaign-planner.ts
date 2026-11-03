@@ -31,7 +31,8 @@ export function createCampaignPlanner(host: PlannerHost) {
     node<HTMLInputElement>('criteria-watch-attempts')];
   const matches = (draft: CampaignDraftView) => {
     const config = host.config().opportunity;
-    return !!config && Object.keys(draft.config).every(key => config[key as keyof typeof config] === draft.config[key as keyof typeof draft.config]);
+    return !!config && config.languageScope === draft.config.languageScope
+      && Object.keys(draft.config).every(key => config[key as keyof typeof config] === draft.config[key as keyof typeof draft.config]);
   };
   function draftReference(): CampaignDraftReference | undefined {
     const draft = host.state()?.campaignDraft;
@@ -175,6 +176,7 @@ export function createCampaignPlanner(host: PlannerHost) {
     const [presetId, presetVersion] = node<HTMLSelectElement>('campaign-preset').value.split(':'), config = host.config().opportunity;
     if (!presetId || !presetVersion || !config) throw Error('PRESET_ID_INVALID');
     const next = await host.api.applyCampaignPreset({ presetId, presetVersion, runtime: { totalTarget: config.totalTarget,
+      ...(config.languageScope ? { languageScope: config.languageScope } : {}),
       ...(config.filterMode ? { filterMode: config.filterMode } : { threadsShare: config.threadsShare! }), rawCap: config.rawCap, budgetUsd: config.budgetUsd, commentsEnabled: config.commentsEnabled } });
     dirty = false; displayedRevision = ''; node<HTMLDetailsElement>('campaign-plan-editor').open = true; return next;
   }, 'Đã dùng lại bộ lọc, không gọi AI để lập lại kế hoạch.'); });
