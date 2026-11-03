@@ -30,8 +30,9 @@ export function parseUserConfig(value: unknown): UserConfig {
   const keys = Object.keys(v).filter(key => key !== 'performance' && key !== 'spendLimits').sort().join();
   if (v.spendLimits !== undefined) {
     const s = v.spendLimits as Record<string, unknown>;
-    if (!s || Object.keys(s).sort().join() !== 'dailyUsd,maxCalls,totalUsd' || ![s.totalUsd, s.dailyUsd].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 10000)
-      || !Number.isSafeInteger(s.maxCalls) || Number(s.maxCalls) < 0) throw Error('CONFIG_INVALID');
+    if (!s || typeof s !== 'object' || Array.isArray(s) || !['dailyUsd,totalUsd', 'dailyUsd,maxCalls,totalUsd'].includes(Object.keys(s).sort().join())
+      || ![s.totalUsd, s.dailyUsd].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 10000)
+      || (s.maxCalls !== undefined && (!Number.isSafeInteger(s.maxCalls) || Number(s.maxCalls) < 0))) throw Error('CONFIG_INVALID');
   }
   if (v.performance !== undefined && !PERFORMANCE_MODES.includes(v.performance as never)) throw Error('CONFIG_INVALID');
   const versionTwo = keys === 'keywords,minimumPosts,opportunity,schemaVersion' && v.schemaVersion === 2;
@@ -44,7 +45,9 @@ export function parseUserConfig(value: unknown): UserConfig {
     if (!keyword || keyword.length > 200 || /[\x00-\x1f\x7f]/.test(keyword)) throw Error('CONFIG_INVALID');
     if (!keywords.includes(keyword)) keywords.push(keyword);
   }
-  return { ...(v.spendLimits === undefined ? {} : { spendLimits: v.spendLimits as NonNullable<UserConfig['spendLimits']> }), ...(v.performance === undefined ? {} : { performance: v.performance as NonNullable<UserConfig['performance']> }), keywords, minimumPosts: Number(v.minimumPosts), ...(versionTwo ? { schemaVersion: 2 as const, opportunity: parseOpportunityConfig(v.opportunity) } : {}) };
+  const limits = v.spendLimits as Record<string, number> | undefined;
+  // Normalize legacy settings without touching the durable spending history.
+  return { ...(limits === undefined ? {} : { spendLimits: { totalUsd: limits.totalUsd!, dailyUsd: limits.dailyUsd! } }), ...(v.performance === undefined ? {} : { performance: v.performance as NonNullable<UserConfig['performance']> }), keywords, minimumPosts: Number(v.minimumPosts), ...(versionTwo ? { schemaVersion: 2 as const, opportunity: parseOpportunityConfig(v.opportunity) } : {}) };
 }
 
 export function atomicJson(file: string, value: unknown) {

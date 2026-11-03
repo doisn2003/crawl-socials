@@ -42,7 +42,7 @@ async function bootstrap() {
   const geminiKey = await createGeminiKeySettings(createElectronSecretStore(join(paths.userData, 'secrets')), () => environmentKey);
   const appConfig = createUserConfigStore(join(paths.userData, 'data'));
   const spending = createDurableSpend({ envelope: () => ({ scope: 'USER', model: REBUILD_MODEL,
-    ...(appConfig.read().spendLimits ?? { totalUsd: 0, dailyUsd: 0, maxCalls: 0 }) }) });
+    ...(appConfig.read().spendLimits ?? { totalUsd: 0, dailyUsd: 0 }) }) });
   const schedulers = new Map<string, RequestScheduler>();
   const schedulerForModel = (model: string) => {
     const policy = throughput(appConfig.read().performance);

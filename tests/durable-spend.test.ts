@@ -65,6 +65,43 @@ test('zero allowance blocks transport; 3.1 defaults use its own price and minima
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('legacy user call caps never block funded requests; restart preserves history and enforces daily/total money', () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-user-money-'));
+  try {
+    let date = new Date('2026-11-03T10:00:00Z');
+    const options = { file: join(root, 'ledger.sqlite'), now: () => date,
+      envelope: () => ({ scope: 'USER' as const, model: REBUILD_MODEL, totalUsd: .01, dailyUsd: .006, maxCalls: 3 }) };
+    const old = createDurableSpend(options);
+    for (let i = 0; i < 3; i++) old.settle(old.reserve(REBUILD_MODEL, .001), i === 0 ? 0 : .001);
+    const restarted = createDurableSpend(options);
+    assert.equal(restarted.status().calls, 3);
+    assert.equal(restarted.status().measuredUsd, .002);
+    restarted.settle(restarted.reserve(REBUILD_MODEL, .004), .004);
+    assert.equal(restarted.status().calls, 4, 'the fourth user request is permitted, without clearing old calls');
+    assert.throws(() => restarted.reserve(REBUILD_MODEL, .001), /MODEL_GLOBAL_BUDGET_EXHAUSTED/, 'daily money still blocks');
+    date = new Date('2026-11-04T10:00:00Z');
+    const nextDay = createDurableSpend(options);
+    nextDay.settle(nextDay.reserve(REBUILD_MODEL, .004), .004);
+    assert.equal(nextDay.status().measuredUsd, .01);
+    assert.throws(() => nextDay.reserve(REBUILD_MODEL, .001), /MODEL_GLOBAL_BUDGET_EXHAUSTED/, 'total money survives day changes');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('user reservations work without a call cap, keep unknown cost, and development still requires its authorized cap', () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-user-reservations-'));
+  try {
+    const options = { file: join(root, 'ledger.sqlite'), envelope: () => ({ scope: 'USER' as const, model: REBUILD_MODEL, totalUsd: .01, dailyUsd: .01 }) };
+    const a = createDurableSpend(options), b = createDurableSpend(options);
+    const held = a.reserve(REBUILD_MODEL, .008);
+    assert.throws(() => b.reserve(REBUILD_MODEL, .003), /MODEL_BUDGET_BUSY/);
+    a.settle(held, null);
+    assert.equal(createDurableSpend(options).status().heldUsd, .008);
+    assert.throws(() => b.reserve(REBUILD_MODEL, .003), /MODEL_GLOBAL_BUDGET_EXHAUSTED/);
+    const invalid = createDurableSpend({ file: options.file, envelope: () => ({ scope: 'DEVELOPMENT', model: REBUILD_MODEL, totalUsd: 1, dailyUsd: 1 } as never) });
+    assert.throws(() => invalid.reserve(REBUILD_MODEL, .001), /MODEL_SPEND_POLICY_INVALID/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('settlement disk failure retains uncertain cost without leaving an eternal in-flight allocation', async () => {
   const root = mkdtempSync(join(tmpdir(), 'csd-spend-settlement-'));
   try {

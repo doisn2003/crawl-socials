@@ -7,7 +7,10 @@ import { ModelGatewayError } from '../../application/ports/model-gateway.js';
 
 export const REBUILD_MODEL = 'gemini-3.1-flash-lite';
 export const SPEND_DIRECTORY = join(homedir(), '.csd', 'spending');
-export interface SpendEnvelope { scope: 'USER' | 'DEVELOPMENT'; model: string; totalUsd: number; dailyUsd: number; maxCalls: number; }
+export type SpendEnvelope = { model: string; totalUsd: number; dailyUsd: number } & (
+  | { scope: 'USER'; /** Read compatibility only; user runs are bounded by money, not lifetime calls. */ maxCalls?: number }
+  | { scope: 'DEVELOPMENT'; maxCalls: number }
+);
 export interface SpendStatus { measuredUsd: number; heldUsd: number; remainingUsd: number; dailyRemainingUsd: number; calls: number; }
 const units = (usd: number) => Math.ceil(usd * 1e9);
 const dayOf = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
@@ -21,7 +24,7 @@ export function createDurableSpend(options: { envelope: () => SpendEnvelope; fil
     const e = options.envelope();
     if (!e || !['USER', 'DEVELOPMENT'].includes(e.scope) || !['gemini-2.5-flash-lite', REBUILD_MODEL].includes(e.model)
       || ![e.totalUsd, e.dailyUsd].every(v => Number.isFinite(v) && v >= 0 && v <= 10000)
-      || !Number.isSafeInteger(e.maxCalls) || e.maxCalls < 0) throw new ModelGatewayError('MODEL_SPEND_POLICY_INVALID');
+      || (e.scope === 'DEVELOPMENT' && (!Number.isSafeInteger(e.maxCalls) || e.maxCalls < 0))) throw new ModelGatewayError('MODEL_SPEND_POLICY_INVALID');
     mkdirSync(dirname(file), { recursive: true });
     const db = new DatabaseSync(file);
     try {
@@ -45,7 +48,9 @@ export function createDurableSpend(options: { envelope: () => SpendEnvelope; fil
       return transact((db, e) => {
         if (model !== e.model) throw new ModelGatewayError('MODEL_NOT_AUTHORIZED');
         const t = totals(db, e), upper = units(upperUsd);
-        if (t.calls >= e.maxCalls) throw new ModelGatewayError('MODEL_CALL_LIMIT_REACHED');
+        // Development grants may authorize a fixed number of requests. A user's
+        // old maxCalls setting must not stop a funded run or reset its ledger.
+        if (e.scope === 'DEVELOPMENT' && t.calls >= e.maxCalls) throw new ModelGatewayError('MODEL_CALL_LIMIT_REACHED');
         if (t.used + upper > units(e.totalUsd) || t.daily + upper > units(e.dailyUsd)) {
           const active = db.prepare('SELECT pid FROM spending WHERE scope=? AND settled=0 AND at>?').all(e.scope, now().getTime() - 120000);
           const alive = active.some(row => { try { process.kill(Number(row.pid), 0); return true; } catch { return false; } });
