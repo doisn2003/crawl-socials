@@ -30,7 +30,7 @@ Quota người dùng cung cấp cho Gemini 3.5 Flash Lite: 4.000 RPM, 4.000.000 
 
 Một scheduler chung trong main process cho mỗi model, dùng bởi planner/clarification/classifier/review, không một limiter cho mỗi cửa sổ hay mỗi key. Bộ đếm của ứng dụng lưu trong `data/rate-limits/<model>.json`, ngày reset theo Pacific như nhà cung cấp. Không lưu key vào bộ đếm. Đây là usage CSD biết; ứng dụng khác dùng cùng project vẫn có thể làm quota cạn sớm.
 
-Trước transport, giữ chỗ RPM và input token bằng ước lượng bảo thủ từ byte UTF-8, rồi đối soát usage thực. 429/503 làm cả hàng đợi cùng chờ, giảm concurrency, tôn trọng `Retry-After` dạng giây/ngày HTTP và Gemini RetryInfo, kể cả >60 giây. Hàng đợi hủy ngay khi Stop; cache và coalescing vẫn tránh gọi trùng. Sau chuỗi hoàn tất tăng concurrency dần trở lại. Giới hạn USD của campaign và sổ chi phí được giữ nguyên, có đặt chỗ đồng bộ cho các yêu cầu song song.
+Trước transport, giữ chỗ RPM và input token bằng ước lượng bảo thủ từ byte UTF-8, rồi đối soát usage thực. 429/503 làm cả hàng đợi cùng chờ, giảm concurrency, tôn trọng `Retry-After` dạng giây/ngày HTTP và Gemini RetryInfo, kể cả >60 giây. Job đang xử lý được gia hạn lease mỗi 30 giây trong lúc chờ quota; worker khác không nhận lại công việc còn sống chỉ vì cooldown dài. Hàng đợi hủy ngay khi Stop; cache và coalescing vẫn tránh gọi trùng. Sau chuỗi hoàn tất tăng concurrency dần trở lại. Giới hạn USD của campaign và sổ chi phí được giữ nguyên, có đặt chỗ đồng bộ cho các yêu cầu song song.
 
 ## Tương thích và giới hạn
 

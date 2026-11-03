@@ -14,6 +14,7 @@ import { classifierRecipe, classifyConversations, opportunityRank } from './clas
 import { verifyTentativeOpportunities } from './opportunity-verifier.js';
 import { readActiveEvaluation, resumeEvaluationMigration, evaluationContext } from './evaluation-upgrade.js';
 import { enqueueFocusedVerification, processFocusedVerificationBatch } from './focused-verification-backfill.js';
+import { keepJobLeases } from './job-lease-keeper.js';
 import { readEffectiveLimits } from './runtime-limits.js';
 import { pinStoragePolicy, measureStorageUsage, evaluateStoragePressure, type StorageLimits, type StorageUsage } from './storage-backpressure.js';
 import type { ModelGateway } from './ports/model-gateway.js';
@@ -123,9 +124,11 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   const temporalEnabled = campaign.filter_version === TEMPORAL_OPPORTUNITY_FILTER_VERSION;
   const platformTargets = allocatePlatformTargets(campaign.suitable_target, campaign.desired_platform_weights, input.platforms);
   const runtimeLimits = readEffectiveLimits(directory, baselineCampaign);
-  const store = input.store ?? await createAsyncConversationStore(join(directory, 'store'));
+  const baseStore = input.store ?? await createAsyncConversationStore(join(directory, 'store'));
+  const leases = keepJobLeases(baseStore, { onError: error => { lastError = safeCode(error); modelHalted = true; controller.abort(); } });
+  const store = leases.store;
   try { if (activeEvaluation?.state === 'MIGRATING') await resumeEvaluationMigration(directory, store); }
-  catch (error) { if (!input.store) await store.close(); throw error; }
+  catch (error) { await leases.close(); if (!input.store) await store.close(); throw error; }
   const context: EvaluationContext = evaluationContext(campaign);
   let stopped = false, closed = false, modelHalted = false, pumpWork: Promise<void> | null = null, publishWork: Promise<void> | null = null;
   let pendingTimer: ReturnType<typeof setTimeout> | null = null, lastError: string | null = null, discoveryEnded = false, publishDirty = false;
@@ -551,7 +554,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       await armAssessments(); await publish();
     },
     async stop() { stopped = true; watchEnabled = false; assessmentActive = false; clearWatchTimer(); clearAssessmentTimer(); controller.abort(); if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; } try { await Promise.allSettled([pumpWork, watchWork, assessmentWork]); } finally {
-      await store.pause({ context }); await store.pause({ types: ['ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'REVISIT'] }); await publish(); } },
+      await leases.close(); await store.pause({ context }); await store.pause({ types: ['ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'REVISIT'] }); await publish(); } },
     async results() {
       await publish();
       const exported = await store.exportSnapshot(context, rankingOptions), preview: OpportunityProgress['preview'] = [];
@@ -578,7 +581,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       if (closed) return; stopped = true; watchEnabled = false; assessmentActive = false; clearWatchTimer(); clearAssessmentTimer(); controller.abort(); if (pendingTimer) clearTimeout(pendingTimer);
       try { await Promise.allSettled([pumpWork, watchWork, assessmentWork, storageWork]); await publishWork; }
       finally { try { await store.pause({ context }); await store.pause({ types: ['ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'REVISIT'] }); }
-        finally { try { await store.close(); } finally { closed = true; } } }
+        finally { try { await leases.close(); await store.close(); } finally { closed = true; } } }
     },
   };
 }
