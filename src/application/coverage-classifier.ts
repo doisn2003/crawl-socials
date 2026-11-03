@@ -83,6 +83,7 @@ export async function classifyCoverage(plan: CampaignPlan, snapshots: Conversati
   }
   const uncached: typeof entries = [];
   for (const entry of entries) {
+    if (!entry.doc.spans.length) { pending(entry.snapshot, Error('COVERAGE_NO_TEXT_EVIDENCE')); continue; }
     const file = options.assessmentCacheDirectory ? join(options.assessmentCacheDirectory, entry.key + '.json') : null;
     try {
       const cached = file && existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as { key: string; verdict: Verdict } : null;
@@ -103,10 +104,12 @@ export async function classifyCoverage(plan: CampaignPlan, snapshots: Conversati
         input: { goal: target, as_of: asOf, conversations: batch.map((e, i) => ({ i, ...e.doc })) }, max_output_tokens: 128 + batch.length * 200,
         ...(options.signal ? { signal: options.signal } : {}), cache_namespace: 'coverage-primary-v1' });
       output.model_results.push(result);
-      if (!Array.isArray(result.value) || result.value.length !== batch.length || new Set(result.value.map(v => v?.i)).size !== batch.length) throw Error('COVERAGE_BATCH_INCOMPLETE');
+      if (!Array.isArray(result.value)) throw Error('COVERAGE_BATCH_INCOMPLETE');
       for (const [i, entry] of batch.entries()) {
         try {
-          const verdict = validated(result.value.find(v => v?.i === i), entry.doc); verdicts.set(entry.snapshot.id, verdict);
+          const matches = result.value.filter(v => v?.i === i);
+          if (matches.length !== 1) throw Error(matches.length ? 'COVERAGE_ITEM_DUPLICATED' : 'COVERAGE_ITEM_MISSING');
+          const verdict = validated(matches[0], entry.doc); verdicts.set(entry.snapshot.id, verdict);
           if (options.assessmentCacheDirectory) { try { atomicJson(join(options.assessmentCacheDirectory, entry.key + '.json'), { key: entry.key, verdict }); } catch { /* Keep the valid decision; failed cache writes do not justify another paid call. */ } }
         } catch (error) { pending(entry.snapshot, error); }
       }
@@ -138,14 +141,18 @@ export async function classifyCoverage(plan: CampaignPlan, snapshots: Conversati
       try {
         for (const e of batch) { reviews.set(e.snapshot.id, null); if (e.file) atomicJson(e.file, { reviewKey: e.reviewKey, state: 'STARTED' }); }
         const result = await gateway.generateJson({ purpose: FILTER_VERSIONS.QUALITY, system: REVIEW_SYSTEM, schema: COVERAGE_SCHEMA,
-          input: { goal: target, as_of: asOf, conversations: batch.map((e, i) => ({ i, ...e.doc, first_assessment: verdicts.get(e.snapshot.id) })) },
+          input: { goal: target, as_of: asOf, conversations: batch.map((e, i) => ({ i, ...e.doc, first_assessment: { ...verdicts.get(e.snapshot.id), i } })) },
           max_output_tokens: 128 + batch.length * 220, ...(options.signal ? { signal: options.signal } : {}), cache_namespace: 'coverage-review-v1' });
         output.model_results.push(result);
-        if (!Array.isArray(result.value) || result.value.length !== batch.length || new Set(result.value.map(v => v?.i)).size !== batch.length) throw Error('COVERAGE_REVIEW_INCOMPLETE');
+        if (!Array.isArray(result.value)) throw Error('COVERAGE_REVIEW_INCOMPLETE');
         for (const [i, e] of batch.entries()) {
-          const verdict = validated(result.value.find(v => v?.i === i), e.doc);
-          if (e.file) atomicJson(e.file, { reviewKey: e.reviewKey, state: 'COMPLETE', verdict });
-          reviews.set(e.snapshot.id, verdict);
+          try {
+            const matches = result.value.filter(v => v?.i === i);
+            if (matches.length !== 1) throw Error('COVERAGE_REVIEW_ITEM_MISSING_OR_DUPLICATED');
+            const verdict = validated(matches[0], e.doc);
+            if (e.file) atomicJson(e.file, { reviewKey: e.reviewKey, state: 'COMPLETE', verdict });
+            reviews.set(e.snapshot.id, verdict);
+          } catch { output.failures.push({ snapshot_id: e.snapshot.id, code: 'COVERAGE_REVIEW_ITEM_INVALID' }); }
         }
       } catch (error) {
         const beforeTransport = error instanceof ModelGatewayError && error.invocation_id === null && /BUDGET|SPEND|CALL_LIMIT|GEMINI_API_KEY_MISSING|NOT_AUTHORIZED/.test(error.code);

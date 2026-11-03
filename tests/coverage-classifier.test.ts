@@ -10,6 +10,27 @@ import { classifyConversations } from '../src/application/classification-service
 import { unassessedGateway } from '../src/application/filter-policy.js';
 import type { ModelGateway } from '../src/application/ports/model-gateway.js';
 
+test('one missing or duplicated model item does not discard its valid batch siblings or trigger a paid repair', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-partial-')), store = createConversationStore(join(root, 'store'));
+  try {
+    const plan = withFilterPolicy(literalCampaign({ prompt: 'Tìm người học piano' }), 'STANDARD');
+    for (const id of ['1', '2', '3']) store.ingest({ platform: 'facebook', entity_type: 'POST', entity_id: id, root_post_id: id,
+      parent_id: null, text: 'Muốn học piano ' + id, observed_at: '2026-11-03T10:00:00Z', provenance: { run_id: 'test', method: 'FIXTURE' } });
+    let calls = 0;
+    const verdict = (i: number) => ({ i, candidate: 'p', role: 'TARGET', fit: 'DIRECT', hard: 'PASS', ev: [0], why: 'Có nhu cầu học', flags: [] });
+    const model: ModelGateway = { ...unassessedGateway, generateJson: async () => {
+      calls++; return { value: [verdict(0), verdict(2), verdict(2)], model: 'fixture', model_version: null, invocation_id: 'x', request_hash: 'x',
+        usage: null, cost_usd: 0, unmetered_cost_upper_usd: 0, cache_hit: false, elapsed_ms: 0,
+        price: { input_per_million: 0, output_per_million: 0, cached_input_per_million: 0, observed_at: '', source: 'FIXTURE' } };
+    } };
+    const snapshots = store.snapshots(), result = await classifyConversations(plan, snapshots, model);
+    assert.equal(calls, 1);
+    assert.equal(result.decisions.find(d => d.snapshot_id === snapshots[0]!.id)?.classification, 'SUITABLE');
+    assert.deepEqual(result.failures.map(f => f.code), ['COVERAGE_ITEM_MISSING', 'COVERAGE_ITEM_DUPLICATED']);
+    assert.equal(result.decisions.filter(d => d.assessment_status === 'PENDING').length, 2);
+  } finally { store.close(); rmSync(root, { recursive: true, force: true }); }
+});
+
 test('standard accepts direct/proxy/plausible need, preserves unknown hard limits, rejects contradictions, caches across metadata changes', async () => {
   const root = mkdtempSync(join(tmpdir(), 'csd-coverage-')), store = createConversationStore(join(root, 'store'));
   try {
@@ -51,6 +72,10 @@ test('quality reuses standard cache, reviews selected cases once, and keeps disa
     const model: ModelGateway = { summary: () => ({ ...unassessedGateway.summary(), model: 'gemini-2.5-flash-lite' }), generateJson: async request => {
       purposes.push(request.purpose); const conversations = (request.input as { conversations: { i: number; spans: { text: string }[] }[] }).conversations;
       sizes.push(conversations.length);
+      if (request.purpose === 'coverage-quality-v1') for (const c of conversations) {
+        assert.equal((c as typeof c & { first_assessment: { i: number } }).first_assessment.i, c.i,
+          'the review subset must not inherit indexes from the original primary batch');
+      }
       const value = conversations.map(c => {
         const parent = c.spans[0]!.text.includes('cho con'), plausible = c.spans[0]!.text.includes('chọn đàn');
         const review = request.purpose === 'coverage-quality-v1';
@@ -88,5 +113,20 @@ test('fabricated evidence remains pending with no automatic format repair', asyn
     } };
     const result = await classifyConversations(plan, store.snapshots(), model);
     assert.equal(calls, 1); assert.equal(result.decisions[0]!.classification, null); assert.equal(result.failures.length, 1);
+  } finally { store.close(); rmSync(root, { recursive: true, force: true }); }
+});
+
+test('posts with no textual evidence remain pending in both modes without spending on either model pass', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-no-evidence-')), store = createConversationStore(join(root, 'store'));
+  try {
+    store.ingest({ platform: 'facebook', entity_type: 'POST', entity_id: '1', root_post_id: '1', parent_id: null,
+      text: '', observed_at: '2026-11-03T10:00:00Z', provenance: { run_id: 'test', method: 'FIXTURE' } });
+    const plan = literalCampaign({ prompt: 'Tìm người chơi piano' });
+    for (const mode of ['STANDARD', 'QUALITY'] as const) {
+      const result = await classifyConversations(withFilterPolicy(plan, mode), store.snapshots(), unassessedGateway);
+      assert.equal(result.decisions[0]?.assessment_status, 'PENDING');
+      assert.equal(result.decisions[0]?.reason_code, 'COVERAGE_NO_TEXT_EVIDENCE');
+      assert.equal(result.model_results.length, 0);
+    }
   } finally { store.close(); rmSync(root, { recursive: true, force: true }); }
 });
