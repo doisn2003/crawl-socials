@@ -1,4 +1,6 @@
-# Kế hoạch nhánh hiện hành — 02/11/2026
+# Kế hoạch nhánh hiện hành — 03/11/2026
+
+RC7 đã tích hợp crawl nhiều cửa sổ và điều phối Gemini để thử cùng AI RC6. Xem [báo cáo](evidence/parallel-crawl-rc7-2026-11-03.md). Tag bàn giao: `csd-next-rc7-20261103`; production/remote chưa được cập nhật.
 
 Theo quyết định người dùng giao agent thực hiện, dùng [ADR-023](decisions/ADR-023-ai-candidate-and-crawl-branches.md):
 

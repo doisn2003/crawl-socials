@@ -1,6 +1,16 @@
 # CSD Master Plan
 
-## Hiện hành 3.1 — ứng viên AI và hai nhánh phát triển, 02/11/2026
+## Hiện hành 3.2 — RC7, crawl nhiều cửa sổ và Gemini Tier 1, 03/11/2026
+
+Người dùng yêu cầu triển khai song song tìm các từ khóa trên Electron và cân bằng tốc độ/chất lượng với quota Gemini đã cung cấp. Đã thực hiện trên `codex/crawl-throughput`, rồi merge vào `codex/csd-next` để thử cùng AI RC6. [Thiết kế ADR-024](decisions/ADR-024-parallel-discovery-and-model-throughput.md), [báo cáo bàn giao RC7](evidence/parallel-crawl-rc7-2026-11-03.md).
+
+- Mặc định 2 cửa sổ/mạng, 4 worker phân loại, tối đa 8 request AI đồng thời; batch 8, giữ các bước kiểm chứng.
+- Quota chung có dự phòng 20%, backpressure, cooldown 429/503, budget, Stop/Resume và heartbeat lease. UI có ba mức tốc độ và tiến độ cửa sổ/AI.
+- Bản kết hợp đạt 965/965 unit tests, typecheck và kiểm tra Electron/UI. Probe Gemini 8/8 đạt; đây chưa phải benchmark tốc độ crawl nguồn thật hay chứng nhận chất lượng ngữ nghĩa.
+- `codex/ai-foundation` giữ RC6. `codex/crawl-throughput` vẫn độc lập từ RC4. `codex/csd-next` là RC7 để thử; production và remote chưa nhận các thay đổi này. Các tag cũ được giữ.
+- Tiếp tục tuân thủ ADR-023: cải tiến AI trên nhánh AI, crawler trên nhánh crawl, kiểm thử phần kết hợp trên next. Những lệnh dừng/phân công lịch sử bên dưới không thay thế yêu cầu mới nhất.
+
+## Lịch sử 3.1 — ứng viên AI và hai nhánh phát triển, 02/11/2026
 
 Người dùng đã DUYỆT tích hợp phân rã prompt/hỏi ngược và bộ lọc hai nhãn trong các lượt trước; hiện chấp nhận tạm các kết quả để phát triển tiếp, đồng thời giao agent quyết định cách quản lý Git. Quy tắc hiện hành là [ADR-023](decisions/ADR-023-ai-candidate-and-crawl-branches.md).
 
