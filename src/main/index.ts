@@ -17,6 +17,10 @@ import { createGeminiKeySettings } from '../application/gemini-key-settings.js';
 import { resolveGeminiApiKey } from '../infrastructure/llm/gemini-gateway.js';
 import { createCampaignModelGateway } from '../infrastructure/llm/campaign-model-gateway.js';
 import { createOpportunityPipeline } from '../application/opportunity-pipeline.js';
+import { runParallelCollectors } from '../application/parallel-collector.js';
+import { createUserConfigStore } from '../infrastructure/config/user-config.js';
+import { throughput, GEMINI_35_PROJECT_LIMITS } from '../shared/throughput.js';
+import { createRequestScheduler, type RequestScheduler } from '../infrastructure/llm/request-scheduler.js';
 import { prepareDraft } from '../application/campaign-drafts.js';
 
 async function bootstrap() {
@@ -34,20 +38,31 @@ async function bootstrap() {
   await app.whenReady(); nativeTheme.themeSource = 'dark';
   const environmentKey = resolveGeminiApiKey();
   const geminiKey = await createGeminiKeySettings(createElectronSecretStore(join(paths.userData, 'secrets')), () => environmentKey);
+  const appConfig = createUserConfigStore(join(paths.userData, 'data'));
+  const schedulers = new Map<string, RequestScheduler>();
+  const schedulerForModel = (model: string) => {
+    const policy = throughput(appConfig.read().performance);
+    const limits = model === 'gemini-3.5-flash-lite'
+      ? { ...GEMINI_35_PROJECT_LIMITS, concurrency: policy.modelConcurrency }
+      : { concurrency: 1, rpm: 13, inputTpm: 200_000, rpd: 500 };
+    let scheduler = schedulers.get(model);
+    if (!scheduler) { scheduler = createRequestScheduler(limits, { stateFile: join(paths.userData, 'data', 'rate-limits', model + '.json') }); schedulers.set(model, scheduler); }
+    else scheduler.configure(limits);
+    return scheduler;
+  };
   const profiles = createBrowserProfiles(join(paths.userData, 'data'));
   const browserHost = createBrowserHost({ profiles, secrets: createElectronSecretStore(join(paths.userData, 'secrets')),
     journalDirectory: join(paths.userData, 'data', 'session-snapshots'), manualLoginEnabled: true, backgroundThrottling: false });
   const service = createProductionService({ directory: join(paths.userData, 'data'), version: app.getVersion(), host: browserHost,
-    createOpportunity: value => createOpportunityPipeline({ ...value, gateway: createCampaignModelGateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd, apiKey: geminiKey.current }) }),
-    prepareCampaignDraft: value => prepareDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current }) }),
+    createOpportunity: value => createOpportunityPipeline({ ...value, classificationWorkers: throughput(appConfig.read().performance).classificationWorkers, gateway: createCampaignModelGateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd, apiKey: geminiKey.current, schedulerForModel }) }),
+    prepareCampaignDraft: value => prepareDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current, schedulerForModel }) }),
     async collect(value: CollectorInput): Promise<CollectorReceipt> {
       const moduleUrl = new URL('../collectors/' + value.platform + '-collector.mjs', import.meta.url).href;
       const runner = await import(moduleUrl) as Record<string, (options: object) => Promise<CollectorReceipt>>;
       const collect = runner[value.platform === 'facebook' ? 'runFacebookCollector' : 'runThreadsCollector'];
       if (!collect) throw Error('COLLECTOR_UNAVAILABLE');
-      return collect({ config: value.config, host: browserHost, profileId: value.profileId,
-        onProgress: value.onProgress, shouldStop: value.shouldStop, resume: value.resume,
-        onRecords: value.onRecords, onQueryEnd: value.onQueryEnd, beforeNextPage: value.beforeNextPage, collectionLimitReason: value.collectionLimitReason });
+      return runParallelCollectors(value, (worker, workerId) => collect({ ...worker,
+        host: workerId ? browserHost.forWorker(workerId) : browserHost }));
     },
     async collectConversation(value) {
       const moduleUrl = new URL('../collectors/conversation-collector.mjs', import.meta.url).href;

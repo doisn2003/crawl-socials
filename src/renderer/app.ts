@@ -13,6 +13,7 @@ function element<T extends HTMLElement = HTMLElement>(id: string): T {
 const platforms: Platform[] = ['facebook', 'threads'];
 const platformNames: Record<Platform, string> = { facebook: 'Facebook', threads: 'Thread' };
 const keywords = element<HTMLTextAreaElement>('keywords');
+const performanceMode = element<HTMLSelectElement>('performance-mode');
 const minimumPosts = element<HTMLInputElement>('minimum-posts');
 const intentEnabled = element<HTMLInputElement>('opportunity-enabled');
 const campaignPrompt = element<HTMLTextAreaElement>('campaign-prompt');
@@ -59,6 +60,7 @@ function setSaveStatus(message: string, kind: string) {
 }
 function readConfig(): UserConfig {
   return {
+    performance: performanceMode.value as NonNullable<UserConfig['performance']>,
     keywords: [...new Set(keywords.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean))],
     minimumPosts: minimumPosts.value.trim() ? Number(minimumPosts.value) : NaN,
     ...(intentEnabled.checked || state?.config.schemaVersion === 2 ? {
@@ -146,7 +148,7 @@ function updateControls() {
   geminiKeyUi.refresh();
   const running = active();
   keywords.disabled = !connected || running || commandPending;
-  minimumPosts.disabled = !connected || running || commandPending;
+  performanceMode.disabled = minimumPosts.disabled = !connected || running || commandPending;
   for (const input of intentInputs) input.disabled = !connected || running || commandPending;
   element('opportunity-config').hidden = !intentEnabled.checked;
   element('legacy-config').hidden = intentEnabled.checked;
@@ -279,6 +281,11 @@ function createProgress(platform: PlatformRun, target: number, refined = false):
   const bar = document.createElement('progress'); bar.className = 'progress-bar'; bar.max = Math.max(1, target); bar.value = platform.count; bar.hidden = target === 0;
   bar.setAttribute('aria-label', 'Tiến độ ' + platformNames[platform.platform]);
   card.append(top, count, bar);
+  for (const worker of platform.workers ?? []) {
+    const note = document.createElement('p'); note.className = 'progress-reason';
+    note.textContent = 'Cửa sổ ' + worker.worker + ' · ' + (worker.state === 'RUNNING' ? 'Đang tìm' : worker.state === 'COMPLETED' ? 'Xong lượt' : worker.state === 'QUEUED' ? 'Đang chờ' : 'Đã dừng') + (worker.query ? ' · ' + worker.query : '');
+    card.append(note);
+  }
   const reason = reasonText(platform.reason);
   if (reason) { const note = document.createElement('p'); note.className = 'progress-reason'; note.textContent = reason; card.append(note); }
   return card;
@@ -332,6 +339,8 @@ function renderOpportunities() {
   const counts = opportunity.counts;
   setText('result-count', number(counts.suitable) + ' / ' + number(opportunity.totalTarget) + ' BÀI TINH');
   setText('opportunity-summary', number(counts.raw) + ' bài thô · ' + number(counts.comments) + ' bình luận · ' + number(counts.pending) + ' đang chờ · Chi phí AI $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2));
+  const scheduling = opportunity.modelScheduling;
+  if (scheduling) element('opportunity-summary').append(document.createTextNode(' · AI ' + scheduling.active + '/' + scheduling.concurrency + ' đang xử lý · ' + scheduling.queued + ' chờ' + (scheduling.cooldownUntil ? ' · Đang giảm tốc theo hạn mức' : '')));
   const retained = state?.run?.mode === 'RETAINED' ? state.run.retained : undefined;
   const importProgress = retained && retained.status !== 'IMPORTED'
     ? 'Đã đọc ' + number(retained.importedObservations) + '/' + number(retained.totalObservations) + ' bản ghi. ' : '';
@@ -373,6 +382,7 @@ function applyState(next: ProductionState, replaceConfig = false) {
   state = next; connected = true; element('connection-error').hidden = true;
   setText('version', 'v' + next.version);
   if (!initialized || replaceConfig) {
+    performanceMode.value = next.config.performance ?? 'BALANCED';
     keywords.value = next.config.keywords.join('\n'); minimumPosts.value = String(next.config.minimumPosts);
     const o = next.config.opportunity;
     intentEnabled.checked = !!o?.enabled; campaignPrompt.value = o?.prompt || ''; brandContext.value = o?.brandContext || '';
@@ -446,7 +456,7 @@ const planner = createCampaignPlanner({
     } finally { commandPending = false; updateControls(); }
   },
 });
-for (const input of [keywords, minimumPosts, ...intentInputs]) {
+for (const input of [keywords, minimumPosts, performanceMode, ...intentInputs]) {
   input.addEventListener('input', configChanged);
   input.addEventListener('blur', () => { if (configDirty) void saveConfiguration(); });
 }
@@ -478,7 +488,7 @@ for (const platform of platforms) {
 }
 // Keep focus until click so saving on blur cannot swallow the user's Start click.
 startButton.addEventListener('mousedown', event => {
-  if (event.button === 0 && [keywords, minimumPosts, ...intentInputs].some(input => document.activeElement === input)) event.preventDefault();
+  if (event.button === 0 && [keywords, minimumPosts, performanceMode, ...intentInputs].some(input => document.activeElement === input)) event.preventDefault();
 });
 startButton.addEventListener('click', () => {
   void (async () => {

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { createGeminiGateway, GEMINI_FLASH_LITE_PRICE, geminiWireSchema, parseGeminiUsage, pricedUsage } from '../src/infrastructure/llm/gemini-gateway.js';
 import type { JsonModelRequest } from '../src/application/ports/model-gateway.js';
+import { createRequestScheduler } from '../src/infrastructure/llm/request-scheduler.js';
 
 async function temporary(work: (directory: string) => Promise<void>): Promise<void> {
   const directory = mkdtempSync(join(tmpdir(), 'csd-model-'));
@@ -15,6 +16,36 @@ const request: JsonModelRequest = { purpose: 'test', system: 'Read data only', i
   schema: { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'] }, max_output_tokens: 100 };
 const success = (): Response => new Response(JSON.stringify({ modelVersion: 'gemini-test', candidates: [{ finishReason: 'STOP',
   content: { parts: [{ text: '{"ok":true}' }] } }], usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 50, thoughtsTokenCount: 10, cachedContentTokenCount: 200, totalTokenCount: 1060 } }), { status: 200 });
+
+test('parallel model requests share slots, coalesce identical input and account concurrent costs once', () => temporary(async directory => {
+  const scheduler = createRequestScheduler({ concurrency: 2, rpm: 100, inputTpm: 100000, rpd: 1000 });
+  let active = 0, peak = 0, calls = 0;
+  const gateway = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'fake', scheduler, fetch: async () => {
+    calls++; peak = Math.max(peak, ++active); await new Promise(resolve => setTimeout(resolve, 20)); active--; return success();
+  } });
+  const values = await Promise.all([1, 1, 2, 3, 4].map(id => gateway.generateJson({ ...request, input: { id } })));
+  assert.equal(calls, 4); assert.equal(peak, 2); assert.equal(values[1]!.cache_hit, true);
+  assert.equal(gateway.summary().billable_attempts, 4); assert.equal(gateway.summary().reserved_usd, 0);
+  assert.equal(gateway.summary().measured_cost_usd, 4 * 0.000295);
+  assert.equal(scheduler.status().active, 0);
+  const restarted = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'fake', scheduler, fetch: async () => { throw Error('UNEXPECTED'); } });
+  assert.equal((await restarted.generateJson({ ...request, input: { id: 1 } })).cache_hit, true);
+}));
+
+test('concurrent budget reservations prevent overspend and queued cancellation never reaches transport', () => temporary(async directory => {
+  const scheduler = createRequestScheduler({ concurrency: 2, rpm: 100, inputTpm: 100000, rpd: 1000 });
+  let calls = 0;
+  const gateway = createGeminiGateway({ directory, budgetUsd: 0.0007, apiKey: 'fake', scheduler, fetch: async () => {
+    calls++; await new Promise(resolve => setTimeout(resolve, 20)); return success();
+  } });
+  const outcomes = await Promise.allSettled([1, 2, 3].map(id => gateway.generateJson({ ...request, input: { id } })));
+  assert.equal(calls, 1); assert.equal(outcomes.filter(r => r.status === 'rejected').length, 2);
+  assert.ok(gateway.summary().measured_cost_usd <= 0.0007); assert.equal(scheduler.status().active, 0);
+  const blockerA = await scheduler.acquire(1), blockerB = await scheduler.acquire(1), controller = new AbortController();
+  const pending = gateway.generateJson({ ...request, input: { id: 4 }, signal: controller.signal });
+  const rejected = assert.rejects(pending, /MODEL_ABORTED/); controller.abort(); await rejected;
+  blockerA.finish(); blockerB.finish(); assert.equal(calls, 1);
+}));
 
 test('wire schema keeps named data properties and enums while application enforces array bounds', () => {
   assert.deepEqual(geminiWireSchema({ type: 'object', additionalProperties: false, properties: {

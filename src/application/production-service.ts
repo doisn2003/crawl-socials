@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { atomicJson, createUserConfigStore } from '../infrastructure/config/user-config.js';
+import { throughput } from '../shared/throughput.js';
 import { isBrowserProfileId } from '../domain/browser-profile.js';
 import type { BrowserProfile } from '../domain/browser-profile.js';
 import type { Account, OpportunityConfig, OpportunityCounts, OpportunityProgress, Platform, ProductionState, RetainedSourceCatalog, RunState, UserConfig } from '../shared/production-api.js';
@@ -31,7 +32,7 @@ export interface CollectorInput {
   platform: Platform; profileId: string; config: Record<string, unknown>;
   shouldStop(): boolean;
   collectionLimitReason?(): string | null;
-  onProgress(value: { total?: number; event?: string }): void;
+  onProgress(value: { total?: number; event?: string; query?: string; workers?: import('../shared/production-api.js').PlatformRun['workers'] }): void;
   resume?: boolean;
   onRecords?(rows: Record<string, unknown>[], provenance: Record<string, unknown>): Promise<void>;
   onQueryEnd?(value: { window: WebContents; platform: Platform; query?: string; shouldStop(): boolean }): Promise<void>;
@@ -325,6 +326,7 @@ export function createProductionService(input: {
           const configFile = join(output, 'config.json');
           let config: Record<string, unknown> = resume && existsSync(configFile) ? JSON.parse(readFileSync(configFile, 'utf8')) as Record<string, unknown> :
             { runId: currentRun.id + '-' + item.platform, output, queries,
+            parallelWorkers: throughput(configStore.read().performance).windowsPerPlatform,
             maxScrollsPerQuery: pipeline ? 20 : item.platform === 'facebook' ? 50 : 100, maxMinutes: pipeline?.campaign.budget.max_run_minutes ?? 240, settleMs: 3000,
             ...(pipeline ? { includeContextCandidates: true } : {}),
             ...(item.platform === 'facebook' ? { targetNewRecords: rawTarget } : { targetTotal: pipeline ? 10000 : rawTarget, modes: ['top', 'recent'], ...(pipeline ? { interleaveModes: true } : {}) }) };
@@ -349,6 +351,7 @@ export function createProductionService(input: {
               beforeNextPage: () => pipeline!.backpressure(),
             } : {}),
             onProgress: value => {
+              if (value.workers) item.workers = value.workers;
               if (Number.isSafeInteger(value.total) && Number(value.total) >= 0) item.count = Number(value.total);
               if (Date.now() - lastSaved > 1500) { saveRun(); lastSaved = Date.now(); }
             } });

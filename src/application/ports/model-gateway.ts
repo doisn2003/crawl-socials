@@ -50,6 +50,7 @@ export interface ModelLedgerSummary {
   cost_basis: 'TOKEN_USAGE_AT_SNAPSHOT_LIST_PRICE_NOT_INVOICE';
   /** Composite gateways expose each underlying ledger once for aggregate audit/export. */
   components?: ModelLedgerSummary[];
+  scheduling?: import('../../shared/throughput.js').RequestScheduleStatus | undefined;
 }
 
 export interface ModelGateway {

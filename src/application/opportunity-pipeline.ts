@@ -56,6 +56,7 @@ export interface OpportunityPipelineInput {
   storageLimits?: StorageLimits;
   /** Initial uncompiled campaigns only; a committed campaign keeps its own deadline on Resume. */
   maxRunMinutes?: number;
+  classificationWorkers?: number;
 }
 type Row = Record<string, unknown>;
 const safeCode = (error: unknown) => error instanceof Error && /^[A-Z][A-Z0-9_]{1,100}$/.test(error.message) ? error.message : 'PIPELINE_FAILED';
@@ -69,6 +70,8 @@ const retryableModelCode = (code: string) => /^MODEL_(?:HTTP_(?:429|5\d\d)|NETWO
 /** Runs inference beside discovery; browser enrichment uses the collector's explicit profile yield. */
 export async function createOpportunityPipeline(input: OpportunityPipelineInput) {
   if (input.maxRunMinutes !== undefined && (!Number.isInteger(input.maxRunMinutes) || input.maxRunMinutes < 1 || input.maxRunMinutes > 240)) throw Error('CAMPAIGN_RUN_MINUTES_INVALID');
+  const workerCount = input.classificationWorkers ?? 1;
+  if (!Number.isSafeInteger(workerCount) || workerCount < 1 || workerCount > 8) throw Error('CLASSIFICATION_WORKERS_INVALID');
   const now = input.now ?? (() => new Date());
   const retained = input.processingMode === 'RETAINED';
   if (retained && !isAssessmentTime(input.assessmentTime)) throw Error('RETAINED_ASSESSMENT_TIME_INVALID');
@@ -158,6 +161,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       const assessment = temporalEnabled ? await store.assessmentSummary(context, { now: now().toISOString() }) : null;
       const hasClassificationWork = discoveryEnded && !stopped && !modelHalted && (await classificationBacklog()).length > 0;
       progress = { ...progress, counts: counts(total), byPlatform: { facebook: counts(facebook), threads: counts(threads) },
+        classificationWorkers: workerCount, modelScheduling: gateway.summary().scheduling,
         costUsd: money.measured_cost_usd, costUpperUsd: money.measured_cost_usd + money.unmetered_cost_upper_usd + money.reserved_usd,
         usageUnknown: money.unmetered_cost_upper_usd > 0 ? 1 : 0, lastError, preview,
         watchPending: watch.pending, watchNextAt: watch.next_at, watchActive: watchEnabled,
@@ -194,6 +198,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     if (pumpWork) return pumpWork;
     if (importing || stopped || closed || modelHalted) return;
     pumpWork = (async () => {
+      const outcomes = await Promise.allSettled(Array.from({ length: workerCount }, (_, workerIndex) => (async () => {
       while (!stopped && !modelHalted) {
         if (focusedEnabled) {
           const verified = await processFocusedVerificationBatch({ store, campaign, gateway, signal: controller.signal, batchSize: 8 });
@@ -209,7 +214,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
         }
         const jobs: ConversationJob[] = [], snapshots: ConversationSnapshot[] = [];
         for (let i = 0; i < 8; i++) {
-          const job = await store.claim('classifier', { types: ['CLASSIFY'], context, lease_ms: 600000 }); if (!job) break;
+          const job = await store.claim('classifier-' + workerIndex, { types: ['CLASSIFY'], context, lease_ms: 600000 }); if (!job) break;
           const snapshot = await store.getSnapshot(String(job.payload.snapshot_id));
           const latest = snapshot && await store.snapshot(snapshot.platform, snapshot.root_post_id);
           if (!snapshot || !latest || latest.id !== snapshot.id) { await store.complete(job.id, job.lease_token!); continue; }
@@ -258,6 +263,9 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
         if (fatal) { lastError = fatal.code; modelHalted = true; }
         await publish();
       }
+      })().catch(error => { modelHalted = true; throw error; })));
+      const failed = outcomes.find(outcome => outcome.status === 'rejected');
+      if (failed?.status === 'rejected') throw failed.reason;
     })().finally(async () => { pumpWork = null; await scheduleRemaining(); await armAssessments(); if (temporalEnabled) await publish(); });
     return pumpWork;
   }
@@ -491,6 +499,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   }
   function discoveryStopReason(platform: Platform): string | null {
     if (stopped) return 'USER_STOP';
+    if (enrichmentBlocked.has(platform)) return 'ACCOUNT_BARRIER';
     if (storageStopReason) return storageStopReason;
     if (modelHalted) return 'MODEL_PAUSED';
     if (progress.counts.raw >= runtimeLimits.effective_raw_cap) return 'RAW_BUDGET_REACHED';
@@ -524,7 +533,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   await requestDueAssessments(); await armAssessments(); await publish(); schedule();
   return {
     campaign, baselineCampaign, context, store, gateway, runtimeLimits, ingest, ingestRows, enrich, startWatching, isWatching: () => watchEnabled || assessmentActive,
-    progress: () => structuredClone(progress), refreshProgress: publish,
+    progress: (): OpportunityProgress => structuredClone({ ...progress, modelScheduling: gateway.summary().scheduling }), refreshProgress: publish,
     queries: (platform: Platform) => campaign.queries.filter(q => q.platforms.includes(platform)).map(q => q.text),
     targetReached, discoveryStopReason,
     discoveryShouldStop: (platform: Platform) => discoveryStopReason(platform) !== null,

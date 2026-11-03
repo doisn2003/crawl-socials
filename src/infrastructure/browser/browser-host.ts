@@ -12,12 +12,16 @@ interface SessionCookie {
   name: string; value: string; domain: string; path: string; secure: boolean; httpOnly: boolean;
   hostOnly: boolean; sameSite: Cookie['sameSite'];
 }
+interface WindowSlot {
+  view: WebContentsView | null; window: BaseWindow | null; closing: boolean; viewGeneration: number;
+}
 interface Entry {
   policy: ReturnType<typeof createBrowserPolicy>;
   profile: BrowserProfile; session: Session; view: WebContentsView | null; window: BaseWindow | null;
   restoring: boolean; closing: boolean; timer: ReturnType<typeof setTimeout> | null;
   saves: Promise<void>; persistenceError: string | null; cookieRevision: number;
   viewGeneration: number;
+  workers: Map<string, WindowSlot>;
 }
 export function createBrowserHost(input: {
   profiles: BrowserProfiles; secrets: SecretStore; journalDirectory: string;
@@ -77,7 +81,7 @@ export function createBrowserHost(input: {
     if (existing) return existing;
     const current = (input.sessionForPartition || session.fromPartition)('persist:csd-v1-' + profile.id);
     const entry: Entry = { policy, profile, session: current, view: null, window: null, restoring: true, closing: false,
-      timer: null, saves: Promise.resolve(), persistenceError: null, cookieRevision: 0, viewGeneration: 0 };
+      timer: null, saves: Promise.resolve(), persistenceError: null, cookieRevision: 0, viewGeneration: 0, workers: new Map() };
     current.setPermissionRequestHandler((contents, _permission, callback) => {
       record('PERMISSION_DENIED', { url: contents.isDestroyed() ? undefined : contents.getURL(), view: entry.viewGeneration }); callback(false);
     });
@@ -85,10 +89,11 @@ export function createBrowserHost(input: {
     current.setDevicePermissionHandler(() => false);
     current.on('will-download', event => event.preventDefault());
     current.webRequest.onBeforeRequest((details, callback) => {
-      const context = !entry.closing && !stopping ? ownedRequestContext(entry.view?.webContents, details.webContentsId, details.resourceType) : undefined;
+      const owner = [entry, ...entry.workers.values()].find(slot => !slot.closing && slot.view?.webContents.id === details.webContentsId);
+      const context = !stopping && owner ? ownedRequestContext(owner.view?.webContents, details.webContentsId, details.resourceType) : undefined;
       const allow = policy.resourceAllowed(details.url, context);
       if (!allow) blockedRequests++;
-      record(allow ? 'REQUEST_ALLOWED' : 'REQUEST_BLOCKED', { url: details.url, view: entry.viewGeneration, resourceType: details.resourceType });
+      record(allow ? 'REQUEST_ALLOWED' : 'REQUEST_BLOCKED', { url: details.url, view: owner?.viewGeneration ?? 0, resourceType: details.resourceType });
       callback({ cancel: !allow });
     });
     if (input.policyDiagnostics) {
@@ -143,72 +148,82 @@ export function createBrowserHost(input: {
     entries.set(id, entry);
     return entry;
   }
-  async function navigate(entry: Entry, url: string) {
+  async function navigate(entry: Entry, url: string, slot: WindowSlot = entry) {
     const policy = entry.policy;
     if (!policy.navigationAllowed(url)) throw new Error('BROWSER_URL_DENIED');
-    const wc = entry.view?.webContents;
+    const wc = slot.view?.webContents;
     if (!wc || wc.isDestroyed()) throw new Error('BROWSER_VIEW_CLOSED');
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([wc.loadURL(url), new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => { record('HOST_NAVIGATION_TIMEOUT', { url, view: entry.viewGeneration, resourceType: 'mainFrame' });
+        timer = setTimeout(() => { record('HOST_NAVIGATION_TIMEOUT', { url, view: slot.viewGeneration, resourceType: 'mainFrame' });
           if (!wc.isDestroyed()) wc.stop(); reject(new Error('BROWSER_LOAD_FAILED')); }, 15000);
       })]);
     } catch { throw new Error('BROWSER_LOAD_FAILED'); }
     finally { if (timer) clearTimeout(timer); }
   }
-  async function openInternal(id: string) {
+  async function openInternal(id: string, workerId?: string) {
     const entry = await ensure(id);
+    let slot: WindowSlot = entry;
+    if (workerId) {
+      if (!entry.workers.has(workerId)) {
+        if (entry.workers.size >= 8) throw Error('BROWSER_WORKER_LIMIT');
+        entry.workers.set(workerId, { view: null, window: null, closing: false, viewGeneration: 0 });
+      }
+      slot = entry.workers.get(workerId)!;
+    }
     const policy = entry.policy;
-    const previousContents = entry.view?.webContents;
+    const previousContents = slot.view?.webContents;
     if (previousContents && !previousContents.isDestroyed()) {
-      if (!input.hidden) { entry.window?.show(); entry.window?.focus(); }
+      if (!input.hidden) { slot.window?.show(); slot.window?.focus(); }
       return entry;
     }
-    if (entry.window && !entry.window.isDestroyed()) entry.window.destroy();
-    entry.view = null; entry.window = null;
-    const window = new BaseWindow({ title: 'CSD — ' + (entry.profile.platform === 'threads' ? 'Threads' : 'Facebook') + ' — ' + entry.profile.label, width: 1000, height: 760, show: !input.hidden });
+    if (slot.window && !slot.window.isDestroyed()) slot.window.destroy();
+    slot.view = null; slot.window = null;
+    const window = new BaseWindow({ title: 'CSD — ' + (entry.profile.platform === 'threads' ? 'Threads' : 'Facebook') + ' — ' + entry.profile.label + (workerId ? ' — ' + workerId : ''), width: 1000, height: 760, show: !input.hidden });
     const view = new WebContentsView({ webPreferences: { session: entry.session, sandbox: true,
       contextIsolation: true, nodeIntegration: false, webviewTag: false,
       backgroundThrottling: input.backgroundThrottling ?? !input.hidden } });
-    entry.window = window; entry.view = view; entry.closing = false; entry.viewGeneration = ++nextViewGeneration;
+    slot.window = window; slot.view = view; slot.closing = false; slot.viewGeneration = ++nextViewGeneration;
     const resize = () => {
       const bounds = window.getContentBounds();
       view.setBounds({ x: 0, y: 0, width: Math.max(1, bounds.width), height: Math.max(1, bounds.height) });
     };
     window.contentView.addChildView(view); resize(); window.on('resize', resize);
-    window.on('close', event => { event.preventDefault(); void close(id).catch(() => {}); });
+    window.on('close', event => { event.preventDefault(); void close(id, workerId).catch(() => {}); });
     const wc = view.webContents;
-    const contextFor = (resourceType: string) => !entry.closing && !stopping && entry.view?.webContents === wc
+    const contextFor = (resourceType: string) => !slot.closing && !stopping && slot.view?.webContents === wc
       ? ownedRequestContext(wc, wc.id, resourceType) : undefined;
-    wc.setWindowOpenHandler(details => { deniedPopups++; record('POPUP_DENIED', { url: details.url, view: entry.viewGeneration }); return { action: 'deny' }; });
+    wc.setWindowOpenHandler(details => { deniedPopups++; record('POPUP_DENIED', { url: details.url, view: slot.viewGeneration }); return { action: 'deny' }; });
     wc.on('will-attach-webview', event => event.preventDefault());
     wc.on('will-navigate', event => { const allow = policy.navigationAllowed(event.url, contextFor('mainFrame'));
-      record(allow ? 'NAVIGATION_ALLOWED' : 'NAVIGATION_BLOCKED', { url: event.url, view: entry.viewGeneration, resourceType: 'mainFrame' });
+      record(allow ? 'NAVIGATION_ALLOWED' : 'NAVIGATION_BLOCKED', { url: event.url, view: slot.viewGeneration, resourceType: 'mainFrame' });
       if (!allow) { blockedNavigations++; event.preventDefault(); } });
     wc.on('will-redirect', event => { const allow = policy.navigationAllowed(event.url, contextFor(event.isMainFrame ? 'mainFrame' : 'subFrame'));
-      record(allow ? 'NAVIGATION_ALLOWED' : 'NAVIGATION_BLOCKED', { url: event.url, view: entry.viewGeneration, resourceType: event.isMainFrame ? 'mainFrame' : 'subFrame' });
+      record(allow ? 'NAVIGATION_ALLOWED' : 'NAVIGATION_BLOCKED', { url: event.url, view: slot.viewGeneration, resourceType: event.isMainFrame ? 'mainFrame' : 'subFrame' });
       if (!allow) { blockedNavigations++; event.preventDefault(); } });
     wc.on('will-frame-navigate', event => { const allow = policy.navigationAllowed(event.url, contextFor(event.isMainFrame ? 'mainFrame' : 'subFrame'));
-      record(allow ? 'NAVIGATION_ALLOWED' : 'NAVIGATION_BLOCKED', { url: event.url, view: entry.viewGeneration, resourceType: event.isMainFrame ? 'mainFrame' : 'subFrame' });
+      record(allow ? 'NAVIGATION_ALLOWED' : 'NAVIGATION_BLOCKED', { url: event.url, view: slot.viewGeneration, resourceType: event.isMainFrame ? 'mainFrame' : 'subFrame' });
       if (!allow) { blockedNavigations++; event.preventDefault(); } });
     if (input.policyDiagnostics) {
-      wc.on('did-start-navigation', event => record('NAVIGATION_STARTED', { url: event.url, view: entry.viewGeneration, resourceType: event.isMainFrame ? 'mainFrame' : 'subFrame' }));
-      wc.on('did-navigate', (_event, url, statusCode) => record('NAVIGATION_COMMITTED', { url, view: entry.viewGeneration, resourceType: 'mainFrame', statusCode }));
-      wc.on('did-finish-load', () => record('LOAD_FINISHED', { url: wc.getURL(), view: entry.viewGeneration, resourceType: 'mainFrame' }));
-      wc.on('did-fail-load', (_event, errorCode, _description, url, mainFrame) => record('LOAD_FAILED', { url, view: entry.viewGeneration, errorCode, resourceType: mainFrame ? 'mainFrame' : 'subFrame' }));
-      wc.on('render-process-gone', () => record('RENDERER_GONE', { view: entry.viewGeneration }));
-      wc.on('destroyed', () => record('VIEW_CLOSED', { view: entry.viewGeneration }));
+      wc.on('did-start-navigation', event => record('NAVIGATION_STARTED', { url: event.url, view: slot.viewGeneration, resourceType: event.isMainFrame ? 'mainFrame' : 'subFrame' }));
+      wc.on('did-navigate', (_event, url, statusCode) => record('NAVIGATION_COMMITTED', { url, view: slot.viewGeneration, resourceType: 'mainFrame', statusCode }));
+      wc.on('did-finish-load', () => record('LOAD_FINISHED', { url: wc.getURL(), view: slot.viewGeneration, resourceType: 'mainFrame' }));
+      wc.on('did-fail-load', (_event, errorCode, _description, url, mainFrame) => record('LOAD_FAILED', { url, view: slot.viewGeneration, errorCode, resourceType: mainFrame ? 'mainFrame' : 'subFrame' }));
+      wc.on('render-process-gone', () => record('RENDERER_GONE', { view: slot.viewGeneration }));
+      wc.on('destroyed', () => record('VIEW_CLOSED', { view: slot.viewGeneration }));
     }
     wc.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
-    await navigate(entry, 'about:blank');
+    await navigate(entry, 'about:blank', slot);
     return entry;
   }
-  async function closeEntry(entry: Entry) {
-    entry.closing = true;
+  async function closeEntry(entry: Entry, workerId?: string) {
+    const slot: WindowSlot | undefined = workerId ? entry.workers.get(workerId) : entry;
+    if (!slot) return;
+    slot.closing = true;
     if (entry.timer) { clearTimeout(entry.timer); entry.timer = null; }
-    const view = entry.view, window = entry.window;
-    entry.view = null; entry.window = null;
+    const view = slot.view, window = slot.window;
+    slot.view = null; slot.window = null;
     const wc = view?.webContents;
     if (view && wc && !wc.isDestroyed()) {
       if (window && !window.isDestroyed()) window.contentView.removeChildView(view);
@@ -219,14 +234,34 @@ export function createBrowserHost(input: {
       });
     }
     if (window && !window.isDestroyed()) window.destroy();
-    await entry.session.closeAllConnections();
+    const anotherOpen = [entry, ...entry.workers.values()].some(other => other.view && !other.view.webContents.isDestroyed());
+    if (!anotherOpen) await entry.session.closeAllConnections();
     await save(entry);
-    if (journal.dirty(entry.profile.id)) await save(entry);
-    if (journal.dirty(entry.profile.id)) { entry.persistenceError = 'SESSION_SAVE_FAILED'; throw new Error('SESSION_SAVE_FAILED'); }
-    entry.closing = false;
+    if (!anotherOpen && journal.dirty(entry.profile.id)) await save(entry);
+    // A sibling can legitimately change shared cookies while this slot closes.
+    // The last slot/shutdown must establish a fully flushed snapshot.
+    if (!anotherOpen && journal.dirty(entry.profile.id)) { entry.persistenceError = 'SESSION_SAVE_FAILED'; throw new Error('SESSION_SAVE_FAILED'); }
+    slot.closing = false;
+    if (workerId) entry.workers.delete(workerId);
   }
-  function close(id: string) { return serial(id, async () => { await input.profiles.get(id); const entry = entries.get(id); if (entry) await closeEntry(entry); }); }
-  return {
+  function close(id: string, workerId?: string) { return serial(id, async () => { await input.profiles.get(id); const entry = entries.get(id); if (entry) await closeEntry(entry, workerId); }); }
+  function observerTarget(id: string, workerId?: string) {
+    const entry = entries.get(id), slot = workerId ? entry?.workers.get(workerId) : entry;
+    const contents = slot?.view?.webContents;
+    if (!slot || !contents || contents.isDestroyed()) return null;
+    return { profileId: id, webContentsId: contents.id, viewGeneration: slot.viewGeneration, contents };
+  }
+  const host = {
+    /** A collector owns one slot; all slots share only the authenticated Session. */
+    forWorker(workerId: string) {
+      if (!/^[a-z0-9-]{1,40}$/.test(workerId)) throw Error('BROWSER_WORKER_ID_INVALID');
+      return {
+        list: () => host.list(),
+        open: (id: string) => serial(id, async () => { await openInternal(id, workerId); }),
+        close: (id: string) => close(id, workerId),
+        observerTarget: (id: string) => observerTarget(id, workerId),
+      };
+    },
     sessionStatus: (id: string) => serial(id, async () => {
       const entry = await ensure(id);
       if (entry.persistenceError) return false;
@@ -240,7 +275,7 @@ export function createBrowserHost(input: {
     }),
     async list() {
       return (await input.profiles.list()).map(profile => ({ ...profile,
-        open: !!entries.get(profile.id)?.view?.webContents && !entries.get(profile.id)!.view!.webContents.isDestroyed(),
+        open: !!entries.get(profile.id) && [entries.get(profile.id)!, ...entries.get(profile.id)!.workers.values()].some(slot => slot.view && !slot.view.webContents.isDestroyed()),
         persistenceError: journal.recoveryRequired(profile.id) ? 'SESSION_RECOVERY_REQUIRED' : entries.get(profile.id)?.persistenceError || null }));
     },
     create: (label: string, platform?: 'facebook' | 'threads') => { if (stopping) return Promise.reject(new Error('BROWSER_STOPPING')); return input.profiles.create(label, platform); },
@@ -253,24 +288,24 @@ export function createBrowserHost(input: {
     // Main-only ownership access for local diagnostics/future observer lifecycle; never bridged to website/UI.
     ownedContents: (id: string): WebContents | null => entries.get(id)?.view?.webContents || null,
     ownedSession: (id: string): Session | null => entries.get(id)?.session || null,
-    observerTarget(id: string) {
-      const entry = entries.get(id), contents = entry?.view?.webContents;
-      if (!entry || !contents || contents.isDestroyed()) return null;
-      return { profileId: id, webContentsId: contents.id, viewGeneration: entry.viewGeneration, contents };
-    },
+    observerTarget,
     async openFixture(id: string, url: string) {
       if (!policy.fixtureOrigin) throw new Error('FIXTURE_DISABLED');
       await serial(id, async () => { const entry = await openInternal(id); await navigate(entry, url); });
     },
-    diagnostics: () => ({ openViews: [...entries.values()].filter(entry => entry.view?.webContents && !entry.view.webContents.isDestroyed()).length, blockedRequests, blockedNavigations, deniedPopups }),
+    diagnostics: () => ({ openViews: [...entries.values()].flatMap(entry => [entry, ...entry.workers.values()]).filter(slot => slot.view?.webContents && !slot.view.webContents.isDestroyed()).length, blockedRequests, blockedNavigations, deniedPopups }),
     shutdown(): Promise<void> {
       return shutdownPromise ??= (async () => {
         stopping = true;
         await Promise.allSettled([...locks.values()]);
-        const results = await Promise.allSettled([...entries.values()].map(closeEntry));
+        const results = await Promise.allSettled([...entries.values()].map(async entry => {
+          for (const workerId of [...entry.workers.keys()]) await closeEntry(entry, workerId);
+          await closeEntry(entry);
+        }));
         if (results.some(result => result.status === 'rejected')) throw new Error('BROWSER_SHUTDOWN_FAILED');
       })();
     },
   };
+  return host;
 }
 export type BrowserHost = ReturnType<typeof createBrowserHost>;
