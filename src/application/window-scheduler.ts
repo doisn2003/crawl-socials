@@ -37,7 +37,14 @@ export function createWindowScheduler(options: { sample?: () => ResourceSample; 
       nextStart = now() + (options.staggerMs ?? 600);
       let released = false;
       w.resolve({ release() { if (!released) { released = true; active.delete(id); drain(); } },
-        shouldYield() { const slots = capacity(w.all); return [...active].indexOf(id) >= slots; } });
+        shouldYield() {
+          const slots = capacity(w.all);
+          // CPU bursts during page load must not tear down ALL windows and trigger
+          // another expensive reload. Pressure limits new admissions; already open
+          // per-query windows finish their bounded slice unless memory is critical.
+          if (w.all) return metrics.freeBytes < 512 * 1024 * 1024;
+          return [...active].indexOf(id) >= slots;
+        } });
     }
     if (queue.length) timer = setTimeout(drain, 100);
   }

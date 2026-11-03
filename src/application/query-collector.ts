@@ -23,9 +23,9 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
   for (const task of tasks) if (!['COMPLETED'].includes(task.state)) { task.state = 'QUEUED'; task.reason = null; }
   const deadline = Date.parse(startedAt) + Number(input.config.maxMinutes) * 60000;
   const store = input.platform === 'facebook' ? createFacebookCollectorStore(output) : createThreadsCollectorStore(output);
-  let barrier: string | null = null, ingestion: Promise<unknown> = Promise.resolve();
+  let barrier: string | null = null, ingestion: Promise<unknown> = Promise.resolve(), expansionChecked = false, expansionError: string | null = null;
   const stopReason = () => input.shouldStop() ? 'USER_STOP' : barrier ?? input.collectionLimitReason?.() ?? (Date.now() >= deadline ? 'RUN_DEADLINE' : null);
-  function publish() { atomicJson(file, { fingerprint, startedAt, tasks, resources: windows.status() }); input.onProgress({ total: store.count, workers: structuredClone(tasks) }); }
+  function publish() { atomicJson(file, { fingerprint, startedAt, tasks, resources: windows.status(), expansionError }); input.onProgress({ total: store.count, workers: structuredClone(tasks) }); }
   publish();
   // Every task gets its first bounded slice before any task receives a deeper slice.
   while (tasks.some(t => t.state === 'QUEUED') && !stopReason()) {
@@ -62,8 +62,13 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
       } catch (error) { task.state = 'FAILED'; task.reason = stopReason() ?? code(error); }
       finally { lease?.release(); publish(); }
     }));
-    if (!stopReason() && round === 0 && input.expandQueries) {
-      for (const query of await input.expandQueries()) if (tasks.length < 100 && !tasks.some(t => t.query === query)) tasks.push({
+    // Resume can begin at slice > 0; still consult the persisted once-per-campaign expansion.
+    if (!stopReason() && !expansionChecked && input.expandQueries) {
+      expansionChecked = true;
+      let expanded: string[] = [];
+      try { expanded = await input.expandQueries(); }
+      catch (error) { expansionError = code(error); input.onProgress({ event: 'QUERY_EXPANSION_FAILED' }); }
+      for (const query of expanded) if (tasks.length < 100 && !tasks.some(t => t.query === query)) tasks.push({
         id: createHash('sha256').update(input.platform + ':' + input.profileId + ':' + query).digest('hex').slice(0, 16),
         worker: tasks.length + 1, query, state: 'QUEUED', reason: null, slices: 0, newRecords: 0, attempts: 0 });
       publish();
@@ -74,6 +79,6 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
   publish();
   const reason = stopReason() ?? (tasks.every(t => t.reason === 'SOURCE_EXHAUSTED') ? 'SOURCE_EXHAUSTED'
     : tasks.some(t => t.state === 'FAILED') ? 'QUERY_WORKER_FAILED' : 'QUERY_BUDGET_COMPLETE');
-  const receipt = { stop_reason: reason, summary: store.export(), workers: tasks, session_flush: barrier === 'SESSION_SAVE_FAILED' ? 'FAILED' : 'OK' };
+  const receipt = { stop_reason: reason, summary: store.export(), workers: tasks, expansion_error: expansionError, session_flush: barrier === 'SESSION_SAVE_FAILED' ? 'FAILED' : 'OK' };
   atomicJson(join(directory, 'receipt.json'), receipt); return receipt;
 }

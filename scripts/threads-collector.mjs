@@ -50,7 +50,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
  await host.open(profile.id);const target=host.observerTarget(profile.id);
  if(!target)throw Error('PROFILE_UNAVAILABLE');
  wc=target.contents;wc.setBackgroundThrottling(false);
- const execute=script=>timed(wc.executeJavaScript(script),10000,'RENDERER_TIMEOUT');
+ const execute=script=>timed(wc.executeJavaScript(script),15000,'RENDERER_TIMEOUT');
  manager=createResponseObserverManager({resolveOwned:createOwnedObserverResolver(host),urlAllowed:url=>{try{const u=new URL(url);return u.origin==='https://www.threads.com'&&u.pathname.includes('graphql');}catch{return false;}},resourceTypes:['XHR','Fetch'],mimeTypes:['application/json','text/plain','text/html','text/javascript'],limits:{maxBodyBytes:12*1024*1024,maxBufferedBytes:32*1024*1024,maxTotalCapturedBytes:96*1024*1024,maxPendingRequests:100,maxResults:100,maxCapturedResponses:200,maxRunMs:60000,requestTimeoutMs:30000,commandTimeoutMs:5000}});
  const current=()=>{const t=host.observerTarget(profile.id);if(!t||t.webContentsId!==target.webContentsId||t.viewGeneration!==target.viewGeneration)throw Error('OWNER_CHANGED');};
  async function snapshot(){
@@ -130,7 +130,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
    for(let scroll=1;scroll<=slice.maxScroll;scroll++){
     check();if(beforeNextPage)await beforeNextPage();check();if(store.count>=config.targetTotal)break;if(lastNext===false){queryStop='NATIVE_END_OBSERVED';event({event:'SOURCE_EXHAUSTED',job_index:ji});break;}
     await attach();scrollIndex=scroll;const count=store.count;
-    const geometry=await execute(`(()=>{const root=document.scrollingElement;const candidates=[...document.querySelectorAll('main,[role="main"],div')].filter(e=>e.clientHeight>250&&e.scrollHeight>e.clientHeight+100&&/auto|scroll/.test(getComputedStyle(e).overflowY));const e=candidates.sort((a,b)=>b.clientHeight-a.clientHeight)[0]||root;const before=e.scrollTop;e.scrollTo({top:e.scrollHeight,behavior:'instant'});return {before,after:e.scrollTop,height:e.scrollHeight,client:e.clientHeight,root:e===root};})()`);
+    const geometry=await execute(`(()=>{const root=document.scrollingElement;const scrollable=e=>e.clientHeight>250&&e.scrollHeight>e.clientHeight+100&&/auto|scroll/.test(getComputedStyle(e).overflowY);const primary=[...document.querySelectorAll('main,[role="main"]')].filter(scrollable);const candidates=primary.length?primary:root.scrollHeight>root.clientHeight+100?[]:[...document.querySelectorAll('div')].filter(scrollable);const e=candidates.sort((a,b)=>b.clientHeight-a.clientHeight)[0]||root;const before=e.scrollTop;e.scrollTo({top:e.scrollHeight,behavior:'instant'});return {before,after:e.scrollTop,height:e.scrollHeight,client:e.clientHeight,root:e===root};})()`);
     await sleep(config.settleMs);check();await snapshot();await embedded();await drain();const gained=store.count-count;noProgress=scroll<=slice.replayDepth||gained?0:noProgress+1;
     if(frontier){check();frontier.page(ji,scroll);saveCheckpoint();}
     event({event:'YIELD',job_index:ji,scroll_index:scroll,new_records:gained,no_progress:noProgress,replaying:scroll<=slice.replayDepth,...geometry});
@@ -144,7 +144,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
  }catch(e){stopReason=e.message;}
  finally{
   try{await drain(true);}catch{stopReason='CAPTURE_DRAIN_TIMEOUT';}active=null;closing=true;manager.stopAll();if(!wc.isDestroyed())wc.debugger.removeListener('message',onRequest);let sessionFlush='OK';
-  try{await timed(Promise.allSettled([...readers,...pending.values()]),12000,'CAPTURE_DRAIN_TIMEOUT');await timed(host.close(profile.id),15000,'SESSION_FLUSH_TIMEOUT');profileClosed=true;}catch{sessionFlush='FAILED';}
+  try{await timed(Promise.allSettled([...readers,...pending.values()]),12000,'CAPTURE_DRAIN_TIMEOUT');await timed(host.close(profile.id),60000,'SESSION_FLUSH_TIMEOUT');profileClosed=true;}catch{sessionFlush='FAILED';}
   const receipt={run_id:config.runId,stop_reason:stopReason,new_this_run:store.records().filter(r=>r.first_observation.run_id===config.runId).length,new_this_invocation:store.count-initial,elapsed_ms:Date.now()-Date.parse(manifest.started_at),session_flush:sessionFlush,summary:store.export(),operations:Object.fromEntries(operations),checkpoint,content_review:'NOT_REQUESTED'};
   writeFileSync(join(runDirectory,'receipt.json'),JSON.stringify(receipt,null,2),{flush:true});event({event:'STOP',...receipt});
   return receipt;
@@ -152,7 +152,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
  } finally {
   active=null;closing=true;manager?.stopAll();
   if(wc&&onRequest&&!wc.isDestroyed())wc.debugger.removeListener('message',onRequest);
-  if(!profileClosed)await timed(host.close(profile.id),15000,'SESSION_FLUSH_TIMEOUT');
+  if(!profileClosed)await timed(host.close(profile.id),60000,'SESSION_FLUSH_TIMEOUT');
  }
 }
 
@@ -177,7 +177,7 @@ async function main(){
  try{
   const {ensureThreadsLogin}=await import('./threads-login.mjs');
   await host.open(profile.id);const wc=host.observerTarget(profile.id)?.contents;if(!wc)throw Error('PROFILE_UNAVAILABLE');
-  await timed(ensureThreadsLogin(wc,resolve('.env'),script=>timed(wc.executeJavaScript(script),10000,'RENDERER_TIMEOUT')),45000,'LOGIN_TIMEOUT');
+  await timed(ensureThreadsLogin(wc,resolve('.env'),script=>timed(wc.executeJavaScript(script),15000,'RENDERER_TIMEOUT')),45000,'LOGIN_TIMEOUT');
   receipt=await runThreadsCollector({config,host,profileId:profile.id,resume:process.argv.includes('--resume'),shouldStop:()=>stopping,onProgress:value=>console.log(JSON.stringify(value))});
  }finally{await host.shutdown();finished=true;app.removeListener('window-all-closed',onClosed);app.removeListener('before-quit',onQuit);}
  app.exit(receipt.stop_reason==='ACCOUNT_BARRIER'?3:receipt.session_flush==='OK'&&['TARGET_REACHED','QUERY_BUDGET_COMPLETE','SOURCE_EXHAUSTED','REPLAY_BUDGET_REACHED','USER_STOP','RUN_DEADLINE','WINDOW_CLOSED'].includes(receipt.stop_reason)?0:1);
