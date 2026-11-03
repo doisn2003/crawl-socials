@@ -144,9 +144,9 @@ function friendlyError(error: unknown, fallback: string): string {
   if (/MODEL_GLOBAL_BUDGET|MODEL_CALL_LIMIT|MODEL_SPEND/.test(text))
     return 'AI đã dừng theo trần cộng dồn/ngày hoặc số lượt gọi. Kiểm tra mục Giới hạn tiền AI trên máy này; giá trị 0 chặn gọi AI. Dữ liệu thu được vẫn được giữ.';
   if (/MODEL_NOT_AUTHORIZED/.test(text))
-    return 'Lượt cũ dùng model khác. Tạo kế hoạch mới với Gemini 2.5 Flash-Lite và tái lọc dữ liệu đã thu; lịch sử cũ được giữ nguyên.';
+    return 'Lượt cũ dùng model khác. Tạo kế hoạch mới với Gemini 3.1 Flash-Lite và tái lọc dữ liệu đã thu; lịch sử cũ được giữ nguyên.';
   if (/MODEL_NOT_AVAILABLE/.test(text))
-    return 'Google chưa cho key/project này gọi Gemini 2.5 Flash-Lite (404). Có tên model trong danh sách chưa chứng minh quyền sinh nội dung. Dùng Không lọc hoặc key có quyền dùng 2.5; CSD giữ dữ liệu và không tự đổi model.';
+    return 'Google chưa cho key/project này gọi model đã chọn (404). Có tên model trong danh sách chưa chứng minh quyền sinh nội dung. Kiểm tra quyền model hoặc dùng Không lọc; dữ liệu vẫn được giữ.';
   if (/MODEL_BUDGET/.test(text))
     return 'Đã chạm ngân sách AI của lượt này. Dữ liệu đã thu vẫn được giữ để xem và xuất.';
   if (/MODEL_BILLING|MODEL_DAILY_QUOTA|MODEL_HTTP_429/.test(text))

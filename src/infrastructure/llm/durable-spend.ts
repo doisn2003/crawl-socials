@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { ModelGatewayError } from '../../application/ports/model-gateway.js';
 
-export const REBUILD_MODEL = 'gemini-2.5-flash-lite';
+export const REBUILD_MODEL = 'gemini-3.1-flash-lite';
 export const SPEND_DIRECTORY = join(homedir(), '.csd', 'spending');
 export interface SpendEnvelope { scope: 'USER' | 'DEVELOPMENT'; model: string; totalUsd: number; dailyUsd: number; maxCalls: number; }
 export interface SpendStatus { measuredUsd: number; heldUsd: number; remainingUsd: number; dailyRemainingUsd: number; calls: number; }
@@ -19,7 +19,7 @@ export function createDurableSpend(options: { envelope: () => SpendEnvelope; fil
   const now = options.now ?? (() => new Date());
   function transact<T>(work: (db: DatabaseSync, envelope: SpendEnvelope) => T): T {
     const e = options.envelope();
-    if (!e || !['USER', 'DEVELOPMENT'].includes(e.scope) || e.model !== REBUILD_MODEL
+    if (!e || !['USER', 'DEVELOPMENT'].includes(e.scope) || !['gemini-2.5-flash-lite', REBUILD_MODEL].includes(e.model)
       || ![e.totalUsd, e.dailyUsd].every(v => Number.isFinite(v) && v >= 0 && v <= 10000)
       || !Number.isSafeInteger(e.maxCalls) || e.maxCalls < 0) throw new ModelGatewayError('MODEL_SPEND_POLICY_INVALID');
     mkdirSync(dirname(file), { recursive: true });

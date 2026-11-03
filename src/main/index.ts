@@ -46,7 +46,7 @@ async function bootstrap() {
   const schedulers = new Map<string, RequestScheduler>();
   const schedulerForModel = (model: string) => {
     const policy = throughput(appConfig.read().performance);
-    // Local conservative pacing for 2.5, not a claim about this project's provider quota.
+    // Local conservative pacing for the selected Lite model, not a claim about provider quota.
     const limits = model === REBUILD_MODEL ? { concurrency: 2, rpm: 60, inputTpm: 200_000, rpd: 10_000 }
       : model === 'gemini-3.5-flash-lite'
       ? { ...GEMINI_35_PROJECT_LIMITS, concurrency: policy.modelConcurrency }

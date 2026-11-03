@@ -6,6 +6,14 @@
 - Nhánh hiện hành: `codex/csd-rebuild`.
 - Thay quyết định vận hành của ADR-023/024 cho phần phát triển mới; giữ các mốc cũ để đối chiếu.
 
+### Quyết định bổ sung ngày 03/11/2026: model 3.1 và phép thử trực tiếp
+
+Sau khi 2.5 Flash-Lite trả 404, người dùng đã chọn **Gemini 3.1 Flash-Lite** và cấp tối đa **6 USD tổng** cho nhiệm vụ crawl prompt piano mở rộng bằng Tiêu chuẩn/Chất lượng. Quyết định mới thay lựa chọn 2.5 cho lượt mới, không xóa lịch sử chi phí hoặc cho phép fallback tự động. Giá văn bản 3.1 dùng khi đo: 0,25 USD/triệu token vào, 1,50 USD/triệu token ra; số tiền theo usage không thay hóa đơn Google. [Giá Google](https://aistudio.google.com/docs/pricing#gemini-3.1-flash-lite).
+
+Nhánh triển khai và đo: `codex/csd-r7-piano-comparison`, từ candidate R6. Hai mode dùng chung dữ liệu mới, cùng mục tiêu và bằng chứng; mục tiêu 1.000 bài phù hợp/mode. Mỗi `(mạng, từ khóa)` có cửa sổ/checkpoint riêng. Toàn bộ planner, preflight, phân loại, kiểm tra bổ sung và lỗi/thử lại cùng dùng ledger DEVELOPMENT đã tồn tại, trần nhiệm vụ 6 USD. Không dùng lại nhãn tham chiếu của prompt piano cũ để chấm prompt mới rộng hơn.
+
+Preflight generation 3.1 đã thành công. Phép thử đầy đủ đang chạy; chưa coi truy cập model hay unit tests là nghiệm thu chất lượng bộ lọc.
+
 ## 1. Vấn đề và trách nhiệm
 
 Người dùng báo AI Studio đã ghi nhận 40 USD sử dụng, trong đó 17 USD đã trừ từ thẻ Visa qua thanh toán tự động. Đây là số người dùng kiểm tra trên nhà cung cấp, không phải số đã được đối soát bằng ledger của CSD. Hai lượt piano mới nhất chỉ giải thích khoảng 5,6567 USD chi phí theo token usage tại giá gateway; không được coi chúng là toàn bộ hóa đơn 40 USD.

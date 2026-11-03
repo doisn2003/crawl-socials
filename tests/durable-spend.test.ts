@@ -44,7 +44,7 @@ test('durable reservations span callers/restart/day; unknown cost never expires'
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('zero allowance blocks transport; 2.5 defaults use its price and thinkingBudget', async () => {
+test('zero allowance blocks transport; 3.1 defaults use its own price and minimal thinking', async () => {
   const root = mkdtempSync(join(tmpdir(), 'csd-spend-'));
   try {
     let allowed = false, calls = 0;
@@ -52,16 +52,16 @@ test('zero allowance blocks transport; 2.5 defaults use its price and thinkingBu
       totalUsd: allowed ? 0.01 : 0, dailyUsd: allowed ? 0.01 : 0, maxCalls: 2 }) });
     const gateway = createGeminiGateway({ mockTransport: true, directory: join(root, 'run'), apiKey: 'fixture', budgetUsd: 0.01, minRequestIntervalMs: 0, spending,
       fetch: async (url, init) => {
-        calls++; assert.match(String(url), /gemini-2\.5-flash-lite:generateContent$/);
-        assert.deepEqual(JSON.parse(String(init?.body)).generationConfig.thinkingConfig, { thinkingBudget: 0 });
+        calls++; assert.match(String(url), /gemini-3\.1-flash-lite:generateContent$/);
+        assert.deepEqual(JSON.parse(String(init?.body)).generationConfig.thinkingConfig, { thinkingLevel: 'minimal' });
         return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{}' }] } }],
           usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 100 } }));
       } });
-    const request = { purpose: 'test', system: '', input: {}, schema: { type: 'object' }, max_output_tokens: 100, thinking_level: 'medium' as const };
+    const request = { purpose: 'test', system: '', input: {}, schema: { type: 'object' }, max_output_tokens: 100, thinking_level: 'minimal' as const };
     await assert.rejects(gateway.generateJson(request), /MODEL_GLOBAL_BUDGET_EXHAUSTED/); assert.equal(calls, 0);
     allowed = true; await gateway.generateJson(request);
-    assert.equal(calls, 1); assert.equal(gateway.summary().measured_cost_usd, 0.00014);
-    assert.equal(spending.status().measuredUsd, 0.00014);
+    assert.equal(calls, 1); assert.equal(gateway.summary().measured_cost_usd, 0.0004);
+    assert.equal(spending.status().measuredUsd, 0.0004);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

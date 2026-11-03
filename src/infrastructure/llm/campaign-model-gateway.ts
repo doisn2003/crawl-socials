@@ -6,6 +6,7 @@ import type { ModelGateway, ModelLedgerSummary, ModelPrice } from '../../applica
 import { createGeminiGateway, GEMINI_FLASH_LITE_PRICE, GEMINI_25_FLASH_LITE_PRICE } from './gemini-gateway.js';
 import type { GeminiGatewayOptions } from './gemini-gateway.js';
 import { createSharedModelBudget } from './shared-model-budget.js';
+import { REBUILD_MODEL } from './durable-spend.js';
 
 export const CAMPAIGN_PRIMARY_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-2.5-flash-lite'] as const;
 export type CampaignPrimaryModel = typeof CAMPAIGN_PRIMARY_MODELS[number];
@@ -73,7 +74,7 @@ export function createCampaignModelGateway(options: CampaignModelGatewayOptions)
   const directory = resolve(options.directory), legacyDirectory = join(directory, 'model');
   const legacyExisted = existsSync(join(legacyDirectory, 'model-ledger.jsonl'));
   const routingFile = join(directory, 'model-routing.json'), prior = readRouting(routingFile);
-  const inferred = prior?.active_model ?? (legacyExisted ? 'gemini-3.1-flash-lite' : 'gemini-2.5-flash-lite');
+  const inferred = prior?.active_model ?? REBUILD_MODEL;
   const active = options.primaryModel ?? inferred;
   const pool = options.sharedBudget ?? createSharedModelBudget(options.budgetUsd);
   if (Math.abs(pool.limitUsd - options.budgetUsd) > 1e-9) throw new ModelGatewayError('MODEL_BUDGET_LIMIT_MISMATCH');
