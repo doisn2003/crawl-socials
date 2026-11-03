@@ -189,6 +189,22 @@ test('assessment-only monitoring keeps the pipeline alive and blocks edits until
   assert.equal(closed, true);
 }));
 
+test('polling shows current model queue even before the next classification batch publishes results', async () => temporary(async directory => {
+  const h = fixture(directory), draft = (await h.service.prepareCampaign()).campaignDraft!;
+  const hold = deferred(); h.holdCollection(hold); let queued = 0;
+  const service = createProductionService({ ...h.serviceInput, createOpportunity: async input => {
+    const base = await h.serviceInput.createOpportunity(input);
+    return { ...base, progress: (): OpportunityProgress => ({ ...base.progress(), modelScheduling: {
+      active: 4, queued, concurrency: 8, configuredConcurrency: 8, requestsLastMinute: 10, inputTokensLastMinute: 1000, requestsToday: 10, cooldownUntil: null,
+    } }) };
+  } });
+  try {
+    await service.start({ profiles, draft: reference(draft) }); queued = 7;
+    assert.equal((await service.getState()).run!.opportunity!.modelScheduling!.queued, 7);
+    queued = 2; assert.equal((await service.getState()).run!.opportunity!.modelScheduling!.queued, 2);
+  } finally { hold.release(); await service.settled(); await service.shutdown(); }
+}));
+
 test('allocation is durable before model response and interrupted publication recovers without another charge', async () => temporary(async directory => {
   const h = fixture(directory), hold = deferred(); h.holdModel(hold);
   const preparing = h.service.prepareCampaign(); await h.modelEntered;

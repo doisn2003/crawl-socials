@@ -115,6 +115,7 @@ export function createProductionService(input: {
   function presentedRun(): RunState | null {
     if (!run) return null;
     const value = structuredClone(run);
+    if (pipeline && value.opportunity) value.opportunity.modelScheduling = pipeline.progress().modelScheduling;
     if (!existsSync(join(run.outputDirectory, 'opportunity', 'active-evaluation.json'))) return value;
     try {
       if (pipeline) {
