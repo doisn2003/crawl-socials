@@ -19,7 +19,8 @@ export interface PlatformRun {
 export interface PostPreview { platform: Platform; post_id: string; text: string; query: string; link: string; }
 export interface OpportunityCounts { raw: number; comments: number; suitable: number; notSuitable?: number; /** Legacy count fields retained for historical runs. */ notYet: number; unrelated: number; pending: number; failed: number; }
 export interface OpportunityPreview {
-  platform: Platform; rootId: string; classification: 'SUITABLE' | 'NOT_SUITABLE' | 'NOT_YET' | 'UNRELATED';
+  platform: Platform; rootId: string; /** UNASSESSED is an operational status, never a filter verdict. */
+  classification: 'SUITABLE' | 'NOT_SUITABLE' | 'NOT_YET' | 'UNRELATED' | 'UNASSESSED';
   text: string; link: string; reason: string; evidence: string[]; observedAt: string; coverage: string;
   conditions?: { label: string; status: 'PASS' | 'FAIL' | 'UNKNOWN'; evidence: string[] }[];
 }

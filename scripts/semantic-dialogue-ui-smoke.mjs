@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const workspace = fileURLToPath(new URL('../', import.meta.url)), require = createRequire(import.meta.url);
 const output = resolve(process.argv[2] || 'artifacts/semantic-dialogue-ui'); await mkdir(output, { recursive: true });
 const temporaryBase = await realpath(tmpdir()), temporary = await mkdtemp(join(temporaryBase, 'csd-semantic-ui-'));
-const config = { enabled: true, prompt: 'Tìm người mua bán đàn piano', brandContext: '', totalTarget: 10, threadsShare: .8, rawCap: 30, budgetUsd: 3, commentsEnabled: false };
+const config = { filterMode: 'STANDARD', enabled: true, prompt: 'Tìm người mua bán đàn piano', brandContext: '', totalTarget: 10, rawCap: 30, budgetUsd: 3, commentsEnabled: false };
 const cost = { measuredUsd: .003, unknownUpperUsd: 0, reservedUsd: 0 };
 const question = { id: 'who', target_field: 'target_roles', type: 'single_select', prompt: 'Bạn muốn tìm người hỏi mua hay người rao bán đàn piano?',
   options: [{ id: 'buyer', label: 'Người đang hỏi mua' }, { id: 'seller', label: 'Người đang rao bán' }], required: true, reason: 'Lựa chọn này quyết định loại bài được nhận.' };
@@ -32,17 +32,18 @@ contextBridge.exposeInMainWorld('csd',{getState:async()=>state,saveConfig:async 
 continueCampaign:async request=>{last=request;if(!request.answers?.some(a=>a.raw_text||a.selected_option_ids.length))throw Error('CAMPAIGN_ANSWER_INVALID');state=ready;return state},
 listRetainedSources:async()=>({sources:[],issues:[]}),geminiKey:{status:async()=>({source:'NONE'})},cooler:{get:async()=>false,set:async()=>false}});
 contextBridge.exposeInMainWorld('semanticSmoke',{last:()=>last,showResults:()=>{const counts={raw:4,comments:2,suitable:1,notSuitable:2,notYet:1,unrelated:1,pending:1,failed:0};
-state={...state,campaignDialogue:null,campaignDraft:null,run:{id:'fixture-results',state:'COMPLETED',startedAt:'2026-11-02T00:00:00Z',finishedAt:'2026-11-02T00:01:00Z',minimumPosts:1,keywords:[],outputDirectory:'fixture',platforms:[{platform:'threads',count:4,state:'COMPLETED',reason:'TARGET_MET'}],preview:[],
+state={...state,campaignDialogue:null,campaignDraft:null,run:{id:'fixture-results',state:'COMPLETED',startedAt:'2026-11-02T00:00:00Z',finishedAt:'2026-11-02T00:01:00Z',minimumPosts:1,keywords:['cần mua đàn piano'],outputDirectory:'fixture',platforms:[{platform:'threads',count:4,state:'COMPLETED',reason:'TARGET_MET'}],preview:[],
 opportunity:{campaignId:'fixture-results',totalTarget:1,threadsShare:.8,counts,byPlatform:{threads:counts,facebook:{...counts,suitable:0}},costUsd:0,costUpperUsd:0,usageUnknown:0,budgetUsd:3,phase:'COMPLETED',lastError:null,evaluationPolicy:'GOAL_EVIDENCE',
 preview:[{platform:'threads',rootId:'offer',classification:'SUITABLE',text:'Cho thuê phòng 3 triệu',link:'',reason:'Đúng nguồn phòng cần tìm',evidence:[],observedAt:'2026-11-02T00:00:00Z',coverage:'NOT_ATTEMPTED',conditions:[{label:'Giá dưới 4 triệu',status:'PASS',evidence:['3 triệu']}]},
 {platform:'threads',rootId:'seeker',classification:'NOT_SUITABLE',text:'Tôi cũng đang tìm phòng',link:'',reason:'Sai vai trò cần tìm',evidence:[],observedAt:'2026-11-02T00:00:00Z',coverage:'NOT_ATTEMPTED'},
-{platform:'threads',rootId:'old-negative',classification:'NOT_YET',text:'Bản ghi cũ được gộp khi xem',link:'',reason:'Không đáp ứng',evidence:[],observedAt:'2026-11-02T00:00:00Z',coverage:'NOT_ATTEMPTED'}]}}};}});`;
+{platform:'threads',rootId:'old-negative',classification:'NOT_YET',text:'Bản ghi cũ được gộp khi xem',link:'',reason:'Không đáp ứng',evidence:[],observedAt:'2026-11-02T00:00:00Z',coverage:'NOT_ATTEMPTED'}]}}};},showOff:()=>{const o=state.run.opportunity;state={...state,run:{...state.run,opportunity:{...o,filterMode:'OFF',resultPolicy:'GLOBAL_FIRST_QUALIFIED',budgetUsd:0,totalTarget:3,targetCount:3,extraCount:1,
+counts:{...o.counts,raw:4,suitable:0,notSuitable:0,notYet:0,unrelated:0,pending:4},preview:[{...o.preview[0],classification:'UNASSESSED',reason:'Chưa đánh giá · Không dùng AI',conditions:undefined}]}}};}});`;
 const main = `const {app,BrowserWindow}=require('electron');const fs=require('node:fs');const assert=require('node:assert/strict');
 app.setPath('userData',${JSON.stringify(join(temporary, 'user-data'))});
 app.whenReady().then(async()=>{let window;try{
 window=new BrowserWindow({show:false,width:1100,height:1000,webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false,preload:${JSON.stringify(join(temporary, 'preload.cjs'))}}});
 window.webContents.session.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(_,done)=>done({cancel:true}));
-const errors=[];window.webContents.on('console-message',(_event,details)=>{if(details.level==='error')errors.push(details.message)});
+const errors=[];window.webContents.on('console-message',event=>{if(event.level==='error'){errors.push(event.message);console.error(event.message)}});
 await window.loadFile(${JSON.stringify(join(workspace, 'dist/renderer/index.html'))});
 const run=code=>window.webContents.executeJavaScript(code);const until=async code=>{for(let n=0;n<100;n++){if(await run(code))return;await new Promise(r=>setTimeout(r,100))}throw Error('UI_TIMEOUT:'+code)};
 await until("!document.getElementById('campaign-dialogue').hidden");
@@ -73,7 +74,23 @@ await run("document.querySelectorAll('[data-result-group]').forEach(button=>butt
 await run("document.getElementById('opportunity-results').scrollIntoView({block:'start',behavior:'instant'})");
 await new Promise(resolve=>setTimeout(resolve,250));
 fs.writeFileSync(${JSON.stringify(join(output, 'binary-results.png'))},(await window.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
-assert.deepEqual(errors,[]);fs.writeFileSync(${JSON.stringify(join(output, 'ui-smoke.json'))},JSON.stringify({passed:true,noPreselectedAnswer:true,requiredAnswerError:true,freeTextSubmission:true,readyQueriesVisible:true,twoResultGroups:true,legacyNegativeMerged:true,pendingSeparate:true,criterionEvidenceVisible:true,rendererErrors:errors},null,2));
+await run('window.semanticSmoke.showOff()');
+await until("document.querySelector('#result-count').innerText.includes('3 / 3 BÀI CHƯA ĐÁNH GIÁ')");
+assert.equal(await run("Array.from(document.querySelectorAll('[data-result-group]')).every(b=>b.hidden)"),true);
+assert.equal(await run("document.querySelector('#opportunity-cards').innerText.includes('Chưa đánh giá')"),true);
+assert.equal(await run("document.querySelector('#opportunity-summary').innerText.includes('1 bài bổ sung')"),true);
+await run("var slider=document.querySelector('#filter-mode');slider.value='0';slider.dispatchEvent(new Event('input',{bubbles:true}));slider.dispatchEvent(new Event('change',{bubbles:true}))");
+await until("document.querySelector('#model-budget').disabled && !document.querySelector('#legacy-config').hidden");
+assert.equal(await run("document.querySelector('#filter-mode-help').innerText.includes('0 USD API')"),true);
+await run("var reuse=document.querySelector('#off-saved-queries');reuse.value='previous-run';reuse.dispatchEvent(new Event('change',{bubbles:true}))");
+await until("document.querySelector('#keywords').value==='cần mua đàn piano'");
+await run("document.getElementById('opportunity-results').scrollIntoView({block:'start',behavior:'instant'})");
+fs.writeFileSync(${JSON.stringify(join(output, 'off-results.png'))},(await window.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+await run("var slider=document.querySelector('#filter-mode');slider.value='2';slider.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#spending-controls').open=true;document.querySelector('#filter-mode').scrollIntoView({block:'start',behavior:'instant'})");
+await until("document.querySelector('#filter-mode-help').innerText.includes('Chất lượng')");
+assert.equal(await run("document.querySelector('#spend-total').value"),'0');
+fs.writeFileSync(${JSON.stringify(join(output, 'filter-controls.png'))},(await window.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+assert.deepEqual(errors,[]);fs.writeFileSync(${JSON.stringify(join(output, 'ui-smoke.json'))},JSON.stringify({passed:true,noPreselectedAnswer:true,requiredAnswerError:true,freeTextSubmission:true,readyQueriesVisible:true,twoResultGroups:true,legacyNegativeMerged:true,pendingSeparate:true,criterionEvidenceVisible:true,offPreview:true,offNoVerdictTabs:true,extrasVisible:true,filterSlider:true,zeroInitialSpendLimit:true,offReusesSavedQueries:true,rendererErrors:errors},null,2));
 window.destroy();app.exit(0);
 }catch(error){console.error(error.message);window?.destroy();app.exit(1)}});`;
 try {

@@ -1,7 +1,7 @@
 # ADR-025 — Phát triển lại CSD với chi phí được kiểm soát
 
 - Ngày: 03/11/2026, Asia/Bangkok.
-- Phạm vi lượt này: lập kế hoạch, kiểm tra thông tin model và tổ chức Git. Chưa triển khai runtime mới.
+- Phạm vi ban đầu: lập kế hoạch, kiểm tra model và tổ chức Git. Người dùng sau đó duyệt triển khai; trạng thái bản ứng viên được cập nhật ở mục 9.
 - Nền: `csd-next-rc7-20261103`, commit `c4c48ed9ec0389ab4e504777a6cbbde1375301f0`.
 - Nhánh hiện hành: `codex/csd-rebuild`.
 - Thay quyết định vận hành của ADR-023/024 cho phần phát triển mới; giữ các mốc cũ để đối chiếu.
@@ -208,6 +208,14 @@ Khi bắt đầu từng chặng, tạo nhánh ngắn `codex/csd-r1-cost`, `codex
 - `codex/csd-production` và remote chưa nhận bản rebuild. Chỉ promote mốc đã được người dùng chấp nhận; local commit không được trình bày như đã publish.
 - File xuất bài người dùng đang có trong workspace, AppData, API key và portable không được stage/commit. Không sửa bộ dữ liệu để làm đẹp kết quả đo.
 
-## 9. Trạng thái sau lượt lập kế hoạch
+## 9. Trạng thái triển khai ngày 03/11/2026
 
-Đã tạo nhánh, ghi kế hoạch/giới hạn phát triển và lưu bằng chứng aggregate; GET model metadata thành công. R1–R6 còn phải triển khai. Runtime/binary RC7 đang có vẫn giữ hành vi cũ cho tới khi bàn giao bản mới; chưa được gọi là đã đổi model hay đã có bộ lọc ba mức.
+Đã triển khai R1–R5 vào nhánh tích hợp `codex/csd-rebuild` qua các nhánh chặng riêng. Bản ứng viên **0.4.0-rebuild.1** có đường OFF miễn phí, mục tiêu chung, cửa sổ theo query, guard chi phí và Standard/Quality theo recipe mới. Giữ nguyên mốc RC7, chưa promote production hoặc push remote.
+
+Kiểm tra offline đã đọc và replay 6.728 snapshot từ bốn nguồn cũ và hai lượt piano, không sửa nguồn; UI thực và module trong gói ASAR đạt. Đã mở 16 cửa sổ Electron thật với trang localhost và đo tài nguyên. Đây chưa phải số đo sức tải Facebook/Threads thật.
+
+R6 mới hoàn tất phần chuẩn bị và bản chạy: mẫu ngẫu nhiên cố định 100/814 bài piano duy nhất đã được đọc, gán nhãn tham chiếu trước khi xem dự đoán candidate; nhãn do một agent đọc, chưa có khách hàng xác nhận. Sau khi người dùng cấp tối đa **25 lần gọi / 0,10 USD tổng / Gemini 2.5 Flash-Lite**, preflight generateContent đầu tiên trả **HTTP 404 MODEL_NOT_AVAILABLE**. Ledger ghi 1 lần gọi, 0 USD, không dự phòng còn treo. Không chạy tiếp 100 bài, không đổi model.
+
+GET metadata và danh sách model vẫn trả 200. Google ghi quyền dùng 2.5 hiện bị giới hạn cho người đã sử dụng trước đó; metadata không xác nhận quyền inference của key/project. [Thông báo của Google](https://aistudio.google.com/docs/models/gemini-2.5-flash-lite).
+
+**Chưa nghiệm thu độ tinh, recall và chi phí/bài của bộ lọc mới.** Không gắn nhãn hoàn tất R4–R6 chỉ từ unit tests. Mẫu, nhãn, script và ngân sách được giữ để tiếp tục khi quyền 2.5 được giải quyết; nếu đổi model phải có quyết định mới của người dùng. Xem [báo cáo bàn giao](../reports/csd-rebuild-candidate-20261103.md) và [bằng chứng tổng hợp](../evidence/csd-rebuild-candidate-20261103.json).

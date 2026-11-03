@@ -3,8 +3,25 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { createDurableSpend, REBUILD_MODEL } from '../src/infrastructure/llm/durable-spend.js';
 import { createGeminiGateway } from '../src/infrastructure/llm/gemini-gateway.js';
+
+test('a custom fetch still requires development authorization and cannot bypass the guard', () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-guard-transport-'));
+  try {
+    const module = new URL('../src/infrastructure/llm/gemini-gateway.js', import.meta.url).href;
+    execFileSync(process.execPath, ['--input-type=module', '-e', `
+      import assert from 'node:assert/strict';
+      import { createGeminiGateway } from ${JSON.stringify(module)};
+      let calls = 0;
+      const gateway = createGeminiGateway({ directory: ${JSON.stringify(join(root, 'run'))}, apiKey: 'fixture', budgetUsd: .01,
+        fetch: async () => { calls++; throw Error('TRANSPORT_MUST_NOT_START'); } });
+      await assert.rejects(gateway.generateJson({purpose:'test', system:'', input:{}, schema:{type:'object'}, max_output_tokens:10}), /MODEL_SPEND_AUTH_REQUIRED/);
+      assert.equal(calls, 0);
+    `], { env: { ...process.env, USERPROFILE: root }, timeout: 10000, stdio: 'pipe' });
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 
 test('durable reservations span callers/restart/day; unknown cost never expires', () => {
   const root = mkdtempSync(join(tmpdir(), 'csd-spend-'));
@@ -33,7 +50,7 @@ test('zero allowance blocks transport; 2.5 defaults use its price and thinkingBu
     let allowed = false, calls = 0;
     const spending = createDurableSpend({ file: join(root, 'ledger.sqlite'), envelope: () => ({ scope: 'USER', model: REBUILD_MODEL,
       totalUsd: allowed ? 0.01 : 0, dailyUsd: allowed ? 0.01 : 0, maxCalls: 2 }) });
-    const gateway = createGeminiGateway({ directory: join(root, 'run'), apiKey: 'fixture', budgetUsd: 0.01, minRequestIntervalMs: 0, spending,
+    const gateway = createGeminiGateway({ mockTransport: true, directory: join(root, 'run'), apiKey: 'fixture', budgetUsd: 0.01, minRequestIntervalMs: 0, spending,
       fetch: async (url, init) => {
         calls++; assert.match(String(url), /gemini-2\.5-flash-lite:generateContent$/);
         assert.deepEqual(JSON.parse(String(init?.body)).generationConfig.thinkingConfig, { thinkingBudget: 0 });
@@ -45,5 +62,19 @@ test('zero allowance blocks transport; 2.5 defaults use its price and thinkingBu
     allowed = true; await gateway.generateJson(request);
     assert.equal(calls, 1); assert.equal(gateway.summary().measured_cost_usd, 0.00014);
     assert.equal(spending.status().measuredUsd, 0.00014);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('settlement disk failure retains uncertain cost without leaving an eternal in-flight allocation', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-spend-settlement-'));
+  try {
+    const gateway = createGeminiGateway({ mockTransport: true, directory: root, apiKey: 'fixture', budgetUsd: .01,
+      spending: { reserve: () => 'reservation', settle: () => { throw Error('SETTLEMENT_DISK_FAILED'); },
+        status: () => ({ calls: 1, measuredUsd: 0, heldUsd: .001, remainingUsd: .009, dailyRemainingUsd: .009 }) },
+      fetch: async () => new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{}' }] } }],
+        usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 10 } })) });
+    await assert.rejects(gateway.generateJson({ purpose: 'test', system: '', input: {}, schema: { type: 'object' }, max_output_tokens: 20 }), /SETTLEMENT_DISK_FAILED/);
+    assert.equal(gateway.summary().reserved_usd, 0);
+    assert.ok(gateway.summary().unmetered_cost_upper_usd > 0);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

@@ -169,7 +169,7 @@ test('default temporal evaluation uses invocation time, and retries retain that 
 
 test('real gateway cache separates as-of times for the same snapshot while identical time reuses the response', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'csd-temporal-cache-')), s = snapshot(); let calls = 0;
-  const gateway = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'synthetic-only', minRequestIntervalMs: 0, maxAttempts: 1,
+  const gateway = createGeminiGateway({ mockTransport: true, directory, budgetUsd: 1, apiKey: 'synthetic-only', minRequestIntervalMs: 0, maxAttempts: 1,
     fetch: async () => { calls++; return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify([item(s)]) }] } }],
       usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 30 } }), { status: 200 }); } });
   try {

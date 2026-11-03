@@ -33,7 +33,7 @@ function plan(topic: string) {
 }
 function transport() {
   const requests: ModelInput[] = [];
-  const factory = (options: { directory: string; budgetUsd: number }) => createCampaignModelGateway({ ...options,
+  const factory = (options: { directory: string; budgetUsd: number }) => createCampaignModelGateway({ mockTransport: true, ...options,
     apiKey: 'synthetic-retained-test-key', minRequestIntervalMs: 0, maxAttempts: 1,
     fetch: async (_url, init) => {
       const body = JSON.parse(String(init?.body)) as { contents: Array<{ parts: Array<{ text: string }> }> };
