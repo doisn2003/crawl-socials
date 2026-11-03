@@ -1,7 +1,8 @@
 export type Platform = 'facebook' | 'threads';
 export interface OpportunityConfig {
+  filterMode?: import('./filter-policy.js').FilterMode;
   enabled: boolean; prompt: string; brandContext: string;
-  totalTarget: number; threadsShare: 0.7 | 0.8; rawCap: number; budgetUsd: number; commentsEnabled: boolean;
+  totalTarget: number; threadsShare?: 0.7 | 0.8; rawCap: number; budgetUsd: number; commentsEnabled: boolean;
 }
 export interface UserSpendLimits { totalUsd: number; dailyUsd: number; maxCalls: number; }
 export interface UserConfig { spendLimits?: UserSpendLimits; performance?: import('./throughput.js').PerformanceMode; keywords: string[]; minimumPosts: number; schemaVersion?: 2; opportunity?: OpportunityConfig; }
@@ -23,6 +24,9 @@ export interface OpportunityPreview {
   conditions?: { label: string; status: 'PASS' | 'FAIL' | 'UNKNOWN'; evidence: string[] }[];
 }
 export interface OpportunityProgress {
+  filterMode?: import('./filter-policy.js').FilterMode;
+  resultPolicy?: 'GLOBAL_FIRST_QUALIFIED';
+  targetCount?: number; extraCount?: number;
   campaignId: string; totalTarget: number; threadsShare: number;
   counts: OpportunityCounts; byPlatform: Record<Platform, OpportunityCounts>;
   costUsd: number; costUpperUsd: number; usageUnknown: number; budgetUsd: number;
@@ -54,6 +58,7 @@ export interface RetainedSourceCatalog {
   issues: Array<{ sourceRootId: string | null; label: string; code: string }>;
 }
 export interface ProductionState {
+  spending?: { measuredUsd: number; heldUsd: number; remainingUsd: number; dailyRemainingUsd: number; calls: number };
   version: string; config: UserConfig; accounts: Account[]; run: RunState | null;
   campaignDraft?: CampaignDraftView;
   campaignDialogue?: import('./semantic-intent.js').CampaignDialogueView;

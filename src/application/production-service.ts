@@ -49,6 +49,7 @@ const storageStopped = (reason: string | null | undefined): boolean => typeof re
 
 export function createProductionService(input: {
   directory: string; version: string; host: ProductionHost;
+  spendingStatus?(): NonNullable<ProductionState['spending']>;
   collect(value: CollectorInput): Promise<CollectorReceipt>;
   collectConversation?(value: ConversationCollectInput): Promise<unknown>;
   resolveThreadsReplyRoot?(value: ReplyRootResolveInput): Promise<ReplyRootResolveReceipt>;
@@ -131,7 +132,7 @@ export function createProductionService(input: {
       if (value.state === 'COMPLETED') value.state = 'STOPPED';
       for (const platform of value.platforms) if (platform.state === 'COMPLETED') { platform.state = 'STOPPED'; platform.reason = 'EVALUATION_REFRESH_REQUIRED'; }
     }
-    if (value.state === 'COMPLETED' && value.opportunity && value.opportunity.counts.suitable < value.opportunity.totalTarget) value.state = 'STOPPED';
+    if (value.state === 'COMPLETED' && value.opportunity && (value.opportunity.targetCount ?? value.opportunity.counts.suitable) < value.opportunity.totalTarget) value.state = 'STOPPED';
     return value;
   }
   // Serialize capture + publication, so an older slow export cannot overwrite the final one.
@@ -235,7 +236,7 @@ export function createProductionService(input: {
   async function getState(): Promise<ProductionState> {
     const accountState = run?.mode === 'RETAINED' ? structuredClone(accountCache) : await accounts();
     // Read the correlated config/draft/run state together after the asynchronous account lookup.
-    return { version: input.version, config: configStore.read(), accounts: accountState, run: presentedRun(), ...campaignState() };
+    return { version: input.version, config: configStore.read(), accounts: accountState, run: presentedRun(), ...campaignState(), ...(input.spendingStatus ? { spending: input.spendingStatus() } : {}) };
   }
   function bindRetainedProgress(current: RunState, value: RetainedImportState) {
     current.retained = { sourceRunId: value.manifest.source.source_run_id, inputHash: value.manifest.input_sha256,
@@ -511,6 +512,7 @@ export function createProductionService(input: {
       starting = true; preparingDraft = true;
       try {
         const config = configStore.read().opportunity; if (!config?.enabled) throw Error('DRAFT_OPPORTUNITY_REQUIRED');
+        if (config.filterMode === 'OFF') throw Error('OFF_MODEL_CALL_FORBIDDEN');
         const configHash = contentHash(config), pointer = readDraftPointer();
         if (pointer?.state === 'CLARIFYING' && pointer.configHash === configHash) return await getState();
         if (pointer?.state === 'READY' && pointer.configHash === configHash) {
@@ -629,7 +631,7 @@ export function createProductionService(input: {
             expectedRevision: draftReference.revision, expectedConfigHash: contentHash(config.opportunity) });
           if (selectedDraft.status !== 'DRAFT') throw Error('DRAFT_ALREADY_STARTED');
         }
-        if (config.opportunity?.enabled && !selectedDraft) throw Error('DRAFT_REQUIRED');
+        if (config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF' && !selectedDraft) throw Error('DRAFT_REQUIRED');
         const selections = (value as { profiles: unknown }).profiles;
         if (!Array.isArray(selections) || selections.length < 1 || selections.length > 2) throw Error('COLLECTION_INPUT_INVALID');
         const available = await accounts(), platforms = new Set<Platform>();
@@ -649,7 +651,7 @@ export function createProductionService(input: {
           if (!input.collectConversation) throw Error('CONVERSATION_COLLECTOR_UNAVAILABLE');
           const current = run;
           atomicJson(join(run.outputDirectory, 'opportunity-config.json'), config.opportunity);
-          pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ directory: run.outputDirectory, runId: id, config: config.opportunity,
+          pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ directory: run.outputDirectory, runId: id, config: config.opportunity, seedQueries: config.keywords,
             ...(selectedDraft ? { campaign: selectedDraft.campaign } : {}),
             platforms: run.platforms.map(p => p.platform), collectConversation: input.collectConversation,
             ...(input.resolveThreadsReplyRoot ? { resolveThreadsReplyRoot: input.resolveThreadsReplyRoot } : {}),

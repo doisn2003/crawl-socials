@@ -37,6 +37,8 @@ export interface CampaignConstraintProvenance {
 export type QueryFamily = 'REQUEST' | 'EXPERIENCE' | 'COMPARISON' | 'PROBLEM' | 'USE_CASE' | 'BROAD';
 export interface CampaignQuery { text: string; family: QueryFamily; platforms: SocialPlatform[] }
 export interface CampaignPlan {
+  filter_mode?: import('../shared/filter-policy.js').FilterMode;
+  result_policy?: 'GLOBAL_FIRST_QUALIFIED';
   schema_version: typeof CAMPAIGN_PLAN_VERSION;
   campaign_id: string;
   version: string;
@@ -97,7 +99,7 @@ export function validateCampaignPlan(plan: CampaignPlan): void {
   if (!w || !Number.isFinite(w.facebook) || !Number.isFinite(w.threads) || w.facebook < 0 || w.threads < 0
     || Math.abs(w.facebook + w.threads - 1) > 1e-9) throw Error('CAMPAIGN_WEIGHTS_INVALID');
   if (!Number.isInteger(plan.budget.raw_cap) || plan.budget.raw_cap < plan.suitable_target
-    || !Number.isFinite(plan.budget.model_usd) || plan.budget.model_usd <= 0
+    || !Number.isFinite(plan.budget.model_usd) || (plan.filter_mode === 'OFF' ? plan.budget.model_usd !== 0 : plan.budget.model_usd <= 0)
     || !Number.isFinite(plan.budget.max_run_minutes) || plan.budget.max_run_minutes <= 0) throw Error('CAMPAIGN_BUDGET_INVALID');
   if (plan.max_age_days !== null && (!Number.isFinite(plan.max_age_days) || plan.max_age_days <= 0)) throw Error('CAMPAIGN_AGE_INVALID');
   if (!plan.queries.length || plan.queries.length > 100) throw Error('CAMPAIGN_QUERIES_INVALID');

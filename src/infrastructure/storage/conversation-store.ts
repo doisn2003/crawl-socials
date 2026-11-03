@@ -154,6 +154,8 @@ export class ConversationStore {
       CREATE INDEX IF NOT EXISTS entities_root ON entities(platform,root_post_id,entity_type);
       CREATE TABLE IF NOT EXISTS conversations(platform TEXT NOT NULL, root_post_id TEXT NOT NULL, snapshot_id TEXT NOT NULL, revision INTEGER NOT NULL, PRIMARY KEY(platform,root_post_id));
       CREATE TABLE IF NOT EXISTS campaign_roots(context_key TEXT NOT NULL, platform TEXT NOT NULL, root_post_id TEXT NOT NULL, PRIMARY KEY(context_key,platform,root_post_id));
+      CREATE TABLE IF NOT EXISTS result_admissions(context_key TEXT NOT NULL, platform TEXT NOT NULL, root_post_id TEXT NOT NULL, accepted_sequence INTEGER NOT NULL,
+        PRIMARY KEY(context_key,platform,root_post_id), UNIQUE(context_key,accepted_sequence));
       CREATE TABLE IF NOT EXISTS snapshots(id TEXT PRIMARY KEY, platform TEXT NOT NULL, root_post_id TEXT NOT NULL, revision INTEGER NOT NULL, content_hash TEXT NOT NULL, observed_at TEXT NOT NULL, payload TEXT NOT NULL, UNIQUE(platform,root_post_id,revision));
       CREATE TABLE IF NOT EXISTS decisions(id TEXT PRIMARY KEY, context_key TEXT NOT NULL, platform TEXT NOT NULL, root_post_id TEXT NOT NULL, snapshot_id TEXT NOT NULL, snapshot_revision INTEGER NOT NULL, classification TEXT, assessment_status TEXT NOT NULL, payload TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS current_decisions(context_key TEXT NOT NULL, platform TEXT NOT NULL, root_post_id TEXT NOT NULL, decision_id TEXT NOT NULL, snapshot_revision INTEGER NOT NULL, PRIMARY KEY(context_key,platform,root_post_id));
@@ -475,6 +477,23 @@ export class ConversationStore {
       return { context: structuredClone(context), conversations: this.results(context, { ranked: true, ...options }, capturedAt), snapshots, decisions: this.decisionHistory(context), decision_snapshots: decisionSnapshots,
         stats: this.stats(context, undefined, capturedAt), by_platform: { facebook: this.stats(context, 'facebook', capturedAt), threads: this.stats(context, 'threads', capturedAt) }, watch: this.watchSummary(undefined, context),
         watermark: { journal_sequence: asNumber(watermark?.sequence), journal_event_id: watermark?.event_id ? String(watermark.event_id) : null, captured_at: capturedAt } };
+    });
+  }
+  selectTarget(context: EvaluationContext, target: number, unassessed = false) {
+    if (!Number.isSafeInteger(target) || target < 1) throw Error('CAMPAIGN_TARGET_INVALID');
+    return this.transaction(() => {
+      const key = contextKey(context);
+      const candidates = unassessed ? this.snapshots().filter(s => s.post).map(snapshot => ({ snapshot, strength: 0, at: snapshot.observed_at }))
+        : this.results(context, { classification: 'SUITABLE' }).filter(r => !r.stale).map(r => ({ snapshot: r.snapshot,
+          strength: Number(r.decision.attributes?.signal_strength ?? 0), at: r.decision.created_at }));
+      candidates.sort((a, b) => b.strength - a.strength || a.at.localeCompare(b.at) || a.snapshot.id.localeCompare(b.snapshot.id));
+      let sequence = Number((this.db.prepare('SELECT COALESCE(MAX(accepted_sequence),0) AS n FROM result_admissions WHERE context_key=?').get(key) as Row).n);
+      const insert = this.db.prepare('INSERT OR IGNORE INTO result_admissions VALUES(?,?,?,?)');
+      for (const { snapshot: s } of candidates) { if (insert.run(key, s.platform, s.root_post_id, sequence + 1).changes) sequence++; }
+      const eligible = new Set(candidates.map(c => c.snapshot.platform + ':' + c.snapshot.root_post_id));
+      const all = (this.db.prepare('SELECT platform,root_post_id,accepted_sequence FROM result_admissions WHERE context_key=? ORDER BY accepted_sequence').all(key) as Row[])
+        .filter(r => eligible.has(r.platform + ':' + r.root_post_id)).map(r => ({ platform: String(r.platform), rootId: String(r.root_post_id), acceptedSequence: Number(r.accepted_sequence) }));
+      return { target: all.slice(0, target), extra: all.slice(target) };
     });
   }
   stats(context: EvaluationContext, platform?: SocialPlatform, asOf = this.iso()): ConversationStats {

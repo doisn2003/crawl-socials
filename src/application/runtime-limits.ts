@@ -23,7 +23,7 @@ function validateCounts(value: ObservedLimitCounts): void {
 
 /** directory is the opportunity folder; read-only, with no journal repair or model-budget reset. */
 export function readEffectiveLimits(directory: string, campaign: CampaignPlan): EffectiveRuntimeLimits {
-  if (!validCap(campaign.budget.raw_cap) || !Number.isFinite(campaign.budget.model_usd) || campaign.budget.model_usd <= 0) throw Error('RUNTIME_LIMIT_BASE_INVALID');
+  if (!validCap(campaign.budget.raw_cap) || !Number.isFinite(campaign.budget.model_usd) || (campaign.filter_mode === 'OFF' ? campaign.budget.model_usd !== 0 : campaign.budget.model_usd <= 0)) throw Error('RUNTIME_LIMIT_BASE_INVALID');
   const original = campaign.budget.raw_cap, campaignHash = contentHash(campaign), file = join(directory, filename);
   let effective = original, previousTime = -Infinity;
   const overrides: RawCapOverride[] = [], ids = new Set<string>();

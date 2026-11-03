@@ -53,7 +53,7 @@ export function createCampaignPlanner(host: PlannerHost) {
   function render() {
     dialogue.render();
     const state = host.state(), draft = state?.campaignDraft, config = host.config().opportunity;
-    node('campaign-planning').hidden = !config?.enabled;
+    node('campaign-planning').hidden = !config?.enabled || config.filterMode === 'OFF';
     const busy = host.busy(), staleEdits = dirty && draft?.revision !== editedRevision;
     const editable = !!draft && draft.status === 'DRAFT' && draft.supported && matches(draft) && !busy && !staleEdits;
     node<HTMLButtonElement>('prepare-campaign').disabled = busy || !config?.prompt.trim();
@@ -175,7 +175,7 @@ export function createCampaignPlanner(host: PlannerHost) {
     const [presetId, presetVersion] = node<HTMLSelectElement>('campaign-preset').value.split(':'), config = host.config().opportunity;
     if (!presetId || !presetVersion || !config) throw Error('PRESET_ID_INVALID');
     const next = await host.api.applyCampaignPreset({ presetId, presetVersion, runtime: { totalTarget: config.totalTarget,
-      threadsShare: config.threadsShare, rawCap: config.rawCap, budgetUsd: config.budgetUsd, commentsEnabled: config.commentsEnabled } });
+      ...(config.filterMode ? { filterMode: config.filterMode } : { threadsShare: config.threadsShare! }), rawCap: config.rawCap, budgetUsd: config.budgetUsd, commentsEnabled: config.commentsEnabled } });
     dirty = false; displayedRevision = ''; node<HTMLDetailsElement>('campaign-plan-editor').open = true; return next;
   }, 'Đã dùng lại bộ lọc, không gọi AI để lập lại kế hoạch.'); });
   // A config blur starts autosave. Preserve focus until click so autosave cannot

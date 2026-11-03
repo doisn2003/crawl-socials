@@ -26,6 +26,7 @@ import type { OpportunityConfig, OpportunityCounts, OpportunityProgress, Platfor
 import { allocatePlatformTargets } from '../shared/platform-targets.js';
 import { isAssessmentTime, type ConversationDecisionInput } from '../domain/conversation-decision.js';
 import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
+import { manualCollectionPlan, unassessedGateway, withFilterPolicy } from './filter-policy.js';
 
 export interface ConversationCollectInput {
   window: WebContents; platform: Platform; root: { id: string; url: string }; runId: string;
@@ -85,6 +86,7 @@ function goalConditions(decision:ConversationDecisionInput) {
 
 /** Runs inference beside discovery; browser enrichment uses the collector's explicit profile yield. */
 export async function createOpportunityPipeline(input: OpportunityPipelineInput) {
+  const off = input.config.filterMode === 'OFF', rebuild = input.config.filterMode !== undefined;
   if (input.maxRunMinutes !== undefined && (!Number.isInteger(input.maxRunMinutes) || input.maxRunMinutes < 1 || input.maxRunMinutes > 240)) throw Error('CAMPAIGN_RUN_MINUTES_INVALID');
   const workerCount = input.classificationWorkers ?? 1;
   if (!Number.isSafeInteger(workerCount) || workerCount < 1 || workerCount > 8) throw Error('CLASSIFICATION_WORKERS_INVALID');
@@ -95,12 +97,12 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   const directory = join(input.directory, 'opportunity'), campaignFile = join(directory, 'campaign.json');
   const campaignExisted = existsSync(campaignFile);
   // Resolve before gateway construction: an interrupted paid planner attempt keeps its recipe.
-  const plannerPin = !input.campaign && !campaignExisted ? pinPlannerRecipe({ directory,
+  const plannerPin = !off && !input.campaign && !campaignExisted ? pinPlannerRecipe({ directory,
     defaultPolicy: GROUNDED_CONSTRAINT_PLANNER_POLICY,
     existingAttempt: ['model', 'model-gemini-3.5-flash-lite'].some(folder => {
       const ledger = join(directory, folder, 'model-ledger.jsonl'); return existsSync(ledger) && statSync(ledger).size > 0;
     }) }) : null;
-  const gateway = input.gateway ?? createCampaignModelGateway({ directory, budgetUsd: input.config.budgetUsd });
+  const gateway = off ? unassessedGateway : input.gateway ?? createCampaignModelGateway({ directory, budgetUsd: input.config.budgetUsd });
   const modelCost = () => {
     const summaries = [...new Set([gateway, ...(!focusedEnabled && input.verifierGateway ? [input.verifierGateway] : [])])].map(g => g.summary());
     const measured = summaries.reduce((sum, s) => sum + s.measured_cost_usd, 0), unknown = summaries.reduce((sum, s) => sum + s.unmetered_cost_upper_usd, 0), reserved = summaries.reduce((sum, s) => sum + s.reserved_usd, 0);
@@ -112,14 +114,17 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   let baselineCampaign: CampaignPlan;
   if (input.campaign) baselineCampaign = input.campaign;
   else if (existsSync(campaignFile)) baselineCampaign = JSON.parse(readFileSync(campaignFile, 'utf8')) as CampaignPlan;
+  else if (off) baselineCampaign = manualCollectionPlan(input.runId, input.config, input.seedQueries ?? []);
   else baselineCampaign = (await compileCampaign({ prompt: input.config.prompt, brand_context: input.config.brandContext || null,
     planner_policy: plannerPin!.planner_policy,
     campaign_id: input.runId, suitable_target: input.config.totalTarget,
-    desired_platform_weights: { threads: input.config.threadsShare, facebook: 1 - input.config.threadsShare },
+    desired_platform_weights: { threads: input.config.threadsShare ?? 0.5, facebook: 1 - (input.config.threadsShare ?? 0.5) },
     raw_cap: input.config.rawCap, model_usd: input.config.budgetUsd,
     ...(input.maxRunMinutes === undefined ? {} : { max_run_minutes: input.maxRunMinutes }),
     ...(input.seedQueries?.length ? { seed_queries: input.seedQueries } : {}) }, gateway,
   { signal: controller.signal })).campaign;
+  if (!campaignExisted) baselineCampaign = withFilterPolicy(baselineCampaign, input.config.filterMode);
+  if (campaignExisted && baselineCampaign.filter_mode !== input.config.filterMode) throw Error('FILTER_MODE_REVISION_REQUIRED');
   validateCampaignPlan(baselineCampaign);
   let recipe: ReturnType<typeof classifierRecipe>;
   try { recipe = classifierRecipe(baselineCampaign.filter_version); } catch { throw Error('CAMPAIGN_FILTER_UPGRADE_REQUIRED'); }
@@ -137,7 +142,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   const activeEvaluation = readActiveEvaluation(directory, baselineCampaign), focusedEnabled = activeEvaluation !== null;
   const campaign = activeEvaluation?.campaign ?? baselineCampaign;
   const temporalEnabled = [TEMPORAL_OPPORTUNITY_FILTER_VERSION, GOAL_FILTER_VERSION].includes(campaign.filter_version);
-  const platformTargets = allocatePlatformTargets(campaign.suitable_target, campaign.desired_platform_weights, input.platforms);
+  const platformTargets = rebuild ? { facebook: Infinity, threads: Infinity } : allocatePlatformTargets(campaign.suitable_target, campaign.desired_platform_weights, input.platforms);
   const runtimeLimits = readEffectiveLimits(directory, baselineCampaign);
   const baseStore = input.store ?? await createAsyncConversationStore(join(directory, 'store'));
   const leases = keepJobLeases(baseStore, { onError: error => { lastError = safeCode(error); modelHalted = true; controller.abort(); } });
@@ -153,6 +158,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   const activeEnrich = new Set<string>();
   const enrichmentBlocked = new Set<Platform>();
   let progress: OpportunityProgress = { campaignId: campaign.campaign_id, totalTarget: campaign.suitable_target,
+    ...(rebuild ? { filterMode: input.config.filterMode!, resultPolicy: 'GLOBAL_FIRST_QUALIFIED' as const } : {}),
     evaluationPolicy: campaign.filter_version === GOAL_FILTER_VERSION ? 'GOAL_EVIDENCE' : 'LEGACY',
     threadsShare: campaign.desired_platform_weights.threads, counts: emptyCounts(), byPlatform: { facebook: emptyCounts(), threads: emptyCounts() },
     costUsd: 0, costUpperUsd: 0, usageUnknown: 0, budgetUsd: input.config.budgetUsd, phase: 'COLLECTING', lastError: null, preview: [] };
@@ -180,23 +186,25 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
         }
       }
       const money = modelCost();
+      const selected = rebuild ? await store.selectTarget(context, campaign.suitable_target, off) : null;
       const watch = await store.watchSummary(input.platforms);
       const assessment = temporalEnabled ? await store.assessmentSummary(context, { now: now().toISOString() }) : null;
       const hasClassificationWork = discoveryEnded && !stopped && !modelHalted && (await classificationBacklog()).length > 0;
       progress = { ...progress, counts: counts(total), byPlatform: { facebook: counts(facebook), threads: counts(threads) },
+        ...(selected ? { targetCount: selected.target.length, extraCount: selected.extra.length } : {}),
         classificationWorkers: workerCount, modelScheduling: gateway.summary().scheduling,
         costUsd: money.measured_cost_usd, costUpperUsd: money.measured_cost_usd + money.unmetered_cost_upper_usd + money.reserved_usd,
         usageUnknown: money.unmetered_cost_upper_usd > 0 ? 1 : 0, lastError, preview,
         watchPending: watch.pending, watchNextAt: watch.next_at, watchActive: watchEnabled,
         ...(assessment ? { assessmentPending: assessment.pending, assessmentNextAt: modelHalted ? assessment.next_future_at : assessment.next_at, assessmentActive } : {}),
-        phase: stopped ? 'PAUSED' : modelHalted ? 'MODEL_PAUSED' : watchEnabled || assessmentActive ? 'WATCHING' : discoveryEnded ? hasClassificationWork ? 'PROCESSING' : total.pending ? 'PARTIAL' : 'SETTLED' : 'COLLECTING' };
+        phase: stopped ? 'PAUSED' : modelHalted ? 'MODEL_PAUSED' : watchEnabled || assessmentActive ? 'WATCHING' : discoveryEnded ? off ? 'SETTLED' : hasClassificationWork ? 'PROCESSING' : total.pending ? 'PARTIAL' : 'SETTLED' : 'COLLECTING' };
       atomicJson(join(directory, 'progress.json'), progress); input.onProgress?.(structuredClone(progress));
       } while (publishDirty && !closed);
     })().finally(() => { publishWork = null; });
     return publishWork;
   }
   function schedule(delayMs = 1500) {
-    if (retained || stopped || closed || modelHalted || pendingTimer || pumpWork) return;
+    if (off || retained || stopped || closed || modelHalted || pendingTimer || pumpWork) return;
     pendingTimer = setTimeout(() => { pendingTimer = null; void pump().catch(error => { lastError = safeCode(error); modelHalted = true; void publish(); }); }, delayMs);
   }
   async function classificationBacklog() {
@@ -219,7 +227,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   }
   async function pump() {
     if (pumpWork) return pumpWork;
-    if (importing || stopped || closed || modelHalted) return;
+    if (off || importing || stopped || closed || modelHalted) return;
     pumpWork = (async () => {
       const outcomes = await Promise.allSettled(Array.from({ length: workerCount }, (_, workerIndex) => (async () => {
       while (!stopped && !modelHalted) {
@@ -344,7 +352,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     schedule(); await publish();
   }
   async function enrich(platform: Platform, window: WebContents, externalStop: () => boolean, limit = 3, types: ConversationJobType[] = ['ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'REVISIT'], preferredQuery?: string) {
-    if (retained || stopped || closed || storageStopReason || !input.config.commentsEnabled || enrichmentBlocked.has(platform)) return;
+    if (off || retained || stopped || closed || storageStopReason || !input.config.commentsEnabled || enrichmentBlocked.has(platform)) return;
     const buckets = types.includes('ENRICH_CONVERSATION') ? await store.enrichmentQueries(platform) : [];
     let nextBucket = 0, preferCurrent = Boolean(preferredQuery?.trim()) && types.includes('ENRICH_CONVERSATION');
     let resolveSlots = types.includes('ROOT_RESOLVE') && platform === 'threads' && input.resolveThreadsReplyRoot ? (types.length === 1 ? limit : 1) : 0;
@@ -517,6 +525,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     watchEnabled = true; await publish(); await armWatch(); return watchEnabled;
   }
   function targetReached() {
+    if (rebuild) return (progress.targetCount ?? 0) >= campaign.suitable_target;
     const total = progress.counts.suitable;
     return total >= campaign.suitable_target && input.platforms.every(platform => progress.byPlatform[platform].suitable >= platformTargets[platform]);
   }
@@ -524,7 +533,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     if (stopped) return 'USER_STOP';
     if (enrichmentBlocked.has(platform)) return 'ACCOUNT_BARRIER';
     if (storageStopReason) return storageStopReason;
-    if (modelHalted) return 'MODEL_PAUSED';
+    if (modelHalted && !rebuild) return 'MODEL_PAUSED';
     if (progress.counts.raw >= runtimeLimits.effective_raw_cap) return 'RAW_BUDGET_REACHED';
     if (targetReached() || progress.byPlatform[platform].suitable >= platformTargets[platform]) return 'INTENT_TARGET_REACHED';
     return null;
@@ -540,7 +549,8 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
           storageUsage = await measureStorageUsage({ directory: input.directory, pendingBytes: backlog.total_bytes, limits: storagePolicy.limits });
           const pressure = evaluateStoragePressure(storagePolicy.limits, storageUsage);
           if (pressure.state === 'STOP') storageStopReason = pressure.reason;
-          else if ((pressure.state === 'BACKLOG' || backlog.jobs > 128) && !modelHalted) { schedule(0); await sleep(250); continue; }
+          else if (rebuild && pressure.state === 'BACKLOG') storageStopReason = pressure.reason;
+          else if (!rebuild && (pressure.state === 'BACKLOG' || backlog.jobs > 128) && !modelHalted) { schedule(0); await sleep(250); continue; }
         } catch (error) {
           const reason = safeCode(error); storageStopReason = reason.startsWith('STORAGE_') ? reason : 'STORAGE_MEASUREMENT_FAILED';
         }
@@ -564,6 +574,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     async drain() {
       importing = false;
       discoveryEnded = true;
+      if (off) { await store.pause({ context }); await publish(); return; }
       await requestDueAssessments();
       while (!stopped && !modelHalted) {
         if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
@@ -597,6 +608,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
         root_resolution: { attempt_limit: 50, attempts: resolutionJobs.reduce((sum, job) => sum + job.attempts, 0),
         jobs: resolutionJobs.length, succeeded_jobs: resolutionJobs.filter(job => job.state === 'SUCCEEDED').length,
         remaining_jobs: resolutionJobs.filter(job => ['PENDING', 'RETRY', 'PAUSED', 'RUNNING'].includes(job.state)).length },
+        ...(rebuild ? { selection: await store.selectTarget(context, campaign.suitable_target, off) } : {}),
         progress: exportedProgress, conversations: exported.conversations, snapshots: exported.snapshots, decisions: exported.decisions,
         decision_snapshots: exported.decision_snapshots, watermark: exported.watermark, cost: modelCost(), cost_captured_at: new Date().toISOString() };
     },

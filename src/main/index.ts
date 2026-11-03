@@ -22,6 +22,7 @@ import { runParallelCollectors } from '../application/parallel-collector.js';
 import { createUserConfigStore } from '../infrastructure/config/user-config.js';
 import { throughput, GEMINI_35_PROJECT_LIMITS } from '../shared/throughput.js';
 import { createRequestScheduler, type RequestScheduler } from '../infrastructure/llm/request-scheduler.js';
+import { unassessedGateway } from '../application/filter-policy.js';
 import { createDurableSpend, REBUILD_MODEL } from '../infrastructure/llm/durable-spend.js';
 
 async function bootstrap() {
@@ -58,8 +59,8 @@ async function bootstrap() {
   const profiles = createBrowserProfiles(join(paths.userData, 'data'));
   const browserHost = createBrowserHost({ profiles, secrets: createElectronSecretStore(join(paths.userData, 'secrets')),
     journalDirectory: join(paths.userData, 'data', 'session-snapshots'), manualLoginEnabled: true, backgroundThrottling: false });
-  const service = createProductionService({ directory: join(paths.userData, 'data'), version: app.getVersion(), host: browserHost,
-    createOpportunity: value => createOpportunityPipeline({ ...value, classificationWorkers: 2, gateway: createCampaignModelGateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd, apiKey: geminiKey.current, schedulerForModel, spending }) }),
+  const service = createProductionService({ directory: join(paths.userData, 'data'), version: app.getVersion(), host: browserHost, spendingStatus: () => spending.status(),
+    createOpportunity: value => createOpportunityPipeline({ ...value, classificationWorkers: 2, gateway: value.config.filterMode === 'OFF' ? unassessedGateway : createCampaignModelGateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd, apiKey: geminiKey.current, schedulerForModel, spending }) }),
     prepareCampaignDraft: value => prepareSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current, schedulerForModel, spending }) }),
     continueCampaignDraft: value => continueSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current, schedulerForModel, spending }) }),
     async collect(value: CollectorInput): Promise<CollectorReceipt> {
