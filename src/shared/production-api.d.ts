@@ -3,7 +3,7 @@ export interface OpportunityConfig {
   enabled: boolean; prompt: string; brandContext: string;
   totalTarget: number; threadsShare: 0.7 | 0.8; rawCap: number; budgetUsd: number; commentsEnabled: boolean;
 }
-export interface UserConfig { keywords: string[]; minimumPosts: number; schemaVersion?: 2; opportunity?: OpportunityConfig; }
+export interface UserConfig { performance?: import('./throughput.js').PerformanceMode; keywords: string[]; minimumPosts: number; schemaVersion?: 2; opportunity?: OpportunityConfig; }
 export interface Account {
   id: string; label: string; platform: Platform; authenticated: boolean;
   open: boolean; persistenceError: string | null;
@@ -12,6 +12,7 @@ export interface PlatformRun {
   platform: Platform; profileId: string | null;
   state: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'STOPPED' | 'FAILED';
   count: number; reason: string | null;
+  workers?: Array<{ worker: number; query: string; state: string; reason: string | null }>;
 }
 export interface PostPreview { platform: Platform; post_id: string; text: string; query: string; link: string; }
 export interface OpportunityCounts { raw: number; comments: number; suitable: number; notSuitable?: number; /** Legacy count fields retained for historical runs. */ notYet: number; unrelated: number; pending: number; failed: number; }
@@ -26,6 +27,8 @@ export interface OpportunityProgress {
   costUsd: number; costUpperUsd: number; usageUnknown: number; budgetUsd: number;
   phase: string; lastError: string | null; preview: OpportunityPreview[];
   evaluationPolicy?: 'GOAL_EVIDENCE' | 'LEGACY';
+  modelScheduling?: import('./throughput.js').RequestScheduleStatus | undefined;
+  classificationWorkers?: number;
   watchPending?: number; watchNextAt?: string | null; watchActive?: boolean;
   assessmentPending?: number; assessmentNextAt?: string | null; assessmentActive?: boolean;
 }

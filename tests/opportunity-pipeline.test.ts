@@ -66,6 +66,27 @@ async function until(predicate: () => boolean, timeoutMs = 6000): Promise<void> 
 }
 async function closeAndRemove(pipeline: OpportunityPipeline, directory: string): Promise<void> { await pipeline.close(); rmSync(directory, { recursive: true, force: true }); }
 
+test('parallel classification drains every retained snapshot once with bounded batches and identical decisions', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'csd-parallel-pipeline-'));
+  let activeCalls = 0, peak = 0; const seen: string[] = [];
+  const model = gateway(async request => {
+    const rows = (request.input as { conversations: ModelConversation[] }).conversations;
+    assert.ok(rows.length <= 8); seen.push(...rows.map(row => row.snapshot_id));
+    peak = Math.max(peak, ++activeCalls); await sleep(40); activeCalls--; return modelResult(request);
+  });
+  const pipeline = await createOpportunityPipeline({ directory, runId: 'parallel-classify',
+    config: { enabled: true, prompt: 'Tìm quán cafe', brandContext: '', totalTarget: 100, threadsShare: .8, rawCap: 300, budgetUsd: 3, commentsEnabled: false },
+    platforms: ['threads'], campaign: campaign(), gateway: model, classificationWorkers: 4, processingMode: 'RETAINED', assessmentTime: '2026-11-03T00:00:00Z',
+    collectConversation: async () => { throw Error('UNEXPECTED_BROWSER'); } });
+  try {
+    await pipeline.ingest(Array.from({ length: 40 }, (_, index) => observation('parallel-' + index)));
+    await pipeline.drain(); const result = await pipeline.results();
+    assert.ok(peak > 1 && peak <= 4); assert.equal(new Set(seen).size, 40); assert.equal(seen.length, 40);
+    assert.equal(result.progress.counts.suitable, 40); assert.equal(result.progress.counts.failed, 0);
+    assert.equal((await pipeline.store.jobs(['RUNNING'], pipeline.context)).length, 0);
+  } finally { await closeAndRemove(pipeline, directory); }
+});
+
 test('direct planner pins grounded recipe before billing, preserves interrupted legacy attempts and skips replanning saved campaigns', async () => {
   for (const legacy of [false, true]) {
     const directory = mkdtempSync(join(tmpdir(), 'csd-direct-planner-'));

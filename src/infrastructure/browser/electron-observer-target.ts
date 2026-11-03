@@ -26,7 +26,7 @@ export function electronObserverTarget(contents: WebContents): ObserverTarget {
     },
   };
 }
-export function createOwnedObserverResolver(host: BrowserHost) {
+export function createOwnedObserverResolver(host: Pick<BrowserHost, 'observerTarget'>) {
   const cache = new WeakMap<WebContents, ObserverTarget>();
   return (owner: ObserverOwner): ObserverTarget | null => {
     const target = host.observerTarget(owner.profileId);

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { appendFileSync, closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, truncateSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { setTimeout as wait } from 'node:timers/promises';
+import { createRequestScheduler, retryDelayMs, type RequestScheduler } from './request-scheduler.js';
 import { ModelGatewayError } from '../../application/ports/model-gateway.js';
 import type { JsonModelRequest, JsonModelResult, ModelGateway, ModelLedgerSummary, ModelPrice, ModelUsage } from '../../application/ports/model-gateway.js';
 import type { SharedModelBudget } from './shared-model-budget.js';
@@ -77,6 +77,7 @@ export interface GeminiGatewayOptions {
   directory: string;
   budgetUsd: number;
   sharedBudget?: SharedModelBudget;
+  scheduler?: RequestScheduler;
   model?: string;
   price?: ModelPrice;
   apiKey?: string | (() => string | null);
@@ -142,7 +143,7 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
   mkdirSync(options.directory, { recursive: true });
   const file = join(options.directory, 'model-ledger.jsonl');
   const starts = new Map<string, StartEvent>(), finishes = new Set<string>(), cache = new Map<string, JsonModelResult>();
-  let spent = 0, unknownUpper = 0, reserved = 0, attempts = 0, cacheHits = 0, nextAllowed = 0;
+  let spent = 0, unknownUpper = 0, reserved = 0, attempts = 0, cacheHits = 0;
   let fatalCode: string | null = null;
   for (const event of readLedger(file)) {
     if (event.type === 'START') { starts.set(event.invocation_id, event); attempts++; }
@@ -162,12 +163,13 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
   };
   const transport = options.fetch ?? globalThis.fetch;
   const inFlight = new Map<string, Promise<JsonModelResult>>();
-  let serial: Promise<unknown> = Promise.resolve();
+  const scheduler = options.scheduler ?? createRequestScheduler({ concurrency: 1, rpm: 1_000_000,
+    inputTpm: 1_000_000_000, rpd: 1_000_000_000, minIntervalMs: minInterval });
 
   const summary = (): ModelLedgerSummary => ({ model, budget_usd: options.budgetUsd, measured_cost_usd: spent,
     unmetered_cost_upper_usd: unknownUpper, reserved_usd: reserved,
     remaining_usd: Math.min(Math.max(0, options.budgetUsd - spent - unknownUpper - reserved), options.sharedBudget?.remaining() ?? Infinity),
-    billable_attempts: attempts, cache_hits: cacheHits, cost_basis: 'TOKEN_USAGE_AT_SNAPSHOT_LIST_PRICE_NOT_INVOICE' });
+    billable_attempts: attempts, cache_hits: cacheHits, scheduling: scheduler.status(), cost_basis: 'TOKEN_USAGE_AT_SNAPSHOT_LIST_PRICE_NOT_INVOICE' });
 
   async function perform(request: JsonModelRequest, hash: string): Promise<JsonModelResult> {
     request.signal?.throwIfAborted();
@@ -195,14 +197,17 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
       + request.max_output_tokens * price.output_per_million) / 1_000_000;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       request.signal?.throwIfAborted();
-      const delay = Math.max(0, nextAllowed - Date.now());
-      if (delay) await wait(delay, undefined, { signal: request.signal });
+      // UTF-8 bytes + envelope allowance is a conservative input-token reservation.
+      const lease = await scheduler.acquire(Buffer.byteLength(body) + 1024, request.signal);
+      let actualInputTokens: number | undefined;
+      try {
       request.signal?.throwIfAborted();
+      if (fatalCode) throw new ModelGatewayError(fatalCode);
       if (spent + unknownUpper + reserved + upper > options.budgetUsd || options.sharedBudget?.canReserve(upper) === false) throw new ModelGatewayError('MODEL_BUDGET_EXHAUSTED');
       const invocation = randomUUID(), started = Date.now();
       append({ type: 'START', invocation_id: invocation, request_hash: hash, purpose: request.purpose, model,
         started_at: new Date(started).toISOString(), reserved_usd: upper, price });
-      reserved += upper; attempts++; nextAllowed = started + minInterval;
+      reserved += upper; attempts++;
       accountBudget();
       let response: Response | null = null, payload: Record<string, unknown> | null = null;
       let errorCode: string | null = null, usage: ModelUsage | null = null, value: unknown;
@@ -229,6 +234,7 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
       } catch {
         errorCode = request.signal?.aborted ? 'MODEL_ABORTED_USAGE_UNKNOWN' : 'MODEL_NETWORK_USAGE_UNKNOWN';
       }
+      actualInputTokens = usage?.input_tokens;
       const cost = usage ? pricedUsage(usage, price) : response && !response.ok && response.status < 500 ? 0 : null;
       const unknown = cost === null ? upper : 0;
       const result: JsonModelResult | null = valid ? { value, invocation_id: invocation, request_hash: hash, model,
@@ -239,16 +245,17 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
         result, cost_usd: cost, unmetered_cost_upper_usd: unknown, error_code: errorCode, http_status: response?.status ?? null });
       reserved -= upper; spent += cost ?? 0; unknownUpper += unknown;
       accountBudget();
+      if (response?.status === 429 || response?.status === 503) scheduler.cooldown(retryDelayMs(response, payload, 5000 * attempt));
       if (result) { cache.set(hash, result); return result; }
       const permanent = response ? permanentFailure(response.status, payload) : null;
       if (permanent) { fatalCode = permanent; throw new ModelGatewayError(permanent, false, invocation); }
       const retryable = !request.signal?.aborted && (response?.status === 429 || (response?.status ?? 0) >= 500 || response === null);
       if (retryable && attempt < maxAttempts) {
-        const retryAfter = Number(response?.headers.get('retry-after'));
-        nextAllowed = Math.max(nextAllowed, Date.now() + Math.min(60_000, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 5000 * attempt));
+        if (response?.status !== 429 && response?.status !== 503) scheduler.cooldown(5000 * attempt);
         continue;
       }
       throw new ModelGatewayError(errorCode ?? 'MODEL_UNKNOWN_FAILURE', retryable, invocation);
+      } finally { lease.finish(actualInputTokens); }
     }
     throw new ModelGatewayError('MODEL_ATTEMPTS_EXHAUSTED');
   }
@@ -262,8 +269,7 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
     if (cached) { cacheHits++; return Promise.resolve({ ...cached, cache_hit: true, elapsed_ms: 0 }); }
     const existing = inFlight.get(hash);
     if (existing) return existing.then(result => { cacheHits++; return { ...result, cache_hit: true }; });
-    const operation = serial.then(() => perform(request, hash));
-    serial = operation.catch(() => undefined);
+    const operation = perform(request, hash);
     inFlight.set(hash, operation);
     void operation.finally(() => inFlight.delete(hash)).catch(() => undefined);
     return operation;

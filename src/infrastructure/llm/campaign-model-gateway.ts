@@ -32,6 +32,7 @@ export interface CampaignModelGatewayOptions extends Omit<GeminiGatewayOptions, 
   /** The opportunity directory containing model/, not the legacy model directory itself. */
   directory: string;
   primaryModel?: CampaignPrimaryModel;
+  schedulerForModel?: (model: CampaignPrimaryModel) => import('./request-scheduler.js').RequestScheduler;
   /** Safe audit code only; never pass raw provider messages or credentials. */
   selectionReason?: string;
 }
@@ -76,10 +77,11 @@ export function createCampaignModelGateway(options: CampaignModelGatewayOptions)
   const active = options.primaryModel ?? inferred;
   const pool = options.sharedBudget ?? createSharedModelBudget(options.budgetUsd);
   if (Math.abs(pool.limitUsd - options.budgetUsd) > 1e-9) throw new ModelGatewayError('MODEL_BUDGET_LIMIT_MISMATCH');
-  const { primaryModel: _selection, selectionReason: _reason, directory: _directory, ...transportOptions } = options;
+  const { primaryModel: _selection, selectionReason: _reason, directory: _directory, schedulerForModel, ...transportOptions } = options;
   const gateways = new Map<CampaignPrimaryModel, ModelGateway>();
   for (const model of CAMPAIGN_PRIMARY_MODELS) {
     gateways.set(model, createGeminiGateway({ ...transportOptions, budgetUsd: options.budgetUsd, sharedBudget: pool, model,
+      ...(schedulerForModel ? { scheduler: schedulerForModel(model) } : {}),
       directory: model === 'gemini-3.1-flash-lite' ? legacyDirectory : join(directory, 'model-gemini-3.5-flash-lite'),
       price: model === 'gemini-3.1-flash-lite' ? GEMINI_FLASH_LITE_PRICE : GEMINI_35_FLASH_LITE_PRICE }));
   }
@@ -91,6 +93,7 @@ export function createCampaignModelGateway(options: CampaignModelGatewayOptions)
       unmetered_cost_upper_usd: parts.reduce((sum, part) => sum + part.unmetered_cost_upper_usd, 0),
       reserved_usd: parts.reduce((sum, part) => sum + part.reserved_usd, 0), remaining_usd: pool.remaining(),
       billable_attempts: parts.reduce((sum, part) => sum + part.billable_attempts, 0),
+      scheduling: gateways.get(active)!.summary().scheduling,
       cache_hits: parts.reduce((sum, part) => sum + part.cache_hits, 0),
       cost_basis: 'TOKEN_USAGE_AT_SNAPSHOT_LIST_PRICE_NOT_INVOICE', components: parts };
   };
