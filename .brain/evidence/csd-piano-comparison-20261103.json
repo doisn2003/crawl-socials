@@ -1,0 +1,415 @@
+{
+  "schemaVersion": 1,
+  "milestone": "R7",
+  "version": "0.4.0-rebuild.2",
+  "date": "2026-11-03",
+  "timezone": "Asia/Bangkok",
+  "runtimeSourceCommit": "704e75d23ae6f141cdbb2445d9becc4ea14786da",
+  "analysis": {
+    "task": {
+      "id": "piano-comparison-20261103",
+      "prompt": "Tìm người dùng đang có nhu cầu học chơi đàn piano. Tìm người muốn mua đàn piano hoặc thuê đàn piano. Tìm những người đang bàn luận về đàn piano. Tìm những người chia sẻ câu chuyện của họ về piano. Tìm những người đam mê âm nhạc, đam mê piano",
+      "model": "gemini-3.1-flash-lite",
+      "targetPerMode": 1000,
+      "rawCap": 10000,
+      "maxTaskUsd": 6,
+      "maxTaskCalls": 1500,
+      "startingSpending": {
+        "measuredUsd": 0,
+        "heldUsd": 0,
+        "remainingUsd": 0.1,
+        "dailyRemainingUsd": 0.1,
+        "calls": 1
+      },
+      "startedAt": "2026-11-03T11:24:56.567Z",
+      "source": "Explicit user authorization in chat: Gemini 3.1 Flash-Lite, STANDARD + QUALITY, per-keyword Electron windows, total maximum USD 6.",
+      "clarification": {
+        "question": "Nhánh đam mê âm nhạc nói chung hay chỉ piano?",
+        "userAnswer": "Chỉ bài liên quan đến piano",
+        "effect": "Existing frozen piano-scoped goal confirmed; no relabelling or query broadening to general music."
+      }
+    },
+    "raw": 3222,
+    "counts": {
+      "STANDARD": {
+        "total": 3222,
+        "NOT_SUITABLE": 1611,
+        "SUITABLE": 1356,
+        "PENDING": 255,
+        "platforms": {
+          "facebook": {
+            "NOT_SUITABLE": 393,
+            "SUITABLE": 332,
+            "PENDING": 21
+          },
+          "threads": {
+            "SUITABLE": 1024,
+            "NOT_SUITABLE": 1218,
+            "PENDING": 234
+          }
+        },
+        "pendingReasons": {
+          "COVERAGE_ITEM_MISSING": 58,
+          "COVERAGE_EVIDENCE_REQUIRED": 189,
+          "COVERAGE_FORMAT_INVALID": 7,
+          "COVERAGE_NO_TEXT_EVIDENCE": 1
+        },
+        "target": 1000,
+        "extra": 356
+      },
+      "QUALITY": {
+        "total": 3222,
+        "NOT_SUITABLE": 1726,
+        "SUITABLE": 1005,
+        "PENDING": 491,
+        "platforms": {
+          "facebook": {
+            "NOT_SUITABLE": 402,
+            "SUITABLE": 287,
+            "PENDING": 57
+          },
+          "threads": {
+            "SUITABLE": 718,
+            "PENDING": 434,
+            "NOT_SUITABLE": 1324
+          }
+        },
+        "pendingReasons": {
+          "COVERAGE_QUALITY_EVIDENCE_REQUIRED": 362,
+          "COVERAGE_EVIDENCE_REQUIRED": 96,
+          "COVERAGE_REVIEW_DISAGREEMENT": 30,
+          "COVERAGE_FORMAT_INVALID": 2,
+          "COVERAGE_NO_TEXT_EVIDENCE": 1
+        },
+        "target": 1000,
+        "extra": 5
+      }
+    },
+    "overlap": {
+      "--": 1861,
+      "SQ": 1000,
+      "S-": 356,
+      "-Q": 5
+    },
+    "dataQuality": {
+      "missingPost": 0,
+      "emptyText": 1,
+      "missingUrl": 0,
+      "missingPublishedAt": 0,
+      "comments": 0,
+      "duplicateExactTextBeyondFirst": 88,
+      "platforms": {
+        "facebook": 746,
+        "threads": 2476
+      }
+    },
+    "totalCost": 1.2538470000000013,
+    "held": 0,
+    "calls": 1070,
+    "tokenUsage": {
+      "input": 2406402,
+      "output": 434831,
+      "thinking": 0,
+      "cachedInput": 0
+    },
+    "costByPurpose": {
+      "access-preflight": {
+        "calls": 1,
+        "usd": 9.75e-06,
+        "held": 0
+      },
+      "campaign-planner-v2.0.0-semantic-dialogue": {
+        "calls": 1,
+        "usd": 0.00416225,
+        "held": 0
+      },
+      "coverage-standard-v1": {
+        "calls": 671,
+        "usd": 0.8241202500000004,
+        "held": 0
+      },
+      "coverage-quality-v1": {
+        "calls": 396,
+        "usd": 0.4249807499999998,
+        "held": 0
+      },
+      "coverage-query-expansion-v1": {
+        "calls": 1,
+        "usd": 0.000574,
+        "held": 0
+      }
+    },
+    "modeCost": {
+      "STANDARD": 0.7383820000000001,
+      "QUALITY": 0.5107189999999997
+    },
+    "commonCost": 0.004746000000001471,
+    "failureOccurrences": {
+      "STANDARD:COVERAGE_BATCH_INCOMPLETE": 8,
+      "STANDARD:COVERAGE_ITEM_MISSING": 97,
+      "STANDARD:COVERAGE_EVIDENCE_REQUIRED": 279,
+      "QUALITY:COVERAGE_EVIDENCE_REQUIRED": 161,
+      "QUALITY:COVERAGE_REVIEW_ITEM_INVALID": 21,
+      "QUALITY:COVERAGE_ROLE_CONFLICT": 1,
+      "STANDARD:COVERAGE_FORMAT_INVALID": 7,
+      "QUALITY:COVERAGE_FORMAT_INVALID": 2,
+      "STANDARD:COVERAGE_NO_TEXT_EVIDENCE": 1,
+      "QUALITY:COVERAGE_NO_TEXT_EVIDENCE": 1
+    },
+    "metrics": {
+      "STANDARD": {
+        "sampleSize": 120,
+        "tp": 37,
+        "fp": 8,
+        "fn": 3,
+        "tn": 62,
+        "unknown": 10,
+        "unknownAccepted": 8,
+        "pending": 7,
+        "acceptedInSample": 53,
+        "precisionKnown": 0.8222222222222222,
+        "precisionWilson95": [
+          0.6866989315634587,
+          0.9070572107414617
+        ],
+        "recallKnown": 0.925,
+        "recallWilson95": [
+          0.8013546984090248,
+          0.9741644432281419
+        ],
+        "precisionBoundsIncludingUnknown": [
+          0.6981132075471698,
+          0.8490566037735849
+        ]
+      },
+      "QUALITY": {
+        "sampleSize": 120,
+        "tp": 31,
+        "fp": 4,
+        "fn": 9,
+        "tn": 66,
+        "unknown": 10,
+        "unknownAccepted": 4,
+        "pending": 18,
+        "acceptedInSample": 39,
+        "precisionKnown": 0.8857142857142857,
+        "precisionWilson95": [
+          0.7404820521187976,
+          0.9546489414551025
+        ],
+        "recallKnown": 0.775,
+        "recallWilson95": [
+          0.6249660359590695,
+          0.8768404674532148
+        ],
+        "precisionBoundsIncludingUnknown": [
+          0.7948717948717948,
+          0.8974358974358975
+        ]
+      }
+    },
+    "deliveredMetrics": {
+      "STANDARD": {
+        "sampledDelivered": 40,
+        "yes": 26,
+        "no": 6,
+        "unknown": 8,
+        "precisionKnown": 0.8125,
+        "precisionWilson95": [
+          0.6469050424507756,
+          0.9111057606383721
+        ],
+        "precisionBoundsIncludingUnknown": [
+          0.65,
+          0.85
+        ]
+      },
+      "QUALITY": {
+        "sampledDelivered": 38,
+        "yes": 30,
+        "no": 4,
+        "unknown": 4,
+        "precisionKnown": 0.8823529411764706,
+        "precisionWilson95": [
+          0.7337882520370121,
+          0.9532862902656388
+        ],
+        "precisionBoundsIncludingUnknown": [
+          0.7894736842105263,
+          0.8947368421052632
+        ]
+      }
+    },
+    "referenceBranches": {
+      "UNKNOWN": 10,
+      "LEARN": 9,
+      "PASSION": 6,
+      "UNRELATED": 46,
+      "AD": 24,
+      "STORY": 8,
+      "BUY_RENT": 9,
+      "DISCUSS": 8
+    },
+    "deliveryQuality": {
+      "STANDARD": {
+        "count": 1000,
+        "platforms": {
+          "facebook": 212,
+          "threads": 788
+        },
+        "evidenceReferencesValid": true,
+        "duplicateExactTextBeyondFirst": 9,
+        "ageDays": {
+          "upTo30": 545,
+          "from31To90": 136,
+          "over90": 319,
+          "oldest": 1991
+        }
+      },
+      "QUALITY": {
+        "count": 1000,
+        "platforms": {
+          "facebook": 286,
+          "threads": 714
+        },
+        "evidenceReferencesValid": true,
+        "duplicateExactTextBeyondFirst": 6,
+        "ageDays": {
+          "upTo30": 458,
+          "from31To90": 177,
+          "over90": 365,
+          "oldest": 2699
+        }
+      }
+    },
+    "reference": {
+      "count": 120,
+      "populationHash": "110d65eced51f337a10e516a6793b0b19ff42254f00ebbd6b5f3a72144328387",
+      "fileHash": "813148478d954586eb06a9c816c6bdc3b58507045ea98468de4e8eb36e7cac35"
+    },
+    "methodology": "Both modes evaluated the same final root pool. QUALITY reuses STANDARD then performs selective review. Mode costs are actual invocation-attributed work on the whole shared pool, not separate end-to-end crawl invoices. Reference is one coding-agent annotation, not customer-validated ground truth."
+  },
+  "closedSpending": {
+    "spentUsd": 1.253847023,
+    "heldUsd": 0,
+    "globalCalls": 1071,
+    "taskCalls": 1070,
+    "closedAt": "2026-11-03T12:11:06.399613+00:00"
+  },
+  "collection": {
+    "startedAt": "2026-11-03T11:24:56.567Z",
+    "finishedAt": "2026-11-03T12:07:24.006Z",
+    "elapsedMinutesIncludingDebugging": 42.457316666666664,
+    "platforms": {
+      "facebook": {
+        "queryTasks": 16,
+        "unattempted": 0,
+        "stopReason": "PAIRED_TARGET_REACHED",
+        "sessionFlush": "OK",
+        "workerReasonCounts": {
+          "PAIRED_TARGET_REACHED": 4,
+          "SOURCE_EXHAUSTED": 6,
+          "USER_STOP": 3,
+          "RENDERER_TIMEOUT": 3
+        }
+      },
+      "threads": {
+        "queryTasks": 16,
+        "unattempted": 0,
+        "stopReason": "PAIRED_TARGET_REACHED",
+        "sessionFlush": "OK",
+        "workerReasonCounts": {
+          "PAIRED_TARGET_REACHED": 13,
+          "USER_STOP": 3
+        }
+      }
+    },
+    "unresolvedThreadsReplies": 147,
+    "commentsEnrichment": false,
+    "peakActiveWindowLeases": 17,
+    "minimumSystemFreeBytes": 1221513216,
+    "cpuBusyMax": 1
+  },
+  "checks": {
+    "typecheck": "PASS",
+    "unitTests": {
+      "passed": 982,
+      "failed": 0,
+      "skipped": 0
+    },
+    "realLocalhostWindows": 24,
+    "packagedApp": {
+      "passed": true,
+      "actualMainPreloadRenderer": true,
+      "module": "C:\\OwnProject\\crawl-socials\\release\\win-unpacked\\resources\\app.asar\\dist\\main\\index.js",
+      "appDataIsolated": true,
+      "globalSpendIsolated": true,
+      "defaultFilter": "OFF",
+      "zeroInitialSpend": true,
+      "settingsRoundTrip": true,
+      "offRejectsPlanner": true,
+      "calls": 0,
+      "rendererErrors": []
+    },
+    "packagedSqliteWorker": "PASS",
+    "exportWorkbookDataRows": {
+      "STANDARD": 1000,
+      "QUALITY": 1000
+    },
+    "sqliteQuickCheckAfterPowerLoss": "ok",
+    "sourceContainsNul": false,
+    "portableHashUnchangedAfterPowerLoss": true,
+    "historicalTaskScriptsDefaultToNoLiveCalls": true,
+    "closedTaskRefusesRestart": true
+  },
+  "artifacts": {
+    "CSD-Portable-0.4.0-rebuild.2.exe": {
+      "sha256": "6de7bca6bdc8f9d9412442c7e540c1d242a0d81b6f566089f369cfd41055f820",
+      "bytes": 102445824,
+      "location": "C:\\OwnProject\\crawl-socials\\release\\CSD-Portable-0.4.0-rebuild.2.exe"
+    },
+    "CSD-piano-STANDARD-1000.xlsx": {
+      "sha256": "2195fbc1b809a3a66cb6a9e189620c280d70e429a02ee0b8f48156d566ed24a3",
+      "bytes": 451840,
+      "location": "C:\\Users\\Admin\\AppData\\Roaming\\csd-desktop\\data\\comparisons\\piano-comparison-20261103\\CSD-piano-STANDARD-1000.xlsx"
+    },
+    "CSD-piano-QUALITY-1000.xlsx": {
+      "sha256": "1e92b89d8c648aae63ff205902470052db3ad312950562fec296eb4449a2ede9",
+      "bytes": 503865,
+      "location": "C:\\Users\\Admin\\AppData\\Roaming\\csd-desktop\\data\\comparisons\\piano-comparison-20261103\\CSD-piano-QUALITY-1000.xlsx"
+    },
+    "CSD-piano-STANDARD-1000.json": {
+      "sha256": "4be6c06f1bcc8e02d234ef2d47cfcc781a42ebb217c74a7aef17e901525dc3bb",
+      "bytes": 7890527,
+      "location": "C:\\Users\\Admin\\AppData\\Roaming\\csd-desktop\\data\\comparisons\\piano-comparison-20261103\\CSD-piano-STANDARD-1000.json"
+    },
+    "CSD-piano-QUALITY-1000.json": {
+      "sha256": "ef3c67df4d0cf734bf1e30c89204ef7e6afe7ae9baad9d44febf75a669da6731",
+      "bytes": 8142462,
+      "location": "C:\\Users\\Admin\\AppData\\Roaming\\csd-desktop\\data\\comparisons\\piano-comparison-20261103\\CSD-piano-QUALITY-1000.json"
+    },
+    "reference-blind.json": {
+      "sha256": "813148478d954586eb06a9c816c6bdc3b58507045ea98468de4e8eb36e7cac35",
+      "bytes": 87999,
+      "location": "C:\\OwnProject\\crawl-socials\\artifacts\\piano-comparison-20261103\\reference-blind.json"
+    },
+    "reference-labels.json": {
+      "sha256": "33729b1143e927c86e63408071a1179469ca5ea7c40195fc751fc642bb9fbfe3",
+      "bytes": 20091,
+      "location": "C:\\OwnProject\\crawl-socials\\artifacts\\piano-comparison-20261103\\reference-labels.json"
+    },
+    "unit-tests.log": {
+      "sha256": "d52a3ba4d8279a03b262c07e05f464169b4661f0caba7a5bb2a939f2360e5e32",
+      "bytes": 107298,
+      "location": "C:\\OwnProject\\crawl-socials\\artifacts\\piano-comparison-20261103\\unit-tests.log"
+    }
+  },
+  "privacy": "Aggregate evidence only; raw posts, annotation text, credentials and binaries are not committed.",
+  "limitations": [
+    "One coding-agent reference, not customer ground truth; one generic-tag sample had prior debug exposure.",
+    "Both modes share the final pool, primary cache and upstream cost; this is not an independent end-to-end cost or speed trial.",
+    "PENDING counts as not accepted for recall but is not a third verdict.",
+    "No geography/language/age limit was added. Older posts can match the topic without demonstrating a current commercial need.",
+    "32 queries all received work, but not all were source-exhausted; renderer timeouts and target-stop status naming remain in receipts."
+  ]
+}

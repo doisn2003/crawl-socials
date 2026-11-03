@@ -10,12 +10,17 @@ inside historical `.brain` sections are not current authorization.
 - The user now explicitly selected **Gemini 3.1 Flash-Lite** after the 2.5
   preflight failed. Use 3.1 for new planning/filtering; preserve old model ledgers.
   Do not silently fall back to another model.
-- Active task authorized 2026-11-03: crawl the user's broad piano prompt, compare
+- Completed task authorized 2026-11-03: crawl the user's broad piano prompt, compare
   STANDARD/QUALITY, target 1,000 accepted roots per mode, per-query Electron
   windows. Maximum **USD 6 for the entire task**, including planner, preflight,
   classification, reviews and retries. Reuse one cumulative DEVELOPMENT ledger;
   set a conservative operational call cap without asking for more permission.
   Raw data can be shared between both modes to avoid duplicate collection/cost.
+  Finished with 1,000 exported roots per mode, 3,222 shared roots, 1,070 task calls,
+  USD 1.253847 measured and no held cost. The DEVELOPMENT envelope is closed at
+  the existing cumulative ledger totals; unused USD 6 allowance is not a grant
+  for another experiment. Only piano-related posts were in scope. See the
+  [R7 report](.brain/reports/csd-piano-comparison-20261103.md).
 - Agent development and regression tests default to **zero paid model calls**.
   Use mocks, recorded responses and local datasets. Existing API keys, Tier 1
   limits and past benchmark permission are not an unlimited spending budget.

@@ -12,7 +12,7 @@ Sau khi 2.5 Flash-Lite trả 404, người dùng đã chọn **Gemini 3.1 Flash-
 
 Nhánh triển khai và đo: `codex/csd-r7-piano-comparison`, từ candidate R6. Hai mode dùng chung dữ liệu mới, cùng mục tiêu và bằng chứng; mục tiêu 1.000 bài phù hợp/mode. Mỗi `(mạng, từ khóa)` có cửa sổ/checkpoint riêng. Toàn bộ planner, preflight, phân loại, kiểm tra bổ sung và lỗi/thử lại cùng dùng ledger DEVELOPMENT đã tồn tại, trần nhiệm vụ 6 USD. Không dùng lại nhãn tham chiếu của prompt piano cũ để chấm prompt mới rộng hơn.
 
-Preflight generation 3.1 đã thành công. Phép thử đầy đủ đang chạy; chưa coi truy cập model hay unit tests là nghiệm thu chất lượng bộ lọc.
+Preflight generation 3.1 và phép thử trực tiếp đã hoàn tất. Kết quả: 3.222 bài gốc, Tiêu chuẩn nhận 1.356, Chất lượng nhận 1.005; xuất 1.000 bài/mức. Tổng token cost 1,253847 USD, không còn dự phòng. Người dùng làm rõ chỉ lấy nội dung liên quan piano. Chi tiết chất lượng và giới hạn ở mục 10; chưa coi đủ số lượng hay unit tests là nghiệm thu toàn bộ bộ lọc.
 
 ## 1. Vấn đề và trách nhiệm
 
@@ -227,3 +227,17 @@ R6 mới hoàn tất phần chuẩn bị và bản chạy: mẫu ngẫu nhiên c
 GET metadata và danh sách model vẫn trả 200. Google ghi quyền dùng 2.5 hiện bị giới hạn cho người đã sử dụng trước đó; metadata không xác nhận quyền inference của key/project. [Thông báo của Google](https://aistudio.google.com/docs/models/gemini-2.5-flash-lite).
 
 **Chưa nghiệm thu độ tinh, recall và chi phí/bài của bộ lọc mới.** Không gắn nhãn hoàn tất R4–R6 chỉ từ unit tests. Mẫu, nhãn, script và ngân sách được giữ để tiếp tục khi quyền 2.5 được giải quyết; nếu đổi model phải có quyết định mới của người dùng. Xem [báo cáo bàn giao](../reports/csd-rebuild-candidate-20261103.md) và [bằng chứng tổng hợp](../evidence/csd-rebuild-candidate-20261103.json).
+
+## 10. R7 — kết quả Gemini 3.1 và piano ngày 03/11/2026
+
+Mục 9 giữ nguyên như hồ sơ R6 trước khi đổi model. Theo quyết định mới của người dùng, R7 dùng Gemini 3.1 Flash-Lite, tổng trần 6 USD, cùng một tập crawl cho hai mức, không phân bổ tỷ lệ mạng. Phạm vi đã làm rõ: chỉ piano, gồm nhu cầu học/mua/thuê, thảo luận, câu chuyện và đam mê. Không tự mở sang âm nhạc nói chung.
+
+Đã chạy 16 query trên mỗi mạng, tất cả 32 tác vụ có lượt xử lý; đỉnh đo được 17 tác vụ giữ quyền cửa sổ cùng lúc. Sửa giới hạn cũ 8 cửa sổ/hồ sơ, vòng đóng/mở do CPU và xử lý kết quả batch thiếu từng phần. Thêm hồi quy chuyển bản nháp 2.5 thất bại sang model 3.1 đã chọn, giữ ledger cũ. Bản **0.4.0-rebuild.2** đạt typecheck, 982 unit tests, kiểm tra main/preload/renderer và worker SQLite trong ASAR. Thử cửa sổ localhost đạt 24 cửa sổ riêng; không đồng nhất phép thử đó với tải mạng xã hội thật.
+
+Thu 3.222 bài gốc duy nhất theo mạng/ID. Tiêu chuẩn: 1.356 nhận, 1.611 loại, 255 chưa kết luận. Chất lượng: 1.005 nhận, 1.726 loại, 491 chưa kết luận. Hai file xuất đều đúng 1.000 bài, phần dư giữ riêng. 147 trả lời Threads chưa có gốc nằm trong dữ liệu collector, không được tính thành bài gốc hay âm thầm nhận làm đủ số lượng.
+
+Mẫu 120 bài lấy đều từ toàn bộ tập cuối, ẩn nhãn candidate khi đọc, cho 40 YES / 70 NO / 10 UNKNOWN. Trên phần có nhãn rõ, precision Tiêu chuẩn 82,2% (37/45), Chất lượng 88,6% (31/35); recall 92,5% (37/40) và 77,5% (31/40). Đây là tham chiếu của một coding agent, chưa phải nhãn khách hàng; khoảng bất định còn rộng. Chất lượng vẫn nhận nhầm một số bài cung ứng được model gán DIRECT, đồng thời giữ PENDING một số bài thảo luận/đam mê rõ vì đòi DIRECT theo chính sách chung. Chưa nghiệm thu mọi chủ đề hoặc tuyên bố bộ lọc xuất sắc.
+
+Toàn nhiệm vụ: 1.070 API attempts, **1,253847 USD** theo usage/giá niêm yết, 0 USD dự phòng; ledger DEVELOPMENT đã đóng và giữ nguyên lịch sử. Bước tiếp theo ưu tiên xác định nhánh phù hợp và vai riêng cho từng nhánh, bỏ đòi tín hiệu mua/học đối với thảo luận/đam mê, kiểm tra rủi ro đảo cung–cầu cả ở ca DIRECT, và xử lý chọn lọc bằng chứng/ngữ cảnh thiếu. Không tự chi phần ngân sách còn lại cho thí nghiệm mới. Báo cáo cũng chỉ ra hạn chế bài cũ, chưa thu sâu bình luận/media và thời gian replay query.
+
+Giữ mốc R7 để phát triển tiếp trên `codex/csd-rebuild`; chưa promote production. Xem [báo cáo R7](../reports/csd-piano-comparison-20261103.md) và [bằng chứng tổng hợp R7](../evidence/csd-piano-comparison-20261103.json).
