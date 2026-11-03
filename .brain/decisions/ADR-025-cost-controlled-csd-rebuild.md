@@ -241,3 +241,11 @@ Mẫu 120 bài lấy đều từ toàn bộ tập cuối, ẩn nhãn candidate k
 Toàn nhiệm vụ: 1.070 API attempts, **1,253847 USD** theo usage/giá niêm yết, 0 USD dự phòng; ledger DEVELOPMENT đã đóng và giữ nguyên lịch sử. Bước tiếp theo ưu tiên xác định nhánh phù hợp và vai riêng cho từng nhánh, bỏ đòi tín hiệu mua/học đối với thảo luận/đam mê, kiểm tra rủi ro đảo cung–cầu cả ở ca DIRECT, và xử lý chọn lọc bằng chứng/ngữ cảnh thiếu. Không tự chi phần ngân sách còn lại cho thí nghiệm mới. Báo cáo cũng chỉ ra hạn chế bài cũ, chưa thu sâu bình luận/media và thời gian replay query.
 
 Giữ mốc R7 để phát triển tiếp trên `codex/csd-rebuild`; chưa promote production. Xem [báo cáo R7](../reports/csd-piano-comparison-20261103.md) và [bằng chứng tổng hợp R7](../evidence/csd-piano-comparison-20261103.json).
+
+## 11. R8 — điều kiện nội dung tiếng Việt
+
+Người dùng báo bốn bài tiếng Nhật lọt vào tập và xác nhận rõ: **nội dung tiếng Việt, kể cả người Việt ở nước ngoài**. Đây là điều kiện ngôn ngữ, không phải giới hạn quốc gia. Kế hoạch R7 thiếu điều kiện này; kết quả và điểm số R7 thuộc phạm vi cũ, không tiếp tục được trình bày là tập đã đáp ứng yêu cầu mới.
+
+Đã thêm lựa chọn ngôn ngữ hiển thị trong app, mặc định Tiếng Việt, truyền xuyên suốt draft/preset/kế hoạch. Bộ kiểm tra cục bộ chặn ca sai ngôn ngữ trước AI và kiểm tra lại đối tượng cùng bằng chứng trước khi nhận, kể cả cache. Bài mơ hồ ngôn ngữ giữ chờ, không tự loại tiếng Việt không dấu hoặc người Việt ở nước ngoài. Không suy quốc tịch từ tên.
+
+Bản sửa offline tái dùng toàn bộ kết quả ngữ nghĩa và dữ liệu R7; không trả phí hoặc crawl lại. Sau khi xét cả phần dư, còn **980 Standard / 819 Quality**, thiếu 20 / 181 so với mục tiêu 1.000. Không nới ngôn ngữ để làm đầy chỉ tiêu. Cả bốn bài báo lỗi đều bị loại. Nhãn cũ và dữ liệu nguồn giữ nguyên, bản sửa có phiên bản riêng. Chi tiết ở [báo cáo R8](../reports/csd-vietnamese-language-fix-20261103.md).

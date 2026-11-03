@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "milestone": "R8",
+  "version": "0.4.0-rebuild.3",
+  "date": "2026-11-03",
+  "timezone": "Asia/Bangkok",
+  "runtimeSourceCommit": "868acfa18c9f10acbe51993bb117da2791063682",
+  "scope": "Nội dung tiếng Việt, kể cả người Việt ở nước ngoài",
+  "correction": {
+    "revision": {
+      "id": "piano-vietnamese-20261103",
+      "revisedAt": "2026-11-03T12:56:38.194Z",
+      "source": "C:\\Users\\Admin\\AppData\\Roaming\\csd-desktop\\data\\comparisons\\piano-comparison-20261103",
+      "sourceHashes": {
+        "snapshots.json": "1d7657aaa070c38a970f77e5affa075dff843427736713804794498a402cd2b0",
+        "results-STANDARD.json": "93355db1a4f46818874afce2f637dd67d08da2aa8c375ae106a3c70c071a2bb4",
+        "results-QUALITY.json": "01d30aa801cfeb947eac0c674f7d782f717e51d306141ca98a682bb5bd8aaedd"
+      },
+      "instruction": "Nội dung tiếng Việt, kể cả người Việt ở nước ngoài",
+      "languages": [
+        "vi"
+      ],
+      "languagePolicy": "vietnamese-content-v1",
+      "method": "Reuse frozen semantic decisions; apply the local language rule to the selected actor. No fresh LLM assessment.",
+      "newApiCalls": 0,
+      "newAiCostUsd": 0,
+      "targetPerMode": 1000
+    },
+    "output": "C:\\Users\\Admin\\AppData\\Roaming\\csd-desktop\\data\\comparisons\\piano-vietnamese-20261103",
+    "counts": {
+      "STANDARD": {
+        "previouslyAccepted": 1356,
+        "accepted": 980,
+        "exported": 980,
+        "extra": 0,
+        "target": 1000,
+        "shortfall": 20,
+        "removedForLanguage": 215,
+        "heldForUnverifiedLanguage": 161,
+        "allPending": 416
+      },
+      "QUALITY": {
+        "previouslyAccepted": 1005,
+        "accepted": 819,
+        "exported": 819,
+        "extra": 0,
+        "target": 1000,
+        "shortfall": 181,
+        "removedForLanguage": 135,
+        "heldForUnverifiedLanguage": 51,
+        "allPending": 542
+      }
+    },
+    "reportedExamples": {
+      "STANDARD": [
+        {
+          "id": "4022196867861602374",
+          "classification": "NOT_SUITABLE",
+          "reason": "CONTENT_LANGUAGE_MISMATCH"
+        },
+        {
+          "id": "4022198781940510857",
+          "classification": "NOT_SUITABLE",
+          "reason": "CONTENT_LANGUAGE_MISMATCH"
+        },
+        {
+          "id": "4022185160535688913",
+          "classification": "NOT_SUITABLE",
+          "reason": "CONTENT_LANGUAGE_MISMATCH"
+        },
+        {
+          "id": "4022187160706634464",
+          "classification": "NOT_SUITABLE",
+          "reason": "CONTENT_LANGUAGE_MISMATCH"
+        }
+      ],
+      "QUALITY": [
+        {
+          "id": "4022196867861602374",
+          "classification": "NOT_SUITABLE",
+          "reason": "CONTENT_LANGUAGE_MISMATCH"
+        },
+        {
+          "id": "4022198781940510857",
+          "classification": "NOT_SUITABLE",
+          "reason": "CONTENT_LANGUAGE_MISMATCH"
+        },
+        {
+          "id": "4022185160535688913",
+          "classification": "NOT_SUITABLE",
+          "reason": "CONTENT_LANGUAGE_MISMATCH"
+        },
+        {
+          "id": "4022187160706634464",
+          "classification": "NOT_SUITABLE",
+          "reason": "CONTENT_LANGUAGE_MISMATCH"
+        }
+      ]
+    },
+    "files": {
+      "STANDARD": {
+        "json": "C:\\Users\\Admin\\AppData\\Roaming\\csd-desktop\\data\\comparisons\\piano-vietnamese-20261103\\CSD-piano-STANDARD-VI-980.json",
+        "xlsx": "C:\\Users\\Admin\\AppData\\Roaming\\csd-desktop\\data\\comparisons\\piano-vietnamese-20261103\\CSD-piano-STANDARD-VI-980.xlsx",
+        "jsonSha256": "a848aa75ab4b2ea2ca9f1a90aefb701a9b531d2f632151760d4f4a836603fcbe",
+        "xlsxSha256": "bda07fd7321aefa0b104cb78b27ffa84865896a9a7558fc6e68f75f5ff805ec4"
+      },
+      "QUALITY": {
+        "json": "C:\\Users\\Admin\\AppData\\Roaming\\csd-desktop\\data\\comparisons\\piano-vietnamese-20261103\\CSD-piano-QUALITY-VI-819.json",
+        "xlsx": "C:\\Users\\Admin\\AppData\\Roaming\\csd-desktop\\data\\comparisons\\piano-vietnamese-20261103\\CSD-piano-QUALITY-VI-819.xlsx",
+        "jsonSha256": "aef734a7e2de44a64db171e9c648653f9841824fe2fa627220ab3014c6a5748f",
+        "xlsxSha256": "63f8ec57055c1a02b1ae9fe93672d8dcadf763204c6173882f08f79abbcb721d"
+      }
+    },
+    "qualityNote": "R7 precision/recall used the former unrestricted-language scope and must not be reused as the score of this revision."
+  },
+  "checks": {
+    "typecheck": "PASS",
+    "unitTests": {
+      "passed": 987,
+      "failed": 0
+    },
+    "packagedApp": {
+      "passed": true,
+      "actualMainPreloadRenderer": true,
+      "module": "C:\\OwnProject\\crawl-socials\\release\\win-unpacked\\resources\\app.asar\\dist\\main\\index.js",
+      "appDataIsolated": true,
+      "globalSpendIsolated": true,
+      "defaultFilter": "OFF",
+      "defaultLanguageScope": "VIETNAMESE",
+      "zeroInitialSpend": true,
+      "settingsRoundTrip": true,
+      "offRejectsPlanner": true,
+      "calls": 0,
+      "rendererErrors": []
+    },
+    "fourReportedExamplesExcludedInBothModes": true,
+    "exportRowCountsVerified": true,
+    "sourceSnapshotHashesPreserved": true,
+    "newPaidCalls": 0,
+    "newAiCostUsd": 0
+  },
+  "binary": {
+    "path": "C:\\OwnProject\\crawl-socials\\release\\CSD-Portable-0.4.0-rebuild.3.exe",
+    "sha256": "54ba2cf7259906ca9f6863d5e533d7338dd63ef216bc7d0bdbc1b77bfc049c13",
+    "bytes": 102491849
+  },
+  "spendingUnchanged": {
+    "calls": 1071,
+    "measuredUsd": 1.253847023,
+    "heldUsd": 0
+  },
+  "limitations": [
+    "Local language detection is not perfect; ambiguous evidence remains pending.",
+    "No new semantic precision/recall score was measured. Previous R7 scores had a different language scope.",
+    "Corrected outputs fall short of 1000: STANDARD by 20, QUALITY by 181. No paid refill was authorized or performed."
+  ]
+}

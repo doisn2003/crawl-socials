@@ -48,6 +48,11 @@ inside historical `.brain` sections are not current authorization.
 
 ## Product direction
 
+- Confirmed 2026-11-03: the user wants **Vietnamese-language content, including
+  Vietnamese speakers abroad**. New UI configurations default to Vietnamese;
+  this is a content-language constraint, not a Vietnam-only geography or a
+  nationality inference. Enforce it before paid classification and on the
+  selected candidate before acceptance; unclear language stays pending.
 - Persist crawl results independently of AI. An AI billing/quota stop pauses AI,
   while collection may continue within the user's raw/storage limits.
 - Three filter modes: OFF, STANDARD, QUALITY. OFF makes **zero model calls**,
