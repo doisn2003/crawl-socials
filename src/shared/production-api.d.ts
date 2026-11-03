@@ -73,10 +73,6 @@ export interface ProductionState {
 export interface GeminiKeyStatus { source: 'SAVED' | 'ENVIRONMENT' | 'NONE'; readError: boolean; }
 export interface ProductionApi {
   geminiKey: { status(): Promise<GeminiKeyStatus>; save(input: { key: string }): Promise<GeminiKeyStatus>; remove(): Promise<GeminiKeyStatus>; };
-  cooler: {
-    get(): Promise<boolean>;
-    set(input: { enabled: boolean }): Promise<boolean>;
-  };
   getState(): Promise<ProductionState>;
   saveConfig(input: UserConfig): Promise<UserConfig>;
   login(input: { platform: Platform; profileId?: string }): Promise<void>;
@@ -95,6 +91,5 @@ export interface ProductionApi {
   openOutput(): Promise<void>;
   openPost(input: { url: string }): Promise<void>;
 }
-export type CoolerProgress = (Pick<RunState, 'id' | 'state' | 'minimumPosts'> & { platforms: Omit<PlatformRun, 'profileId'>[]; opportunity?: OpportunityProgress }) | null;
 import type { ApplyCampaignPresetRequest, CampaignDraftCost, CampaignDraftReference, CampaignDraftView,
   CampaignPresetView, SaveCampaignPresetRequest, UpdateCampaignDraftRequest } from './campaign-drafts.js';

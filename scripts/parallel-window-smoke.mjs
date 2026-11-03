@@ -16,9 +16,9 @@ if (!process.versions.electron) {
   const child = spawn(require('electron'), [fileURLToPath(import.meta.url), output], { cwd: workspace, env, windowsHide: true, stdio: 'inherit' });
   process.exitCode = await new Promise(resolve => { child.once('error', () => resolve(1)); child.once('exit', code => resolve(code ?? 1)); });
 } else { void (async () => {
-  const { app, session } = await import('electron');
+  const { app, session, BaseWindow } = await import('electron');
   app.on('window-all-closed', () => {});
-  const watchdog = setTimeout(() => { console.error('WINDOW_SMOKE_TIMEOUT'); app.exit(1); }, 30_000);
+  const watchdog = setTimeout(() => { console.error('WINDOW_SMOKE_TIMEOUT'); app.exit(1); }, 90_000);
   const temporaryBase = await realpath(tmpdir()), temporary = await mkdtemp(join(temporaryBase, 'csd-parallel-window-'));
   app.setPath('userData', join(temporary, 'user-data')); app.setPath('sessionData', join(temporary, 'sessions'));
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
@@ -37,13 +37,16 @@ if (!process.versions.electron) {
     const { createOwnedObserverResolver } = await import('../dist/infrastructure/browser/electron-observer-target.js');
     const profiles = createBrowserProfiles(join(temporary, 'profiles')), secrets = new Map();
     host = createBrowserHost({ profiles, secrets: { async get(k) { return secrets.get(k) ?? null; }, async set(k, v) { secrets.set(k, v); }, async delete(k) { secrets.delete(k); } },
-      journalDirectory: join(temporary, 'journal'), manualLoginEnabled: false, fixtureOrigin: origin, hidden: true, backgroundThrottling: false,
+      journalDirectory: join(temporary, 'journal'), manualLoginEnabled: false, fixtureOrigin: origin,
       sessionForPartition: partition => session.fromPartition('memory-' + partition) });
     const profile = await profiles.create('Parallel fixture', 'threads'), other = await profiles.create('Isolated account', 'threads');
     const a = host.forWorker('threads-1'), b = host.forWorker('threads-2');
     await Promise.all([a.open(profile.id), b.open(profile.id)]);
     const ta = a.observerTarget(profile.id), tb = b.observerTarget(profile.id);
     assert.ok(ta && tb); assert.notEqual(ta.webContentsId, tb.webContentsId); assert.notEqual(ta.viewGeneration, tb.viewGeneration);
+    assert.ok(BaseWindow.getAllWindows().every(window => !window.isVisible()), 'collection stays hidden by default');
+    assert.equal(ta.contents.getBackgroundThrottling(), false);
+    assert.equal(tb.contents.getBackgroundThrottling(), false);
     assert.equal(ta.contents.session, tb.contents.session);
     await Promise.all([ta.contents.loadURL(origin + '/keyword-a'), tb.contents.loadURL(origin + '/keyword-b')]);
     assert.ok((await ta.contents.executeJavaScript('document.body.innerText')).includes('keyword-a'));
@@ -72,6 +75,8 @@ if (!process.versions.electron) {
       queryWindows.push({ worker, account, target, query: 'query-' + i });
     }
     assert.equal(host.diagnostics().openViews, 24);
+    assert.equal(BaseWindow.getAllWindows().length, 24, 'visibility checks inspect real native windows');
+    assert.ok(BaseWindow.getAllWindows().every(window => !window.isVisible()), 'no query window is shown');
     assert.equal(new Set(queryWindows.map(row => row.target.webContentsId)).size, 24);
     const probes = [];
     for (const row of queryWindows) {
@@ -84,10 +89,44 @@ if (!process.versions.electron) {
       scope: '24 actual Electron host windows with localhost text fixtures; not Facebook/Threads page memory or capacity.' };
     await host.shutdown(); assert.equal(tb.contents.isDestroyed(), true); assert.equal(reopened.contents.isDestroyed(), true);
     assert.equal(host.diagnostics().openViews, 0);
+    // Exercise explicit login and subsequent collection with local blank pages.
+    // The load interceptor prevents contacting either social network.
+    // Windows STARTUPINFO from windowsHide consumes the process's first ShowWindow.
+    // Consume that forced-hidden first show before testing an intentional login.
+    if (process.platform === 'win32') {
+      const startupWindow = new BaseWindow({ show: false, skipTaskbar: true });
+      startupWindow.show(); startupWindow.hide(); startupWindow.destroy();
+    }
+    const loginHost = createBrowserHost({ profiles, secrets: { async get() { return null; }, async set() {}, async delete() {} },
+      journalDirectory: join(temporary, 'login-journal'), manualLoginEnabled: true,
+      sessionForPartition: partition => session.fromPartition('login-memory-' + partition) });
+    try {
+      for (const account of [profile, facebook]) {
+        await loginHost.open(account.id);
+        const contents = loginHost.ownedContents(account.id), load = contents.loadURL.bind(contents);
+        contents.loadURL = () => load('about:blank');
+        assert.ok(BaseWindow.getAllWindows().every(window => !window.isVisible()));
+        await loginHost.openLogin(account.id);
+        assert.equal(BaseWindow.getAllWindows().filter(window => window.isVisible()).length, 1, 'explicit login opens one window');
+        const worker = loginHost.forWorker(account.platform + '-background');
+        await worker.open(account.id);
+        assert.ok(BaseWindow.getAllWindows().every(window => !window.isVisible()), 'starting collection also hides the prior login window');
+        await worker.open(account.id);
+        assert.ok(BaseWindow.getAllWindows().every(window => !window.isVisible()), 'reusing a worker does not reveal it');
+        await worker.close(account.id);
+        await loginHost.openLogin(account.id);
+        assert.equal(BaseWindow.getAllWindows().filter(window => window.isVisible()).length, 1, 'manual login can be reopened');
+        await loginHost.open(account.id);
+        assert.ok(BaseWindow.getAllWindows().every(window => !window.isVisible()), 'comment collection is hidden too');
+        assert.equal(contents.getBackgroundThrottling(), false);
+        await loginHost.close(account.id);
+      }
+    } finally { await loginHost.shutdown(); }
     const result = { passed: true, checks: ['two real Electron windows navigate independently', 'shared login session per profile',
       'different profiles isolated', 'observer cannot claim sibling window', 'closing one window preserves sibling inflight request',
       'reopened window invalidates old ownership', '24 query windows (12 per platform) own distinct webContents',
-      'shutdown closes all webContents and flushes session'], network: 'LOCALHOST_ONLY', appData: 'ISOLATED_TEMPORARY', resourceProfile };
+      'shutdown closes all webContents and flushes session', 'all collection windows stay hidden without background throttling',
+      'only explicit login reveals a window; collection hides an existing login window'], network: 'LOCALHOST_ONLY', appData: 'ISOLATED_TEMPORARY', resourceProfile };
     await writeFile(join(output, 'result.json'), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
   } catch (error) { console.error(error); process.exitCode = 1; }
   finally {

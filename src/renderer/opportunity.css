@@ -1,48 +1,99 @@
-.opportunity-mode{display:flex;gap:10px;align-items:center;margin-top:22px;color:var(--green);font-size:12px;cursor:pointer}
+.opportunity-mode{display:flex;gap:10px;align-items:center;margin-top:22px;color:#000;font-size:12px;cursor:pointer}
+
 .opportunity-mode input{accent-color:var(--green)}
-.opportunity-limits{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:18px}
-.opportunity-limits label{display:flex;flex-direction:column;gap:8px;font-size:10px;color:var(--muted)}
-.opportunity-limits input,.opportunity-limits select{background:#0b0f0c;color:#dce8d1;border:1px solid #30392b;padding:10px;min-width:0}
+
+.opportunity-limits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}
+
+.opportunity-limits label{display:flex;flex-direction:column;gap:8px;font-size:10px;color:#000}
+
+.opportunity-limits input,.opportunity-limits select{background:#fff;color:#000;border:1px solid #d4d4d4;padding:10px;min-width:0}
+
 .opportunity-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:17px 0}
-.opportunity-tabs button[aria-pressed=true]{border-color:var(--green);color:var(--green)}
+
+.opportunity-tabs button[aria-pressed=true]{border-color:var(--green);color:#000}
+
 .opportunity-cards{display:grid;gap:12px;margin-bottom:20px;max-height:650px;overflow-y:auto}
-.opportunity-card{border:1px solid var(--line);padding:16px;background:#0b0f0c;overflow-wrap:anywhere}
+
+.opportunity-card{border:1px solid var(--line);padding:16px;background:#fff;overflow-wrap:anywhere}
+
 .opportunity-card p{white-space:pre-wrap;font-size:12px;margin:8px 0}
-.opportunity-card blockquote{margin:10px 0;border-left:2px solid var(--green);padding-left:12px;color:#c4d2b8;white-space:pre-wrap;font-size:11px}
-.opportunity-card small{font-size:10px;color:var(--muted)}
-.opportunity-card button{background:transparent;color:var(--green);border:1px solid var(--line);padding:6px 10px}
+
+.opportunity-card blockquote{margin:10px 0;border-left:2px solid var(--green);padding-left:12px;color:#000;white-space:pre-wrap;font-size:11px}
+
+.opportunity-card small{font-size:10px;color:#000}
+
+.opportunity-card button{background:transparent;color:#000;border:1px solid var(--line);padding:6px 10px}
+
 .campaign-planning{border-top:1px solid var(--line);margin-top:22px;padding-top:18px}
+
 .planner-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:14px}
+
 .planner-actions .helper{margin:0}
-.campaign-plan-editor{margin-top:16px;padding:16px;border:1px solid var(--line);background:#0e140c}
-.campaign-plan-editor summary{cursor:pointer;font-size:12px;color:#c4d2b8;line-height:1.6}
+
+.campaign-plan-editor{margin-top:16px;padding:16px;border:1px solid var(--line);background:#fff}
+
+.campaign-plan-editor summary{cursor:pointer;font-size:12px;color:#000;line-height:1.6}
+
 .campaign-plan-editor summary:focus-visible{outline:2px solid var(--green);outline-offset:4px}
+
 #campaign-dialogue{font-size:12px;line-height:1.7}
-#campaign-dialogue h3{font-size:15px;color:var(--green);margin:0 0 10px}
+
+#campaign-dialogue h3{font-size:15px;color:#000;margin:0 0 10px}
+
 #campaign-dialogue fieldset{border:1px solid var(--line);padding:14px;margin:14px 0}
-#campaign-dialogue legend{padding:0 6px;color:#dce8d1}
-#campaign-dialogue label{display:block;margin:10px 0;color:#c4d2b8}
+
+#campaign-dialogue legend{padding:0 6px;color:#000}
+
+#campaign-dialogue label{display:block;margin:10px 0;color:#000}
+
 #campaign-dialogue input{margin-right:9px;accent-color:var(--green)}
-#campaign-dialogue textarea{display:block;width:100%;margin-top:6px;padding:10px;background:#0b0f0c;color:#dce8d1;border:1px solid #30392b;resize:vertical;font:inherit}
-#campaign-dialogue button{margin:8px 8px 8px 0;padding:10px 14px;border:1px solid #526442;background:#1b2813;color:#dce8d1;cursor:pointer;font:inherit}
+
+#campaign-dialogue textarea{display:block;width:100%;margin-top:6px;padding:10px;background:#fff;color:#000;border:1px solid #d4d4d4;resize:vertical;font:inherit}
+
+#campaign-dialogue button{margin:8px 8px 8px 0;padding:10px 14px;border:1px solid #d4d4d4;background:#fff;color:#000;cursor:pointer;font:inherit}
+
 #campaign-dialogue details{margin:12px 0}
+
 .criteria-grid,.preset-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:18px}
+
 .criteria-grid .criteria-wide{grid-column:1/-1}
+
 .criteria-grid .field textarea{min-height:76px}
-.campaign-planning .field input,.campaign-planning .field select{display:block;width:100%;min-width:0;background:#0b0f0c;color:#dce8d1;border:1px solid #30392b;border-radius:2px;padding:10px 12px;font-size:12px;line-height:1.6}
+
+.campaign-planning .field input,.campaign-planning .field select{display:block;width:100%;min-width:0;background:#fff;color:#000;border:1px solid #d4d4d4;border-radius:2px;padding:10px 12px;font-size:12px;line-height:1.6}
+
 .campaign-planning .field label{line-height:1.6}
+
 .campaign-planning input:disabled,.campaign-planning textarea:disabled,.campaign-planning select:disabled{opacity:.65}
+
 .criteria-advanced{border-top:1px solid var(--line);margin-top:18px;padding-top:15px}
-.criteria-watch{display:flex;align-items:center;gap:9px;font-size:11px;color:#adb79f;margin-top:20px;line-height:1.6}
+
+.criteria-watch{display:flex;align-items:center;gap:9px;font-size:11px;color:#000;margin-top:20px;line-height:1.6}
+
 .criteria-watch input{accent-color:var(--green)}
+
 .preset-action{display:flex;align-items:stretch;gap:8px}
+
 .preset-action button{flex-shrink:0}
+
 .preset-grid{padding-top:16px;border-top:1px solid var(--line)}
+
 .retained-selection{margin-top:16px}
+
 .export-row{flex-wrap:wrap}
+
 .export-row>p{flex:1 1 280px}
+
 #export-scope-field{flex:0 1 220px;min-width:180px}
+
 #export-scope{width:100%;margin-top:6px}
+
 .retained-selection select{text-overflow:ellipsis}
-@media(max-width:750px){.criteria-grid,.preset-grid{grid-template-columns:minmax(0,1fr)}.campaign-plan-editor{padding:12px}.planner-actions{align-items:flex-start;flex-direction:column}}
-@media(max-width:850px){.opportunity-limits{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+@media(max-width:750px){.criteria-grid,.preset-grid{grid-template-columns:minmax(0,1fr)}
+.campaign-plan-editor{padding:12px}
+.planner-actions{align-items:flex-start;flex-direction:column}
+}
+
+@media(max-width:850px){.opportunity-limits{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

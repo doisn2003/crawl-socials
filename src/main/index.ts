@@ -12,7 +12,6 @@ import { exportSocialWorkbook } from '../infrastructure/export/social-workbook.j
 import { exportOpportunityWorkbook, selectOpportunityExport } from '../infrastructure/export/opportunity-workbook.js';
 import type { ConversationClassification } from '../domain/conversation-decision.js';
 import { allowDesktopRequest } from './ipc-policy.js';
-import { createCoolerWindow } from './cooler-window.js';
 import { createGeminiKeySettings } from '../application/gemini-key-settings.js';
 import { resolveGeminiApiKey } from '../infrastructure/llm/gemini-gateway.js';
 import { createCampaignModelGateway } from '../infrastructure/llm/campaign-model-gateway.js';
@@ -37,12 +36,12 @@ async function bootstrap() {
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
   let window: BrowserWindow | null = null;
   app.on('second-instance', () => { window?.restore(); window?.show(); window?.focus(); });
-  await app.whenReady(); nativeTheme.themeSource = 'dark';
+  await app.whenReady(); nativeTheme.themeSource = 'light';
   const environmentKey = resolveGeminiApiKey();
-  const geminiKey = await createGeminiKeySettings(createElectronSecretStore(join(paths.userData, 'secrets')), () => environmentKey);
+  const geminiKey = await createGeminiKeySettings(createElectronSecretStore(join(paths.userData, 'secrets')), () => environmentKey, { preferEnvironment: true });
   const appConfig = createUserConfigStore(join(paths.userData, 'data'));
   const spending = createDurableSpend({ envelope: () => ({ scope: 'USER', model: REBUILD_MODEL,
-    ...(appConfig.read().spendLimits ?? { totalUsd: 0, dailyUsd: 0 }) }) });
+    ...(appConfig.read().spendLimits ?? { totalUsd: 3, dailyUsd: 3 }) }) });
   const schedulers = new Map<string, RequestScheduler>();
   const schedulerForModel = (model: string) => {
     const policy = throughput(appConfig.read().performance);
@@ -93,12 +92,10 @@ async function bootstrap() {
         await work(target.contents);
       } finally { await browserHost.close(profileId); }
     } });
-  let cooler: ReturnType<typeof createCoolerWindow> | null = null;
   let closing = false, shutdownComplete = false;
   app.on('before-quit', event => {
     if (shutdownComplete) return;
     event.preventDefault(); if (closing) return; closing = true;
-    cooler?.dispose();
     void service.shutdown().then(() => browserHost.shutdown()).then(() => {
       shutdownComplete = true; app.quit();
     }).catch(() => { console.error('CSD_SESSION_SAVE_FAILED'); app.exit(1); });
@@ -113,9 +110,8 @@ async function bootstrap() {
     current.webRequest.onBeforeRequest((details, callback) => callback({ cancel: !['file:', 'about:', 'data:'].includes(new URL(details.url).protocol) }));
   }
   const uiFile = fileURLToPath(new URL('../renderer/index.html', import.meta.url)), uiUrl = pathToFileURL(uiFile).href;
-  cooler = createCoolerWindow({ preferenceFile: join(paths.userData, 'data', 'cooler-preference.json'), session: uiSession, getProgress: () => service.progress() });
   window = new BrowserWindow({ title: 'CSD — Crawl Socials Data', width: 1240, height: 940, minWidth: 780, minHeight: 650,
-    show: false, backgroundColor: '#080b0b', autoHideMenuBar: true,
+    show: false, backgroundColor: '#ffffff', autoHideMenuBar: true,
     webPreferences: { preload: fileURLToPath(new URL('../preload/index.cjs', import.meta.url)), session: uiSession,
       nodeIntegration: false, contextIsolation: true, sandbox: true, webviewTag: false } });
   const mainWindow = window;
@@ -158,18 +154,16 @@ async function bootstrap() {
       if (choosingRetainedRoot) throw Error('RETAINED_PICKER_BUSY');
       choosingRetainedRoot = true;
       try {
-        const choice = await dialog.showOpenDialog(mainWindow, { title: 'Chọn thư mục dữ liệu CSD chứa thư mục collections',
+        const choice = await dialog.showOpenDialog(mainWindow, { title: 'Chọn thư mục dữ liệu CSD đã lưu',
           properties: ['openDirectory'], buttonLabel: 'Dùng nguồn dữ liệu này' });
         if (choice.canceled || choice.filePaths.length !== 1) return null;
         return service.registerRetainedSourceRoot(choice.filePaths[0]!);
       } finally { choosingRetainedRoot = false; }
     },
     'csd:retained:start': value => modelCommand(() => service.startRetained(value)),
-    'csd:start': value => modelCommand(async () => { const state = await service.start(value); cooler?.show(); return state; }),
-    'csd:cooler:get': () => cooler!.get(),
-    'csd:cooler:set': value => cooler!.set(value),
+    'csd:start': value => modelCommand(() => service.start(value)),
     'csd:stop': () => service.stop(),
-    'csd:resume': () => modelCommand(async () => { const state = await service.resume(); cooler?.show(); return state; }),
+    'csd:resume': () => modelCommand(() => service.resume()),
     'csd:open-post': async value => {
       if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).join() !== 'url' || typeof (value as { url: unknown }).url !== 'string') throw Error('POST_URL_INVALID');
       const url = new URL((value as { url: string }).url);
@@ -200,7 +194,7 @@ async function bootstrap() {
       } finally { exporting = false; }
     },
   };
-  const noPayload = new Set(['csd:gemini-key:status', 'csd:gemini-key:remove', 'csd:state', 'csd:stop', 'csd:resume', 'csd:open-output', 'csd:cooler:get', 'csd:campaign:prepare', 'csd:retained:list', 'csd:retained:choose-root']);
+  const noPayload = new Set(['csd:gemini-key:status', 'csd:gemini-key:remove', 'csd:state', 'csd:stop', 'csd:resume', 'csd:open-output', 'csd:campaign:prepare', 'csd:retained:list', 'csd:retained:choose-root']);
   for (const [channel, handler] of Object.entries(handlers)) ipcMain.handle(channel, (event, ...args: unknown[]) => {
     if (closing || !allowDesktopRequest({ senderId: event.sender.id, expectedSenderId: mainWindow.webContents.id,
       isMainFrame: event.senderFrame === event.sender.mainFrame, frameUrl: event.senderFrame?.url || '', expectedUrl: uiUrl, args: [] }) ||

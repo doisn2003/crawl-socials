@@ -50,3 +50,15 @@ test('unreadable machine-encrypted key leaves application usable and can be repl
   await settings.save({ key: 'replacement-valid-credential' });
   assert.deepEqual(settings.status(), { source: 'SAVED', readError: false });
 });
+
+test('desktop prefers the environment credential without deleting a saved fallback or exposing either', async () => {
+  let environment: string | null = 'environment-fixture';
+  const settings = await createGeminiKeySettings({ get: async () => 'saved-fixture',
+    set: async () => { throw Error('must not overwrite'); }, delete: async () => { throw Error('must not delete'); } },
+  () => environment, { preferEnvironment: true });
+  assert.equal(settings.current(), 'environment-fixture');
+  assert.deepEqual(settings.status(), { source: 'ENVIRONMENT', readError: false });
+  environment = null;
+  assert.equal(settings.current(), 'saved-fixture');
+  assert.deepEqual(settings.status(), { source: 'SAVED', readError: false });
+});

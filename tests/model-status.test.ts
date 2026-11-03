@@ -4,9 +4,9 @@ import { modelPauseMessage } from '../src/shared/model-status.js';
 
 test('model stop explanations distinguish the retired call cap, CSD money and provider billing/quota', () => {
   assert.match(modelPauseMessage('MODEL_CALL_LIMIT_REACHED')!, /bản cũ.*Tiếp tục lượt này/);
-  assert.match(modelPauseMessage('MODEL_GLOBAL_BUDGET_EXHAUSTED')!, /trần tiền AI cộng dồn hoặc trong ngày của CSD/);
+  assert.match(modelPauseMessage('MODEL_GLOBAL_BUDGET_EXHAUSTED')!, /giới hạn chi phí đã đặt trên máy này.*những lượt trước/);
   assert.match(modelPauseMessage('MODEL_BUDGET_BUSY')!, /chưa kết luận đã hết tiền/);
-  assert.match(modelPauseMessage('MODEL_BUDGET_EXHAUSTED')!, /ngân sách AI của lượt này/);
+  assert.match(modelPauseMessage('MODEL_BUDGET_EXHAUSTED')!, /giới hạn chi phí của lượt này/);
   assert.match(modelPauseMessage('MODEL_BILLING_EMPTY')!, /Google báo/);
   assert.match(modelPauseMessage('MODEL_HTTP_429')!, /Google đang giới hạn/);
   assert.equal(modelPauseMessage('SOURCE_EXHAUSTED'), null);

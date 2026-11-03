@@ -18,7 +18,7 @@ export function createIntentDialogue(host: { state(): ProductionState | null; co
     if (root.hidden || !view) { dirty = false; return; }
     if (key !== view.revision) {
       key = view.revision; dirty = false; root.replaceChildren();
-      root.append(element('h3', `Hiểu nhu cầu · phiên bản ${view.input.revision}`), element('p', view.plan.understanding));
+      root.append(element('h3', 'CSD hiểu yêu cầu của bạn như sau'), element('p', view.plan.understanding));
       const send = async (request: Partial<ContinueCampaignRequest>) => {
         await host.submit({ ...request, runId: view.runId, expectedRevision: view.revision });
       };
@@ -39,26 +39,26 @@ export function createIntentDialogue(host: { state(): ProductionState | null; co
       if (view.plan.questions.length) {
         const form = element('form'), questions = view.plan.questions.map(q => question(q));
         form.append(...questions.map(q => q.group));
-        const button = element('button', 'Gửi câu trả lời & cập nhật từ khóa'); button.type = 'submit'; form.append(button);
+        const button = element('button', 'Gửi câu trả lời'); button.type = 'submit'; form.append(button);
         form.addEventListener('submit', event => { event.preventDefault(); void send({ answers: questions.map(q => q.value()) }); });
         root.append(form);
       }
-      const details = element('details'); details.append(element('summary', 'Xem / sửa mục tiêu đã hiểu'));
+      const details = element('details'); details.append(element('summary', 'Sửa cách hiểu yêu cầu'));
       const edits = element('form');
       const fields = view.plan.intent.map(item => {
         const label = element('label', `${labels[item.field]} · ${statuses[item.status]}`), input = element('textarea');
         input.rows = 2; input.maxLength = 600; input.value = item.value; label.append(input); edits.append(label);
         return { item, input };
       });
-      edits.append(element('p', 'Sửa mục tiêu sẽ gọi AI để cập nhật cả từ khóa và tiêu chí. Muốn bỏ giới hạn, ghi “Không giới hạn”.'));
-      const save = element('button', 'Cập nhật mục tiêu bằng AI'); save.type = 'submit'; edits.append(save);
+      edits.append(element('p', 'Cập nhật yêu cầu có tính phí trong giới hạn của lượt này. Muốn bỏ một điều kiện, ghi “Không giới hạn”.'));
+      const save = element('button', 'Cập nhật yêu cầu'); save.type = 'submit'; edits.append(save);
       edits.addEventListener('submit', event => { event.preventDefault(); void send({ edits: fields.filter(f => f.input.value.trim() !== f.item.value)
         .map(f => ({ field: f.item.field, value: f.input.value.trim() })) }); });
       details.append(edits); root.append(details);
       if (view.input.answers.length) {
         const history = element('details'); history.append(element('summary', 'Lịch sử trả lời / sửa câu trả lời'));
         for (const answer of view.input.answers) {
-          const item = element('details'); item.append(element('summary', `Phiên bản ${answer.revision}: ${answer.question} — ${answer.answer}`));
+          const item = element('details'); item.append(element('summary', `Lần ${answer.revision}: ${answer.question} — ${answer.answer}`));
           const form = element('form'), q = question(answer.question_snapshot, answer), button = element('button', 'Dùng câu trả lời đã sửa');
           button.type = 'submit'; form.append(q.group, button); item.append(form); history.append(item);
           form.addEventListener('submit', event => { event.preventDefault(); void send({ editAnswerId: answer.answer_id, answers: [q.value()] }); });

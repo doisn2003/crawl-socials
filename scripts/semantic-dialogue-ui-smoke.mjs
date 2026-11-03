@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const workspace = fileURLToPath(new URL('../', import.meta.url)), require = createRequire(import.meta.url);
 const output = resolve(process.argv[2] || 'artifacts/semantic-dialogue-ui'); await mkdir(output, { recursive: true });
 const temporaryBase = await realpath(tmpdir()), temporary = await mkdtemp(join(temporaryBase, 'csd-semantic-ui-'));
-const config = { filterMode: 'STANDARD', enabled: true, prompt: 'Tìm người mua bán đàn piano', brandContext: '', totalTarget: 10, rawCap: 30, budgetUsd: 3, commentsEnabled: false };
+const config = { filterMode: 'STANDARD', languageScope: 'VIETNAMESE', enabled: true, prompt: 'Tìm người mua bán đàn piano', brandContext: '', totalTarget: 10, rawCap: 30, budgetUsd: 3, commentsEnabled: false };
 const cost = { measuredUsd: .003, unknownUpperUsd: 0, reservedUsd: 0 };
 const question = { id: 'who', target_field: 'target_roles', type: 'single_select', prompt: 'Bạn muốn tìm người hỏi mua hay người rao bán đàn piano?',
   options: [{ id: 'buyer', label: 'Người đang hỏi mua' }, { id: 'seller', label: 'Người đang rao bán' }], required: true, reason: 'Lựa chọn này quyết định loại bài được nhận.' };
@@ -30,7 +30,7 @@ const ready = { ...initial, campaignDialogue: { ...dialogue, revision: 'revision
 const preload = `const {contextBridge}=require('electron');let state=${JSON.stringify(initial)},last=null;const ready=${JSON.stringify(ready)};
 contextBridge.exposeInMainWorld('csd',{getState:async()=>state,saveConfig:async config=>{state.config=config;return config},prepareCampaign:async()=>state,
 continueCampaign:async request=>{last=request;if(!request.answers?.some(a=>a.raw_text||a.selected_option_ids.length))throw Error('CAMPAIGN_ANSWER_INVALID');state=ready;return state},
-listRetainedSources:async()=>({sources:[],issues:[]}),geminiKey:{status:async()=>({source:'NONE'})},cooler:{get:async()=>false,set:async()=>false}});
+listRetainedSources:async()=>({sources:[],issues:[]}),geminiKey:{status:async()=>({source:'NONE'})}});
 contextBridge.exposeInMainWorld('semanticSmoke',{last:()=>last,showResults:()=>{const counts={raw:4,comments:2,suitable:1,notSuitable:2,notYet:1,unrelated:1,pending:1,failed:0};
 state={...state,campaignDialogue:null,campaignDraft:null,run:{id:'fixture-results',state:'COMPLETED',startedAt:'2026-11-02T00:00:00Z',finishedAt:'2026-11-02T00:01:00Z',minimumPosts:1,keywords:['cần mua đàn piano'],outputDirectory:'fixture',platforms:[{platform:'threads',count:4,state:'COMPLETED',reason:'TARGET_MET'}],preview:[],
 opportunity:{campaignId:'fixture-results',totalTarget:1,threadsShare:.8,counts,byPlatform:{threads:counts,facebook:{...counts,suitable:0}},costUsd:0,costUpperUsd:0,usageUnknown:0,budgetUsd:3,phase:'COMPLETED',lastError:null,evaluationPolicy:'GOAL_EVIDENCE',
@@ -68,7 +68,7 @@ await run("document.querySelector('[data-result-group=NOT_SUITABLE]').click()");
 assert.equal(await run("document.querySelectorAll('#opportunity-cards article').length"),2);
 assert.equal(await run("document.querySelector('[data-result-group=NOT_SUITABLE]').getAttribute('aria-pressed')"),'true');
 assert.equal(await run("document.querySelector('[data-result-group=SUITABLE]').getAttribute('aria-pressed')"),'false');
-assert.equal(await run("document.querySelector('#opportunity-summary').innerText.includes('1 đang chờ')"),true);
+assert.equal(await run("document.querySelector('#opportunity-summary').innerText.includes('1 bài chưa kiểm tra')"),true);
 // Hidden Electron windows can pause CSS transitions; capture the settled tab styles.
 await run("document.querySelectorAll('[data-result-group]').forEach(button=>button.style.transition='none')");
 await run("document.getElementById('opportunity-results').scrollIntoView({block:'start',behavior:'instant'})");
@@ -81,16 +81,16 @@ assert.equal(await run("document.querySelector('#opportunity-cards').innerText.i
 assert.equal(await run("document.querySelector('#opportunity-summary').innerText.includes('1 bài bổ sung')"),true);
 await run("var slider=document.querySelector('#filter-mode');slider.value='0';slider.dispatchEvent(new Event('input',{bubbles:true}));slider.dispatchEvent(new Event('change',{bubbles:true}))");
 await until("document.querySelector('#model-budget').disabled && !document.querySelector('#legacy-config').hidden");
-assert.equal(await run("document.querySelector('#filter-mode-help').innerText.includes('0 USD API')"),true);
+assert.equal(await run("document.querySelector('#filter-mode-help').innerText.includes('không tốn tiền lọc')"),true);
 await run("var reuse=document.querySelector('#off-saved-queries');reuse.value='previous-run';reuse.dispatchEvent(new Event('change',{bubbles:true}))");
 await until("document.querySelector('#keywords').value==='cần mua đàn piano'");
 await run("document.getElementById('opportunity-results').scrollIntoView({block:'start',behavior:'instant'})");
 fs.writeFileSync(${JSON.stringify(join(output, 'off-results.png'))},(await window.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
-await run("var slider=document.querySelector('#filter-mode');slider.value='2';slider.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#spending-controls').open=true;document.querySelector('#filter-mode').scrollIntoView({block:'start',behavior:'instant'})");
+await run("var slider=document.querySelector('#filter-mode');slider.value='2';slider.dispatchEvent(new Event('input',{bubbles:true}));slider.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#spending-controls').open=true;document.querySelector('#filter-mode').scrollIntoView({block:'start',behavior:'instant'})");
 await until("document.querySelector('#filter-mode-help').innerText.includes('Chất lượng')");
-assert.equal(await run("document.querySelector('#spend-total').value"),'0');
+assert.equal(await run("document.querySelector('#spend-total').value"),'3');
 fs.writeFileSync(${JSON.stringify(join(output, 'filter-controls.png'))},(await window.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
-assert.deepEqual(errors,[]);fs.writeFileSync(${JSON.stringify(join(output, 'ui-smoke.json'))},JSON.stringify({passed:true,noPreselectedAnswer:true,requiredAnswerError:true,freeTextSubmission:true,readyQueriesVisible:true,twoResultGroups:true,legacyNegativeMerged:true,pendingSeparate:true,criterionEvidenceVisible:true,offPreview:true,offNoVerdictTabs:true,extrasVisible:true,filterSlider:true,zeroInitialSpendLimit:true,offReusesSavedQueries:true,rendererErrors:errors},null,2));
+assert.deepEqual(errors,[]);fs.writeFileSync(${JSON.stringify(join(output, 'ui-smoke.json'))},JSON.stringify({passed:true,noPreselectedAnswer:true,requiredAnswerError:true,freeTextSubmission:true,readyQueriesVisible:true,twoResultGroups:true,legacyNegativeMerged:true,pendingSeparate:true,criterionEvidenceVisible:true,offPreview:true,offNoVerdictTabs:true,extrasVisible:true,filterSlider:true,defaultSpendLimit:true,offReusesSavedQueries:true,rendererErrors:errors},null,2));
 window.destroy();app.exit(0);
 }catch(error){console.error(error.message);window?.destroy();app.exit(1)}});`;
 try {

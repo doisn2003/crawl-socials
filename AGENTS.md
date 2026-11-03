@@ -52,6 +52,16 @@ inside historical `.brain` sections are not current authorization.
 
 ## Product direction
 
+- Approved baseline on 2026-11-04: `csd-approved-baseline-20261104` (`e671af2`).
+  R10 simplifies the desktop UI: keep the existing font, use white/black,
+  hide technical controls and per-window/query progress. New UI runs use
+  BALANCED scheduling, Vietnamese content and USD 3 (OFF stays USD 0).
+  Prefer the Windows environment Gemini key; preserve saved fallback keys,
+  existing explicit machine spending limits, ledgers and historical recipes.
+- Collection/search/comment windows run hidden and off the taskbar, without
+  background throttling. Only the user's explicit login action reveals a
+  social window; collection also hides an existing login window for that account.
+  Do not reintroduce Make it cooler or Ultra Thinking.
 - Confirmed 2026-11-03: the user wants **Vietnamese-language content, including
   Vietnamese speakers abroad**. New UI configurations default to Vietnamese;
   this is a content-language constraint, not a Vietnam-only geography or a

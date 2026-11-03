@@ -162,8 +162,14 @@ export function createBrowserHost(input: {
     } catch { throw new Error('BROWSER_LOAD_FAILED'); }
     finally { if (timer) clearTimeout(timer); }
   }
-  async function openInternal(id: string, workerId?: string) {
+  async function openInternal(id: string, workerId?: string, interactive = false) {
     const entry = await ensure(id);
+    // Collection never reveals a social window, including an earlier login window.
+    // Only an explicit login action may bring one onto the desktop.
+    const visible = interactive && !input.hidden;
+    if (!visible && entry.window && !entry.window.isDestroyed()) {
+      entry.window.hide(); entry.window.setSkipTaskbar(true);
+    }
     let slot: WindowSlot = entry;
     if (workerId) {
       if (!entry.workers.has(workerId)) {
@@ -177,15 +183,17 @@ export function createBrowserHost(input: {
     const policy = entry.policy;
     const previousContents = slot.view?.webContents;
     if (previousContents && !previousContents.isDestroyed()) {
-      if (!input.hidden) { slot.window?.show(); slot.window?.focus(); }
+      slot.window?.setSkipTaskbar(!visible);
+      if (visible) { slot.window?.show(); slot.window?.focus(); }
+      else { slot.window?.hide(); previousContents.setBackgroundThrottling(false); }
       return entry;
     }
     if (slot.window && !slot.window.isDestroyed()) slot.window.destroy();
     slot.view = null; slot.window = null;
-    const window = new BaseWindow({ title: 'CSD — ' + (entry.profile.platform === 'threads' ? 'Threads' : 'Facebook') + ' — ' + entry.profile.label + (workerId ? ' — ' + workerId : ''), width: 1000, height: 760, show: !input.hidden });
+    const window = new BaseWindow({ title: 'CSD — ' + (entry.profile.platform === 'threads' ? 'Threads' : 'Facebook'), width: 1000, height: 760, show: visible, skipTaskbar: !visible });
     const view = new WebContentsView({ webPreferences: { session: entry.session, sandbox: true,
       contextIsolation: true, nodeIntegration: false, webviewTag: false,
-      backgroundThrottling: input.backgroundThrottling ?? !input.hidden } });
+      backgroundThrottling: visible ? input.backgroundThrottling ?? true : false } });
     slot.window = window; slot.view = view; slot.closing = false; slot.viewGeneration = ++nextViewGeneration;
     const resize = () => {
       const bounds = window.getContentBounds();
@@ -285,7 +293,7 @@ export function createBrowserHost(input: {
     close,
     openLogin: (id: string) => serial(id, async () => {
       if (!input.manualLoginEnabled || policy.fixtureOrigin) throw new Error('MANUAL_LOGIN_DISABLED');
-      const entry = await openInternal(id); await navigate(entry, entry.profile.platform === 'threads' ? 'https://www.threads.com/login' : 'https://www.facebook.com/login/');
+      const entry = await openInternal(id, undefined, true); await navigate(entry, entry.profile.platform === 'threads' ? 'https://www.threads.com/login' : 'https://www.facebook.com/login/');
     }),
     // Main-only ownership access for local diagnostics/future observer lifecycle; never bridged to website/UI.
     ownedContents: (id: string): WebContents | null => entries.get(id)?.view?.webContents || null,

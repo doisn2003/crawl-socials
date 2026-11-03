@@ -2,11 +2,11 @@ import type { SecretStore } from './ports/secret-store.js';
 import type { GeminiKeyStatus } from '../shared/production-api.js';
 const secretId = 'gemini:api-key';
 /** Main-process only; renderer receives status, never saved credential text. */
-export async function createGeminiKeySettings(store: SecretStore, environment: () => string | null) {
+export async function createGeminiKeySettings(store: SecretStore, environment: () => string | null, options: { preferEnvironment?: boolean } = {}) {
   let saved: string | null = null, readError = false, busy = false;
   try { saved = await store.get(secretId); } catch { readError = true; }
-  const current = () => saved ?? environment();
-  const status = (): GeminiKeyStatus => ({ source: saved ? 'SAVED' : environment() ? 'ENVIRONMENT' : 'NONE', readError });
+  const current = () => options.preferEnvironment ? environment() ?? saved : saved ?? environment();
+  const status = (): GeminiKeyStatus => ({ source: options.preferEnvironment && environment() ? 'ENVIRONMENT' : saved ? 'SAVED' : environment() ? 'ENVIRONMENT' : 'NONE', readError });
   return { current, status,
     async save(input: unknown): Promise<GeminiKeyStatus> {
       if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).join() !== 'key') throw Error('GEMINI_KEY_INPUT_INVALID');

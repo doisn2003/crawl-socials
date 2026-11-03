@@ -6,10 +6,6 @@ const api: ProductionApi = Object.freeze({
     save: (input: { key: string }) => ipcRenderer.invoke('csd:gemini-key:save', input),
     remove: () => ipcRenderer.invoke('csd:gemini-key:remove'),
   }),
-  cooler: Object.freeze({
-    get: () => ipcRenderer.invoke('csd:cooler:get'),
-    set: (input: { enabled: boolean }) => ipcRenderer.invoke('csd:cooler:set', input),
-  }),
   getState: () => ipcRenderer.invoke('csd:state'),
   saveConfig: (input: UserConfig) => ipcRenderer.invoke('csd:config', input),
   login: (input: { platform: Platform; profileId?: string }) => ipcRenderer.invoke('csd:login', input),

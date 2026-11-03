@@ -75,7 +75,7 @@ export function createCampaignPlanner(host: PlannerHost) {
     const cost = state?.campaignDraftPreparing?.cost ?? state?.campaignDraftError?.cost ?? draft?.cost ?? state?.campaignDialogue?.cost;
     node('campaign-plan-cost').textContent = cost ? `Chi phí lập kế hoạch: $${cost.measuredUsd.toFixed(4)}`
       + (cost.unknownUpperUsd + cost.reservedUsd > 0 ? `–$${(cost.measuredUsd + cost.unknownUpperUsd + cost.reservedUsd).toFixed(4)}` : '')
-      + ' · Được tính trong ngân sách của lượt thu.' : 'Bước này dùng AI để lập tiêu chí; chưa thu thập bài viết.';
+      + ' · Được tính trong ngân sách của lượt thu.' : 'CSD sẽ làm rõ yêu cầu trước khi tìm bài. Chi phí nằm trong giới hạn $3 của lượt này.';
     const presets = state?.campaignPresets ?? [], nextKey = JSON.stringify(presets.map(p => [p.presetId, p.version, p.name, p.supported]));
     const select = node<HTMLSelectElement>('campaign-preset');
     if (nextKey !== presetKey) {
@@ -108,13 +108,13 @@ export function createCampaignPlanner(host: PlannerHost) {
     select.replaceChildren(placeholder, ...sources.map(source => {
       const option = document.createElement('option'); option.value = sourceKey(source);
       option.textContent = new Date(source.updatedAt).toLocaleDateString('vi-VN') + ' · ' + (source.prompt || 'Lượt dữ liệu')
-        + (source.format === 'LEGACY_JSONL' ? ' · Thu thô' : ' · Hội thoại') + ' · ' + source.runId.slice(-8)
+        + (source.format === 'LEGACY_JSONL' ? ' · Bài viết' : ' · Có bình luận')
         + (source.sourceLabel ? ' · ' + source.sourceLabel : ' · Máy này');
       return option;
     }));
     if (sources.some(source => sourceKey(source) === previous)) select.value = previous;
-    node('retained-source-note').textContent = (sources.length ? 'Dùng tiêu chí đã xem/lưu ở trên. Chi phí AI được tính cho lượt mới; bài và bình luận nguồn được giữ nguyên.'
-      : 'Chưa có lượt dữ liệu hỗ trợ tái lọc trong các thư mục đã chọn.')
+    node('retained-source-note').textContent = (sources.length ? 'Dùng tiêu chí đã xem/lưu ở trên. Chi phí được tính cho lượt mới; bài và bình luận nguồn được giữ nguyên.'
+      : 'Chưa có lượt dữ liệu hỗ trợ lọc lại trong các thư mục đã chọn.')
       + (catalog.issues.length ? ' Chưa đọc được: ' + catalog.issues.map(issue => issue.label).join(', ') + '. Kiểm tra thư mục còn trên máy hoặc chọn lại nguồn.' : '');
   }
   async function loadSources(choose: boolean) {
@@ -125,7 +125,7 @@ export function createCampaignPlanner(host: PlannerHost) {
       if (catalog) showSources(catalog);
     } catch {
       if (!choose) { sources = []; node<HTMLSelectElement>('retained-source').value = ''; }
-      node('retained-source-note').textContent = choose ? 'Chưa thêm được nguồn. Chọn thư mục dữ liệu CSD có thư mục collections bên trong.'
+      node('retained-source-note').textContent = choose ? 'Chưa thêm được nguồn. Chọn thư mục CSD đã dùng để lưu bài viết.'
         : 'Chưa đọc được danh sách dữ liệu đã lưu. Hãy thử lại.';
     }
     finally { loadingSources = false; render(); }
@@ -136,7 +136,7 @@ export function createCampaignPlanner(host: PlannerHost) {
     const draft = draftReference(), source = sources.find(item => sourceKey(item) === node<HTMLSelectElement>('retained-source').value);
     if (!draft || !source) throw Error('RETAINED_INPUT_INVALID');
     return host.api.startRetained({ sourceRunId: source.runId, ...(source.sourceRootId ? { sourceRootId: source.sourceRootId } : {}), draft });
-  }, 'Đã tạo lượt tái lọc bằng tiêu chí mới. Xem tiến độ và kết quả ở bên dưới.'); });
+  }, 'Đã tạo lượt lọc lại bằng tiêu chí mới. Xem tiến độ và kết quả ở bên dưới.'); });
   node('prepare-campaign').addEventListener('click', () => { void host.execute(async () => {
     const next = await host.api.prepareCampaign();
     if (!next.campaignDraftError) { dirty = false; displayedRevision = ''; node<HTMLDetailsElement>('campaign-plan-editor').open = true; }
