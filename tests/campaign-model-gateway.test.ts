@@ -25,6 +25,18 @@ const request: JsonModelRequest = { purpose: 'same-filter', system: 'EXACT_UNCHA
 const success = () => new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{"ok":true}' }] } }],
   usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 100, totalTokenCount: 1100 } }));
 
+test('explicit rebuild selection moves a pending 2.5 draft to 3.1 without clearing its old charges', () => temporary(async directory => {
+  createCampaignModelGateway({ mockTransport: true, directory, budgetUsd: 1, primaryModel: 'gemini-2.5-flash-lite' });
+  ledger(join(directory, 'model-gemini-2.5-flash-lite'), .01, .02);
+  const selected = createCampaignModelGateway({ mockTransport: true, directory, budgetUsd: 1,
+    primaryModel: 'gemini-3.1-flash-lite', selectionReason: 'REBUILD_SELECTED_MODEL' });
+  assert.equal(selected.summary().model, 'gemini-3.1-flash-lite');
+  assert.equal(selected.summary().measured_cost_usd, .01); assert.equal(selected.summary().unmetered_cost_upper_usd, .02);
+  const routing = JSON.parse(readFileSync(join(directory, 'model-routing.json'), 'utf8'));
+  assert.equal(routing.history.at(-1).from_model, 'gemini-2.5-flash-lite');
+  assert.equal(routing.history.at(-1).to_model, 'gemini-3.1-flash-lite');
+}));
+
 test('both legacy and new ledgers are registered before calls and summaries count known plus unresolved cost once', () => temporary(async directory => {
   ledger(join(directory, 'model'), 0.4, 0.2); ledger(join(directory, 'model-gemini-3.5-flash-lite'), 0.1, 0.05);
   const pool = createSharedModelBudget(1);

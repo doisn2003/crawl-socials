@@ -61,8 +61,12 @@ async function bootstrap() {
     journalDirectory: join(paths.userData, 'data', 'session-snapshots'), manualLoginEnabled: true, backgroundThrottling: false });
   const service = createProductionService({ directory: join(paths.userData, 'data'), version: app.getVersion(), host: browserHost, spendingStatus: () => spending.status(),
     createOpportunity: value => createOpportunityPipeline({ ...value, classificationWorkers: 2, assessmentCacheDirectory: join(paths.userData, 'data', 'assessment-cache'), gateway: value.config.filterMode === 'OFF' ? unassessedGateway : createCampaignModelGateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd, apiKey: geminiKey.current, schedulerForModel, spending }) }),
-    prepareCampaignDraft: value => prepareSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current, schedulerForModel, spending }) }),
-    continueCampaignDraft: value => continueSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current, schedulerForModel, spending }) }),
+    // Retry a failed 2.5 draft with the currently selected model while retaining
+    // its original directory and spending history. Historical crawl recipes stay pinned.
+    prepareCampaignDraft: value => prepareSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, primaryModel: REBUILD_MODEL,
+      selectionReason: 'REBUILD_SELECTED_MODEL', apiKey: geminiKey.current, schedulerForModel, spending }) }),
+    continueCampaignDraft: value => continueSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, primaryModel: REBUILD_MODEL,
+      selectionReason: 'REBUILD_SELECTED_MODEL', apiKey: geminiKey.current, schedulerForModel, spending }) }),
     async collect(value: CollectorInput): Promise<CollectorReceipt> {
       const moduleUrl = new URL('../collectors/' + value.platform + '-collector.mjs', import.meta.url).href;
       const runner = await import(moduleUrl) as Record<string, (options: object) => Promise<CollectorReceipt>>;
