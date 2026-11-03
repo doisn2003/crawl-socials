@@ -22,6 +22,7 @@ import { runParallelCollectors } from '../application/parallel-collector.js';
 import { createUserConfigStore } from '../infrastructure/config/user-config.js';
 import { throughput, GEMINI_35_PROJECT_LIMITS } from '../shared/throughput.js';
 import { createRequestScheduler, type RequestScheduler } from '../infrastructure/llm/request-scheduler.js';
+import { createDurableSpend, REBUILD_MODEL } from '../infrastructure/llm/durable-spend.js';
 
 async function bootstrap() {
   const paths = runtimePaths(app.getPath('appData'));
@@ -39,10 +40,14 @@ async function bootstrap() {
   const environmentKey = resolveGeminiApiKey();
   const geminiKey = await createGeminiKeySettings(createElectronSecretStore(join(paths.userData, 'secrets')), () => environmentKey);
   const appConfig = createUserConfigStore(join(paths.userData, 'data'));
+  const spending = createDurableSpend({ envelope: () => ({ scope: 'USER', model: REBUILD_MODEL,
+    ...(appConfig.read().spendLimits ?? { totalUsd: 0, dailyUsd: 0, maxCalls: 0 }) }) });
   const schedulers = new Map<string, RequestScheduler>();
   const schedulerForModel = (model: string) => {
     const policy = throughput(appConfig.read().performance);
-    const limits = model === 'gemini-3.5-flash-lite'
+    // Local conservative pacing for 2.5, not a claim about this project's provider quota.
+    const limits = model === REBUILD_MODEL ? { concurrency: 2, rpm: 60, inputTpm: 200_000, rpd: 10_000 }
+      : model === 'gemini-3.5-flash-lite'
       ? { ...GEMINI_35_PROJECT_LIMITS, concurrency: policy.modelConcurrency }
       : { concurrency: 1, rpm: 13, inputTpm: 200_000, rpd: 500 };
     let scheduler = schedulers.get(model);
@@ -54,9 +59,9 @@ async function bootstrap() {
   const browserHost = createBrowserHost({ profiles, secrets: createElectronSecretStore(join(paths.userData, 'secrets')),
     journalDirectory: join(paths.userData, 'data', 'session-snapshots'), manualLoginEnabled: true, backgroundThrottling: false });
   const service = createProductionService({ directory: join(paths.userData, 'data'), version: app.getVersion(), host: browserHost,
-    createOpportunity: value => createOpportunityPipeline({ ...value, classificationWorkers: throughput(appConfig.read().performance).classificationWorkers, gateway: createCampaignModelGateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd, apiKey: geminiKey.current, schedulerForModel }) }),
-    prepareCampaignDraft: value => prepareSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current, schedulerForModel }) }),
-    continueCampaignDraft: value => continueSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current, schedulerForModel }) }),
+    createOpportunity: value => createOpportunityPipeline({ ...value, classificationWorkers: 2, gateway: createCampaignModelGateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd, apiKey: geminiKey.current, schedulerForModel, spending }) }),
+    prepareCampaignDraft: value => prepareSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current, schedulerForModel, spending }) }),
+    continueCampaignDraft: value => continueSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, apiKey: geminiKey.current, schedulerForModel, spending }) }),
     async collect(value: CollectorInput): Promise<CollectorReceipt> {
       const moduleUrl = new URL('../collectors/' + value.platform + '-collector.mjs', import.meta.url).href;
       const runner = await import(moduleUrl) as Record<string, (options: object) => Promise<CollectorReceipt>>;

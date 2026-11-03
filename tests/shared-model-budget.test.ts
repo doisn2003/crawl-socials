@@ -12,7 +12,7 @@ test('different model ledgers share reservations and recover unknown spend witho
   try {
     const pool = createSharedModelBudget(0.001);
     const body = { purpose: 'pool', system: 'data', input: {}, schema: { type: 'object' }, max_output_tokens: 100 };
-    const first = createGeminiGateway({ directory: join(directory, 'first'), budgetUsd: 0.001, sharedBudget: pool,
+    const first = createGeminiGateway({ model: 'gemini-3.1-flash-lite', directory: join(directory, 'first'), budgetUsd: 0.001, sharedBudget: pool,
       apiKey: 'fixture', minRequestIntervalMs: 0, fetch: async () => {
         await new Promise<void>(resolve => { release = resolve; });
         return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{}' }] } }],
@@ -21,17 +21,18 @@ test('different model ledgers share reservations and recover unknown spend witho
     let secondCalls = 0;
     const secondDir = join(directory, 'second'); mkdirSync(secondDir);
     writeFileSync(join(secondDir, 'model-ledger.jsonl'), JSON.stringify({ type: 'START', invocation_id: 'unknown', reserved_usd: 0.0003 }) + '\n');
-    const second = createGeminiGateway({ directory: secondDir, budgetUsd: 0.001, sharedBudget: pool,
-      apiKey: 'fixture', minRequestIntervalMs: 0, fetch: async () => { secondCalls++; throw Error('MUST_NOT_FETCH'); } });
+    const second = createGeminiGateway({ model: 'gemini-3.1-flash-lite', directory: secondDir, budgetUsd: 0.001, sharedBudget: pool,
+      apiKey: 'fixture', minRequestIntervalMs: 0, fetch: async () => { secondCalls++; return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{}' }] } }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 } })); } });
     const pending = first.generateJson(body);
     await new Promise(resolve => setTimeout(resolve, 0));
     assert.ok(first.summary().reserved_usd > 0);
-    await assert.rejects(second.generateJson(body), /MODEL_BUDGET_EXHAUSTED/);
+    const waiting = second.generateJson(body);
+    await new Promise(resolve => setTimeout(resolve, 10));
     assert.equal(secondCalls, 0);
-    release(); await pending;
+    release(); await pending; await waiting; assert.equal(secondCalls, 1);
     assert.ok(pool.remaining() > 0);
     const before = pool.remaining();
-    createGeminiGateway({ directory: secondDir, budgetUsd: 0.001, sharedBudget: pool, apiKey: 'fixture' });
+    createGeminiGateway({ model: 'gemini-3.1-flash-lite', directory: secondDir, budgetUsd: 0.001, sharedBudget: pool, apiKey: 'fixture' });
     assert.equal(pool.remaining(), before);
     assert.equal(second.summary().unmetered_cost_upper_usd, 0.0003);
   } finally { release(); rmSync(directory, { recursive: true, force: true }); }

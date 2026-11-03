@@ -7,7 +7,7 @@ Người dùng chọn Gemini 2.5 Flash-Lite. Nhánh tích hợp hiện hành là
 | Chặng | Trạng thái | Nhánh khi bắt đầu | Đầu ra |
 |---|---|---|---|
 | R0 | COMPLETE | codex/csd-rebuild | Kế hoạch, Git, baseline, metadata model |
-| R1 | READY | codex/csd-r1-cost | Guard chi phí và chuyển model 2.5 |
+| R1 | IMPLEMENTED — offline verified | codex/csd-r1-cost | 2.5 mặc định; sổ SQLite dùng chung USER/DEVELOPMENT, dự phòng bền vững, trần tiền/ngày/call; 23 kiểm thử gateway/guard đạt, 0 gọi API thật |
 | R2 | PLANNED — sau R1 | codex/csd-r2-raw | Thu không lọc miễn phí, mục tiêu chung, queue AI riêng |
 | R3 | PLANNED — sau R2 | codex/csd-r3-windows | Mỗi query có tác vụ/cửa sổ; concurrency theo tài nguyên |
 | R4 | PLANNED — sau R2 | codex/csd-r4-standard | Một lượt lọc gọn, đúng vai và người thụ hưởng |

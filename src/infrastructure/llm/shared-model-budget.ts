@@ -4,15 +4,18 @@
 export function createSharedModelBudget(limitUsd: number) {
   if (!Number.isFinite(limitUsd) || limitUsd <= 0) throw Error('MODEL_BUDGET_INVALID');
   const accounts = new Map<string, number>();
+  const pending = new Map<string, number>();
   const used = () => [...accounts.values()].reduce((sum, value) => sum + value, 0);
   return {
     limitUsd,
-    setAccounted(owner: string, amount: number) {
+    setAccounted(owner: string, amount: number, reserved = 0) {
       if (!owner || !Number.isFinite(amount) || amount < 0) throw Error('MODEL_BUDGET_ACCOUNT_INVALID');
       accounts.set(owner, amount);
+      pending.set(owner, reserved);
     },
     canReserve(amount: number) { return Number.isFinite(amount) && amount >= 0 && used() + amount <= limitUsd; },
     remaining() { return Math.max(0, limitUsd - used()); },
+    hasPending() { return [...pending.values()].some(value => value > 0); },
   };
 }
 export type SharedModelBudget = ReturnType<typeof createSharedModelBudget>;
