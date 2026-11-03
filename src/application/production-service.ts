@@ -334,6 +334,7 @@ export function createProductionService(input: {
           let config: Record<string, unknown> = resume && existsSync(configFile) ? JSON.parse(readFileSync(configFile, 'utf8')) as Record<string, unknown> :
             { runId: currentRun.id + '-' + item.platform, output, queries,
             parallelWorkers: throughput(configStore.read().performance).windowsPerPlatform,
+            ...(pipeline?.campaign.result_policy === 'GLOBAL_FIRST_QUALIFIED' ? { queryTaskPolicy: 'PER_QUERY_V1', windowMode: configStore.read().performance === 'FAST' ? 'ALL' : 'AUTO' } : {}),
             maxScrollsPerQuery: pipeline ? 20 : item.platform === 'facebook' ? 50 : 100, maxMinutes: pipeline?.campaign.budget.max_run_minutes ?? 240, settleMs: 3000,
             ...(pipeline ? { includeContextCandidates: true } : {}),
             ...(item.platform === 'facebook' ? { targetNewRecords: rawTarget } : { targetTotal: pipeline ? 10000 : rawTarget, modes: ['top', 'recent'], ...(pipeline ? { interleaveModes: true } : {}) }) };

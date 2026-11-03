@@ -5,6 +5,7 @@ import type { CollectorInput, CollectorReceipt } from './production-service.js';
 import { atomicJson } from '../infrastructure/config/user-config.js';
 import { createFacebookCollectorStore } from '../infrastructure/browser/facebook-collector-store.js';
 import { createThreadsCollectorStore } from '../infrastructure/browser/threads-collector-store.js';
+import { runQueryCollectors } from './query-collector.js';
 
 const safeCode = (e: unknown) => e instanceof Error && /^[A-Z][A-Z0-9_]{1,100}$/.test(e.message) ? e.message : 'COLLECTOR_WORKER_FAILED';
 const completed = new Set(['QUERY_BUDGET_COMPLETE', 'SOURCE_EXHAUSTED', 'NO_PROGRESS', 'REPLAY_BUDGET_REACHED']);
@@ -13,6 +14,7 @@ const completed = new Set(['QUERY_BUDGET_COMPLETE', 'SOURCE_EXHAUSTED', 'NO_PROG
  * Only this coordinator writes the aggregate store. Child checkpoints/observers never share a file or webContents. */
 export async function runParallelCollectors(input: CollectorInput,
   collectWorker: (input: CollectorInput, workerId: string | null) => Promise<CollectorReceipt>): Promise<CollectorReceipt> {
+  if (input.config.queryTaskPolicy === 'PER_QUERY_V1') return runQueryCollectors(input, collectWorker);
   const workers = input.config.parallelWorkers ?? 1;
   if (!Number.isSafeInteger(workers) || Number(workers) < 1 || Number(workers) > 3) throw Error('COLLECTOR_WORKERS_INVALID');
   const queries = input.config.queries as string[];

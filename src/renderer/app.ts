@@ -69,7 +69,7 @@ function readConfig(): UserConfig {
     ...(intentEnabled.checked || state?.config.schemaVersion === 2 ? {
       schemaVersion: 2 as const, opportunity: {
         enabled: true, filterMode: currentFilter(), prompt: campaignPrompt.value, brandContext: brandContext.value,
-        totalTarget: Number(suitableTarget.value), 
+        totalTarget: Number(suitableTarget.value),
         rawCap: Number(rawCap.value), budgetUsd: currentFilter() === 'OFF' ? 0 : Number(modelBudget.value), commentsEnabled: state?.config.opportunity?.commentsEnabled ?? true,
       }
     } : {})
