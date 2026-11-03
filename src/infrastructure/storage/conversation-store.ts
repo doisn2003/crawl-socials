@@ -492,10 +492,14 @@ export class ConversationStore {
     if (!Number.isSafeInteger(target) || target < 1) throw Error('CAMPAIGN_TARGET_INVALID');
     return this.transaction(() => {
       const key = contextKey(context);
-      const candidates = unassessed ? this.snapshots().filter(s => s.post).map(snapshot => ({ snapshot, strength: 0, at: snapshot.observed_at }))
+      const order = new Map((unassessed
+        ? this.db.prepare('SELECT platform,root_post_id,rowid AS sequence FROM campaign_roots WHERE context_key=?').all(key)
+        : this.db.prepare('SELECT platform,root_post_id,MAX(rowid) AS sequence FROM decisions WHERE context_key=? GROUP BY platform,root_post_id').all(key))
+        .map(r => [r.platform + ':' + r.root_post_id, Number(r.sequence)]));
+      const candidates = unassessed ? this.snapshots().filter(s => s.post && order.has(s.platform + ':' + s.root_post_id)).map(snapshot => ({ snapshot, strength: 0 }))
         : this.results(context, { classification: 'SUITABLE' }).filter(r => !r.stale).map(r => ({ snapshot: r.snapshot,
-          strength: Number(r.decision.attributes?.signal_strength ?? 0), at: r.decision.created_at }));
-      candidates.sort((a, b) => b.strength - a.strength || a.at.localeCompare(b.at) || a.snapshot.id.localeCompare(b.snapshot.id));
+          strength: Number(r.decision.attributes?.signal_strength ?? 0) }));
+      candidates.sort((a, b) => b.strength - a.strength || order.get(a.snapshot.platform + ':' + a.snapshot.root_post_id)! - order.get(b.snapshot.platform + ':' + b.snapshot.root_post_id)!);
       let sequence = Number((this.db.prepare('SELECT COALESCE(MAX(accepted_sequence),0) AS n FROM result_admissions WHERE context_key=?').get(key) as Row).n);
       const insert = this.db.prepare('INSERT OR IGNORE INTO result_admissions VALUES(?,?,?,?)');
       for (const { snapshot: s } of candidates) { if (insert.run(key, s.platform, s.root_post_id, sequence + 1).changes) sequence++; }

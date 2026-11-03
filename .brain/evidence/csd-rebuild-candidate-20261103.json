@@ -1,0 +1,235 @@
+{
+  "schema": 1,
+  "capturedAt": "2026-11-03T10:57:12.890976+00:00",
+  "version": "0.4.0-rebuild.1",
+  "status": "CANDIDATE_OFFLINE_VERIFIED_LIVE_MODEL_ACCESS_BLOCKED",
+  "package": {
+    "file": "release/CSD-Portable-0.4.0-rebuild.1.exe",
+    "bytes": 102442510,
+    "sha256": "f21bb2ab85972b02b75b84048bc6da26623f39bf30bc19cbceb930c3c40e1e5a",
+    "mainPreloadRendererSmoke": {
+      "passed": true,
+      "actualMainPreloadRenderer": true,
+      "module": "C:\\OwnProject\\crawl-socials\\release\\win-unpacked\\resources\\app.asar\\dist\\main\\index.js",
+      "appDataIsolated": true,
+      "globalSpendIsolated": true,
+      "defaultFilter": "OFF",
+      "zeroInitialSpend": true,
+      "settingsRoundTrip": true,
+      "offRejectsPlanner": true,
+      "calls": 0,
+      "rendererErrors": []
+    }
+  },
+  "offlineReplay": {
+    "createdAt": "2026-11-03T10:36:03.828Z",
+    "modelCalls": 0,
+    "apiUsd": 0,
+    "sources": [
+      {
+        "name": "housing",
+        "id": "crawl-3ff25a84-cc9b-4c7a-9543-0ab22827c386",
+        "sha256": "4c152e71ced3bb62c49fb5332bd39692225571ba652b7cee6877a3d2da3c930e",
+        "snapshots": 557,
+        "uniqueRoots": 557,
+        "observations": 831,
+        "evidenceSpansValidated": 858,
+        "replayRoots": 557,
+        "offTarget": 557,
+        "extra": 0,
+        "modelCalls": 0,
+        "seconds": 6.66,
+        "sourceUnchanged": true
+      },
+      {
+        "name": "property",
+        "id": "crawl-dc867aca-820c-4b99-826e-31054b80d8fb",
+        "sha256": "5a06532e86cc6da80015418bbda38dc20ee8404dfb296715ca330e5f3dcf4bc0",
+        "snapshots": 681,
+        "uniqueRoots": 681,
+        "observations": 969,
+        "evidenceSpansValidated": 1033,
+        "replayRoots": 681,
+        "offTarget": 681,
+        "extra": 0,
+        "modelCalls": 0,
+        "seconds": 7.48,
+        "sourceUnchanged": true
+      },
+      {
+        "name": "chicken",
+        "id": "crawl-ebe12105-a34d-4fd7-95ed-698e8574f00d",
+        "sha256": "52302c702212aa2696edb62c0a5a9165eed7616a016bd419281f85d14b24186e",
+        "snapshots": 1539,
+        "uniqueRoots": 1539,
+        "observations": 1939,
+        "evidenceSpansValidated": 2094,
+        "replayRoots": 1539,
+        "offTarget": 1000,
+        "extra": 539,
+        "modelCalls": 0,
+        "seconds": 20.11,
+        "sourceUnchanged": true
+      },
+      {
+        "name": "cafe",
+        "id": "crawl-4e3faa2e-c67d-4353-86f8-734febb4b683",
+        "sha256": "158eaca4c0bd79be3baf68570e6604c34b224ca4b6d71e7234aa6d74a889ac5e",
+        "snapshots": 3001,
+        "uniqueRoots": 3001,
+        "observations": 3571,
+        "evidenceSpansValidated": 3679,
+        "replayRoots": 3001,
+        "offTarget": 1000,
+        "extra": 2001,
+        "modelCalls": 0,
+        "seconds": 52.9,
+        "sourceUnchanged": true
+      },
+      {
+        "name": "piano-1",
+        "id": "crawl-6b59136f-a4e7-4219-9c13-559d90077c15",
+        "sha256": "f08d81584e0f15e0886dc00970633d53a381c2aa89a1aaf022c3562c298ea898",
+        "snapshots": 522,
+        "uniqueRoots": 522,
+        "observations": 580,
+        "evidenceSpansValidated": 584,
+        "replayRoots": 522,
+        "offTarget": 522,
+        "extra": 0,
+        "modelCalls": 0,
+        "seconds": 4.41,
+        "sourceUnchanged": true
+      },
+      {
+        "name": "piano-2",
+        "id": "crawl-9a6373d3-414d-4e3a-9172-076fd0e38220",
+        "sha256": "bc913520308c659aa94037a5c29700f74ac3f6869ac61205758c58713117107c",
+        "snapshots": 428,
+        "uniqueRoots": 428,
+        "observations": 428,
+        "evidenceSpansValidated": 448,
+        "replayRoots": 428,
+        "offTarget": 428,
+        "extra": 0,
+        "modelCalls": 0,
+        "seconds": 3.37,
+        "sourceUnchanged": true
+      }
+    ],
+    "holdout": {
+      "population": 814,
+      "sampled": 100,
+      "sha256": "8b3d40a73d6852bdc8522376d9659173595a2aa5b694f7f32f827b2e9fb9c35c",
+      "labelStatus": "PENDING_BLIND_REVIEW",
+      "qualityMeasured": false,
+      "note": "Offline replay validates data mechanics, not semantic model quality."
+    }
+  },
+  "rendererSmoke": {
+    "passed": true,
+    "noPreselectedAnswer": true,
+    "requiredAnswerError": true,
+    "freeTextSubmission": true,
+    "readyQueriesVisible": true,
+    "twoResultGroups": true,
+    "legacyNegativeMerged": true,
+    "pendingSeparate": true,
+    "criterionEvidenceVisible": true,
+    "offPreview": true,
+    "offNoVerdictTabs": true,
+    "extrasVisible": true,
+    "filterSlider": true,
+    "zeroInitialSpendLimit": true,
+    "offReusesSavedQueries": true,
+    "rendererErrors": []
+  },
+  "windowSmoke": {
+    "passed": true,
+    "checks": [
+      "two real Electron windows navigate independently",
+      "shared login session per profile",
+      "different profiles isolated",
+      "observer cannot claim sibling window",
+      "closing one window preserves sibling inflight request",
+      "reopened window invalidates old ownership",
+      "16 query windows (8 per platform) own distinct webContents",
+      "shutdown closes all webContents and flushes session"
+    ],
+    "network": "LOCALHOST_ONLY",
+    "appData": "ISOLATED_TEMPORARY",
+    "resourceProfile": {
+      "windows": 16,
+      "loadMs": 1823.7906999999998,
+      "baseline": {
+        "system": {
+          "freeBytes": 6616342528,
+          "totalBytes": 17111035904,
+          "cpuBusy": 0
+        }
+      },
+      "system": {
+        "freeBytes": 6336880640,
+        "totalBytes": 17111035904,
+        "cpuBusy": 0.8927861146266498
+      },
+      "rendererWorkingSetMiB": 2097.64453125,
+      "responseMs": {
+        "average": 1.1956312499999342,
+        "maximum": 3.4355000000000473
+      },
+      "scope": "16 actual Electron host windows with localhost text fixtures; not Facebook/Threads page memory or capacity."
+    }
+  },
+  "holdoutReference": {
+    "sampled": 100,
+    "population": 814,
+    "knownRegressionExcluded": 1,
+    "labels": {
+      "SUITABLE": 25,
+      "NOT_SUITABLE": 68,
+      "UNKNOWN": 7
+    },
+    "annotator": "Codex manual reading of blinded text; one annotator, not a customer-validated human gold set",
+    "labelsSha256": "cf9787392b5093b871fe7b365d35ffa570a50af6debdba4e27bb7566835db46a"
+  },
+  "liveEvaluation": {
+    "status": "BLOCKED_AT_ACCESS_PREFLIGHT",
+    "error": "MODEL_NOT_AVAILABLE",
+    "httpStatus": 404,
+    "proposal": {
+      "model": "gemini-2.5-flash-lite",
+      "maxCalls": 25,
+      "cumulativeUsd": 0.1,
+      "batchSize": 10,
+      "sampleSize": 100,
+      "scope": "One access preflight, then STANDARD and QUALITY on the same frozen sample. QUALITY reuses STANDARD. No crawling, planner, fallback or format-repair calls.",
+      "inputHash": "8b3d40a73d6852bdc8522376d9659173595a2aa5b694f7f32f827b2e9fb9c35c",
+      "labelHash": "cf9787392b5093b871fe7b365d35ffa570a50af6debdba4e27bb7566835db46a",
+      "recipeHash": "6505bd1edfcc9a94f732d2ec3de0f4e9d812b4bde67ca4c4c643ae5e965669aa"
+    },
+    "globalSpending": {
+      "measuredUsd": 0,
+      "heldUsd": 0,
+      "remainingUsd": 0.1,
+      "dailyRemainingUsd": 0.1,
+      "calls": 1
+    },
+    "evaluatedPosts": 0,
+    "modes": [],
+    "qualityMeasured": false
+  },
+  "limitations": [
+    "No live Facebook/Threads capacity benchmark. Window measurements use localhost fixtures and working-set sums include shared memory.",
+    "No candidate classification quality measured: preflight HTTP 404.",
+    "Reference labels were read blindly by one coding agent, not independently validated by the customer.",
+    "No production promotion or remote push."
+  ],
+  "unitTests": {
+    "pass": 977,
+    "fail": 0,
+    "log": "artifacts/csd-rebuild-20261103/full-tests-final.txt",
+    "sha256": "ac4d136aba92607c73e4d731dc1ef35d74ab19d00369c5c96653cdbc67095c5c",
+    "lastChangeAfterSuite": "Saved-query UI reuse only, validated by build, UI smoke and packaged app smoke"
+  }
+}

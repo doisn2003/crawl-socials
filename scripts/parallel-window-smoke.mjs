@@ -60,11 +60,34 @@ if (!process.versions.electron) {
     assert.equal(createOwnedObserverResolver(a)(ta), null);
     assert.equal(host.diagnostics().openViews, 2);
     await a.open(profile.id); const reopened = a.observerTarget(profile.id); assert.notEqual(reopened.viewGeneration, ta.viewGeneration);
+    await a.close(profile.id); await b.close(profile.id); await host.close(other.id);
+    const { sampleResources } = await import('../dist/application/window-scheduler.js');
+    const baseline = { system: sampleResources(), processes: app.getAppMetrics() };
+    const facebook = await profiles.create('Facebook query fixture', 'facebook');
+    const started = performance.now(), queryWindows = [];
+    for (let i = 0; i < 8; i++) for (const account of [profile, facebook]) {
+      const worker = host.forWorker(account.platform + '-query-' + i);
+      await worker.open(account.id); const target = worker.observerTarget(account.id);
+      await target.contents.loadURL(origin + '/' + account.platform + '/query-' + i);
+      queryWindows.push({ worker, account, target, query: 'query-' + i });
+    }
+    assert.equal(host.diagnostics().openViews, 16);
+    assert.equal(new Set(queryWindows.map(row => row.target.webContentsId)).size, 16);
+    const probes = [];
+    for (const row of queryWindows) {
+      const at = performance.now(), body = await row.target.contents.executeJavaScript('document.body.innerText');
+      assert.ok(body.includes(row.query)); probes.push(performance.now() - at);
+    }
+    const processes = app.getAppMetrics(), resourceProfile = { windows: 16, loadMs: performance.now() - started, baseline,
+      system: sampleResources(), processes, rendererWorkingSetMiB: processes.filter(p => p.type === 'Tab').reduce((n, p) => n + p.memory.workingSetSize / 1024, 0),
+      responseMs: { average: probes.reduce((n, v) => n + v, 0) / probes.length, maximum: Math.max(...probes) },
+      scope: '16 actual Electron host windows with localhost text fixtures; not Facebook/Threads page memory or capacity.' };
     await host.shutdown(); assert.equal(tb.contents.isDestroyed(), true); assert.equal(reopened.contents.isDestroyed(), true);
     assert.equal(host.diagnostics().openViews, 0);
     const result = { passed: true, checks: ['two real Electron windows navigate independently', 'shared login session per profile',
       'different profiles isolated', 'observer cannot claim sibling window', 'closing one window preserves sibling inflight request',
-      'reopened window invalidates old ownership', 'shutdown closes all webContents and flushes session'], network: 'LOCALHOST_ONLY', appData: 'ISOLATED_TEMPORARY' };
+      'reopened window invalidates old ownership', '16 query windows (8 per platform) own distinct webContents',
+      'shutdown closes all webContents and flushes session'], network: 'LOCALHOST_ONLY', appData: 'ISOLATED_TEMPORARY', resourceProfile };
     await writeFile(join(output, 'result.json'), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
   } catch (error) { console.error(error); process.exitCode = 1; }
   finally {

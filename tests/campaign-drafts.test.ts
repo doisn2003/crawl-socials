@@ -27,7 +27,7 @@ const response = (value: unknown = plan) => new Response(JSON.stringify({ modelV
 function harness(directory: string) {
   let calls = 0, fail = false, value: unknown = plan;
   const systems: string[] = [];
-  const factory = (options: { directory: string; budgetUsd: number }) => createCampaignModelGateway({ ...options,
+  const factory = (options: { directory: string; budgetUsd: number }) => createCampaignModelGateway({ mockTransport: true, ...options,
     apiKey: 'synthetic-key', minRequestIntervalMs: 0, maxAttempts: 1, fetch: async (_url, init) => {
       calls++; const body = JSON.parse(String(init?.body)) as { systemInstruction: { parts: Array<{ text: string }> } };
       systems.push(body.systemInstruction.parts[0]!.text); if (fail) throw Error('synthetic network failure'); return response(value);

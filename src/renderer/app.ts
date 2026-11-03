@@ -145,6 +145,8 @@ function friendlyError(error: unknown, fallback: string): string {
     return 'AI đã dừng theo trần cộng dồn/ngày hoặc số lượt gọi. Kiểm tra mục Giới hạn tiền AI trên máy này; giá trị 0 chặn gọi AI. Dữ liệu thu được vẫn được giữ.';
   if (/MODEL_NOT_AUTHORIZED/.test(text))
     return 'Lượt cũ dùng model khác. Tạo kế hoạch mới với Gemini 2.5 Flash-Lite và tái lọc dữ liệu đã thu; lịch sử cũ được giữ nguyên.';
+  if (/MODEL_NOT_AVAILABLE/.test(text))
+    return 'Google chưa cho key/project này gọi Gemini 2.5 Flash-Lite (404). Có tên model trong danh sách chưa chứng minh quyền sinh nội dung. Dùng Không lọc hoặc key có quyền dùng 2.5; CSD giữ dữ liệu và không tự đổi model.';
   if (/MODEL_BUDGET/.test(text))
     return 'Đã chạm ngân sách AI của lượt này. Dữ liệu đã thu vẫn được giữ để xem và xuất.';
   if (/MODEL_BILLING|MODEL_DAILY_QUOTA|MODEL_HTTP_429/.test(text))
@@ -162,6 +164,15 @@ function updateControls() {
   for (const input of intentInputs) input.disabled = !connected || running || commandPending;
   element('opportunity-config').hidden = !intentEnabled.checked;
   element('legacy-config').hidden = currentFilter() !== 'OFF';
+  const reuse = element<HTMLSelectElement>('off-saved-queries');
+  const plans = savedQueryPlans();
+  const plansKey = JSON.stringify(plans);
+  if (reuse.dataset.plans !== plansKey) {
+    const placeholder = document.createElement('option'); placeholder.value = ''; placeholder.textContent = 'Chọn kế hoạch hoặc lượt trước';
+    reuse.replaceChildren(placeholder, ...plans.map(plan => { const option = document.createElement('option'); option.value = plan.id; option.textContent = plan.name; return option; }));
+    reuse.dataset.plans = plansKey;
+  }
+  reuse.disabled = !connected || running || commandPending || !plans.length;
   minimumPosts.closest<HTMLElement>('.field')!.hidden = true;
   modelBudget.disabled ||= currentFilter() === 'OFF';
   setText('filter-mode-help', currentFilter() === 'OFF' ? 'Không lọc — 0 USD API; bài chưa đánh giá. Nhập từ khóa để bắt đầu.' : currentFilter() === 'STANDARD' ? 'Tiêu chuẩn — ưu tiên số lượng và nhu cầu gián tiếp; mục tiêu độ tinh khoảng 60%, cần kiểm chứng bằng mẫu.' : 'Chất lượng — kiểm tra bổ sung có chọn lọc, có thể giữ ít bài hơn.');
@@ -201,6 +212,13 @@ function updateControls() {
     : !selected.length ? 'Đăng nhập rồi tick chọn nguồn để bắt đầu thu thập.'
       : 'Sẵn sàng thu tối thiểu ' + number(config.minimumPosts) + ' bài cho mỗi mạng được chọn.');
   planner.render();
+}
+
+function savedQueryPlans() {
+  const plans = (state?.campaignPresets ?? []).map(p => ({ id: p.presetId, name: p.name, queries: p.criteria.queries.map(q => q.text) }));
+  if (state?.campaignDraft) plans.unshift({ id: 'current-draft', name: 'Kế hoạch đã lập', queries: state.campaignDraft.criteria.queries.map(q => q.text) });
+  if (state?.run?.keywords.length) plans.push({ id: 'previous-run', name: 'Từ khóa của lượt trước', queries: state.run.keywords });
+  return plans.filter(plan => plan.queries.length);
 }
 
 function renderAccounts() {
@@ -356,6 +374,7 @@ function renderOpportunities() {
   setText('opportunity-summary', number(counts.raw) + ' bài thô · ' + number(counts.comments) + ' bình luận · ' + number(counts.pending) + (opportunity.filterMode === 'OFF' ? ' chưa đánh giá' : ' đang chờ') + ' · Chi phí AI $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2)
     + (opportunity.resultPolicy === 'GLOBAL_FIRST_QUALIFIED' || opportunity.evaluationPolicy === 'GOAL_EVIDENCE' ? '' : ' · Kết quả cũ: cần tái lọc để áp dụng cách đánh giá mới.'));
   if (opportunity.shortfallWarning) element('opportunity-summary').textContent += ' · ' + opportunity.shortfallWarning;
+  if (opportunity.extraCount) element('opportunity-summary').textContent += ' · ' + number(opportunity.extraCount) + ' bài bổ sung ngoài chỉ tiêu (được giữ trong bản xuất)';
   const scheduling = opportunity.modelScheduling;
   if (scheduling) element('opportunity-summary').append(document.createTextNode(' · AI ' + scheduling.active + '/' + scheduling.concurrency + ' đang xử lý · ' + scheduling.queued + ' chờ' + (scheduling.cooldownUntil ? ' · Đang giảm tốc theo hạn mức' : '')));
   const retained = state?.run?.mode === 'RETAINED' ? state.run.retained : undefined;
@@ -367,8 +386,10 @@ function renderOpportunities() {
   const asOf = retained?.assessmentAsOf ? ' Đánh giá theo dữ liệu tại ' + new Date(retained.assessmentAsOf).toLocaleString('vi-VN')
     + '; kết quả đã hết hạn không được tính là phù hợp hiện tại.' : '';
   setText('start-help', opportunity.phase === 'EVALUATION_REFRESH_REQUIRED' ? reasonLabels.EVALUATION_REFRESH_REQUIRED! : action + importProgress
-    + number(counts.suitable) + '/' + number(opportunity.totalTarget) + ' bài phù hợp tổng cộng. Threads ' + number(opportunity.byPlatform.threads.suitable)
-    + ' · Facebook ' + number(opportunity.byPlatform.facebook.suitable) + (opportunity.lastError ? ' · ' + reasonText(opportunity.lastError) : '') + completedInput + asOf);
+    + number(opportunity.targetCount ?? counts.suitable) + '/' + number(opportunity.totalTarget) + (opportunity.filterMode === 'OFF' ? ' bài chưa đánh giá. Threads ' : ' bài được nhận. Threads ')
+    + number(opportunity.filterMode === 'OFF' ? opportunity.byPlatform.threads.raw : opportunity.byPlatform.threads.suitable)
+    + ' · Facebook ' + number(opportunity.filterMode === 'OFF' ? opportunity.byPlatform.facebook.raw : opportunity.byPlatform.facebook.suitable)
+    + (opportunity.lastError ? ' · ' + reasonText(opportunity.lastError) : '') + completedInput + asOf);
   if (opportunity.watchActive || opportunity.assessmentActive) {
     const monitoring: string[] = [];
     if (opportunity.watchActive) monitoring.push(number(opportunity.watchPending ?? 0) + ' lượt kiểm tra bình luận'
@@ -380,10 +401,12 @@ function renderOpportunities() {
   const labels = { SUITABLE: 'Phù hợp', NOT_SUITABLE: 'Không phù hợp' };
   const totals = { SUITABLE: counts.suitable, NOT_SUITABLE: counts.notSuitable ?? counts.notYet + counts.unrelated };
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-result-group]')) {
+    button.hidden = opportunity.filterMode === 'OFF';
     const group = button.dataset.resultGroup as keyof typeof labels;
     button.textContent = labels[group] + ' · ' + number(totals[group]); button.setAttribute('aria-pressed', String(resultGroup === group));
   }
-  const cards = opportunity.preview.filter(result => (result.classification === 'SUITABLE' ? 'SUITABLE' : 'NOT_SUITABLE') === resultGroup).slice(0, 20).map(result => {
+  const cards = opportunity.preview.filter(result => opportunity.filterMode === 'OFF' ? result.classification === 'UNASSESSED'
+    : result.classification !== 'UNASSESSED' && (result.classification === 'SUITABLE' ? 'SUITABLE' : 'NOT_SUITABLE') === resultGroup).slice(0, 20).map(result => {
     const card = document.createElement('article'); card.className = 'opportunity-card';
     const meta = document.createElement('small'); meta.textContent = platformNames[result.platform] + ' · ' + result.reason + ' · ' + (coverageLabels[result.coverage] ?? result.coverage);
     const text = document.createElement('p'); text.textContent = result.text;
@@ -485,6 +508,11 @@ for (const input of [keywords, minimumPosts, performanceMode, ...intentInputs]) 
   input.addEventListener('input', configChanged);
   input.addEventListener('blur', () => { if (configDirty) void saveConfiguration(); });
 }
+element<HTMLSelectElement>('off-saved-queries').addEventListener('change', event => {
+  const select = event.target as HTMLSelectElement, plan = savedQueryPlans().find(p => p.id === select.value);
+  if (plan) { keywords.value = [...new Set(plan.queries)].join('\n'); configChanged(); void saveConfiguration(); }
+  select.value = '';
+});
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-result-group]')) button.addEventListener('click', () => {
   resultGroup = button.dataset.resultGroup as typeof resultGroup; renderOpportunities();
 });

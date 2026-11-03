@@ -34,7 +34,7 @@ function plan(request: Record<string, any>) {
 }
 function harness(directory: string) {
   const requests: Record<string, any>[] = []; let fail = false, invalid = 0, uncovered = false;
-  const factory = (options: { directory: string; budgetUsd: number }) => createCampaignModelGateway({ ...options, apiKey: 'synthetic-key',
+  const factory = (options: { directory: string; budgetUsd: number }) => createCampaignModelGateway({ mockTransport: true, ...options, apiKey: 'synthetic-key',
     minRequestIntervalMs: 0, maxAttempts: 1, fetch: async (_url, init) => {
       const body = JSON.parse(String(init?.body)), request = JSON.parse(body.contents[0].parts[0].text); requests.push(request);
       if (fail) throw Error('synthetic network failure');

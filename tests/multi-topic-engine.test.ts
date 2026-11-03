@@ -50,7 +50,7 @@ function classificationValue(row: WireConversation, caseCode = 'OPPORTUNITY_REQU
 }
 function harness(directory: string, classify: (input: WireInput, row: WireConversation) => ReturnType<typeof classificationValue>) {
   const seen: WireInput[] = [];
-  const gateway = createGeminiGateway({ directory, budgetUsd: 3, apiKey: 'synthetic-not-a-real-key', minRequestIntervalMs: 0, maxAttempts: 1,
+  const gateway = createGeminiGateway({ mockTransport: true, directory, budgetUsd: 3, apiKey: 'synthetic-not-a-real-key', minRequestIntervalMs: 0, maxAttempts: 1,
     fetch: async (_url, init) => {
       const body = JSON.parse(String(init?.body)) as { contents: Array<{ parts: Array<{ text: string }> }> };
       const input = JSON.parse(body.contents[0]!.parts[0]!.text) as WireInput; seen.push(input);
@@ -112,7 +112,7 @@ test('durable semantic cache separates different prompts and rebinds cached outp
     assert.equal(first.decisions[0]!.classification, 'SUITABLE'); assert.equal(different.decisions[0]!.classification, 'UNRELATED');
     assert.notEqual(a.version, b.version); assert.notEqual(first.model_results[0]!.request_hash, different.model_results[0]!.request_hash);
     const sameIntentOtherCampaign = (await compileCampaign({ campaign_id: 'campaign-b', prompt: topics[0].prompt }, transport.gateway)).campaign;
-    const restarted = createGeminiGateway({ directory, budgetUsd: 3, apiKey: 'synthetic-unused', fetch: async () => { throw Error('CACHE_MUST_PREVENT_NETWORK'); } });
+    const restarted = createGeminiGateway({ mockTransport: true, directory, budgetUsd: 3, apiKey: 'synthetic-unused', fetch: async () => { throw Error('CACHE_MUST_PREVENT_NETWORK'); } });
     const reused = await classifyConversations(sameIntentOtherCampaign, [s], restarted);
     assert.equal(reused.model_results[0]!.cache_hit, true); assert.equal(reused.decisions[0]!.campaign_id, 'campaign-b');
     assert.equal(reused.decisions[0]!.campaign_version, sameIntentOtherCampaign.version);

@@ -9,7 +9,8 @@ inside historical `.brain` sections are not current authorization.
 
 - The user selected **Gemini 2.5 Flash-Lite**. New implementation must use that
   model for planning and filtering. Do not silently fall back to 3.1, 3.5 or a
-  more expensive model. The RC7 runtime has not been migrated yet.
+  more expensive model. The rebuild candidate `0.4.0-rebuild.1` defaults to 2.5;
+  the preserved RC7 executable retains its historical behavior.
 - Agent development and regression tests default to **zero paid model calls**.
   Use mocks, recorded responses and local datasets. Existing API keys, Tier 1
   limits and past benchmark permission are not an unlimited spending budget.
@@ -18,8 +19,15 @@ inside historical `.brain` sections are not current authorization.
   envelope when authorized; never reset its accounting by restarting a script,
   creating a worktree, changing the dataset or retrying. A new test proposal in
   the plan is not authorization to spend it.
-- This planning turn authorizes no paid inference. A read-only model metadata
-  request was made; it does not verify generation or billing access.
+- On 2026-11-03 the user explicitly authorized one frozen 100-post piano
+  STANDARD/QUALITY evaluation: Gemini 2.5 Flash-Lite, at most 25 calls and USD 0.10
+  cumulative including preflight. The durable DEVELOPMENT authorization and ledger
+  are in `%USERPROFILE%/.csd/spending`; preserve them across retries. This is not
+  authorization for arbitrary additional experiments or another model.
+- Its first generateContent request returned HTTP 404 `MODEL_NOT_AVAILABLE`;
+  1/25 calls, USD 0 measured/held, zero sample posts evaluated. GET metadata still
+  returns 200 and is not proof of generation access. Do not repeat the preflight
+  until access/key state changes. The frozen sample and labels remain in artifacts.
 - Never print, commit or copy API keys, cookies or raw credentials. Never change
   Google billing/auto-reload settings without the user's explicit instruction.
 - Test count, JSON validity and HTTP success are not evidence of classification

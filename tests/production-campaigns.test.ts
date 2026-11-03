@@ -35,7 +35,7 @@ function fixture(directory: string) {
   let modelHold: ReturnType<typeof deferred> | null = null; const modelEntered = deferred();
   const collectorConfigs: Record<string, unknown>[] = [];
   const starts: { id: string; directory: string; version: string; cost: number; explicit: boolean }[] = [];
-  const gateway = (options: { directory: string; budgetUsd: number }) => createCampaignModelGateway({ ...options, apiKey: 'synthetic-key',
+  const gateway = (options: { directory: string; budgetUsd: number }) => createCampaignModelGateway({ mockTransport: true, ...options, apiKey: 'synthetic-key',
     minRequestIntervalMs: 0, maxAttempts: 1, fetch: async () => {
       modelCalls++; modelEntered.release(); await modelHold?.promise; if (failPlanner) throw Error('synthetic network failure');
       return new Response(JSON.stringify({ modelVersion: 'fixture', candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(plan) }] } }],

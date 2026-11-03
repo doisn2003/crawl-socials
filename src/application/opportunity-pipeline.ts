@@ -191,6 +191,14 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       }
       const money = modelCost();
       const selected = rebuild ? await store.selectTarget(context, campaign.suitable_target, off) : null;
+      if (off && selected) {
+        const snapshots = await Promise.all(selected.target.slice(0, 20).map(row => store.snapshot(row.platform as Platform, row.rootId)));
+        for (const snapshot of snapshots) if (snapshot?.post) preview.push({
+          platform: snapshot.platform, rootId: snapshot.root_post_id, classification: 'UNASSESSED',
+          text: snapshot.post.text.slice(0, 900), link: snapshot.post.permalink ?? '', reason: 'Chưa đánh giá · Không dùng AI',
+          evidence: [], observedAt: snapshot.observed_at, coverage: snapshot.coverage.status,
+        });
+      }
       if (rebuild && !off) queryScores = await store.queryYield(context);
       const watch = await store.watchSummary(input.platforms);
       const assessment = temporalEnabled ? await store.assessmentSummary(context, { now: now().toISOString() }) : null;
@@ -604,7 +612,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       await leases.close(); await store.pause({ context }); await store.pause({ types: ['ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'REVISIT'] }); await publish(); } },
     async results() {
       await publish();
-      const exported = await store.exportSnapshot(context, rankingOptions), preview: OpportunityProgress['preview'] = [];
+      const exported = await store.exportSnapshot(context, rankingOptions), preview: OpportunityProgress['preview'] = off ? structuredClone(progress.preview) : [];
       for (const classification of ['SUITABLE', 'NOT_SUITABLE'] as const) {
         for (const { snapshot, decision } of exported.conversations.filter(result => classification === 'SUITABLE'
           ? result.decision.classification === 'SUITABLE' : result.decision.classification !== null && result.decision.classification !== 'SUITABLE').slice(0, 20)) {

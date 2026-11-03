@@ -93,6 +93,8 @@ export interface GeminiGatewayOptions {
   timeoutMs?: number;
   maxAttempts?: number;
   fetch?: typeof globalThis.fetch;
+  /** Tests only: never infer a free transport from a custom fetch (production scripts wrap fetch too). */
+  mockTransport?: boolean;
 }
 
 function permanentFailure(status: number, payload: Record<string, unknown> | null): string | null {
@@ -169,8 +171,8 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
     try { appendFileSync(fd, JSON.stringify(event) + '\n'); fsyncSync(fd); }
     finally { closeSync(fd); }
   };
-  const transport = options.fetch ?? globalThis.fetch;
-  const spending = options.spending ?? (options.fetch ? undefined : developmentSpend());
+  const transport = options.fetch ?? (options.mockTransport ? async () => { throw new ModelGatewayError('MODEL_MOCK_TRANSPORT_REQUIRED'); } : globalThis.fetch);
+  const spending = options.spending ?? (options.mockTransport ? undefined : developmentSpend());
   const inFlight = new Map<string, Promise<JsonModelResult>>();
   const scheduler = options.scheduler ?? createRequestScheduler({ concurrency: 1, rpm: 1_000_000,
     inputTpm: 1_000_000_000, rpd: 1_000_000_000, minIntervalMs: minInterval });
@@ -233,8 +235,9 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
         started_at: new Date(started).toISOString(), reserved_usd: upper, price });
       attempts++;
       } catch (error) {
-        if (spendingId) spending!.settle(spendingId, 0); // Transport has not started.
-        reserved -= upper; accountBudget(); throw error;
+        try { if (spendingId) spending!.settle(spendingId, 0); } // Transport has not started.
+        finally { reserved -= upper; accountBudget(); }
+        throw error;
       }
       let response: Response | null = null, payload: Record<string, unknown> | null = null;
       let errorCode: string | null = null, usage: ModelUsage | null = null, value: unknown;
@@ -264,7 +267,8 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
       actualInputTokens = usage?.input_tokens;
       const cost = usage ? pricedUsage(usage, price) : response && !response.ok && response.status < 500 ? 0 : null;
       const unknown = cost === null ? upper : 0;
-      if (spendingId) spending!.settle(spendingId, cost);
+      try { if (spendingId) spending!.settle(spendingId, cost); }
+      catch (error) { reserved -= upper; unknownUpper += upper; accountBudget(); throw error; }
       const result: JsonModelResult | null = valid ? { value, invocation_id: invocation, request_hash: hash, model,
         model_version: typeof payload?.modelVersion === 'string' ? payload.modelVersion : null, usage, cost_usd: cost,
         unmetered_cost_upper_usd: unknown, cache_hit: false, elapsed_ms: Date.now() - started, price } : null;
