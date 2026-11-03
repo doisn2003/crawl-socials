@@ -141,6 +141,10 @@ function friendlyError(error: unknown, fallback: string): string {
     return 'Một bài viết vượt giới hạn ký tự của ô Excel. Hãy xuất JSON để giữ nguyên toàn bộ nội dung.';
   if (/GEMINI_API_KEY_MISSING|MODEL_AUTHENTICATION|MODEL_PERMISSION/.test(text))
     return 'Chưa kết nối được dịch vụ AI. Hãy kiểm tra khóa API đã cấu hình trên máy.';
+  if (/MODEL_GLOBAL_BUDGET|MODEL_CALL_LIMIT|MODEL_SPEND/.test(text))
+    return 'AI đã dừng theo trần cộng dồn/ngày hoặc số lượt gọi. Kiểm tra mục Giới hạn tiền AI trên máy này; giá trị 0 chặn gọi AI. Dữ liệu thu được vẫn được giữ.';
+  if (/MODEL_NOT_AUTHORIZED/.test(text))
+    return 'Lượt cũ dùng model khác. Tạo kế hoạch mới với Gemini 2.5 Flash-Lite và tái lọc dữ liệu đã thu; lịch sử cũ được giữ nguyên.';
   if (/MODEL_BUDGET/.test(text))
     return 'Đã chạm ngân sách AI của lượt này. Dữ liệu đã thu vẫn được giữ để xem và xuất.';
   if (/MODEL_BILLING|MODEL_DAILY_QUOTA|MODEL_HTTP_429/.test(text))

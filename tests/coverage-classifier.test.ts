@@ -39,3 +39,54 @@ test('standard accepts direct/proxy/plausible need, preserves unknown hard limit
     assert.ok(second.decisions.every(d => d.snapshot_id.endsWith('-revision')));
   } finally { store.close(); rmSync(root, { recursive: true, force: true }); }
 });
+
+test('quality reuses standard cache, reviews selected cases once, and keeps disagreement pending instead of rejecting a parent', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-quality-')), store = createConversationStore(join(root, 'store'));
+  try {
+    const standard = withFilterPolicy(literalCampaign({ prompt: 'Tìm người học piano', seed_queries: ['học piano'] }), 'STANDARD');
+    const context = { campaign_id: standard.campaign_id, campaign_version: standard.version, filter_version: standard.filter_version };
+    for (const [id, text] of [['1', 'Tôi cần học piano'], ['2', 'Tìm giáo viên piano cho con'], ['3', 'Bắt đầu học thì chọn đàn nào?']]) store.ingest({
+      platform: 'facebook', entity_type: 'POST', entity_id: id!, root_post_id: id!, parent_id: null, text: text!, observed_at: '2026-11-03T10:00:00Z', provenance: { run_id: 'test', method: 'FIXTURE' } }, context);
+    const purposes: string[] = [], sizes: number[] = [];
+    const model: ModelGateway = { summary: () => ({ ...unassessedGateway.summary(), model: 'gemini-2.5-flash-lite' }), generateJson: async request => {
+      purposes.push(request.purpose); const conversations = (request.input as { conversations: { i: number; spans: { text: string }[] }[] }).conversations;
+      sizes.push(conversations.length);
+      const value = conversations.map(c => {
+        const parent = c.spans[0]!.text.includes('cho con'), plausible = c.spans[0]!.text.includes('chọn đàn');
+        const review = request.purpose === 'coverage-quality-v1';
+        return { i: c.i, candidate: 'p', ev: [0], why: review && parent ? 'fixture: reviewer wrongly rejects proxy' : 'fixture: evidence supports need',
+          role: review && parent ? 'WRONG' : parent ? 'REPRESENTATIVE' : 'TARGET', fit: review && parent ? 'NONE' : plausible && !review ? 'PLAUSIBLE' : 'DIRECT', hard: 'PASS', flags: [] };
+      });
+      return { value, model: 'gemini-2.5-flash-lite', model_version: 'fixture', invocation_id: 'fixture', request_hash: 'fixture', usage: null, cost_usd: 0,
+        unmetered_cost_upper_usd: 0, cache_hit: false, elapsed_ms: 0, price: { input_per_million: .1, output_per_million: .4, cached_input_per_million: .01, observed_at: '', source: 'FIXTURE' } };
+    } };
+    const options = { assessmentCacheDirectory: join(root, 'cache'), evaluatedAt: '2026-11-03T10:00:00Z' };
+    await classifyConversations(standard, store.snapshots(), model, options);
+    const quality = withFilterPolicy(standard, 'QUALITY');
+    const result = await classifyConversations(quality, store.snapshots(), model, options);
+    assert.deepEqual(purposes, ['coverage-standard-v1', 'coverage-quality-v1']); assert.deepEqual(sizes, [3, 2]);
+    assert.deepEqual(result.decisions.map(d => d.classification), ['SUITABLE', null, 'SUITABLE']);
+    assert.equal(result.decisions[1]!.reason_code, 'COVERAGE_REVIEW_DISAGREEMENT');
+    assert.equal(result.decisions[1]!.attributes?.standard_classification, 'SUITABLE');
+    assert.equal(result.decisions[1]!.attributes?.review_classification, 'NOT_SUITABLE');
+    await classifyConversations(quality, store.snapshots(), model, options); assert.equal(purposes.length, 2);
+  } finally { store.close(); rmSync(root, { recursive: true, force: true }); }
+});
+
+test('fabricated evidence remains pending with no automatic format repair', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-evidence-')), store = createConversationStore(join(root, 'store'));
+  try {
+    const plan = withFilterPolicy(literalCampaign({ prompt: 'Tìm phòng để tôi thuê' }), 'STANDARD');
+    store.ingest({ platform: 'facebook', entity_type: 'POST', entity_id: '1', root_post_id: '1', parent_id: null,
+      text: 'Cho thuê phòng', observed_at: '2026-11-03T10:00:00Z', provenance: { run_id: 'test', method: 'FIXTURE' } },
+      { campaign_id: plan.campaign_id, campaign_version: plan.version, filter_version: plan.filter_version });
+    let calls = 0;
+    const model: ModelGateway = { ...unassessedGateway, generateJson: async () => {
+      calls++; return { value: [{ i: 0, candidate: 'p', role: 'TARGET', fit: 'DIRECT', hard: 'PASS', ev: [999], why: 'missing evidence', flags: [] }],
+        model: 'fixture', model_version: null, invocation_id: 'x', request_hash: 'x', usage: null, cost_usd: 0, unmetered_cost_upper_usd: 0,
+        cache_hit: false, elapsed_ms: 0, price: { input_per_million: 0, output_per_million: 0, cached_input_per_million: 0, observed_at: '', source: 'FIXTURE' } };
+    } };
+    const result = await classifyConversations(plan, store.snapshots(), model);
+    assert.equal(calls, 1); assert.equal(result.decisions[0]!.classification, null); assert.equal(result.failures.length, 1);
+  } finally { store.close(); rmSync(root, { recursive: true, force: true }); }
+});

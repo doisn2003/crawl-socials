@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { atomicJson } from '../infrastructure/config/user-config.js';
 import { contentHash, type ConversationSnapshot } from '../domain/conversation.js';
@@ -23,6 +23,8 @@ fit DIRECT: nhu cầu/mục đích thể hiện rõ. PLAUSIBLE: tín hiệu giá
 hard PASS khi không có giới hạn bắt buộc hoặc bằng chứng đáp ứng các giới hạn áp dụng cho nhánh phù hợp; FAIL chỉ khi có bằng chứng trái điều kiện bắt buộc; UNKNOWN khi thiếu bằng chứng quyết định. Giữ phân biệt mua, thuê, mượn. Giá/địa bàn/giới hạn thời gian phải đọc đúng. Điều kiện 'ưu tiên' không gây FAIL. Dùng as_of và published_at nếu có thời hạn; ngày bắt đầu không phải hạn kết thúc; không tự suy bài cũ là hết nhu cầu. Nếu hạn thật nhưng không tính được thì hard UNKNOWN. Không bịa nội dung ảnh.
 Chọn candidate là alias của tác giả bài hoặc một người bình luận có nhu cầu; mục đích bình luận khác bài quảng cáo cha. ev là 1–3 chỉ số đoạn bằng chứng, phải có đoạn của candidate. NONE/FAIL cũng cần bằng chứng; thiếu dữ kiện dùng UNKNOWN và ev có thể rỗng. why một câu ngắn tiếng Việt nêu tín hiệu và ràng buộc quyết định, gồm điều kiện bị vi phạm/thiếu nếu có. flags ghi ca cần xem thêm: NEGATION, LIMIT, COMMENT, ROLE, AMBIGUOUS. Trả một object cho mỗi i. Không chấm confidence; không ép đủ chỉ tiêu; chỉ JSON.`;
 export const COVERAGE_RECIPE = Object.freeze({ filter_version: FILTER_VERSIONS.STANDARD, system: COVERAGE_SYSTEM, schema: COVERAGE_SCHEMA });
+const REVIEW_SYSTEM = COVERAGE_SYSTEM + `\nLượt kiểm tra bổ sung có chọn lọc: đối chiếu first_assessment với bằng chứng, tập trung cờ nghi vấn. Kiểm tra phủ định, điều kiện số/địa lý/thời hạn, người đại diện và nghĩa bình luận. Không mặc định đánh giá đầu sai, không tự thêm điều kiện chặt hơn mục tiêu. Nếu thay đổi quyết định, why phải nêu điều kiện và bằng chứng quyết định; không lặp lại 'không phù hợp' chung chung. Phụ huynh tìm thầy cho con vẫn đúng nhu cầu học. Tín hiệu PLAUSIBLE chỉ thành DIRECT nếu nội dung thực sự chứng minh được; không nâng nhãn vì thiếu chỉ tiêu.`;
+export const QUALITY_RECIPE = Object.freeze({ filter_version: FILTER_VERSIONS.QUALITY, system: REVIEW_SYSTEM, schema: COVERAGE_SCHEMA });
 type Verdict = { i: number; candidate: string; role: 'TARGET' | 'REPRESENTATIVE' | 'WRONG' | 'UNKNOWN'; fit: 'DIRECT' | 'PLAUSIBLE' | 'NONE' | 'UNKNOWN';
   hard: 'PASS' | 'FAIL' | 'UNKNOWN'; ev: number[]; why: string; flags: string[] };
 function document(snapshot: ConversationSnapshot) {
@@ -110,9 +112,63 @@ export async function classifyCoverage(plan: CampaignPlan, snapshots: Conversati
       }
     } catch (error) { for (const entry of batch) pending(entry.snapshot, error); }
   }
+  const reviews = new Map<string, Verdict | null>();
+  if (plan.filter_mode === 'QUALITY') {
+    const selected = entries.filter(e => { const v = verdicts.get(e.snapshot.id); return v && (v.flags.length || v.fit === 'PLAUSIBLE' || v.fit === 'UNKNOWN' || v.hard === 'UNKNOWN' || v.role === 'REPRESENTATIVE' || v.candidate !== 'p'); });
+    const pendingReviews: Array<typeof entries[number] & { file: string | null; reviewKey: string }> = [];
+    for (const entry of selected) {
+      const reviewKey = contentHash({ key: entry.key, first: verdicts.get(entry.snapshot.id), recipe: QUALITY_RECIPE });
+      const file = options.assessmentCacheDirectory ? join(options.assessmentCacheDirectory, reviewKey + '.json') : null;
+      if (file && existsSync(file)) {
+        try { const saved = JSON.parse(readFileSync(file, 'utf8')) as { reviewKey: string; verdict?: Verdict };
+          if (saved.reviewKey !== reviewKey) throw Error('REVIEW_CACHE_INVALID');
+          reviews.set(entry.snapshot.id, saved.verdict ? validated(saved.verdict, entry.doc) : null); continue;
+        } catch { reviews.set(entry.snapshot.id, null); continue; }
+      }
+      pendingReviews.push({ ...entry, file, reviewKey });
+    }
+    // Reuse the primary batch budget bound. Each selected item has at most one supplemental assessment.
+    while (pendingReviews.length) {
+      const batch: typeof pendingReviews = []; let bytes = Buffer.byteLength(JSON.stringify(target));
+      while (pendingReviews.length && batch.length < (options.maxBatchSize ?? 12)) {
+        const next = pendingReviews[0]!, size = Buffer.byteLength(JSON.stringify(next.doc)) + 1500;
+        if (batch.length && bytes + size > 48000) break;
+        bytes += size; batch.push(pendingReviews.shift()!);
+      }
+      try {
+        for (const e of batch) { reviews.set(e.snapshot.id, null); if (e.file) atomicJson(e.file, { reviewKey: e.reviewKey, state: 'STARTED' }); }
+        const result = await gateway.generateJson({ purpose: FILTER_VERSIONS.QUALITY, system: REVIEW_SYSTEM, schema: COVERAGE_SCHEMA,
+          input: { goal: target, as_of: asOf, conversations: batch.map((e, i) => ({ i, ...e.doc, first_assessment: verdicts.get(e.snapshot.id) })) },
+          max_output_tokens: 128 + batch.length * 220, ...(options.signal ? { signal: options.signal } : {}), cache_namespace: 'coverage-review-v1' });
+        output.model_results.push(result);
+        if (!Array.isArray(result.value) || result.value.length !== batch.length || new Set(result.value.map(v => v?.i)).size !== batch.length) throw Error('COVERAGE_REVIEW_INCOMPLETE');
+        for (const [i, e] of batch.entries()) {
+          const verdict = validated(result.value.find(v => v?.i === i), e.doc);
+          if (e.file) atomicJson(e.file, { reviewKey: e.reviewKey, state: 'COMPLETE', verdict });
+          reviews.set(e.snapshot.id, verdict);
+        }
+      } catch (error) {
+        const beforeTransport = error instanceof ModelGatewayError && error.invocation_id === null && /BUDGET|SPEND|CALL_LIMIT|GEMINI_API_KEY_MISSING|NOT_AUTHORIZED/.test(error.code);
+        for (const e of batch) {
+          if (beforeTransport && e.file && existsSync(e.file)) unlinkSync(e.file);
+          output.failures.push({ snapshot_id: e.snapshot.id, code: error instanceof ModelGatewayError ? error.code : 'COVERAGE_REVIEW_FAILED' });
+        }
+      }
+    }
+  }
   for (const entry of entries) {
     const v = verdicts.get(entry.snapshot.id); if (!v) continue;
-    output.decisions.push(decision(plan, entry.snapshot, v, model));
+    const first = decision(plan, entry.snapshot, v, model);
+    if (!reviews.has(entry.snapshot.id)) { output.decisions.push(first); continue; }
+    const review = reviews.get(entry.snapshot.id), second = review ? decision(plan, entry.snapshot, review, model) : null;
+    const conflict = first.classification !== null && second?.classification !== null && second?.classification !== undefined && first.classification !== second.classification;
+    const unresolved = !second || second.classification === null || (second.classification === 'SUITABLE' && review?.fit !== 'DIRECT');
+    const final = conflict || unresolved ? { ...first, classification: null, assessment_status: 'PENDING' as const,
+      reason_code: conflict ? 'COVERAGE_REVIEW_DISAGREEMENT' : 'COVERAGE_QUALITY_EVIDENCE_REQUIRED', action_target: null } : second!;
+    final.attributes = { ...final.attributes, standard_classification: first.classification, standard_reason: v.why,
+      review_classification: second?.classification ?? null, review_reason: review?.why ?? 'Chưa có kiểm chứng bổ sung hợp lệ',
+      review_state: conflict ? 'DISAGREEMENT' : unresolved ? 'UNRESOLVED' : 'CONFIRMED', recipe: FILTER_VERSIONS.QUALITY };
+    validateConversationDecision(final, entry.snapshot); output.decisions.push(final);
   }
   return output;
 }

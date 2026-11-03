@@ -8,7 +8,7 @@ import { ModelGatewayError } from './ports/model-gateway.js';
 import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
 import { GOAL_RECIPE, classifyGoalConversations } from './goal-classifier.js';
 import type { ModelGateway, JsonModelResult } from './ports/model-gateway.js';
-import { COVERAGE_RECIPE, classifyCoverage } from './coverage-classifier.js';
+import { COVERAGE_RECIPE, QUALITY_RECIPE, classifyCoverage } from './coverage-classifier.js';
 
 export const OPPORTUNITY_CASES = [
   'OPPORTUNITY_REQUEST', 'OPPORTUNITY_EXPERIENCE', 'OPPORTUNITY_DISCUSSION',
@@ -97,6 +97,7 @@ freezeRecipe(TEMPORAL_RECIPE);
  */
 export function classifierRecipe(version: string = OPPORTUNITY_FILTER_VERSION): Readonly<typeof CLASSIFIER_RECIPE> {
   if (version === 'coverage-standard-v1') return COVERAGE_RECIPE;
+  if (version === 'coverage-quality-v1') return QUALITY_RECIPE;
   if (version === 'unassessed-v1') return { filter_version: version, system: 'OFF: no model calls; unassessed raw records.', schema: {} };
   if (version === GOAL_FILTER_VERSION) return GOAL_RECIPE;
   if (version === INTENT_OPPORTUNITY_FILTER_VERSION) return INTENT_RECIPE;
@@ -237,7 +238,7 @@ function modelSnapshot(snapshot: ConversationSnapshot, evaluatedAt?: string): Re
 
 export async function classifyConversations(campaign: CampaignPlan, snapshots: ConversationSnapshot[], gateway: ModelGateway,
   options: ClassifyOptions = {}): Promise<ClassificationBatchResult> {
-  if (campaign.filter_version === 'coverage-standard-v1') return classifyCoverage(campaign, snapshots, gateway, options);
+  if (campaign.filter_version === 'coverage-standard-v1' || campaign.filter_version === 'coverage-quality-v1') return classifyCoverage(campaign, snapshots, gateway, options);
   if (campaign.filter_version === GOAL_FILTER_VERSION) return classifyGoalConversations(campaign, snapshots, gateway, options);
   const recipe = classifierRecipe(campaign.filter_version), temporal = campaign.filter_version === TEMPORAL_OPPORTUNITY_FILTER_VERSION;
   const requestTime = options.evaluatedAt ?? (temporal ? new Date().toISOString() : undefined);
