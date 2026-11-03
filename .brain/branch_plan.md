@@ -1,4 +1,15 @@
-# Kế hoạch nhánh hiện hành — 03/11/2026
+# Kế hoạch nhánh hiện hành — CSD rebuild, 03/11/2026
+
+Nhánh phát triển mới là `codex/csd-rebuild`, từ mốc cố định `csd-next-rc7-20261103`. [ADR-025](decisions/ADR-025-cost-controlled-csd-rebuild.md) thay quy trình phát triển mới của ADR-023/024. [Bảng các chặng](rebuild_plan.md) là nguồn trạng thái hiện hành.
+
+- Giữ `codex/csd-next`, `codex/ai-foundation`, `codex/crawl-throughput` và `codex/csd-production` tại các checkpoint hiện có; không tự merge các thay đổi cũ sang rebuild.
+- Tạo nhánh ngắn `codex/csd-rN-*` khi bắt đầu chặng, kiểm tra rồi merge `--no-ff` vào rebuild. Chưa tạo hàng loạt nhánh rỗng.
+- Mốc `csd-rebuild-plan-20261103` ghi nhận kế hoạch, không phải phần mềm đã có tính năng mới. RC7 vẫn chạy hành vi cũ đến khi phát hành candidate mới.
+- Source/Git và dữ liệu AppData có vòng đời riêng. File export của người dùng, key, captures và portable không vào commit. Không push hay promote production trong lượt lập kế hoạch.
+
+---
+
+# Lịch sử — tổ chức nhánh RC7, 03/11/2026
 
 RC7 đã tích hợp crawl nhiều cửa sổ và điều phối Gemini để thử cùng AI RC6. Xem [báo cáo](evidence/parallel-crawl-rc7-2026-11-03.md). Tag bàn giao: `csd-next-rc7-20261103`; production/remote chưa được cập nhật.
 

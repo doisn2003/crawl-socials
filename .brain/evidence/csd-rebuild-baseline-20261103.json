@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-03",
+  "source": "Read-only AppData collections and current snapshot decisions, inspected in the preceding diagnostic",
+  "userReportedGoogleSpend": {
+    "totalUsd": 40,
+    "cardChargeUsd": 17,
+    "source": "User report after checking AI Studio",
+    "independentlyReconciled": false
+  },
+  "selectedModel": "gemini-2.5-flash-lite",
+  "modelMetadata": {
+    "checkedAt": "2026-11-03T07:32:22.751Z",
+    "model": "gemini-2.5-flash-lite",
+    "operation": "GET model metadata only",
+    "generationRequests": 0,
+    "keyAvailable": true,
+    "httpStatus": 200,
+    "name": "models/gemini-2.5-flash-lite",
+    "version": "001",
+    "supportedGenerationMethods": [
+      "generateContent",
+      "countTokens",
+      "createCachedContent",
+      "batchGenerateContent"
+    ],
+    "inputTokenLimit": 1048576,
+    "outputTokenLimit": 65536,
+    "generationAccess": "NOT_VERIFIED_BY_METADATA",
+    "credentialSource": "Windows User GEMINI_API_KEY, with process environment fallback; secret omitted"
+  },
+  "machineObserved": {
+    "totalRamGiB": 15.9,
+    "freeRamGiB": 4.8,
+    "logicalProcessors": 6,
+    "perSocialWindowMemoryMeasured": false
+  },
+  "runs": [
+    {
+      "id": "crawl-6b59136f-a4e7-4219-9c13-559d90077c15",
+      "startedAt": "2026-11-03T04:59:56.576Z",
+      "target": 1000,
+      "crawlerRecords": 524,
+      "counts": {
+        "raw": 522,
+        "comments": 58,
+        "suitable": 116,
+        "notSuitable": 218,
+        "notYet": 0,
+        "unrelated": 218,
+        "pending": 188,
+        "failed": 0
+      },
+      "costUsd": 2.8175232000000014,
+      "costUpperUsd": 2.9629913000000014,
+      "budgetUsd": 3,
+      "lastError": "MODEL_BUDGET_EXHAUSTED",
+      "modelCalls": 235,
+      "outputTokens": 1028991,
+      "outputCostShare": 0.9130279743570521,
+      "peakRpm": 30,
+      "windows": {
+        "facebook": 2,
+        "threads": 2
+      },
+      "visitedQueries": {
+        "facebook": [
+          "đàn piano",
+          "mua đàn piano",
+          "học đàn piano",
+          "thuê đàn piano"
+        ],
+        "threads": [
+          "đàn piano",
+          "học đàn piano"
+        ]
+      },
+      "sourceFiles": [
+        {
+          "file": "opportunity-config.json",
+          "sha256": "e9822ef6550a850334332f8e95d414b4a0c6bee625f3ea073ab7e25194d6ce3d",
+          "mtime": "2026-11-03T04:59:56.580Z"
+        },
+        {
+          "file": "opportunity/progress.json",
+          "sha256": "3f09da23becc744e3adb0f2b79640c0f889a5654c2aa257e35c8f50421ddfff1",
+          "mtime": "2026-11-03T05:11:58.760Z"
+        },
+        {
+          "file": "opportunity/campaign.json",
+          "sha256": "de61e6b642085a7fa2b72c931e11023f82d8c9377b3fded7c8f4869e6988a834",
+          "mtime": "2026-11-03T04:59:56.605Z"
+        },
+        {
+          "file": "opportunity-results.json",
+          "sha256": "f08d81584e0f15e0886dc00970633d53a381c2aa89a1aaf022c3562c298ea898",
+          "mtime": "2026-11-03T05:11:58.333Z"
+        },
+        {
+          "file": "results.json",
+          "sha256": "19ed26191900fd043a78882593b1e6d6b62f42e75412237f80775772b83202df",
+          "mtime": "2026-11-03T05:11:58.374Z"
+        }
+      ]
+    },
+    {
+      "id": "crawl-9a6373d3-414d-4e3a-9172-076fd0e38220",
+      "startedAt": "2026-11-03T05:18:05.948Z",
+      "target": 1000,
+      "crawlerRecords": 433,
+      "counts": {
+        "raw": 428,
+        "comments": 0,
+        "suitable": 108,
+        "notSuitable": 138,
+        "notYet": 0,
+        "unrelated": 138,
+        "pending": 182,
+        "failed": 0
+      },
+      "costUsd": 2.839189000000001,
+      "costUpperUsd": 2.8391890000000015,
+      "budgetUsd": 3,
+      "lastError": "MODEL_BILLING_EMPTY",
+      "modelCalls": 178,
+      "outputTokens": 1054093,
+      "outputCostShare": 0.9281638172027292,
+      "peakRpm": 45,
+      "windows": {
+        "facebook": 3,
+        "threads": 3
+      },
+      "visitedQueries": {
+        "facebook": [
+          "học chơi đàn piano",
+          "tìm lớp học đàn piano",
+          "mua đàn piano"
+        ],
+        "threads": [
+          "học chơi đàn piano",
+          "tìm lớp học đàn piano",
+          "mua đàn piano"
+        ]
+      },
+      "sourceFiles": [
+        {
+          "file": "opportunity-config.json",
+          "sha256": "525fa1ea84a2bb1e6a4da3aa8a39e0d0f37e164042caaea3fb9247c4091f5544",
+          "mtime": "2026-11-03T05:18:05.952Z"
+        },
+        {
+          "file": "opportunity/progress.json",
+          "sha256": "34de602e62043d3103ca3becca57c96508f4ab7b6f777ca48bb3ecc40a324736",
+          "mtime": "2026-11-03T05:26:49.487Z"
+        },
+        {
+          "file": "opportunity/campaign.json",
+          "sha256": "54bcac937c765866d032c8d336936a12ee83fdbf4c6abb9d221434dd350dfd2c",
+          "mtime": "2026-11-03T05:18:05.976Z"
+        },
+        {
+          "file": "opportunity-results.json",
+          "sha256": "bc913520308c659aa94037a5c29700f74ac3f6869ac61205758c58713117107c",
+          "mtime": "2026-11-03T05:26:49.369Z"
+        },
+        {
+          "file": "results.json",
+          "sha256": "4e7ebd71a9d6e22ba669fae1248e1884062c73caa8aac956d479c1fe9fadc66f",
+          "mtime": "2026-11-03T05:26:49.405Z"
+        }
+      ]
+    }
+  ],
+  "confirmedRegression": {
+    "description": "A parent seeking a piano teacher for their child was accepted by the first pass and rejected by independent review.",
+    "runId": "crawl-9a6373d3-414d-4e3a-9172-076fd0e38220",
+    "postId": "2757252234746951",
+    "primary": "SUITABLE",
+    "final": "NOT_SUITABLE",
+    "humanInterpretation": "A real learning need, posted by the beneficiary’s parent.",
+    "populationErrorRateMeasured": false
+  },
+  "limits": [
+    "Cost is token usage at the gateway list-price snapshot, not a Google invoice.",
+    "The two piano runs do not account for the reported total Google bill.",
+    "Model metadata HTTP 200 does not establish generation or billing access.",
+    "The current planning turn made zero generateContent requests.",
+    "Different prompts and incomplete runs prevent a controlled speed-mode comparison."
+  ],
+  "references": [
+    "https://aistudio.google.com/docs/pricing#gemini-2.5-flash-lite",
+    "https://aistudio.google.com/docs/deprecations#gemini-2.5-flash-models",
+    "https://www.electronjs.org/docs/latest/tutorial/process-model"
+  ]
+}

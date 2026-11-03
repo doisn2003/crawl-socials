@@ -1,6 +1,16 @@
 # CSD Master Plan
 
-## Hiện hành 3.2 — RC7, crawl nhiều cửa sổ và Gemini Tier 1, 03/11/2026
+## Hiện hành 4.0 — phát triển lại theo chi phí và giá trị đầu ra, 03/11/2026
+
+Người dùng yêu cầu lập lại kế hoạch sau khi báo đã sử dụng 40 USD trên AI Studio, chọn **Gemini 2.5 Flash-Lite**, đề xuất mỗi từ khóa một cửa sổ, thanh gạt ba mức lọc và bỏ tỷ lệ Facebook/Threads. Quyết định mới: [ADR-025](decisions/ADR-025-cost-controlled-csd-rebuild.md); bảng triển khai: [rebuild plan](rebuild_plan.md).
+
+- `codex/csd-rebuild` được tạo từ tag RC7; giữ nguyên các nhánh/tag cũ và production. Từ đây dùng nhánh ngắn theo chặng, không tiếp tục quy trình tự merge hai nhánh dài hạn cũ.
+- Chặng R0 hoàn thành: kế hoạch/Git/baseline; metadata 2.5 trả HTTP 200. Chưa gọi inference, chưa đổi runtime RC7.
+- R1 là chặn chi phí và chuyển model; R2 bàn giao thu không lọc với 0 API call và mục tiêu chung; tiếp theo là cửa sổ theo query, Standard, Quality và đo mẫu nhỏ.
+- Mọi paid test phát triển phải nằm trong envelope đã được người dùng cấp, cộng dồn qua restart/worktree. Ngân sách của lượt lập kế hoạch là 0 USD inference.
+- Không tái diễn việc tăng concurrency trước khi đo chi phí trên mỗi bài đúng. Giới hạn API cao không đồng nghĩa được phép tiêu tiền không giới hạn.
+
+## Lịch sử 3.2 — RC7, crawl nhiều cửa sổ và Gemini Tier 1, 03/11/2026
 
 Người dùng yêu cầu triển khai song song tìm các từ khóa trên Electron và cân bằng tốc độ/chất lượng với quota Gemini đã cung cấp. Đã thực hiện trên `codex/crawl-throughput`, rồi merge vào `codex/csd-next` để thử cùng AI RC6. [Thiết kế ADR-024](decisions/ADR-024-parallel-discovery-and-model-throughput.md), [báo cáo bàn giao RC7](evidence/parallel-crawl-rc7-2026-11-03.md).
 
