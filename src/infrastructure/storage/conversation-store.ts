@@ -443,7 +443,7 @@ export class ConversationStore {
       params.push(asOf);
     }
     const sources = options.ranked ? sourcePriorityScores(options.source_priority) : null;
-    const rank = options.ranked && context.filter_version === GOAL_FILTER_VERSION ? `CASE d.classification WHEN 'SUITABLE' THEN 3 WHEN 'NOT_SUITABLE' THEN 1 ELSE 0 END DESC,
+    const rank = options.ranked && context.filter_version.startsWith('coverage-') ? `CASE d.classification WHEN 'SUITABLE' THEN 3 WHEN 'NOT_SUITABLE' THEN 1 ELSE 0 END DESC, COALESCE(json_extract(d.payload,'$.attributes.signal_strength'),0) DESC,` : options.ranked && context.filter_version === GOAL_FILTER_VERSION ? `CASE d.classification WHEN 'SUITABLE' THEN 3 WHEN 'NOT_SUITABLE' THEN 1 ELSE 0 END DESC,
       COALESCE(json_extract(d.payload,'$.attributes.goal_preferred'),0) DESC,
       COALESCE(json_extract(d.payload,'$.attributes.goal_actionability'),0) DESC,
       COALESCE(json_extract(d.payload,'$.attributes.goal_freshness'),0) DESC,
@@ -478,6 +478,15 @@ export class ConversationStore {
         stats: this.stats(context, undefined, capturedAt), by_platform: { facebook: this.stats(context, 'facebook', capturedAt), threads: this.stats(context, 'threads', capturedAt) }, watch: this.watchSummary(undefined, context),
         watermark: { journal_sequence: asNumber(watermark?.sequence), journal_event_id: watermark?.event_id ? String(watermark.event_id) : null, captured_at: capturedAt } };
     });
+  }
+  queryYield(context: EvaluationContext) {
+    const rows = this.db.prepare(`SELECT o.platform AS platform, json_extract(o.payload,'$.provenance.query') AS query,
+      COUNT(DISTINCT o.root_post_id) AS observed, COUNT(DISTINCT CASE WHEN d.classification='SUITABLE' AND d.snapshot_revision=c.revision THEN o.root_post_id END) AS accepted
+      FROM observations o JOIN campaign_roots cr ON cr.platform=o.platform AND cr.root_post_id=o.root_post_id AND cr.context_key=?
+      JOIN conversations c ON c.platform=o.platform AND c.root_post_id=o.root_post_id
+      LEFT JOIN current_decisions cd ON cd.context_key=cr.context_key AND cd.platform=c.platform AND cd.root_post_id=c.root_post_id
+      LEFT JOIN decisions d ON d.id=cd.decision_id WHERE json_extract(o.payload,'$.provenance.query') IS NOT NULL GROUP BY o.platform, query`).all(contextKey(context)) as Row[];
+    return rows.map(r => ({ platform: String(r.platform), query: String(r.query), observed: Number(r.observed), accepted: Number(r.accepted) }));
   }
   selectTarget(context: EvaluationContext, target: number, unassessed = false) {
     if (!Number.isSafeInteger(target) || target < 1) throw Error('CAMPAIGN_TARGET_INVALID');

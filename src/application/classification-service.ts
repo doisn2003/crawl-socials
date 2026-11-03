@@ -8,6 +8,7 @@ import { ModelGatewayError } from './ports/model-gateway.js';
 import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
 import { GOAL_RECIPE, classifyGoalConversations } from './goal-classifier.js';
 import type { ModelGateway, JsonModelResult } from './ports/model-gateway.js';
+import { COVERAGE_RECIPE, classifyCoverage } from './coverage-classifier.js';
 
 export const OPPORTUNITY_CASES = [
   'OPPORTUNITY_REQUEST', 'OPPORTUNITY_EXPERIENCE', 'OPPORTUNITY_DISCUSSION',
@@ -95,6 +96,7 @@ freezeRecipe(TEMPORAL_RECIPE);
  * escalation add instructions at invocation time; they are not part of this base recipe.
  */
 export function classifierRecipe(version: string = OPPORTUNITY_FILTER_VERSION): Readonly<typeof CLASSIFIER_RECIPE> {
+  if (version === 'coverage-standard-v1') return COVERAGE_RECIPE;
   if (version === 'unassessed-v1') return { filter_version: version, system: 'OFF: no model calls; unassessed raw records.', schema: {} };
   if (version === GOAL_FILTER_VERSION) return GOAL_RECIPE;
   if (version === INTENT_OPPORTUNITY_FILTER_VERSION) return INTENT_RECIPE;
@@ -111,6 +113,7 @@ Nếu trái tiêu chí xác nhận thì RELATED_CONSTRAINT_MISMATCH; nếu thi�
 freezeRecipe(INTENT_RECIPE);
 
 export interface ClassifyOptions {
+  assessmentCacheDirectory?: string;
   goalContract?: import('../domain/goal-filter.js').GoalContract;
   /** Independent review of accepted or non-obvious rejected candidates; disable only for the review itself. */
   goalReview?: boolean;
@@ -234,6 +237,7 @@ function modelSnapshot(snapshot: ConversationSnapshot, evaluatedAt?: string): Re
 
 export async function classifyConversations(campaign: CampaignPlan, snapshots: ConversationSnapshot[], gateway: ModelGateway,
   options: ClassifyOptions = {}): Promise<ClassificationBatchResult> {
+  if (campaign.filter_version === 'coverage-standard-v1') return classifyCoverage(campaign, snapshots, gateway, options);
   if (campaign.filter_version === GOAL_FILTER_VERSION) return classifyGoalConversations(campaign, snapshots, gateway, options);
   const recipe = classifierRecipe(campaign.filter_version), temporal = campaign.filter_version === TEMPORAL_OPPORTUNITY_FILTER_VERSION;
   const requestTime = options.evaluatedAt ?? (temporal ? new Date().toISOString() : undefined);
@@ -332,6 +336,8 @@ export async function classifyConversations(campaign: CampaignPlan, snapshots: C
 /** Transparent lexicographic ranking; metadata does not override eligibility. */
 export function opportunityRank(decision: ConversationDecisionInput, snapshot: ConversationSnapshot, sourcePriority?: readonly SourceKind[]): number[] {
   const attrs = decision.attributes ?? {};
+  if (decision.filter_version.startsWith('coverage-')) return [decision.classification === 'SUITABLE' ? 3 : decision.classification === 'NOT_SUITABLE' ? 1 : 0,
+    Number(attrs.signal_strength ?? 0), Date.parse(snapshot.post?.published_at ?? '') || 0];
   if (decision.filter_version === GOAL_FILTER_VERSION) return [decision.classification === 'SUITABLE' ? 3 : decision.classification === 'NOT_SUITABLE' ? 1 : 0,
     Number(attrs.goal_preferred ?? 0), Number(attrs.goal_actionability ?? 0), Number(attrs.goal_freshness ?? 0),
     Number(attrs.goal_published_at ?? 0), sourcePriorityScores(sourcePriority)[snapshot.post?.source.kind ?? 'UNKNOWN']];

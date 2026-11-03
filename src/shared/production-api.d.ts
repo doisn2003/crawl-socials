@@ -27,6 +27,7 @@ export interface OpportunityProgress {
   filterMode?: import('./filter-policy.js').FilterMode;
   resultPolicy?: 'GLOBAL_FIRST_QUALIFIED';
   targetCount?: number; extraCount?: number;
+  shortfallWarning?: string | null;
   campaignId: string; totalTarget: number; threadsShare: number;
   counts: OpportunityCounts; byPlatform: Record<Platform, OpportunityCounts>;
   costUsd: number; costUpperUsd: number; usageUnknown: number; budgetUsd: number;

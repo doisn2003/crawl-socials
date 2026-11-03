@@ -216,7 +216,12 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
         if (!reserved && !options.sharedBudget?.hasPending()) throw new ModelGatewayError('MODEL_BUDGET_EXHAUSTED');
         await wait(25, undefined, request.signal ? { signal: request.signal } : {});
       }
+      // Hold the campaign allocation while waiting for the cross-process account.
+      // Otherwise a second request can consume this campaign's balance during that wait.
+      reserved += upper; accountBudget();
       let spendingId: string | undefined;
+      const invocation = randomUUID(), started = Date.now();
+      try {
       while (spending && !spendingId) {
         try { spendingId = spending.reserve(model, upper); }
         catch (error) {
@@ -224,11 +229,13 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
           await wait(100, undefined, request.signal ? { signal: request.signal } : {});
         }
       }
-      const invocation = randomUUID(), started = Date.now();
       append({ type: 'START', invocation_id: invocation, request_hash: hash, purpose: request.purpose, model,
         started_at: new Date(started).toISOString(), reserved_usd: upper, price });
-      reserved += upper; attempts++;
-      accountBudget();
+      attempts++;
+      } catch (error) {
+        if (spendingId) spending!.settle(spendingId, 0); // Transport has not started.
+        reserved -= upper; accountBudget(); throw error;
+      }
       let response: Response | null = null, payload: Record<string, unknown> | null = null;
       let errorCode: string | null = null, usage: ModelUsage | null = null, value: unknown;
       let valid = false;
@@ -262,8 +269,9 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
         model_version: typeof payload?.modelVersion === 'string' ? payload.modelVersion : null, usage, cost_usd: cost,
         unmetered_cost_upper_usd: unknown, cache_hit: false, elapsed_ms: Date.now() - started, price } : null;
       // A failed disk write leaves START unresolved; restart reserves its full cost conservatively.
-      append({ type: 'FINISH', invocation_id: invocation, request_hash: hash, model, finished_at: new Date().toISOString(),
-        result, cost_usd: cost, unmetered_cost_upper_usd: unknown, error_code: errorCode, http_status: response?.status ?? null });
+      try { append({ type: 'FINISH', invocation_id: invocation, request_hash: hash, model, finished_at: new Date().toISOString(),
+        result, cost_usd: cost, unmetered_cost_upper_usd: unknown, error_code: errorCode, http_status: response?.status ?? null }); }
+      catch (error) { reserved -= upper; unknownUpper += upper; accountBudget(); throw error; }
       reserved -= upper; spent += cost ?? 0; unknownUpper += unknown;
       accountBudget();
       if (response?.status === 429 || response?.status === 503) scheduler.cooldown(retryDelayMs(response, payload, 5000 * attempt));
