@@ -24,6 +24,10 @@ inside historical `.brain` sections are not current authorization.
 - Agent development and regression tests default to **zero paid model calls**.
   Use mocks, recorded responses and local datasets. Existing API keys, Tier 1
   limits and past benchmark permission are not an unlimited spending budget.
+- Confirmed R9 fix: normal USER runs are bounded by their monetary budgets,
+  not a cumulative API-call count. Ignore legacy USER `maxCalls` values and
+  preserve the spending ledger. Explicit DEVELOPMENT call caps still apply;
+  removing the user-facing cap does not authorize agent inference spending.
 - Before a live inference test, there must be an explicit user-authorized spending
   envelope with model, maximum calls and cumulative USD cap. Reuse an existing
   envelope when authorized; never reset its accounting by restarting a script,

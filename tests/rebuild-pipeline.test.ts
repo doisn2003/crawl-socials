@@ -9,6 +9,7 @@ import { withFilterPolicy } from '../src/application/filter-policy.js';
 import { literalCampaign } from '../src/application/compile-campaign.js';
 import { ModelGatewayError } from '../src/application/ports/model-gateway.js';
 import { createConversationStore } from '../src/infrastructure/storage/conversation-store.js';
+import type { WebContents } from 'electron';
 
 test('OFF collects a global target from one source, persists extras/resume, and never invokes AI or enrichment', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'csd-rebuild-'));
@@ -50,6 +51,34 @@ test('model budget pause leaves new raw collection usable with a durable pending
     assert.equal(calls, 1); assert.equal(pipeline.progress().phase, 'MODEL_PAUSED'); assert.equal(pipeline.discoveryStopReason('facebook'), null);
     await pipeline.ingestRows('threads', [{ post_id: '2', text: 'Nên mua đàn piano nào' }], {});
     assert.equal(pipeline.progress().counts.raw, 2); assert.equal(pipeline.progress().counts.pending, 2); assert.equal(calls, 1);
+  } finally { await pipeline.close(); rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('AI budget pause does not block bounded comment collection; the new evidence waits without further AI requests', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'csd-rebuild-comments-')); let calls = 0, captures = 0;
+  const campaign = withFilterPolicy(literalCampaign({ prompt: 'Tìm người học tiếng Anh', seed_queries: ['học tiếng Anh'], suitable_target: 10, raw_cap: 30, model_usd: .1 }), 'STANDARD');
+  const pipeline = await createOpportunityPipeline({ directory, runId: campaign.campaign_id, campaign,
+    config: { enabled: true, prompt: campaign.prompt, brandContext: '', filterMode: 'STANDARD', totalTarget: 10, rawCap: 30, budgetUsd: .1, commentsEnabled: true },
+    platforms: ['facebook'], gateway: { ...unassessedGateway, generateJson: async () => { calls++; throw new ModelGatewayError('MODEL_GLOBAL_BUDGET_EXHAUSTED'); } },
+    async collectConversation(input) {
+      captures++; assert.ok(input.maxComments! > 0); assert.ok(input.maxMs! <= 30000);
+      if (captures === 2) throw Error('CONVERSATION_TIMEOUT');
+      await input.onObservations([{ platform: 'facebook', entity_type: 'COMMENT', entity_id: 'comment-' + input.root.id, root_post_id: input.root.id, parent_id: input.root.id,
+        text: 'Mình cần tìm lớp IELTS', observed_at: '2026-11-03T10:00:00Z', provenance: { run_id: 'fixture', method: 'FIXTURE' } }]);
+      return { coverage: { status: 'PARTIAL', stop_reason: 'CAPTURE_LIMIT_REACHED' } };
+    } });
+  try {
+    await pipeline.ingestRows('facebook', ['1', '2'].map(post_id => ({ post_id, text: 'Chia sẻ cách học tiếng Anh', post_url: 'https://www.facebook.com/posts/' + post_id, comments_count: 2 })), {});
+    await pipeline.drain(); assert.equal(calls, 1); assert.equal(pipeline.progress().phase, 'MODEL_PAUSED');
+    await pipeline.enrich('facebook', {} as WebContents, () => false, 1);
+    assert.equal(captures, 1); assert.equal(pipeline.progress().counts.comments, 1);
+    assert.equal(pipeline.progress().counts.pending, 2); assert.equal(calls, 1);
+    assert.equal((await pipeline.store.jobs(['PENDING'])).filter(job => job.type === 'ENRICH_CONVERSATION').length, 1);
+    await pipeline.enrich('facebook', {} as WebContents, () => false, 1);
+    assert.equal(captures, 2); assert.equal(calls, 1);
+    assert.equal(pipeline.progress().lastError, 'MODEL_GLOBAL_BUDGET_EXHAUSTED', 'a later browser error must not hide why AI stopped');
+    await pipeline.stop(); await pipeline.enrich('facebook', {} as WebContents, () => false, 1);
+    assert.equal(captures, 2, 'explicit Stop still stops browser collection');
   } finally { await pipeline.close(); rmSync(directory, { recursive: true, force: true }); }
 });
 

@@ -23,6 +23,20 @@ test('new user configuration has no seeded keywords and saves an intentionally e
   assert.deepEqual(createUserConfigStore(directory).read(), { keywords: [], minimumPosts: 17 });
 }));
 
+test('legacy call caps migrate to money-only user settings without changing money or unrelated configuration', () => temporary(directory => {
+  const store = createUserConfigStore(directory);
+  const old = { keywords: ['người học tiếng Anh'], minimumPosts: 1000, spendLimits: { totalUsd: 3, dailyUsd: 2, maxCalls: 3 } };
+  const expected = { ...old, spendLimits: { totalUsd: 3, dailyUsd: 2 } };
+  const file = join(directory, 'user-config.json'); writeFileSync(file, JSON.stringify(old));
+  assert.deepEqual(store.read(), expected);
+  assert.equal(JSON.parse(readFileSync(file, 'utf8')).spendLimits.maxCalls, 3, 'reading does not rewrite original settings');
+  assert.deepEqual(store.save(expected), expected);
+  assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), expected);
+  for (const limits of [null, { totalUsd: 3 }, { totalUsd: -1, dailyUsd: 3 }, { totalUsd: 3, dailyUsd: 3, unknown: 1 }]) {
+    assert.throws(() => store.save({ ...old, spendLimits: limits }), /CONFIG_INVALID/);
+  }
+}));
+
 test('saved keywords trim, normalize Unicode and deduplicate without replacing the user topic', () => temporary(directory => {
   const store = createUserConfigStore(directory);
   const expected = { keywords: ['cà phê', 'quán nhỏ'], minimumPosts: 51 };

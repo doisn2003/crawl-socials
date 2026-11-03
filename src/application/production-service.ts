@@ -326,6 +326,12 @@ export function createProductionService(input: {
       const outcomes = await Promise.allSettled(currentRun.platforms.map(async item => {
         try {
           if (stopped) throw Error('USER_STOP');
+          // Resume the saved AI backlog without reopening search windows when
+          // discovery has already reached its global raw/accepted target.
+          const existingLimit = resume ? pipeline?.discoveryStopReason(item.platform) : null;
+          if (existingLimit) {
+            item.count = rows(item.platform).length; item.state = 'STOPPED'; item.reason = existingLimit; saveRun(); return;
+          }
           item.state = 'RUNNING'; saveRun();
           const output = join(currentRun.outputDirectory, item.platform);
           const queries = pipeline ? pipeline.queries(item.platform) : [...currentRun.keywords];

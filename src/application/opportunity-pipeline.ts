@@ -150,7 +150,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   const platformTargets = rebuild ? { facebook: Infinity, threads: Infinity } : allocatePlatformTargets(campaign.suitable_target, campaign.desired_platform_weights, input.platforms);
   const runtimeLimits = readEffectiveLimits(directory, baselineCampaign);
   const baseStore = input.store ?? await createAsyncConversationStore(join(directory, 'store'));
-  const leases = keepJobLeases(baseStore, { onError: error => { lastError = safeCode(error); modelHalted = true; controller.abort(); } });
+  const leases = keepJobLeases(baseStore, { onError: error => { haltModel(safeCode(error)); controller.abort(); } });
   const store = leases.store;
   try { if (activeEvaluation?.state === 'MIGRATING') await resumeEvaluationMigration(directory, store); }
   catch (error) { await leases.close(); if (!input.store) await store.close(); throw error; }
@@ -159,6 +159,8 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   let queryScores: Awaited<ReturnType<AsyncConversationStore['queryYield']>> = [];
   let stopped = false, closed = false, modelHalted = false, pumpWork: Promise<void> | null = null, publishWork: Promise<void> | null = null;
   let pendingTimer: ReturnType<typeof setTimeout> | null = null, lastError: string | null = null, discoveryEnded = false, publishDirty = false;
+  let modelPauseReason: string | null = null;
+  function haltModel(reason: string) { modelHalted = true; modelPauseReason ??= reason; lastError = reason; }
   let watchEnabled = false, watchTimer: ReturnType<typeof setTimeout> | null = null, watchWork: Promise<void> | null = null, watchRetryAt = 0;
   let assessmentTimer: ReturnType<typeof setTimeout> | null = null, assessmentWork: Promise<void> | null = null, assessmentGeneration = 0, assessmentActive = false;
   let storageStopReason: string | null = null, storageUsage: StorageUsage | null = null, storageWork: Promise<void> | null = null;
@@ -214,7 +216,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
           ? `Theo tỷ lệ được model nhận hiện tại, trần bài thô có thể chỉ cho khoảng ${projected}/${campaign.suitable_target} bài. Đây chưa phải độ chính xác đã đo. Xem query chưa chạy, bài đang chờ hoặc mở rộng phạm vi trước khi tăng tiền.` : null } : {}),
         classificationWorkers: workerCount, modelScheduling: gateway.summary().scheduling,
         costUsd: money.measured_cost_usd, costUpperUsd: money.measured_cost_usd + money.unmetered_cost_upper_usd + money.reserved_usd,
-        usageUnknown: money.unmetered_cost_upper_usd > 0 ? 1 : 0, lastError, preview,
+        usageUnknown: money.unmetered_cost_upper_usd > 0 ? 1 : 0, lastError: storageStopReason ?? modelPauseReason ?? lastError, preview,
         watchPending: watch.pending, watchNextAt: watch.next_at, watchActive: watchEnabled,
         ...(assessment ? { assessmentPending: assessment.pending, assessmentNextAt: modelHalted ? assessment.next_future_at : assessment.next_at, assessmentActive } : {}),
         phase: stopped ? 'PAUSED' : modelHalted ? 'MODEL_PAUSED' : watchEnabled || assessmentActive ? 'WATCHING' : discoveryEnded ? off ? 'SETTLED' : hasClassificationWork ? 'PROCESSING' : total.pending ? 'PARTIAL' : 'SETTLED' : 'COLLECTING' };
@@ -225,7 +227,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   }
   function schedule(delayMs = 1500) {
     if (off || retained || stopped || closed || modelHalted || pendingTimer || pumpWork) return;
-    pendingTimer = setTimeout(() => { pendingTimer = null; void pump().catch(error => { lastError = safeCode(error); modelHalted = true; void publish(); }); }, delayMs);
+    pendingTimer = setTimeout(() => { pendingTimer = null; void pump().catch(error => { haltModel(safeCode(error)); void publish(); }); }, delayMs);
   }
   async function classificationBacklog() {
     return (await store.jobs(['PENDING', 'RETRY', 'RUNNING'], context)).filter(job => job.type === 'CLASSIFY' || (focusedEnabled && job.type === 'VERIFY'));
@@ -259,7 +261,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
               : decision.reason_code === 'FOCUSED_PROVIDER_SELF_PROMOTION' ? 'RELATED_NO_OPENING' : decision.reason_code);
           }
           const fatal = verified.failures.find(failure => fatalModelCode(failure.code));
-          if (fatal) { lastError = fatal.code; modelHalted = true; }
+          if (fatal) haltModel(fatal.code);
           if (verified.claimed) await publish();
           if (stopped || modelHalted) break;
         }
@@ -312,10 +314,10 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
             if (job.attempts >= job.max_attempts && decision) await store.recordDecision({ ...decision, assessment_status: 'FAILED' });
           } else await store.complete(job.id, job.lease_token!); // Missing context waits for new evidence, not an identical model call.
         }
-        if (fatal) { lastError = fatal.code; modelHalted = true; }
+        if (fatal) haltModel(fatal.code);
         await publish();
       }
-      })().catch(error => { modelHalted = true; throw error; })));
+      })().catch(error => { haltModel(safeCode(error)); throw error; })));
       const failed = outcomes.find(outcome => outcome.status === 'rejected');
       if (failed?.status === 'rejected') throw failed.reason;
     })().finally(async () => { pumpWork = null; await scheduleRemaining(); await armAssessments(); if (temporalEnabled) await publish(); });
@@ -407,7 +409,10 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     };
     for (let i = 0; i < limit && !stopped && !externalStop() && !enrichmentBlocked.has(platform); i++) {
       await backpressure();
-      if (storageStopReason || stopped || externalStop() || modelHalted) break;
+      // Browser collection is independent of paid classification in rebuild runs.
+      // Keep the existing capture/time/storage limits even while AI is paused.
+      if (storageStopReason || stopped || externalStop() || controller.signal.aborted
+        || (modelHalted && (!rebuild || !modelPauseReason || !fatalModelCode(modelPauseReason)))) break;
       const job = await claimNext(); if (!job) break;
       if (job.type === 'ROOT_RESOLVE') {
         try {
@@ -502,7 +507,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
         await requestDueAssessments();
         await publish();
         if (!modelHalted) schedule(0);
-      })().catch(error => { lastError = safeCode(error); modelHalted = true; })
+      })().catch(error => { haltModel(safeCode(error)); })
         .finally(async () => { assessmentWork = null; await armAssessments(); await publish(); });
       void assessmentWork.catch(error => { lastError = safeCode(error); assessmentActive = false; clearAssessmentTimer(); });
     }, delay);
@@ -593,7 +598,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     async expandQueries() {
       if (!rebuild || off || stopped || modelHalted || targetReached()) return [];
       try { return await expandCoverage(); }
-      catch (error) { lastError = safeCode(error); if (fatalModelCode(lastError)) modelHalted = true; await publish(); return []; }
+      catch (error) { lastError = safeCode(error); if (fatalModelCode(lastError)) haltModel(lastError); await publish(); return []; }
     },
     targetReached, discoveryStopReason,
     discoveryShouldStop: (platform: Platform) => discoveryStopReason(platform) !== null,

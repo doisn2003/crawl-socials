@@ -1,5 +1,17 @@
 # ADR-025 — Phát triển lại CSD với chi phí được kiểm soát
 
+### R9 — Sửa việc dừng nhầm theo số lần gọi AI, 03/11/2026
+
+Người dùng yêu cầu sửa sau lượt tiếng Anh/IELTS Standard: 3.003 bài gốc, 2.996 chưa lọc xong, chi phí 0,0059655/3 USD. Nhật ký ghi `MODEL_CALL_LIMIT_REACHED`; giao diện đặt `maxCalls=3`. Sổ USER gồm một lần 2.5 cũ chi phí 0, một lần phân rã prompt và một batch phân loại 8 bài. Đây là trần cục bộ CSD, không phải bằng chứng Google hết tiền. Chưa xác định thao tác nào đã lưu giá trị 3.
+
+- Bỏ giới hạn tổng số lần gọi khỏi luồng USER và giao diện. Đọc được cấu hình cũ nhưng bỏ trường `maxCalls`, giữ nguyên các trần tiền và lịch sử. Không tăng trần tiền hay xóa số tiền đã dùng. DEVELOPMENT vẫn bắt buộc tuân thủ số lần gọi được cấp.
+- Giữ đặt chỗ chi phí trước mỗi yêu cầu, trần tiền từng lượt/cộng dồn/ngày, tốc độ gọi và số lần thử lại hữu hạn. Không thay model hoặc chính sách phân loại.
+- Phân biệt rõ bài chưa lọc với yêu cầu đang chờ gửi; giải thích nguyên nhân tạm dừng bằng tiếng Việt, phân biệt tiền trong CSD với lỗi thanh toán/quota của Google.
+- Tiếp tục lượt đã đạt trần bài thô sẽ xử lý công việc đã lưu, không khởi động lại tìm kiếm. Thu bình luận có giới hạn vẫn hoạt động khi AI tạm dừng vì tiền/quota; lỗi lưu trữ, mất quyền xử lý công việc, chặn tài khoản và Dừng của người dùng vẫn được tôn trọng.
+- Kiểm chứng bằng fixture/mocks và AppData cô lập, **0 lần gọi AI thật**. Không tự tiếp tục lượt tiếng Anh bằng API trong nhiệm vụ sửa lỗi này.
+
+Chi tiết bàn giao: [báo cáo R9](../reports/csd-budget-stop-fix-20261103.md).
+
 - Ngày: 03/11/2026, Asia/Bangkok.
 - Phạm vi ban đầu: lập kế hoạch, kiểm tra model và tổ chức Git. Người dùng sau đó duyệt triển khai; trạng thái bản ứng viên được cập nhật ở mục 9.
 - Nền: `csd-next-rc7-20261103`, commit `c4c48ed9ec0389ab4e504777a6cbbde1375301f0`.

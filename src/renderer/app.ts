@@ -2,6 +2,7 @@ import type { Account, Platform, PlatformRun, ProductionApi, ProductionState, Us
 import { allocatePlatformTargets } from '../shared/platform-targets.js';
 import { createCampaignPlanner } from './campaign-planner.js';
 import { bindGeminiKeySettings } from './gemini-key-settings.js';
+import { modelPauseMessage } from '../shared/model-status.js';
 
 declare global { interface Window { readonly csd: ProductionApi; } }
 
@@ -21,11 +22,11 @@ const brandContext = element<HTMLTextAreaElement>('brand-context');
 const suitableTarget = element<HTMLInputElement>('suitable-target');
 const filterMode = element<HTMLInputElement>('filter-mode');
 const languageScope = element<HTMLSelectElement>('content-language');
-const spendTotal = element<HTMLInputElement>('spend-total'), spendDaily = element<HTMLInputElement>('spend-daily'), spendCalls = element<HTMLInputElement>('spend-calls');
+const spendTotal = element<HTMLInputElement>('spend-total'), spendDaily = element<HTMLInputElement>('spend-daily');
 const currentFilter = () => (['OFF', 'STANDARD', 'QUALITY'] as const)[Number(filterMode.value)] ?? 'OFF';
 const rawCap = element<HTMLInputElement>('raw-cap');
 const modelBudget = element<HTMLInputElement>('model-budget');
-const intentInputs = [intentEnabled, campaignPrompt, brandContext, suitableTarget, filterMode, languageScope, rawCap, modelBudget, spendTotal, spendDaily, spendCalls];
+const intentInputs = [intentEnabled, campaignPrompt, brandContext, suitableTarget, filterMode, languageScope, rawCap, modelBudget, spendTotal, spendDaily];
 let resultGroup: 'SUITABLE' | 'NOT_SUITABLE' = 'SUITABLE';
 const startButton = element<HTMLButtonElement>('start');
 const stopButton = element<HTMLButtonElement>('stop');
@@ -63,7 +64,7 @@ function setSaveStatus(message: string, kind: string) {
 }
 function readConfig(): UserConfig {
   return {
-    spendLimits: { totalUsd: Number(spendTotal.value), dailyUsd: Number(spendDaily.value), maxCalls: Number(spendCalls.value) },
+    spendLimits: { totalUsd: Number(spendTotal.value), dailyUsd: Number(spendDaily.value) },
     performance: performanceMode.value as NonNullable<UserConfig['performance']>,
     keywords: [...new Set(keywords.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean))],
     minimumPosts: minimumPosts.value.trim() ? Number(minimumPosts.value) : NaN,
@@ -143,8 +144,8 @@ function friendlyError(error: unknown, fallback: string): string {
     return 'Một bài viết vượt giới hạn ký tự của ô Excel. Hãy xuất JSON để giữ nguyên toàn bộ nội dung.';
   if (/GEMINI_API_KEY_MISSING|MODEL_AUTHENTICATION|MODEL_PERMISSION/.test(text))
     return 'Chưa kết nối được dịch vụ AI. Hãy kiểm tra khóa API đã cấu hình trên máy.';
-  if (/MODEL_GLOBAL_BUDGET|MODEL_CALL_LIMIT|MODEL_SPEND/.test(text))
-    return 'AI đã dừng theo trần cộng dồn/ngày hoặc số lượt gọi. Kiểm tra mục Giới hạn tiền AI trên máy này; giá trị 0 chặn gọi AI. Dữ liệu thu được vẫn được giữ.';
+  const modelPause = modelPauseMessage(text);
+  if (modelPause) return modelPause;
   if (/MODEL_NOT_AUTHORIZED/.test(text))
     return 'Lượt cũ dùng model khác. Tạo kế hoạch mới với Gemini 3.1 Flash-Lite và tái lọc dữ liệu đã thu; lịch sử cũ được giữ nguyên.';
   if (/MODEL_NOT_AVAILABLE/.test(text))
@@ -294,7 +295,7 @@ const reasonLabels: Record<string, string> = {
 };
 function reasonText(reason: string | null) {
   if (!reason) return '';
-  return reasonLabels[reason] || (reason.startsWith('STORAGE_') ? 'Đã dừng để kiểm tra dung lượng hoặc thư mục dữ liệu. Mã trạng thái: ' + reason : 'Mã trạng thái: ' + reason);
+  return modelPauseMessage(reason) || reasonLabels[reason] || (reason.startsWith('STORAGE_') ? 'Đã dừng để kiểm tra dung lượng hoặc thư mục dữ liệu. Mã trạng thái: ' + reason : 'Mã trạng thái: ' + reason);
 }
 const coverageLabels: Record<string, string> = {
   NOT_ATTEMPTED: 'Chưa có lượt kiểm tra bình luận', PARTIAL: 'Đã đọc một phần bình luận',
@@ -373,12 +374,13 @@ function renderOpportunities() {
   element('preview-wrapper').hidden = true; element('empty-result').hidden = true;
   const counts = opportunity.counts;
   setText('result-count', number(opportunity.targetCount ?? counts.suitable) + ' / ' + number(opportunity.totalTarget) + (opportunity.filterMode === 'OFF' ? ' BÀI CHƯA ĐÁNH GIÁ' : ' BÀI ĐƯỢC NHẬN'));
-  setText('opportunity-summary', number(counts.raw) + ' bài thô · ' + number(counts.comments) + ' bình luận · ' + number(counts.pending) + (opportunity.filterMode === 'OFF' ? ' chưa đánh giá' : ' đang chờ') + ' · Chi phí AI $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2)
+  setText('opportunity-summary', number(counts.raw) + ' bài thô · ' + number(counts.comments) + ' bình luận · ' + number(counts.pending) + (opportunity.filterMode === 'OFF' ? ' bài chưa đánh giá' : ' bài chưa lọc xong') + ' · Chi phí AI $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2)
     + (opportunity.resultPolicy === 'GLOBAL_FIRST_QUALIFIED' || opportunity.evaluationPolicy === 'GOAL_EVIDENCE' ? '' : ' · Kết quả cũ: cần tái lọc để áp dụng cách đánh giá mới.'));
   if (opportunity.shortfallWarning) element('opportunity-summary').textContent += ' · ' + opportunity.shortfallWarning;
   if (opportunity.extraCount) element('opportunity-summary').textContent += ' · ' + number(opportunity.extraCount) + ' bài bổ sung ngoài chỉ tiêu (được giữ trong bản xuất)';
   const scheduling = opportunity.modelScheduling;
-  if (scheduling) element('opportunity-summary').append(document.createTextNode(' · AI ' + scheduling.active + '/' + scheduling.concurrency + ' đang xử lý · ' + scheduling.queued + ' chờ' + (scheduling.cooldownUntil ? ' · Đang giảm tốc theo hạn mức' : '')));
+  if (scheduling) element('opportunity-summary').append(document.createTextNode(' · AI: ' + scheduling.active + '/' + scheduling.concurrency + ' yêu cầu đang xử lý · ' + scheduling.queued + ' yêu cầu chờ gửi' + (scheduling.cooldownUntil ? ' · Đang giảm tốc theo hạn mức' : '')));
+  if (opportunity.phase === 'MODEL_PAUSED') element('opportunity-summary').append(document.createTextNode(' · Bộ lọc AI đã tạm dừng. ' + reasonText(opportunity.lastError)));
   const retained = state?.run?.mode === 'RETAINED' ? state.run.retained : undefined;
   const importProgress = retained && retained.status !== 'IMPORTED'
     ? 'Đã đọc ' + number(retained.importedObservations) + '/' + number(retained.totalObservations) + ' bản ghi. ' : '';
@@ -437,7 +439,7 @@ function applyState(next: ProductionState, replaceConfig = false) {
     intentEnabled.checked = !!o?.enabled; campaignPrompt.value = o?.prompt || ''; brandContext.value = o?.brandContext || '';
     suitableTarget.value = String(o?.totalTarget || 1000); filterMode.value = String(['OFF', 'STANDARD', 'QUALITY'].indexOf(o?.filterMode ?? 'OFF'));
     languageScope.value = o?.languageScope ?? 'VIETNAMESE';
-    intentEnabled.checked = true; spendTotal.value = String(next.config.spendLimits?.totalUsd ?? 0); spendDaily.value = String(next.config.spendLimits?.dailyUsd ?? 0); spendCalls.value = String(next.config.spendLimits?.maxCalls ?? 0);
+    intentEnabled.checked = true; spendTotal.value = String(next.config.spendLimits?.totalUsd ?? 0); spendDaily.value = String(next.config.spendLimits?.dailyUsd ?? 0);
     rawCap.value = String(o?.rawCap || 3000); modelBudget.value = String(o?.budgetUsd || 0.2);
     savedConfig = key(next.config); initialized = true; configDirty = false; setSaveStatus('Đã lưu trên máy', 'saved');
     if (active() && next.run) for (const platform of next.run.platforms) {
