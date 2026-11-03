@@ -43,3 +43,7 @@ secrets/
 .brain/**/*.jpg
 .brain/**/*.jpeg
 .brain/**/*.tap
+
+# Source implementations are not credential data.
+!src/infrastructure/secrets/
+!src/infrastructure/secrets/*.ts
