@@ -6,6 +6,13 @@ import { createRequestScheduler, retryDelayMs, type RequestScheduler } from './r
 import { ModelGatewayError } from '../../application/ports/model-gateway.js';
 import type { JsonModelRequest, JsonModelResult, ModelGateway, ModelLedgerSummary, ModelPrice, ModelUsage } from '../../application/ports/model-gateway.js';
 import type { SharedModelBudget } from './shared-model-budget.js';
+import { developmentSpend, REBUILD_MODEL, type DurableSpend } from './durable-spend.js';
+import { setTimeout as wait } from 'node:timers/promises';
+
+export const GEMINI_25_FLASH_LITE_PRICE: ModelPrice = Object.freeze({
+  input_per_million: 0.10, output_per_million: 0.40, cached_input_per_million: 0.01,
+  observed_at: '2026-11-03', source: 'https://aistudio.google.com/docs/pricing#gemini-2.5-flash-lite',
+});
 
 export const GEMINI_FLASH_LITE_PRICE: ModelPrice = Object.freeze({
   input_per_million: 0.25, output_per_million: 1.50, cached_input_per_million: 0.025,
@@ -77,6 +84,7 @@ export interface GeminiGatewayOptions {
   directory: string;
   budgetUsd: number;
   sharedBudget?: SharedModelBudget;
+  spending?: DurableSpend;
   scheduler?: RequestScheduler;
   model?: string;
   price?: ModelPrice;
@@ -128,11 +136,11 @@ function readLedger(file: string): LedgerEvent[] {
 }
 
 export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway {
-  const model = options.model ?? 'gemini-3.1-flash-lite';
+  const model = options.model ?? REBUILD_MODEL;
   if (!/^[a-z0-9][a-z0-9.-]{2,100}$/u.test(model)) throw new ModelGatewayError('MODEL_ID_INVALID');
   if (!Number.isFinite(options.budgetUsd) || options.budgetUsd <= 0) throw new ModelGatewayError('MODEL_BUDGET_INVALID');
-  if (model !== 'gemini-3.1-flash-lite' && !options.price) throw new ModelGatewayError('MODEL_EXPLICIT_PRICE_REQUIRED');
-  const price = options.price ?? GEMINI_FLASH_LITE_PRICE;
+  if (![REBUILD_MODEL, 'gemini-3.1-flash-lite'].includes(model) && !options.price) throw new ModelGatewayError('MODEL_EXPLICIT_PRICE_REQUIRED');
+  const price = options.price ?? (model === REBUILD_MODEL ? GEMINI_25_FLASH_LITE_PRICE : GEMINI_FLASH_LITE_PRICE);
   if (![price.input_per_million, price.output_per_million, price.cached_input_per_million].every(n => Number.isFinite(n) && n >= 0)) {
     throw new ModelGatewayError('MODEL_PRICE_INVALID');
   }
@@ -154,7 +162,7 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
     }
   }
   for (const start of starts.values()) if (!finishes.has(start.invocation_id)) unknownUpper += start.reserved_usd;
-  const accountBudget = () => options.sharedBudget?.setAccounted(file, spent + unknownUpper + reserved);
+  const accountBudget = () => options.sharedBudget?.setAccounted(file, spent + unknownUpper + reserved, reserved);
   accountBudget();
   const append = (event: LedgerEvent): void => {
     const fd = openSync(file, 'a');
@@ -162,6 +170,7 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
     finally { closeSync(fd); }
   };
   const transport = options.fetch ?? globalThis.fetch;
+  const spending = options.spending ?? (options.fetch ? undefined : developmentSpend());
   const inFlight = new Map<string, Promise<JsonModelResult>>();
   const scheduler = options.scheduler ?? createRequestScheduler({ concurrency: 1, rpm: 1_000_000,
     inputTpm: 1_000_000_000, rpd: 1_000_000_000, minIntervalMs: minInterval });
@@ -203,7 +212,18 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
       try {
       request.signal?.throwIfAborted();
       if (fatalCode) throw new ModelGatewayError(fatalCode);
-      if (spent + unknownUpper + reserved + upper > options.budgetUsd || options.sharedBudget?.canReserve(upper) === false) throw new ModelGatewayError('MODEL_BUDGET_EXHAUSTED');
+      while (spent + unknownUpper + reserved + upper > options.budgetUsd || options.sharedBudget?.canReserve(upper) === false) {
+        if (!reserved && !options.sharedBudget?.hasPending()) throw new ModelGatewayError('MODEL_BUDGET_EXHAUSTED');
+        await wait(25, undefined, request.signal ? { signal: request.signal } : {});
+      }
+      let spendingId: string | undefined;
+      while (spending && !spendingId) {
+        try { spendingId = spending.reserve(model, upper); }
+        catch (error) {
+          if (!(error instanceof ModelGatewayError) || error.code !== 'MODEL_BUDGET_BUSY') throw error;
+          await wait(100, undefined, request.signal ? { signal: request.signal } : {});
+        }
+      }
       const invocation = randomUUID(), started = Date.now();
       append({ type: 'START', invocation_id: invocation, request_hash: hash, purpose: request.purpose, model,
         started_at: new Date(started).toISOString(), reserved_usd: upper, price });
@@ -237,6 +257,7 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
       actualInputTokens = usage?.input_tokens;
       const cost = usage ? pricedUsage(usage, price) : response && !response.ok && response.status < 500 ? 0 : null;
       const unknown = cost === null ? upper : 0;
+      if (spendingId) spending!.settle(spendingId, cost);
       const result: JsonModelResult | null = valid ? { value, invocation_id: invocation, request_hash: hash, model,
         model_version: typeof payload?.modelVersion === 'string' ? payload.modelVersion : null, usage, cost_usd: cost,
         unmetered_cost_upper_usd: unknown, cache_hit: false, elapsed_ms: Date.now() - started, price } : null;

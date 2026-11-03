@@ -332,6 +332,7 @@ async function main(argv = process.argv.slice(2)) {
     min_request_interval_ms: args.minRequestIntervalMs,
   };
   if (args.dryRun) { console.log(JSON.stringify({ dry_run: true, ...summaryBase })); return; }
+  throw Error('LEGACY_LIVE_BENCHMARK_DISABLED_USE_GUARDED_GATEWAY');
   if (!process.env.GEMINI_API_KEY) fail('GEMINI_API_KEY_MISSING');
   fs.mkdirSync(args.out, { recursive: true });
   outsideRepo(args.out);

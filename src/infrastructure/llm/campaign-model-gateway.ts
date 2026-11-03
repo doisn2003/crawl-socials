@@ -3,11 +3,11 @@ import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { ModelGatewayError } from '../../application/ports/model-gateway.js';
 import type { ModelGateway, ModelLedgerSummary, ModelPrice } from '../../application/ports/model-gateway.js';
-import { createGeminiGateway, GEMINI_FLASH_LITE_PRICE } from './gemini-gateway.js';
+import { createGeminiGateway, GEMINI_FLASH_LITE_PRICE, GEMINI_25_FLASH_LITE_PRICE } from './gemini-gateway.js';
 import type { GeminiGatewayOptions } from './gemini-gateway.js';
 import { createSharedModelBudget } from './shared-model-budget.js';
 
-export const CAMPAIGN_PRIMARY_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'] as const;
+export const CAMPAIGN_PRIMARY_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-2.5-flash-lite'] as const;
 export type CampaignPrimaryModel = typeof CAMPAIGN_PRIMARY_MODELS[number];
 export const GEMINI_35_FLASH_LITE_PRICE: ModelPrice = Object.freeze({ input_per_million: 0.30,
   output_per_million: 2.50, cached_input_per_million: 0.03, observed_at: '2026-10-30',
@@ -73,7 +73,7 @@ export function createCampaignModelGateway(options: CampaignModelGatewayOptions)
   const directory = resolve(options.directory), legacyDirectory = join(directory, 'model');
   const legacyExisted = existsSync(join(legacyDirectory, 'model-ledger.jsonl'));
   const routingFile = join(directory, 'model-routing.json'), prior = readRouting(routingFile);
-  const inferred = prior?.active_model ?? (legacyExisted ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash-lite');
+  const inferred = prior?.active_model ?? (legacyExisted ? 'gemini-3.1-flash-lite' : 'gemini-2.5-flash-lite');
   const active = options.primaryModel ?? inferred;
   const pool = options.sharedBudget ?? createSharedModelBudget(options.budgetUsd);
   if (Math.abs(pool.limitUsd - options.budgetUsd) > 1e-9) throw new ModelGatewayError('MODEL_BUDGET_LIMIT_MISMATCH');
@@ -82,8 +82,8 @@ export function createCampaignModelGateway(options: CampaignModelGatewayOptions)
   for (const model of CAMPAIGN_PRIMARY_MODELS) {
     gateways.set(model, createGeminiGateway({ ...transportOptions, budgetUsd: options.budgetUsd, sharedBudget: pool, model,
       ...(schedulerForModel ? { scheduler: schedulerForModel(model) } : {}),
-      directory: model === 'gemini-3.1-flash-lite' ? legacyDirectory : join(directory, 'model-gemini-3.5-flash-lite'),
-      price: model === 'gemini-3.1-flash-lite' ? GEMINI_FLASH_LITE_PRICE : GEMINI_35_FLASH_LITE_PRICE }));
+      directory: model === 'gemini-3.1-flash-lite' ? legacyDirectory : join(directory, 'model-' + model),
+      price: model === 'gemini-3.1-flash-lite' ? GEMINI_FLASH_LITE_PRICE : model === 'gemini-2.5-flash-lite' ? GEMINI_25_FLASH_LITE_PRICE : GEMINI_35_FLASH_LITE_PRICE }));
   }
   const components = () => [...gateways.values()].map(gateway => gateway.summary());
   const summary = (): ModelLedgerSummary => {

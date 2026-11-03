@@ -20,7 +20,7 @@ const success = (): Response => new Response(JSON.stringify({ modelVersion: 'gem
 test('parallel model requests share slots, coalesce identical input and account concurrent costs once', () => temporary(async directory => {
   const scheduler = createRequestScheduler({ concurrency: 2, rpm: 100, inputTpm: 100000, rpd: 1000 });
   let active = 0, peak = 0, calls = 0;
-  const gateway = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'fake', scheduler, fetch: async () => {
+  const gateway = createGeminiGateway({ directory, model: 'gemini-3.1-flash-lite', budgetUsd: 1, apiKey: 'fake', scheduler, fetch: async () => {
     calls++; peak = Math.max(peak, ++active); await new Promise(resolve => setTimeout(resolve, 20)); active--; return success();
   } });
   const values = await Promise.all([1, 1, 2, 3, 4].map(id => gateway.generateJson({ ...request, input: { id } })));
@@ -28,14 +28,14 @@ test('parallel model requests share slots, coalesce identical input and account 
   assert.equal(gateway.summary().billable_attempts, 4); assert.equal(gateway.summary().reserved_usd, 0);
   assert.equal(gateway.summary().measured_cost_usd, 4 * 0.000295);
   assert.equal(scheduler.status().active, 0);
-  const restarted = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'fake', scheduler, fetch: async () => { throw Error('UNEXPECTED'); } });
+  const restarted = createGeminiGateway({ directory, model: 'gemini-3.1-flash-lite', budgetUsd: 1, apiKey: 'fake', scheduler, fetch: async () => { throw Error('UNEXPECTED'); } });
   assert.equal((await restarted.generateJson({ ...request, input: { id: 1 } })).cache_hit, true);
 }));
 
 test('concurrent budget reservations prevent overspend and queued cancellation never reaches transport', () => temporary(async directory => {
   const scheduler = createRequestScheduler({ concurrency: 2, rpm: 100, inputTpm: 100000, rpd: 1000 });
   let calls = 0;
-  const gateway = createGeminiGateway({ directory, budgetUsd: 0.0007, apiKey: 'fake', scheduler, fetch: async () => {
+  const gateway = createGeminiGateway({ directory, model: 'gemini-3.1-flash-lite', budgetUsd: 0.0007, apiKey: 'fake', scheduler, fetch: async () => {
     calls++; await new Promise(resolve => setTimeout(resolve, 20)); return success();
   } });
   const outcomes = await Promise.allSettled([1, 2, 3].map(id => gateway.generateJson({ ...request, input: { id } })));
@@ -85,7 +85,7 @@ test('optional 3.8 verifier uses supported low thinking and omits deprecated tem
 
 test('gateway journals one call, caches durably, and never stores the API key', () => temporary(async directory => {
   let calls = 0;
-  const gateway = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'never-log-this-secret', minRequestIntervalMs: 0,
+  const gateway = createGeminiGateway({ directory, model: 'gemini-3.1-flash-lite', budgetUsd: 1, apiKey: 'never-log-this-secret', minRequestIntervalMs: 0,
     fetch: async (_url, init) => {
       calls++;
       assert.equal((init?.headers as Record<string, string>)['x-goog-api-key'], 'never-log-this-secret');
@@ -96,7 +96,7 @@ test('gateway journals one call, caches durably, and never stores the API key', 
     } });
   const first = await gateway.generateJson(request), second = await gateway.generateJson(request);
   assert.deepEqual(first.value, { ok: true }); assert.equal(second.cache_hit, true); assert.equal(calls, 1);
-  const restarted = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'unused', fetch: async () => { throw Error('must not request'); } });
+  const restarted = createGeminiGateway({ directory, model: 'gemini-3.1-flash-lite', budgetUsd: 1, apiKey: 'unused', fetch: async () => { throw Error('must not request'); } });
   assert.equal((await restarted.generateJson(request)).cache_hit, true);
   assert.equal(restarted.summary().billable_attempts, 1);
   assert.equal(restarted.summary().measured_cost_usd, 0.000295);
@@ -105,7 +105,7 @@ test('gateway journals one call, caches durably, and never stores the API key', 
 
 test('concurrent identical requests are coalesced into one paid attempt', () => temporary(async directory => {
   let calls = 0;
-  const gateway = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'fake', minRequestIntervalMs: 0,
+  const gateway = createGeminiGateway({ directory, model: 'gemini-3.1-flash-lite', budgetUsd: 1, apiKey: 'fake', minRequestIntervalMs: 0,
     fetch: async () => { calls++; return success(); } });
   const results = await Promise.all([gateway.generateJson(request), gateway.generateJson(request)]);
   assert.equal(calls, 1); assert.equal(results.filter(r => r.cache_hit).length, 1);
@@ -114,14 +114,14 @@ test('concurrent identical requests are coalesced into one paid attempt', () => 
 test('budget reservation prevents network call and survives unresolved prior attempts', () => temporary(async directory => {
   writeFileSync(join(directory, 'model-ledger.jsonl'), JSON.stringify({ type: 'START', invocation_id: 'lost', reserved_usd: 0.02 }) + '\n');
   let calls = 0;
-  const gateway = createGeminiGateway({ directory, budgetUsd: 0.01, apiKey: 'fake', minRequestIntervalMs: 0,
+  const gateway = createGeminiGateway({ directory, model: 'gemini-3.1-flash-lite', budgetUsd: 0.01, apiKey: 'fake', minRequestIntervalMs: 0,
     fetch: async () => { calls++; return success(); } });
   await assert.rejects(gateway.generateJson(request), /MODEL_BUDGET_EXHAUSTED/);
   assert.equal(calls, 0); assert.equal(gateway.summary().unmetered_cost_upper_usd, 0.02);
 }));
 
 test('network failure remains usage-unknown instead of claiming zero actual cost', () => temporary(async directory => {
-  const gateway = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'fake', minRequestIntervalMs: 0, maxAttempts: 1,
+  const gateway = createGeminiGateway({ directory, model: 'gemini-3.1-flash-lite', budgetUsd: 1, apiKey: 'fake', minRequestIntervalMs: 0, maxAttempts: 1,
     fetch: async () => { throw Error('secret provider transport detail'); } });
   await assert.rejects(gateway.generateJson(request), /MODEL_NETWORK_USAGE_UNKNOWN/);
   assert.ok(gateway.summary().unmetered_cost_upper_usd > 0);
@@ -131,7 +131,7 @@ test('network failure remains usage-unknown instead of claiming zero actual cost
 
 test('permanent daily quota stops further attempts and emits only safe status', () => temporary(async directory => {
   let calls = 0;
-  const gateway = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'fake', minRequestIntervalMs: 0,
+  const gateway = createGeminiGateway({ directory, model: 'gemini-3.1-flash-lite', budgetUsd: 1, apiKey: 'fake', minRequestIntervalMs: 0,
     fetch: async () => { calls++; return new Response(JSON.stringify({ error: { message: 'secret account detail',
       details: [{ violations: [{ quotaId: 'GenerateRequestsPerDay', quotaValue: 20 }] }] } }), { status: 429 }); } });
   await assert.rejects(gateway.generateJson(request), /MODEL_DAILY_QUOTA_EXHAUSTED/);
@@ -142,7 +142,7 @@ test('permanent daily quota stops further attempts and emits only safe status', 
 
 test('a temporary per-minute limit retries once within bounded attempts', () => temporary(async directory => {
   let calls = 0;
-  const gateway = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'fake', minRequestIntervalMs: 0, maxAttempts: 2,
+  const gateway = createGeminiGateway({ directory, model: 'gemini-3.1-flash-lite', budgetUsd: 1, apiKey: 'fake', minRequestIntervalMs: 0, maxAttempts: 2,
     fetch: async () => ++calls === 1 ? new Response(JSON.stringify({ error: { details: [{ violations: [{ quotaId: 'RequestsPerMinute', quotaValue: 15 }] }] } }),
       { status: 429, headers: { 'retry-after': '0.001' } }) : success() });
   assert.deepEqual((await gateway.generateJson(request)).value, { ok: true });
@@ -151,7 +151,7 @@ test('a temporary per-minute limit retries once within bounded attempts', () => 
 
 test('truncated last ledger event is repaired without discarding earlier reservations', () => temporary(async directory => {
   writeFileSync(join(directory, 'model-ledger.jsonl'), JSON.stringify({ type: 'START', invocation_id: 'lost', reserved_usd: 0.001 }) + '\n{"type":');
-  const gateway = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'fake', minRequestIntervalMs: 0, fetch: async () => success() });
+  const gateway = createGeminiGateway({ directory, model: 'gemini-3.1-flash-lite', budgetUsd: 1, apiKey: 'fake', minRequestIntervalMs: 0, fetch: async () => success() });
   await gateway.generateJson(request);
   const lines = readFileSync(join(directory, 'model-ledger.jsonl'), 'utf8').trim().split('\n');
   assert.equal(lines.length, 3); lines.forEach(line => assert.doesNotThrow(() => JSON.parse(line)));
@@ -160,7 +160,7 @@ test('truncated last ledger event is repaired without discarding earlier reserva
 
 test('an already aborted request cannot consume budget or call the provider', () => temporary(async directory => {
   let calls = 0;
-  const gateway = createGeminiGateway({ directory, budgetUsd: 1, apiKey: 'fake', fetch: async () => { calls++; return success(); } });
+  const gateway = createGeminiGateway({ directory, model: 'gemini-3.1-flash-lite', budgetUsd: 1, apiKey: 'fake', fetch: async () => { calls++; return success(); } });
   await assert.rejects(gateway.generateJson({ ...request, signal: AbortSignal.abort() }), /MODEL_ABORTED/);
   assert.equal(calls, 0); assert.equal(gateway.summary().billable_attempts, 0);
 }));
