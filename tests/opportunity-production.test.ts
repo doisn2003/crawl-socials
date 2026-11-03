@@ -9,6 +9,8 @@ import { prepareDraft } from '../src/application/campaign-drafts.js';
 import { createOpportunityPipeline, type OpportunityPipeline, type OpportunityPipelineInput } from '../src/application/opportunity-pipeline.js';
 import { literalCampaign } from '../src/application/compile-campaign.js';
 import type { ModelGateway } from '../src/application/ports/model-gateway.js';
+import { ModelGatewayError } from '../src/application/ports/model-gateway.js';
+import { unassessedGateway } from '../src/application/filter-policy.js';
 import type { OpportunityProgress } from '../src/shared/production-api.js';
 import { DEFAULT_STORAGE_LIMITS } from '../src/application/storage-backpressure.js';
 
@@ -18,7 +20,7 @@ function createProductionService(input: Parameters<typeof productionService>[0])
     summary: () => ({ model: 'fixture', budget_usd: options.config.budgetUsd, measured_cost_usd: 0, unmetered_cost_upper_usd: 0,
       reserved_usd: 0, remaining_usd: options.config.budgetUsd, billable_attempts: 0, cache_hits: 0, cost_basis: 'TOKEN_USAGE_AT_SNAPSHOT_LIST_PRICE_NOT_INVOICE' }),
     generateJson: async () => ({ value: { topic: 'Quán cafe', audience: [], needs: [], participation_intents: [], research_intents: [],
-      inclusions: [], exclusions: [], assumptions: [], queries: [{ text: options.config.prompt.includes('piano') ? 'học piano' : 'quán cafe', family: 'BROAD' }],
+      inclusions: [], exclusions: [], assumptions: [], queries: [{ text: options.config.prompt.includes('piano') ? 'học piano' : options.config.prompt.includes('tiếng Anh') ? 'học tiếng Anh' : 'quán cafe', family: 'BROAD' }],
       constraints: { geographies: [], languages: [], max_age_days: null, source_priority: null, unresolved: [] } },
       invocation_id: 'fixture', request_hash: 'fixture', model: 'fixture', model_version: null, usage: null, cost_usd: 0,
       unmetered_cost_upper_usd: 0, cache_hit: false, elapsed_ms: 0,
@@ -179,6 +181,51 @@ test('post-launch getState failure during resume does not close or roll back the
     assert.equal(collectCalls, 2); assert.throws(() => service.saveConfig(lifecycleConfig), /COLLECTION_BUSY/);
     release(); await service.settled(); assert.equal(pipelines[1]!.trace.closes, 1); assert.equal((await service.getState()).run!.state, 'STOPPED');
   } finally { release(); await service.shutdown(); rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('resume after the retired call cap processes saved pending posts at the raw limit without restarting search or planning', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'csd-resume-call-cap-'));
+  let blocked = true, calls = 0, collections = 0;
+  const gateway: ModelGateway = { ...unassessedGateway, async generateJson(request) {
+    calls++;
+    if (blocked) throw new ModelGatewayError('MODEL_CALL_LIMIT_REACHED');
+    assert.equal(request.purpose, 'coverage-standard-v1');
+    const rows = (request.input as { conversations: { i: number }[] }).conversations;
+    return { value: rows.map(row => ({ i: row.i, candidate: 'p', role: 'TARGET', fit: 'DIRECT', hard: 'PASS', ev: [0], why: 'Tìm lớp tiếng Anh', flags: [] })),
+      invocation_id: 'fixture', request_hash: 'fixture', model: 'fixture', model_version: null, usage: null, cost_usd: 0,
+      unmetered_cost_upper_usd: 0, cache_hit: false, elapsed_ms: 0,
+      price: { input_per_million: 0, output_per_million: 0, cached_input_per_million: 0, observed_at: 'fixture', source: 'fixture' } };
+  } };
+  const input = { directory, version: 'test', host: lifecycleHost(), watchAfterDiscovery: false,
+    createOpportunity: (options: OpportunityPipelineInput) => createOpportunityPipeline({ ...options, gateway }),
+    async collectConversation() { throw Error('NO_COMMENT_CAPTURE'); },
+    async collect(value: Parameters<Parameters<typeof createProductionService>[0]['collect']>[0]) {
+      collections++; assert.equal(collections, 1, 'resume must not start a new search');
+      const posts = ['1', '2', '3'].map(post_id => ({ post_id, text: 'Mình cần tìm lớp học tiếng Anh ' + post_id, query: 'học tiếng Anh' }));
+      writeFileSync(join(String(value.config.output), 'posts.jsonl'), posts.map(p => JSON.stringify(p)).join('\n') + '\n');
+      await value.onRecords!(posts, { method: 'FIXTURE' });
+      return { stop_reason: 'RAW_BUDGET_REACHED', summary: { unique: 3 } };
+    },
+  };
+  let service = createProductionService(input);
+  try {
+    service.saveConfig({ keywords: [], minimumPosts: 3, schemaVersion: 2,
+      opportunity: { enabled: true, prompt: 'Tìm người cần học tiếng Anh', brandContext: '', filterMode: 'STANDARD', totalTarget: 3, rawCap: 3, budgetUsd: 3, commentsEnabled: false } });
+    const prepared = await service.prepareCampaign(); assert.equal(prepared.campaignDraftError, undefined, JSON.stringify(prepared.campaignDraftError));
+    await service.start(lifecycleSelection); await service.settled();
+    const first = service.results();
+    assert.equal(first.run.opportunity!.counts.pending, 3);
+    assert.equal(first.run.opportunity!.lastError, 'MODEL_CALL_LIMIT_REACHED');
+    const rawFile = join(first.run.outputDirectory, 'threads', 'posts.jsonl'), original = readFileSync(rawFile, 'utf8');
+    await service.shutdown(); blocked = false;
+    service = createProductionService(input);
+    await service.resume(); await service.settled();
+    const resumed = service.results();
+    assert.equal(resumed.run.id, first.run.id);
+    assert.equal(resumed.run.opportunity!.counts.suitable, 3); assert.equal(resumed.run.opportunity!.counts.pending, 0);
+    assert.equal(resumed.run.state, 'COMPLETED'); assert.equal(resumed.run.opportunity!.lastError, null);
+    assert.equal(collections, 1); assert.equal(calls, 2); assert.equal(readFileSync(rawFile, 'utf8'), original);
+  } finally { await service.shutdown(); rmSync(directory, { recursive: true, force: true }); }
 });
 
 test('watch setup failure clears active flags and always closes its pipeline', async () => {
