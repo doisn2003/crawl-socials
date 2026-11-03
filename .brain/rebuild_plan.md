@@ -11,7 +11,7 @@ Người dùng chọn Gemini 2.5 Flash-Lite. Nhánh tích hợp hiện hành là
 | R2 | IMPLEMENTED — offline verified | codex/csd-r2-raw | OFF không khởi tạo model; mục tiêu chung, thứ tự nhận bền vững và phần vượt; AI dừng không chặn crawl mới; 47 kiểm thử pipeline/config đạt |
 | R3 | IMPLEMENTED — offline verified; profiling nguồn thật còn chờ | codex/csd-r3-windows | Mỗi query có task/window/checkpoint, lát 3 trang, pool chung đo RAM/CPU; 12 kiểm thử điều phối/frontier đạt, gồm 8 query × 2 mạng |
 | R4 | IMPLEMENTED — policy/cache offline verified; precision chưa đo | codex/csd-r4-standard | Một batch ngắn, nhận DIRECT/PLAUSIBLE, chứng cứ bắt buộc, cache theo nội dung/mục tiêu/model; một mở rộng query có kiểm soát; cảnh báo thiếu chỉ tiêu; 21 kiểm thử liên quan đạt |
-| R5 | PLANNED — sau R4 | codex/csd-r5-quality | Kiểm định chọn lọc, xử lý bất đồng |
+| R5 | IMPLEMENTED — offline verified; chất lượng thực tế chưa đo | codex/csd-r5-quality | Dùng cache Tiêu chuẩn, tối đa một kiểm tra bổ sung chọn lọc; giữ hai kết quả khi bất đồng; marker bền vững chống lặp kiểm định |
 | R6 | PLANNED — sau R3/R5 | Nhánh ứng viên tạo khi cần | Đo chất lượng/chi phí và bàn giao người dùng thử |
 
 Ngân sách inference phát triển hiện được phép trong lượt kế hoạch: **0 USD**. Các hạn mức live thử nhỏ trong ADR là đề xuất chưa được cấp. GET metadata trả 200, nhưng generation access/billing chưa được thử.
