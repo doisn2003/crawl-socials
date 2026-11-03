@@ -95,6 +95,7 @@ freezeRecipe(TEMPORAL_RECIPE);
  * escalation add instructions at invocation time; they are not part of this base recipe.
  */
 export function classifierRecipe(version: string = OPPORTUNITY_FILTER_VERSION): Readonly<typeof CLASSIFIER_RECIPE> {
+  if (version === 'unassessed-v1') return { filter_version: version, system: 'OFF: no model calls; unassessed raw records.', schema: {} };
   if (version === GOAL_FILTER_VERSION) return GOAL_RECIPE;
   if (version === INTENT_OPPORTUNITY_FILTER_VERSION) return INTENT_RECIPE;
   if (version === TEMPORAL_OPPORTUNITY_FILTER_VERSION) return TEMPORAL_RECIPE;

@@ -116,7 +116,7 @@ test('saved semantic presets keep the confirmed objective and exact query set wi
   const h = harness(directory), draft = await prepareSemanticDraft({ ...h, config: { ...config, prompt: 'tìm người muốn thuê luật sư' } }); assert.ok('campaign' in draft);
   const preset = savePreset({ directory, name: 'Tìm khách thuê luật sư', source: { kind: 'DRAFT', runId: draft.runId, revision: draft.revision } });
   const { totalTarget, threadsShare, rawCap, budgetUsd, commentsEnabled } = config;
-  const applied = applyPreset({ directory, presetId: preset.presetId, presetVersion: preset.version, runtime: { totalTarget, threadsShare, rawCap, budgetUsd, commentsEnabled } });
+  const applied = applyPreset({ directory, presetId: preset.presetId, presetVersion: preset.version, runtime: { totalTarget, threadsShare: threadsShare!, rawCap, budgetUsd, commentsEnabled } });
   assert.deepEqual(applied.campaign.intent_resolution, draft.campaign.intent_resolution); assert.deepEqual(applied.criteria, draft.criteria);
   assert.equal(h.requests.length, 1); assert.equal(applied.cost.billableAttempts, 0);
 }));

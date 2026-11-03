@@ -46,14 +46,14 @@ function render(progress: CoolerProgress) {
   running = progress?.state === 'RUNNING' || progress?.state === 'STOPPING' || !!monitoring;
   node('phase').textContent = progress ? ({ RUNNING: 'ĐANG THU THẬP', STOPPING: 'ĐANG LƯU VÀ DỪNG', COMPLETED: 'ĐÃ HOÀN THÀNH', STOPPED: 'ĐÃ DỪNG', FAILED: 'CÓ LỖI', INTERRUPTED: 'BỊ GIÁN ĐOẠN' }[progress.state]) : 'CHƯA CÓ LƯỢT THU';
   if (monitoring) node('phase').textContent = 'ĐANG THEO DÕI CUỘC THẢO LUẬN';
-  const targets = progress?.opportunity ? allocatePlatformTargets(progress.opportunity.totalTarget,
+  const targets = progress?.opportunity?.resultPolicy === 'GLOBAL_FIRST_QUALIFIED' ? { facebook: progress.opportunity.totalTarget, threads: progress.opportunity.totalTarget } : progress?.opportunity ? allocatePlatformTargets(progress.opportunity.totalTarget,
     { threads: progress.opportunity.threadsShare, facebook: 1 - progress.opportunity.threadsShare }, progress.platforms.map(item => item.platform)) : null;
   for (const platform of ['facebook', 'threads'] as const) {
     const item = progress?.platforms.find(p => p.platform === platform), opportunity = progress?.opportunity;
     const target = targets ? targets[platform] : progress?.minimumPosts || 1;
-    const count = opportunity ? opportunity.byPlatform[platform].suitable : item?.count || 0;
+    const count = opportunity ? opportunity.filterMode === 'OFF' ? opportunity.byPlatform[platform].raw : opportunity.byPlatform[platform].suitable : item?.count || 0;
     const bar = node<HTMLProgressElement>(platform + '-progress'); bar.max = Math.max(1, target); bar.value = count; bar.hidden = target === 0;
-    node(platform + '-count').textContent = count.toLocaleString('vi-VN') + ' / ' + (progress ? target.toLocaleString('vi-VN') : '—') + (opportunity ? ' bài tinh' : ' bài');
+    node(platform + '-count').textContent = count.toLocaleString('vi-VN') + ' / ' + (progress ? target.toLocaleString('vi-VN') : '—') + (opportunity?.filterMode === 'OFF' ? ' bài chưa đánh giá' : opportunity ? ' bài được nhận' : ' bài') + (opportunity?.resultPolicy === 'GLOBAL_FIRST_QUALIFIED' ? ' · mục tiêu chung' : '');
     node(platform + '-state').textContent = item ? ({ QUEUED: 'Đang chờ', RUNNING: 'Đang thu thập', COMPLETED: 'Đã đạt mục tiêu', STOPPED: 'Đã dừng', FAILED: 'Có lỗi · xem cửa sổ CSD' }[item.state]) : 'Không chọn nguồn này';
   }
   syncAnimation();

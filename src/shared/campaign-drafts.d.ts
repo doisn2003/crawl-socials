@@ -12,6 +12,8 @@ export interface CampaignCriteria {
 }
 /** Structurally equal to the domain plan, without importing its Node hashing implementation. */
 export interface CampaignDraftPlan extends CampaignCriteria {
+  filter_mode?: import('./filter-policy.js').FilterMode;
+  result_policy?: 'GLOBAL_FIRST_QUALIFIED';
   schema_version: '1.0.0'; campaign_id: string; version: string; created_at: string; prompt: string;
   suitable_target: number; target_scope: 'TOTAL_ACROSS_PLATFORMS';
   desired_platform_weights: Record<'facebook' | 'threads', number>;
@@ -30,7 +32,7 @@ export interface CampaignDraftPlan extends CampaignCriteria {
   };
 }
 export type CampaignCriteriaPatch = Partial<CampaignCriteria>;
-export type CampaignPresetRuntime = Pick<OpportunityConfig, 'totalTarget' | 'threadsShare' | 'rawCap' | 'budgetUsd' | 'commentsEnabled'>;
+export type CampaignPresetRuntime = Pick<OpportunityConfig, 'filterMode' | 'totalTarget' | 'threadsShare' | 'rawCap' | 'budgetUsd' | 'commentsEnabled'>;
 export interface CampaignDraftCost {
   /** Persisted cost receipt; live collection spend may be newer than this timestamp. */
   capturedAt: string;

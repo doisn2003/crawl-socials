@@ -94,8 +94,11 @@
           </select>
           <p class="helper">Giữ nguyên tiêu chí và các bước kiểm chứng. Tự chờ khi AI, bộ nhớ đệm hoặc nguồn dữ liệu bận; ngân sách AI vẫn là giới hạn chi phí của lượt chạy. Số cửa sổ áp dụng cho lượt mới; Tiếp tục giữ cách chia từ khóa đã lưu.</p>
         </div>
-        <label class="opportunity-mode"><input id="opportunity-enabled" type="checkbox" disabled> Tìm cuộc thảo luận phù
-          hợp để thương hiệu tham gia</label>
+        <input id="opportunity-enabled" type="checkbox" checked hidden>
+        <label for="filter-mode">Mức lọc</label>
+        <input id="filter-mode" type="range" min="0" max="2" step="1" value="0" list="filter-levels" disabled>
+        <datalist id="filter-levels"><option value="0" label="Không lọc"></option><option value="1" label="Tiêu chuẩn"></option><option value="2" label="Chất lượng"></option></datalist>
+        <p id="filter-mode-help" class="helper">Không lọc — miễn phí API. Nhập từ khóa, thu và khử trùng bài gốc.</p>
         <div id="opportunity-config" hidden>
           <div class="config-grid">
             <div class="field"><label for="campaign-prompt">Bạn muốn tìm điều gì?</label><textarea id="campaign-prompt"
@@ -108,17 +111,21 @@
                 disabled></textarea></div>
           </div>
           <div class="opportunity-limits">
-            <label>Tổng bài tinh<input id="suitable-target" type="number" min="1" max="3000" step="1" value="1000"
+            <label>Tổng mục tiêu bài viết<input id="suitable-target" type="number" min="1" max="3000" step="1" value="1000"
                 disabled></label>
-            <label>Threads : Facebook<select id="threads-share" disabled>
-                <option value="0.8">80 : 20</option>
-                <option value="0.7">70 : 30</option>
-              </select></label>
             <label>Giới hạn bài thô<input id="raw-cap" type="number" min="1" max="10000" step="1" value="3000"
                 disabled></label>
-            <label>Ngân sách AI (USD)<input id="model-budget" type="number" min="0.01" max="30" step="0.01" value="3"
+            <label>Ngân sách AI (USD)<input id="model-budget" type="number" min="0.01" max="30" step="0.01" value="0.2"
                 disabled></label>
           </div>
+          <details id="spending-controls"><summary>Giới hạn tiền AI trên máy này</summary>
+            <p class="helper">Gemini 2.5 Flash-Lite. Áp dụng cho mọi lượt mới từ bản rebuild; không tự reset tổng tiền khi tạo lượt khác. Để 0 thì không gọi AI.</p>
+            <div class="opportunity-limits">
+              <label>Trần cộng dồn (USD)<input id="spend-total" type="number" min="0" max="10000" step="0.01" value="0"></label>
+              <label>Trần mỗi ngày (USD)<input id="spend-daily" type="number" min="0" max="10000" step="0.01" value="0"></label>
+              <label>Tổng lượt gọi tối đa<input id="spend-calls" type="number" min="0" step="1" value="0"></label>
+            </div><p id="spend-status" class="helper"></p>
+          </details>
           <p class="helper">Tổng mục tiêu cho các nguồn đã chọn. Lưu toàn bộ dữ liệu thu được và lọc ngay khi đang thu;
             bình luận bổ sung sẽ cập nhật kết quả.</p>
           <div class="campaign-planning">
