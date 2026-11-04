@@ -1,4 +1,14 @@
-# Kế hoạch nhánh hiện hành — CSD rebuild, 03/11/2026
+# Nhánh production — cập nhật được duyệt ngày 04/11/2026
+
+Người dùng đã yêu cầu đưa các kết quả R12–R14 vào nhánh production.
+`codex/csd-production` nhận trực tiếp mốc `16f61c2` (0.4.0-rebuild.5.3), gồm
+nền rebuild/R10 và toàn bộ các bản vá đã bàn giao. Không tích hợp QUALITY v2
+trên `codex/csd-r11-quality-v2`, vốn chưa đạt các release gate.
+
+Chi tiết: [bàn giao production](reports/csd-production-promotion-20261104.md).
+Các nhánh thử nghiệm và AppData/export/portable giữ độc lập với Git.
+
+# Lịch sử kế hoạch rebuild — 03/11/2026
 
 Nhánh phát triển mới là `codex/csd-rebuild`, từ mốc cố định `csd-next-rc7-20261103`. [ADR-025](decisions/ADR-025-cost-controlled-csd-rebuild.md) thay quy trình phát triển mới của ADR-023/024. [Bảng các chặng](rebuild_plan.md) là nguồn trạng thái hiện hành.
 

@@ -1,5 +1,13 @@
 # ADR-025 — Phát triển lại CSD với chi phí được kiểm soát
 
+### Promote production được người dùng duyệt — 04/11/2026
+
+Người dùng yêu cầu đưa các kết quả đã bàn giao vào nhánh production.
+Chọn `16f61c2` / **0.4.0-rebuild.5.3** từ R14, gồm nền rebuild/R10 và các bản
+vá R12–R14. Đây là quyền promote mới, thay các ghi chú “chưa promote” trong
+lịch sử bên dưới. QUALITY v2 chưa đạt gate vẫn giữ riêng ở R11.
+Không cấp thêm ngân sách inference. Xem [bàn giao production](../reports/csd-production-promotion-20261104.md).
+
 ### R9 — Sửa việc dừng nhầm theo số lần gọi AI, 03/11/2026
 
 Người dùng yêu cầu sửa sau lượt tiếng Anh/IELTS Standard: 3.003 bài gốc, 2.996 chưa lọc xong, chi phí 0,0059655/3 USD. Nhật ký ghi `MODEL_CALL_LIMIT_REACHED`; giao diện đặt `maxCalls=3`. Sổ USER gồm một lần 2.5 cũ chi phí 0, một lần phân rã prompt và một batch phân loại 8 bài. Đây là trần cục bộ CSD, không phải bằng chứng Google hết tiền. Chưa xác định thao tác nào đã lưu giá trị 3.

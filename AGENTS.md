@@ -7,6 +7,10 @@ inside historical `.brain` sections are not current authorization.
 
 ## Cost and evidence
 
+- The completed ADR-026/R11 pilot remains closed: 60 authorized calls used,
+  USD 0.140990251 measured, no held cost. Cumulative DEVELOPMENT totals are
+  1,131 calls / USD 1.394837274. Unused pilot allowance is not further spending
+  authorization. The QUALITY v2 implementation remains on its own branch.
 - The user now explicitly selected **Gemini 3.1 Flash-Lite** after the 2.5
   preflight failed. Use 3.1 for new planning/filtering; preserve old model ledgers.
   Do not silently fall back to another model.
@@ -102,6 +106,10 @@ inside historical `.brain` sections are not current authorization.
 
 ## Git and data
 
+- On 2026-11-04 the user explicitly authorized promoting the accepted R12–R14
+  results to `codex/csd-production`. Its release baseline is rebuild.5.3 from
+  `16f61c2`, including prior rebuild dependencies; R11 QUALITY v2 is excluded.
+  This is explicit release authorization, not promotion based solely on tests.
 - `codex/csd-rebuild` is the new integration branch, based on the fixed RC7 tag.
   Create short-lived `codex/csd-rN-*` branches per milestone when work starts.
 - Existing `codex/csd-next`, `codex/ai-foundation`, `codex/crawl-throughput` and
