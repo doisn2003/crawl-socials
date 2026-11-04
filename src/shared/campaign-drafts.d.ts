@@ -45,6 +45,8 @@ export interface CampaignDraftSource {
   sourceCampaignVersion: string;
   presetId?: string; presetVersion?: string; sourceRunId?: string;
   plannerRequestHash?: string; plannerInvocationId?: string;
+  /** The referenced model attempt failed; the runnable plan came from literal user keywords. */
+  plannerRecovery?: 'EXPLICIT_USER_TOPIC_LIST';
   plannerPolicy?: 'legacy-short-v1' | 'grounded-constraints-v1' | 'controlled-semantic-dialogue-v1'; plannerRecipeHash?: string;
 }
 export interface CampaignCriteriaOverride {

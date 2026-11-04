@@ -335,7 +335,8 @@ export async function prepareSemanticDraft(input: PrepareInput): Promise<Campaig
       const recipe = classifierRecipe(campaign.filter_version);
       const record: DraftRecord = { schemaVersion: 1, runId: location.runId, config, campaign, recipe, recipeHash: contentHash(recipe),
         source: { kind: 'PLANNER', sourceCampaignVersion: campaign.version, plannerRequestHash: result.model_result.request_hash,
-          plannerInvocationId: result.model_result.invocation_id, plannerPolicy: planner.planner_policy, plannerRecipeHash: planner.recipe_sha256 },
+          plannerInvocationId: result.model_result.invocation_id, plannerPolicy: planner.planner_policy, plannerRecipeHash: planner.recipe_sha256,
+          ...(result.recovery ? { plannerRecovery: result.recovery } : {}) },
         createdAt: previous?.createdAt ?? at, updatedAt: at, userOverrides: [] };
       draft = view(record, save(location, record), receipt);
     }

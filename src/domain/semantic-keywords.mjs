@@ -144,8 +144,15 @@ export function validateResult(raw, variant, input, baseline) {
   if (dialogue) {
     if (raw.intent_revision !== input.revision) fail('intent revision khác đầu vào');
     if (raw.intent.length !== Object.keys(FIELDS).length || new Set(raw.intent.map(f => f.field)).size !== raw.intent.length) fail('thiếu/trùng trường mục tiêu');
+    const invalidFields = raw.intent.map(f => ({ field: f.field, status: f.status,
+      problems: [...(!f.value.trim() ? ['EMPTY_VALUE'] : []),
+        ...(f.status === 'CONFIRMED' && !f.evidence.length ? ['MISSING_EVIDENCE'] : []),
+        ...(f.evidence.some(e => !grounded(e)) ? ['QUOTE_NOT_IN_SOURCE'] : [])],
+      invalid_evidence: f.evidence.filter(e => !grounded(e)) })).filter(f => f.problems.length);
+    if (invalidFields.length) fail('mục tiêu không có bằng chứng thật: ' + invalidFields[0].field,
+      { code: 'INTENT_FIELD_EVIDENCE', fields: invalidFields,
+        instruction: 'Copy exact contiguous quotes from the original source, including intervening list items. Never join separate excerpts into one quote. For a topic-only post search, target_roles is UNSPECIFIED with a nonempty unrestricted summary and empty evidence; do not invent authors seeking services. CONFIRMED fields require literal source evidence.' });
     for (const f of raw.intent) {
-      if (!f.value.trim() || (f.status === 'CONFIRMED' && !f.evidence.length) || f.evidence.some(e => !grounded(e))) fail('mục tiêu không có bằng chứng thật: ' + f.field);
       const edit = activeEdits(input).find(e => e.field === f.field);
       if (edit && (f.value !== edit.value || f.status !== 'CONFIRMED' || !f.evidence.some(e => e.source === 'EDIT' && e.quote === edit.value))) fail('model không giữ chỉnh sửa trực tiếp: ' + f.field);
     }
