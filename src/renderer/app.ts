@@ -523,7 +523,7 @@ async function collectFromCurrentPlan() {
   if (!(config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF' ? config.opportunity.prompt.trim() : config.keywords.length) || !selected.length) throw Error('START_INPUT_REQUIRED');
   const result = await planAndStart({ api: window.csd, profiles: selected,
     useAi: !!config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF',
-    draftReference: () => planner.draftReference(), prepared: next => { stateEpoch++; applyState(next); },
+    draftReference: () => planner.draftReference(), prepared: next => { stateEpoch++; applyState(next, true); },
     phase: phase => { startPhase = phase; updateControls(); },
   });
   if (result.kind === 'CLARIFICATION') {
