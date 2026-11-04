@@ -52,6 +52,16 @@ inside historical `.brain` sections are not current authorization.
 
 ## Product direction
 
+- R14 user update on 2026-11-04: expose the saved `commentsEnabled` option as
+  a toggle chosen before a new run; lock it while running. OFF on this toggle
+  means posts-only processing and no comment-enrichment windows. ON allows
+  bounded comment collection; filter mode OFF still makes zero model calls.
+  Show the requested yellow warning only while the comment toggle is ON.
+  Remove the three filter-mode cards without changing percentage bands.
+- Planner evidence may normalize whitespace/NFC formatting only by mapping the
+  quote back to a real contiguous source span. Never ignore missing/added words.
+  Preserve raw provider responses and spending; retry may reuse a matching saved
+  response only after validating it against the current intent.
 - R13 user update on 2026-11-04 supersedes the R10 monochrome theme: use an
   elegant light theme, colored cards/buttons, green authenticated badges and a
   purple gradient slider. Slider steps are 1%; 0–20 = OFF, 21–80 = STANDARD,
