@@ -31,8 +31,18 @@ export function semanticCampaign(input: CampaignPlanInput, intent: IntentInput, 
 }
 
 export async function compileSemanticTurn(input: CampaignPlanInput, intent: IntentInput, gateway: ModelGateway,
-  options: { signal?: AbortSignal; cacheNamespace?: string; onAttempt?: (attempt: { result: JsonModelResult; validation: string | null; validationDetails?: unknown; recovery?: string; requestInput: unknown }) => void } = {}) {
+  options: { signal?: AbortSignal; cacheNamespace?: string;
+    recordedAttempts?: { result: JsonModelResult; requestInput: unknown }[];
+    onAttempt?: (attempt: { result: JsonModelResult; validation: string | null; validationDetails?: unknown; recovery?: string; requestInput: unknown }) => void } = {}) {
   literalCampaign({ ...input, planner_policy: 'legacy-short-v1' }); // Validate local limits before billing.
+  for (const recorded of options.recordedAttempts ?? []) {
+    let plan: IntentPlan, campaign: CampaignPlan | null;
+    try { plan = validateResult(recorded.result.value, 'B', intent, {}); campaign = plan.state === 'READY' ? semanticCampaign(input, intent, plan) : null; }
+    catch { continue; } // Invalid saved responses still require bounded repair.
+    const result = { ...recorded.result, cache_hit: true, elapsed_ms: 0 };
+    options.onAttempt?.({ result, validation: null, recovery: 'RECORDED_VALIDATED_RESPONSE', requestInput: recorded.requestInput });
+    return { plan, campaign, model_result: result, recovery: 'RECORDED_VALIDATED_RESPONSE' as const };
+  }
   let repair: unknown;
   for (let round = 0; round < 2; round++) {
     const request = modelRequest('B', { ...intent, ...(repair ? { validation_repair: repair } : {}) }, {});

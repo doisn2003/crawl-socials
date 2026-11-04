@@ -1,6 +1,6 @@
 import { withFilterPolicy } from './filter-policy.js';
 import { vietnameseOnly } from '../domain/content-language.js';
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { contentHash } from '../domain/conversation.js';
@@ -16,7 +16,7 @@ import { compileSemanticTurn } from './semantic-campaign.js';
 import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
 import { reviseAnswers, reviseIntent } from '../domain/semantic-keywords.mjs';
 import type { CampaignDialogueView, ContinueCampaignRequest, IntentInput } from '../shared/semantic-intent.js';
-import type { ModelGateway } from './ports/model-gateway.js';
+import type { JsonModelResult, ModelGateway } from './ports/model-gateway.js';
 import type { OpportunityConfig } from '../shared/production-api.js';
 import type { ApplyCampaignPresetRequest, CampaignCriteria, CampaignCriteriaOverride, CampaignCriteriaPatch,
   CampaignDraftCost, CampaignDraftSource, CampaignDraftView, CampaignPresetRuntime, CampaignPresetView,
@@ -313,6 +313,18 @@ export async function prepareSemanticDraft(input: PrepareInput): Promise<Campaig
   const oldGeneration = existsSync(generationFile) ? read(generationFile) as { inputHash: string; id: string; status: string; code?: string } : null;
   const generation = { inputHash: contentHash(intent), id: oldGeneration?.inputHash === contentHash(intent)
     && !(oldGeneration.status === 'FAILED' && oldGeneration.code === 'CAMPAIGN_SEMANTIC_VALIDATION_FAILED') ? oldGeneration.id : randomUUID() };
+  const recordedAttempts: { result: JsonModelResult; requestInput: unknown }[] = [];
+  const attemptDirectory = join(files.opportunity, 'intent-attempts');
+  if (oldGeneration?.inputHash === contentHash(intent) && oldGeneration.status === 'FAILED'
+    && oldGeneration.code === 'CAMPAIGN_SEMANTIC_VALIDATION_FAILED' && existsSync(attemptDirectory)) {
+    for (const file of readdirSync(attemptDirectory).filter(file => file.endsWith('.json'))
+      .sort((a, b) => statSync(join(attemptDirectory, b)).mtimeMs - statSync(join(attemptDirectory, a)).mtimeMs).slice(0, 8)) {
+      const attempt = read(join(attemptDirectory, file)) as { generationId?: string; revision?: number; result?: JsonModelResult; requestInput?: unknown };
+      if (attempt.generationId === oldGeneration.id && attempt.revision === intent.revision
+        && attempt.result?.model === gateway.summary().model && typeof attempt.result.invocation_id === 'string'
+        && typeof attempt.result.request_hash === 'string') recordedAttempts.push({ result: attempt.result, requestInput: attempt.requestInput });
+    }
+  }
   try {
     // An interrupted request replays its cache. An explicit retry after invalid model output
     // gets a new generation, otherwise both invalid cached responses would fail forever.
@@ -324,6 +336,7 @@ export async function prepareSemanticDraft(input: PrepareInput): Promise<Campaig
       suitable_target: config.totalTarget, desired_platform_weights: { threads: config.threadsShare ?? 0.5, facebook: 1 - (config.threadsShare ?? 0.5) },
       raw_cap: config.rawCap, model_usd: config.budgetUsd }, intent, gateway, {
       cacheNamespace: 'semantic-dialogue:' + generation.id,
+      recordedAttempts,
       ...(input.signal ? { signal: input.signal } : {}),
       onAttempt: attempt => { immutable(join(files.opportunity, 'intent-attempts', randomUUID() + '.json'), { revision: intent.revision, generationId: generation.id, ...attempt });
         atomic(join(files.opportunity, 'draft-cost.json'), cost(gateway)); },

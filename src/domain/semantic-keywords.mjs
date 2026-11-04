@@ -124,6 +124,29 @@ function shape(value, schema, path = '$') {
   else if (schema.type === 'number' && (typeof value !== 'number' || !Number.isFinite(value))) fail(path);
   else if (schema.type === 'integer' && !Number.isSafeInteger(value)) fail(path);
 }
+/** Return a contiguous source slice, tolerating whitespace/NFC formatting only. */
+export function canonicalIntentQuote(text, quote) {
+  if (typeof text !== 'string' || typeof quote !== 'string' || !quote.trim()) return null;
+  if (text.includes(quote)) return quote;
+  const needle = quote.normalize('NFC').replace(/\s+/gu, ' ').trim();
+  let normalized = ''; const starts = [], ends = [];
+  for (let i = 0; i < text.length;) {
+    const start = i; let point = String.fromCodePoint(text.codePointAt(i)); i += point.length;
+    if (/\s/u.test(point)) {
+      while (i < text.length && /\s/u.test(text[i])) i++;
+      normalized += ' '; starts.push(start); ends.push(i);
+    } else {
+      while (i < text.length) {
+        const next = String.fromCodePoint(text.codePointAt(i)); if (!/\p{M}/u.test(next)) break;
+        point += next; i += next.length;
+      }
+      const composed = point.normalize('NFC'); normalized += composed;
+      for (let j = 0; j < composed.length; j++) { starts.push(start); ends.push(i); }
+    }
+  }
+  const at = normalized.indexOf(needle);
+  return at < 0 ? null : text.slice(starts[at], ends[at + needle.length - 1]);
+}
 export function validateResult(raw, variant, input, baseline) {
   const dialogue = input.stage === 'S2';
   shape(raw, variant === 'A' ? baseline.schema : dialogue ? EXPERIMENT_SCHEMA : STAGE1_SCHEMA);
@@ -139,7 +162,18 @@ export function validateResult(raw, variant, input, baseline) {
     return { state: 'READY', understanding: raw.topic, target_roles: raw.audience, constraints: [], questions: [], branches: [...new Set(queries.map(q => q.branch_id))].map(id => ({ id, label: id, scope: 'CORE' })), queries, caveats: [...raw.assumptions, 'A sao chép prompt/schema và bộ lọc từ khóa của baseline. Không mô phỏng toàn bộ campaign validator hay pipeline crawler.'], improvements: [] };
   }
   if (raw.questions.length > 3 || raw.branches.length > 16 || raw.queries.length > 48) fail('quá nhiều mục');
+  raw = structuredClone(raw); // Keep the provider response in the ledger unchanged.
   const sources = { PROMPT: input.prompt, CONTEXT: input.context || '', ANSWER: (dialogue ? activeAnswers(input) : input.answers || []).map(a => a.answer).join('\n'), EDIT: activeEdits(input).map(e => e.value).join('\n') };
+  for (const item of [...raw.constraints, ...raw.branches, ...(dialogue ? raw.intent.flatMap(f => f.evidence) : [])]) {
+    const quote = canonicalIntentQuote(sources[item.source], item.quote); if (quote !== null) item.quote = quote;
+  }
+  for (const branch of raw.branches) {
+    const anchor = canonicalIntentQuote(branch.quote, branch.anchor); if (anchor !== null) branch.anchor = anchor;
+  }
+  for (const query of raw.queries) {
+    const branch = raw.branches.find(b => b.id === query.branch_id);
+    const anchor = branch && canonicalIntentQuote(branch.quote, query.anchor); if (anchor) query.anchor = anchor;
+  }
   const grounded = item => !!item.quote.trim() && sources[item.source].normalize('NFC').includes(item.quote.normalize('NFC'));
   if (dialogue) {
     if (raw.intent_revision !== input.revision) fail('intent revision khác đầu vào');

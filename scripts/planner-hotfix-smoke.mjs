@@ -69,10 +69,41 @@ if (!process.versions.electron) {
     assert.equal(resolveDraftForStart({ directory, runId: draft.runId, expectedRevision: draft.revision,
       expectedConfigHash: draft.configHash }).campaign.version, draft.campaign.version);
     assert.equal(liveCalls, 0);
+    let legacyRetryWithoutNewCalls = null;
+    if (baseline) {
+      const { prepareSemanticDraft: legacyPrepare } = await import(pathToFileURL(join(resolve(baseline), 'dist/application/campaign-drafts.js')).href);
+      const multiline = 'Tìm người muốn học piano.\nTìm người muốn mượn đàn piano.';
+      const legacyConfig = { ...config, prompt: multiline, brandContext: 'Tôi là chủ quán cafe.' };
+      let legacyCalls = 0;
+      const legacyFactory = options => createCampaignModelGateway({ ...options, mockTransport: true, apiKey: 'synthetic-key', minRequestIntervalMs: 0, maxAttempts: 1,
+        fetch: async () => {
+          legacyCalls++;
+          const value = { state: 'READY', intent_revision: 1, understanding: multiline, target_roles: ['Người muốn học hoặc mượn đàn piano'], constraints: [],
+            intent: Object.keys(FIELDS).map(field => ({ field, value: field === 'target_roles' ? 'Người muốn học hoặc mượn đàn piano' : 'Chưa đặt giới hạn',
+              status: field === 'target_roles' ? 'CONFIRMED' : 'UNSPECIFIED', evidence: field === 'target_roles' ? [{ source: 'PROMPT', quote: multiline.replace(/\s+/gu, ' ') }] : [] })),
+            branches: [{ id: 'learning', label: 'Học piano', anchor: 'học piano', source: 'PROMPT', quote: 'Tìm người muốn học piano.', scope: 'CORE', reason: 'Yêu cầu trực tiếp' },
+              { id: 'borrowing', label: 'Mượn đàn', anchor: 'mượn đàn piano', source: 'PROMPT', quote: 'Tìm người muốn mượn đàn piano.', scope: 'CORE', reason: 'Yêu cầu trực tiếp' }],
+            queries: [{ text: 'học piano', branch_id: 'learning', kind: 'EXACT', anchor: 'học piano', rationale: 'Từ khóa gốc', risk: 'LOW' },
+              { text: 'mượn đàn piano', branch_id: 'borrowing', kind: 'EXACT', anchor: 'mượn đàn piano', rationale: 'Từ khóa gốc', risk: 'LOW' }],
+            questions: [], unresolved_fields: [], unconfirmed_assumptions: [], caveats: [], improvements: [] };
+          return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(value) }] } }],
+            usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 300, totalTokenCount: 1300 } }), { status: 200 });
+        } });
+      const legacyDirectory = join(root, 'legacy-data'); let runId;
+      try { await legacyPrepare({ directory: legacyDirectory, config: legacyConfig, gatewayFactory: legacyFactory }); assert.fail('Expected the baseline newline failure'); }
+      catch (error) { assert.match(error.message, /CAMPAIGN_SEMANTIC_VALIDATION_FAILED/); runId = error.runId; }
+      assert.equal(legacyCalls, 2);
+      const before = JSON.parse(readFileSync(join(legacyDirectory, 'collections', runId, 'opportunity/draft-cost.json'), 'utf8'));
+      const recovered = await prepareSemanticDraft({ directory: legacyDirectory, config: legacyConfig, gatewayFactory: legacyFactory, resumeRunId: runId });
+      assert.ok('campaign' in recovered); assert.equal(recovered.source.plannerRecovery, 'RECORDED_VALIDATED_RESPONSE');
+      assert.equal(legacyCalls, 2); assert.equal(recovered.cost.billableAttempts, before.billableAttempts);
+      assert.equal(recovered.cost.measuredUsd, before.measuredUsd); assert.equal(recovered.runId, runId);
+      legacyRetryWithoutNewCalls = true;
+    }
     const report = { passed: true, version: JSON.parse(readFileSync(join(archive, 'package.json'), 'utf8')).version,
       actualAsarModules: true, userPromptAndReportedRoleEvidence: true, uniqueKeywords: 11, unrestrictedAuthors: true,
       restartWithoutReplanning: true, startPlanVerified: true, baselinePlannerRecipePreserved: sameRecipe,
-      fixtureCalls, liveApiCalls: liveCalls, isolatedData: true };
+      fixtureCalls, legacyRetryWithoutNewCalls, liveApiCalls: liveCalls, isolatedData: true };
     mkdirSync(output, { recursive: true }); writeFileSync(join(output, 'planner-hotfix-smoke.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report)); clearTimeout(timer); app.quit();
   } catch (error) { console.error(error); clearTimeout(timer); app.exit(1); } });
