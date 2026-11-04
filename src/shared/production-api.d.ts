@@ -7,7 +7,7 @@ export interface OpportunityConfig {
   totalTarget: number; threadsShare?: 0.7 | 0.8; rawCap: number; budgetUsd: number; commentsEnabled: boolean;
 }
 export interface UserSpendLimits { totalUsd: number; dailyUsd: number; }
-export interface UserConfig { spendLimits?: UserSpendLimits; performance?: import('./throughput.js').PerformanceMode; keywords: string[]; minimumPosts: number; schemaVersion?: 2; opportunity?: OpportunityConfig; }
+export interface UserConfig { filterPercent?: number; spendLimits?: UserSpendLimits; performance?: import('./throughput.js').PerformanceMode; keywords: string[]; minimumPosts: number; schemaVersion?: 2; opportunity?: OpportunityConfig; }
 export interface Account {
   id: string; label: string; platform: Platform; authenticated: boolean;
   open: boolean; persistenceError: string | null;

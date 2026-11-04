@@ -3,6 +3,8 @@ import { allocatePlatformTargets } from '../shared/platform-targets.js';
 import { createCampaignPlanner } from './campaign-planner.js';
 import { bindGeminiKeySettings } from './gemini-key-settings.js';
 import { modelPauseMessage } from '../shared/model-status.js';
+import { FILTER_DEFAULT_PERCENT, filterModeAtPercent } from '../shared/filter-policy.js';
+import { planAndStart } from './start-workflow.js';
 
 declare global { interface Window { readonly csd: ProductionApi; } }
 
@@ -23,7 +25,7 @@ const suitableTarget = element<HTMLInputElement>('suitable-target');
 const filterMode = element<HTMLInputElement>('filter-mode');
 const languageScope = element<HTMLSelectElement>('content-language');
 const spendTotal = element<HTMLInputElement>('spend-total'), spendDaily = element<HTMLInputElement>('spend-daily');
-const currentFilter = () => (['OFF', 'STANDARD', 'QUALITY'] as const)[Number(filterMode.value)] ?? 'OFF';
+const currentFilter = () => filterModeAtPercent(Number(filterMode.value));
 const rawCap = element<HTMLInputElement>('raw-cap');
 const modelBudget = element<HTMLInputElement>('model-budget');
 const intentInputs = [intentEnabled, campaignPrompt, brandContext, suitableTarget, filterMode, languageScope, rawCap, modelBudget, spendTotal, spendDaily];
@@ -46,24 +48,39 @@ let exportPending = false;
 let refreshPending = false;
 let stateEpoch = 0;
 let lastRunKey = '';
+let startPhase: 'IDLE' | 'SAVING' | 'PLANNING' | 'STARTING' = 'IDLE';
+let pendingStart: string | null = null;
 
 const number = (value: number) => value.toLocaleString('vi-VN');
 const key = (value: UserConfig) => JSON.stringify(value);
 const active = () => state?.run?.state === 'RUNNING' || state?.run?.state === 'STOPPING'
   || state?.run?.opportunity?.watchActive === true || state?.run?.opportunity?.assessmentActive === true;
 function setText(id: string, text: string) { element(id).textContent = text; }
+function revealNotice(node: HTMLElement) {
+  requestAnimationFrame(() => {
+    if (node.hidden || !node.isConnected || !node.textContent?.trim()) return;
+    node.tabIndex = -1; node.focus({ preventScroll: true });
+    node.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  });
+}
 function setError(id: string, text: string) {
-  const node = element(id); node.textContent = text; node.hidden = !text;
+  const node = element(id), changed = node.textContent !== text || node.hidden;
+  node.textContent = text; node.hidden = !text;
+  if (text && changed) revealNotice(node);
 }
 function operation(message: string, failed = false) {
   const node = element('operation-status');
+  const changed = node.textContent !== message || node.dataset.state !== (failed ? 'error' : 'success');
   node.textContent = message; node.dataset.state = failed ? 'error' : 'success';
+  node.setAttribute('role', failed ? 'alert' : 'status'); node.setAttribute('aria-live', failed ? 'assertive' : 'polite');
+  if (failed && message && changed) revealNotice(node);
 }
 function setSaveStatus(message: string, kind: string) {
   const node = element('save-status'); node.textContent = message; node.dataset.state = kind;
 }
 function readConfig(): UserConfig {
   return {
+    filterPercent: Number(filterMode.value),
     spendLimits: { totalUsd: Number(spendTotal.value), dailyUsd: Number(spendDaily.value) },
     performance: 'BALANCED',
     keywords: [...new Set(keywords.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean))],
@@ -162,6 +179,13 @@ function friendlyError(error: unknown, fallback: string): string {
 function updateControls() {
   geminiKeyUi.refresh();
   const running = active();
+  const percent = Number(filterMode.value), mode = currentFilter();
+  element('filter-slider').style.setProperty('--filter-progress', percent + '%');
+  element('filter-slider').style.setProperty('--filter-lightness', (79 - percent * .35) + '%');
+  element('filter-labels').dataset.mode = mode;
+  setText('filter-percent', percent + '%'); filterMode.setAttribute('aria-valuetext', percent + '% · ' + ({ OFF: 'Không lọc', STANDARD: 'Tiêu chuẩn', QUALITY: 'Chất lượng' }[mode]));
+  startButton.setAttribute('aria-busy', String(startPhase !== 'IDLE'));
+  setText('start-label', { IDLE: pendingStart ? 'Chờ bạn làm rõ yêu cầu' : 'Bắt đầu thu thập', SAVING: 'Đang lưu yêu cầu…', PLANNING: 'Đang phân tích yêu cầu…', STARTING: 'Đang bắt đầu thu thập…' }[startPhase]);
   keywords.disabled = !connected || running || commandPending;
   performanceMode.disabled = minimumPosts.disabled = !connected || running || commandPending;
   for (const input of intentInputs) input.disabled = !connected || running || commandPending;
@@ -187,7 +211,7 @@ function updateControls() {
   setText('selected-count', selected.length ? selected.length + ' / 2 nguồn được chọn' : 'Chưa chọn nguồn');
   startButton.disabled = !connected || running || commandPending || savePending > 0 || exportPending ||
     !(config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF' ? config.opportunity.prompt.trim() : config.keywords.length) || !!validateConfig(config) || !selected.length || loginPending.size > 0
-    || (intentEnabled.checked && planner.hasUnsavedEdits());
+    || (intentEnabled.checked && planner.hasUnsavedEdits()) || (!!pendingStart && state?.campaignDialogue?.plan.state === 'NEEDS_CLARIFICATION');
   startButton.hidden = running;
   stopButton.hidden = !running;
   stopButton.disabled = !connected || commandPending || state?.run?.state === 'STOPPING';
@@ -323,7 +347,12 @@ function createProgress(platform: PlatformRun, target: number, refined = false, 
 }
 function renderRun() {
   const run = state?.run;
-  if (!run) return;
+  if (!run) { setError('run-error', ''); return; }
+  const failures = run.platforms.filter(platform => platform.state === 'FAILED').map(platform => platformNames[platform.platform] + ': ' + reasonText(platform.reason));
+  const runError = run.opportunity?.lastError ? reasonText(run.opportunity.lastError)
+    : failures.length ? failures.join(' · ') : run.state === 'FAILED' || run.state === 'INTERRUPTED'
+      ? 'Lượt thu đã gặp lỗi hoặc bị gián đoạn. Dữ liệu đã lưu vẫn được giữ; bạn có thể tiếp tục lượt này.' : '';
+  setError('run-error', runError);
   const badge = element('run-badge'); badge.dataset.state = run.state;
   badge.textContent = { RUNNING: run.mode === 'RETAINED' ? 'ĐANG LỌC LẠI' : 'ĐANG THU THẬP', STOPPING: 'ĐANG DỪNG', COMPLETED: 'ĐÃ KẾT THÚC', STOPPED: 'ĐÃ DỪNG', FAILED: 'CÓ LỖI', INTERRUPTED: 'BỊ GIÁN ĐOẠN' }[run.state];
   const total = run.platforms.reduce((sum, platform) => sum + platform.count, 0);
@@ -430,7 +459,9 @@ function applyState(next: ProductionState, replaceConfig = false) {
     keywords.value = next.config.keywords.join('\n'); minimumPosts.value = String(next.config.minimumPosts);
     const o = next.config.opportunity;
     intentEnabled.checked = !!o?.enabled; campaignPrompt.value = o?.prompt || ''; brandContext.value = o?.brandContext || '';
-    suitableTarget.value = String(o?.totalTarget || 1000); filterMode.value = String(['OFF', 'STANDARD', 'QUALITY'].indexOf(o?.filterMode ?? 'OFF'));
+    suitableTarget.value = String(o?.totalTarget || 1000);
+    const mode = o?.filterMode ?? 'OFF', savedPercent = next.config.filterPercent;
+    filterMode.value = String(savedPercent !== undefined && filterModeAtPercent(savedPercent) === mode ? savedPercent : FILTER_DEFAULT_PERCENT[mode]);
     languageScope.value = 'VIETNAMESE';
     intentEnabled.checked = true; spendTotal.value = String(next.config.spendLimits?.totalUsd ?? 3); spendDaily.value = String(next.config.spendLimits?.dailyUsd ?? 3);
     rawCap.value = String(o?.rawCap || 3000); modelBudget.value = '3';
@@ -440,6 +471,7 @@ function applyState(next: ProductionState, replaceConfig = false) {
     }
   }
   renderAccounts(); renderRun(); updateControls();
+  if (next.campaignDraftError && !commandPending) operation(friendlyError(next.campaignDraftError.code, 'Chưa lập được kế hoạch. Hãy thử lại.'), true);
 }
 async function refresh() {
   if (refreshPending || commandPending) return;
@@ -447,7 +479,7 @@ async function refresh() {
   const epoch = ++stateEpoch;
   try { const next = await window.csd.getState(); if (epoch === stateEpoch) applyState(next); }
   catch {
-    if (epoch === stateEpoch) { connected = false; element('connection-error').hidden = false; updateControls(); }
+    if (epoch === stateEpoch) { connected = false; const notice = element('connection-error'), wasHidden = notice.hidden; notice.hidden = false; if (wasHidden) revealNotice(notice); updateControls(); }
   } finally { refreshPending = false; }
 }
 
@@ -480,26 +512,46 @@ function saveConfiguration(): Promise<boolean> {
   return result;
 }
 function configChanged() {
+  if (pendingStart) { pendingStart = null; operation(''); }
   editRevision++; configDirty = true; setSaveStatus('Rời ô để lưu', 'dirty');
   setError('config-error', ''); updateControls();
 }
 const geminiKeyUi = bindGeminiKeySettings(window.csd.geminiKey, () => commandPending || active() || !!state?.campaignDraftPreparing);
+function startSignature() { return JSON.stringify([readConfig(), selectableProfiles()]); }
+async function collectFromCurrentPlan() {
+  const config = readConfig(), selected = selectableProfiles();
+  if (!(config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF' ? config.opportunity.prompt.trim() : config.keywords.length) || !selected.length) throw Error('START_INPUT_REQUIRED');
+  const result = await planAndStart({ api: window.csd, profiles: selected,
+    useAi: !!config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF',
+    draftReference: () => planner.draftReference(), prepared: next => { stateEpoch++; applyState(next); },
+    phase: phase => { startPhase = phase; updateControls(); },
+  });
+  if (result.kind === 'CLARIFICATION') {
+    pendingStart = startSignature(); operation('Cần làm rõ yêu cầu. Gửi câu trả lời bên dưới để CSD tự tiếp tục thu thập.');
+    revealNotice(element('campaign-dialogue'));
+  } else { pendingStart = null; stateEpoch++; applyState(result.state); }
+}
 const planner = createCampaignPlanner({
   api: window.csd, state: () => state, config: readConfig,
   busy: () => !connected || active() || commandPending || savePending > 0 || loginPending.size > 0,
   changed: updateControls,
+  reportError: message => operation(message, true),
   execute: async (action, message) => {
     if (commandPending || active() || !connected) return;
-    commandPending = true; stateEpoch++; operation(''); updateControls();
+    commandPending = true; stateEpoch++; operation(''); if (pendingStart) startPhase = 'PLANNING'; updateControls();
     try {
       if (!await saveConfiguration()) return;
       const next = await action(); applyState(next, true);
-      if (next.campaignDraftError) operation(friendlyError(next.campaignDraftError.code, 'Chưa lập được kế hoạch. Hãy thử lại; chi phí đã ghi nhận vẫn được giữ.'), true);
-      else operation(message);
+      if (next.campaignDraftError) { pendingStart = null; operation(friendlyError(next.campaignDraftError.code, 'Chưa lập được kế hoạch. Hãy thử lại; chi phí đã ghi nhận vẫn được giữ.'), true); }
+      else if (pendingStart && next.campaignDraft && planner.draftReference()) {
+        if (pendingStart === startSignature()) await collectFromCurrentPlan();
+        else { pendingStart = null; operation('Yêu cầu hoặc nguồn đã thay đổi. Bấm Bắt đầu thu thập để dùng lựa chọn hiện tại.'); }
+      } else operation(message);
     } catch (error) {
+      pendingStart = null;
       operation(friendlyError(error, 'Chưa lưu được kế hoạch. Nội dung đang sửa vẫn được giữ; hãy kiểm tra và thử lại.'), true);
       try { applyState(await window.csd.getState()); } catch { /* Keep edits and the original operation error. */ }
-    } finally { commandPending = false; updateControls(); }
+    } finally { startPhase = 'IDLE'; commandPending = false; updateControls(); }
   },
 });
 for (const input of [keywords, minimumPosts, performanceMode, ...intentInputs]) {
@@ -516,11 +568,13 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-result-
 });
 for (const platform of platforms) {
   element<HTMLInputElement>('select-' + platform).addEventListener('change', event => {
+    pendingStart = null;
     const checked = (event.target as HTMLInputElement).checked;
     if (checked && selectedAccount(platform)?.authenticated) selectedSources.add(platform); else selectedSources.delete(platform);
     updateControls();
   });
   element<HTMLSelectElement>('profile-' + platform).addEventListener('change', event => {
+    pendingStart = null;
     selectedProfiles.set(platform, (event.target as HTMLSelectElement).value); selectedSources.delete(platform);
     renderAccounts(); updateControls();
   });
@@ -545,24 +599,15 @@ startButton.addEventListener('click', () => {
   void (async () => {
     if (commandPending || active()) return;
     if (intentEnabled.checked && planner.hasUnsavedEdits()) { operation('Lưu hoặc hoàn tác thay đổi tiêu chí trước khi bắt đầu.', true); return; }
-    commandPending = true; operation(''); updateControls();
+    commandPending = true; pendingStart = null; startPhase = 'SAVING'; operation(''); updateControls();
     try {
       if (!await saveConfiguration()) return;
-      const config = readConfig(), selected = selectableProfiles();
-      if (!(config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF' ? config.opportunity.prompt.trim() : config.keywords.length) || !selected.length) { operation('Nhập nhu cầu/từ khóa và chọn ít nhất một nguồn đã đăng nhập.', true); return; }
-      const draft = config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF' ? planner.draftReference() : undefined;
-      if (config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF' && !draft) {
-        stateEpoch++; const next = await window.csd.prepareCampaign(); applyState(next);
-        operation(next.campaignDraftError ? friendlyError(next.campaignDraftError.code, 'Chưa lập được kế hoạch. Hãy thử lại.')
-          : next.campaignDialogue?.plan.state === 'NEEDS_CLARIFICATION' ? 'Trả lời phần làm rõ nhu cầu trước khi thu thập.'
-          : 'Kế hoạch đã sẵn sàng. Xem từ khóa và tiêu chí, rồi bấm bắt đầu để thu thập.', !!next.campaignDraftError);
-        return;
-      }
-      stateEpoch++; const next = await window.csd.start({ profiles: selected, ...(draft ? { draft } : {}) }); applyState(next);
-    } catch (error) { operation(friendlyError(error, 'Chưa bắt đầu được lượt thu thập. Hãy kiểm tra tài khoản và thử lại.'), true); }
-    finally { commandPending = false; updateControls(); }
+      await collectFromCurrentPlan();
+    } catch (error) { pendingStart = null; operation(friendlyError(error, 'Chưa bắt đầu được lượt thu thập. Hãy kiểm tra tài khoản và thử lại.'), true); }
+    finally { startPhase = 'IDLE'; commandPending = false; updateControls(); }
   })();
 });
+element('prepare-campaign').addEventListener('click', () => { pendingStart = null; });
 stopButton.addEventListener('click', () => {
   void (async () => {
     if (commandPending) return;

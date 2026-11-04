@@ -9,6 +9,7 @@
   <title>CSD — Crawl Socials Data</title>
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./opportunity.css">
+  <link rel="stylesheet" href="./light-theme.css">
   <script type="module" src="./app.js"></script>
 </head>
 
@@ -95,10 +96,9 @@
           <p class="helper">Mỗi từ khóa trên mỗi mạng có tác vụ và checkpoint riêng. Tự động tăng số cửa sổ theo RAM/CPU; mở mọi từ khóa vẫn tạm nhường khi máy thiếu tài nguyên. Số cửa sổ độc lập với tốc độ gọi AI.</p>
         </div>
         <input id="opportunity-enabled" type="checkbox" checked hidden>
-        <label for="filter-mode">Mức lọc</label>
-        <input id="filter-mode" type="range" min="0" max="2" step="1" value="0" list="filter-levels" disabled>
-        <datalist id="filter-levels"><option value="0" label="Không lọc"></option><option value="1" label="Tiêu chuẩn"></option><option value="2" label="Chất lượng"></option></datalist>
-        <div class="filter-labels" aria-hidden="true"><span>Không lọc</span><span>Tiêu chuẩn</span><span>Chất lượng</span></div>
+        <div class="filter-heading"><label for="filter-mode">Mức lọc</label><output id="filter-percent" for="filter-mode">0%</output></div>
+        <div id="filter-slider" class="filter-slider"><div class="filter-rail" aria-hidden="true"><div class="filter-fill"></div></div><input id="filter-mode" type="range" min="0" max="100" step="1" value="0" aria-describedby="filter-mode-help" disabled></div>
+        <div id="filter-labels" class="filter-labels" aria-hidden="true"><span>Không lọc<small>0–20%</small></span><span>Tiêu chuẩn<small>21–80%</small></span><span>Chất lượng<small>81–100%</small></span></div>
         <p id="filter-mode-help" class="helper">Không lọc — lấy tất cả bài tìm được, không tốn tiền lọc.</p>
         <div id="opportunity-config" hidden>
           <div class="field" hidden><label for="content-language">Ngôn ngữ nội dung khi lọc</label>
@@ -147,9 +147,8 @@
           </div>
           <div id="campaign-planning" class="campaign-planning" hidden>
             <div class="planner-actions">
-              <button id="prepare-campaign" type="button" class="secondary-button" disabled>Xem tiêu chí trước khi
-                thu</button>
-              <span class="helper">Xem cách CSD hiểu yêu cầu trước khi bắt đầu.</span>
+              <button id="prepare-campaign" type="button" class="secondary-button" disabled>Chỉ xem kế hoạch</button>
+              <span class="helper">Tùy chọn. Nút Bắt đầu sẽ tự lập kế hoạch rồi thu thập.</span>
             </div>
             <p id="campaign-plan-cost" class="helper"></p>
             <p id="campaign-plan-status" class="helper" role="status" aria-live="polite"></p>
@@ -331,11 +330,11 @@
           </div>
           <div class="run-actions"><button id="resume" class="secondary-button" hidden disabled>Tiếp tục lượt
               này</button><button id="stop" class="stop-button" hidden disabled><span class="stop-square"
-                aria-hidden="true"></span>Dừng thu thập</button><button id="start" class="primary-button" disabled>Bắt
-              đầu thu thập<svg class="icon">
+                aria-hidden="true"></span>Dừng thu thập</button><button id="start" class="primary-button" aria-busy="false" disabled><span class="button-spinner" aria-hidden="true"></span><span id="start-label">Bắt đầu thu thập</span><svg class="icon" aria-hidden="true">
                 <use href="#icon-arrow" />
               </svg></button></div>
         </div>
+        <p id="run-error" class="inline-error" role="alert" hidden></p>
         <div id="run-progress" class="run-progress" hidden></div>
         <div id="opportunity-results" hidden>
           <p id="opportunity-summary" class="helper" aria-live="polite"></p>

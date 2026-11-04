@@ -27,7 +27,8 @@ export function parseOpportunityConfig(value: unknown): OpportunityConfig {
 export function parseUserConfig(value: unknown): UserConfig {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('CONFIG_INVALID');
   const v = value as Record<string, unknown>;
-  const keys = Object.keys(v).filter(key => key !== 'performance' && key !== 'spendLimits').sort().join();
+  const keys = Object.keys(v).filter(key => key !== 'performance' && key !== 'spendLimits' && key !== 'filterPercent').sort().join();
+  if (v.filterPercent !== undefined && (!Number.isSafeInteger(v.filterPercent) || Number(v.filterPercent) < 0 || Number(v.filterPercent) > 100)) throw Error('CONFIG_INVALID');
   if (v.spendLimits !== undefined) {
     const s = v.spendLimits as Record<string, unknown>;
     if (!s || typeof s !== 'object' || Array.isArray(s) || !['dailyUsd,totalUsd', 'dailyUsd,maxCalls,totalUsd'].includes(Object.keys(s).sort().join())
@@ -47,7 +48,7 @@ export function parseUserConfig(value: unknown): UserConfig {
   }
   const limits = v.spendLimits as Record<string, number> | undefined;
   // Normalize legacy settings without touching the durable spending history.
-  return { ...(limits === undefined ? {} : { spendLimits: { totalUsd: limits.totalUsd!, dailyUsd: limits.dailyUsd! } }), ...(v.performance === undefined ? {} : { performance: v.performance as NonNullable<UserConfig['performance']> }), keywords, minimumPosts: Number(v.minimumPosts), ...(versionTwo ? { schemaVersion: 2 as const, opportunity: parseOpportunityConfig(v.opportunity) } : {}) };
+  return { ...(v.filterPercent === undefined ? {} : { filterPercent: Number(v.filterPercent) }), ...(limits === undefined ? {} : { spendLimits: { totalUsd: limits.totalUsd!, dailyUsd: limits.dailyUsd! } }), ...(v.performance === undefined ? {} : { performance: v.performance as NonNullable<UserConfig['performance']> }), keywords, minimumPosts: Number(v.minimumPosts), ...(versionTwo ? { schemaVersion: 2 as const, opportunity: parseOpportunityConfig(v.opportunity) } : {}) };
 }
 
 export function atomicJson(file: string, value: unknown) {

@@ -9,6 +9,7 @@ interface PlannerHost {
   busy(): boolean;
   changed(): void;
   execute(action: () => Promise<ProductionState>, message: string): Promise<void>;
+  reportError?(message: string): void;
 }
 const node = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const lines = (value: string) => [...new Set(value.split(/\r?\n/u).map(text => text.trim()).filter(Boolean))];
@@ -58,7 +59,7 @@ export function createCampaignPlanner(host: PlannerHost) {
     const busy = host.busy(), staleEdits = dirty && draft?.revision !== editedRevision;
     const editable = !!draft && draft.status === 'DRAFT' && draft.supported && matches(draft) && !busy && !staleEdits;
     node<HTMLButtonElement>('prepare-campaign').disabled = busy || !config?.prompt.trim();
-    node<HTMLButtonElement>('prepare-campaign').textContent = state?.campaignDraftError ? 'Thử lại kế hoạch' : 'Xem tiêu chí trước khi thu';
+    node<HTMLButtonElement>('prepare-campaign').textContent = state?.campaignDraftError ? 'Thử lại kế hoạch' : 'Chỉ xem kế hoạch';
     node<HTMLDetailsElement>('campaign-plan-editor').hidden = !draft && !dirty;
     if (draft && draft.revision !== displayedRevision && !dirty) fill(draft);
     for (const control of controls) control.disabled = !editable;
@@ -127,6 +128,7 @@ export function createCampaignPlanner(host: PlannerHost) {
       if (!choose) { sources = []; node<HTMLSelectElement>('retained-source').value = ''; }
       node('retained-source-note').textContent = choose ? 'Chưa thêm được nguồn. Chọn thư mục CSD đã dùng để lưu bài viết.'
         : 'Chưa đọc được danh sách dữ liệu đã lưu. Hãy thử lại.';
+      host.reportError?.(node('retained-source-note').textContent ?? 'Chưa đọc được dữ liệu đã lưu.');
     }
     finally { loadingSources = false; render(); }
   }
