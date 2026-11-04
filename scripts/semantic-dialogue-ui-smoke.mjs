@@ -86,7 +86,7 @@ await run("var reuse=document.querySelector('#off-saved-queries');reuse.value='p
 await until("document.querySelector('#keywords').value==='cần mua đàn piano'");
 await run("document.getElementById('opportunity-results').scrollIntoView({block:'start',behavior:'instant'})");
 fs.writeFileSync(${JSON.stringify(join(output, 'off-results.png'))},(await window.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
-await run("var slider=document.querySelector('#filter-mode');slider.value='2';slider.dispatchEvent(new Event('input',{bubbles:true}));slider.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#spending-controls').open=true;document.querySelector('#filter-mode').scrollIntoView({block:'start',behavior:'instant'})");
+await run("var slider=document.querySelector('#filter-mode');slider.value='100';slider.dispatchEvent(new Event('input',{bubbles:true}));slider.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#spending-controls').open=true;document.querySelector('#filter-mode').scrollIntoView({block:'start',behavior:'instant'})");
 await until("document.querySelector('#filter-mode-help').innerText.includes('Chất lượng')");
 assert.equal(await run("document.querySelector('#spend-total').value"),'3');
 fs.writeFileSync(${JSON.stringify(join(output, 'filter-controls.png'))},(await window.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());

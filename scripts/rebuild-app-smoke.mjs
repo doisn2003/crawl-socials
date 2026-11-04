@@ -41,8 +41,8 @@ if (!process.versions.electron) {
         assert.equal(await run("document.getElementById('filter-mode').value"), '0');
         assert.equal(await run("document.getElementById('content-language').value"), 'VIETNAMESE');
         assert.equal(await run("document.getElementById('spend-total').value"), '3');
-        assert.equal(await run("getComputedStyle(document.body).backgroundColor"), 'rgb(255, 255, 255)');
-        assert.equal(await run("getComputedStyle(document.body).color"), 'rgb(0, 0, 0)');
+        assert.equal(await run("getComputedStyle(document.body).backgroundColor"), 'rgb(243, 246, 251)');
+        assert.equal(await run("getComputedStyle(document.body).color"), 'rgb(35, 49, 71)');
         assert.match(await run("getComputedStyle(document.body).fontFamily"), /Cascadia Code.*Consolas/);
         assert.equal(await run("document.getElementById('make-it-cooler')"), null);
         assert.equal(await run("typeof window.csd.cooler"), 'undefined');
@@ -61,7 +61,7 @@ if (!process.versions.electron) {
         await run('window.csd.saveConfig(' + JSON.stringify(legacy) + ')');
         await reload();
         for (const [index, mode] of ['OFF', 'STANDARD', 'QUALITY'].entries()) {
-          await run(`(() => { const input = document.getElementById('filter-mode'); input.value = '${index}'; input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('blur')); })()`);
+          await run(`(() => { const input = document.getElementById('filter-mode'); input.value = '${[0, 50, 100][index]}'; input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('blur')); })()`);
           await until("document.getElementById('save-status').dataset.state === 'saved'");
           const saved = (await run('window.csd.getState()')).config;
           assert.equal(saved.performance, 'BALANCED'); assert.equal(saved.opportunity.languageScope, 'VIETNAMESE');
@@ -99,7 +99,7 @@ if (!process.versions.electron) {
         assert.deepEqual(errors, []);
         const report = { passed: true, actualMainPreloadRenderer: true, module: entry, appDataIsolated: true, globalSpendIsolated: true,
           defaultFilter: 'OFF', defaultLanguageScope: 'VIETNAMESE', zeroInitialSpend: true, settingsRoundTrip: true, legacyCallCapRemoved: true, offRejectsPlanner: true,
-          whiteBackgroundBlackTextOriginalFont: true, technicalControlsHidden: true, newRunDefaultsEnforced: true, savedMoneyLimitsPreserved: true,
+          lightColorThemeOriginalFont: true, technicalControlsHidden: true, newRunDefaultsEnforced: true, savedMoneyLimitsPreserved: true,
           noCooler: true, workerQueriesHidden: true, resultFixtureOnly: true, calls: 0, networkAttempts, rendererErrors: errors };
         writeFileSync(join(output, 'app-smoke.json'), JSON.stringify(report, null, 2)); console.log(JSON.stringify(report));
         clearTimeout(timer); app.quit();

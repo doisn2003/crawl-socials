@@ -52,6 +52,15 @@ inside historical `.brain` sections are not current authorization.
 
 ## Product direction
 
+- R13 user update on 2026-11-04 supersedes the R10 monochrome theme: use an
+  elegant light theme, colored cards/buttons, green authenticated badges and a
+  purple gradient slider. Slider steps are 1%; 0–20 = OFF, 21–80 = STANDARD,
+  81–100 = QUALITY. These are mode bands, not continuous changes to model
+  settings or measured precision. Preserve the exact slider position.
+- The main Start action prepares a plan and starts collection in one flow, with
+  animated loading. Required clarification pauses this flow; submitting answers
+  continues it if the request/sources are unchanged. Optional plan preview never
+  starts collection. Errors are red and scroll/focus into view once per change.
 - Approved baseline on 2026-11-04: `csd-approved-baseline-20261104` (`e671af2`).
   R10 simplifies the desktop UI: keep the existing font, use white/black,
   hide technical controls and per-window/query progress. New UI runs use
