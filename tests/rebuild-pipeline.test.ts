@@ -11,7 +11,7 @@ import { ModelGatewayError } from '../src/application/ports/model-gateway.js';
 import { createConversationStore } from '../src/infrastructure/storage/conversation-store.js';
 import type { WebContents } from 'electron';
 
-test('OFF collects a global target from one source, persists extras/resume, and never invokes AI or enrichment', async () => {
+test('OFF collects a global target, persists extras/resume and never invokes AI; comments require an explicit browser turn', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'csd-rebuild-'));
   let calls = 0, comments = 0;
   const input = { directory, runId: 'free-test', config: { enabled: true, prompt: '', brandContext: '', filterMode: 'OFF' as const,
@@ -80,6 +80,37 @@ test('AI budget pause does not block bounded comment collection; the new evidenc
     await pipeline.stop(); await pipeline.enrich('facebook', {} as WebContents, () => false, 1);
     assert.equal(captures, 2, 'explicit Stop still stops browser collection');
   } finally { await pipeline.close(); rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('the comment toggle gates browser capture and inline comment assessment in all three modes', async () => {
+  for (const mode of ['OFF', 'STANDARD', 'QUALITY'] as const) for (const commentsEnabled of [false, true]) {
+    const directory = mkdtempSync(join(tmpdir(), 'csd-comments-toggle-')); let calls = 0, captures = 0; const inputs: string[] = [];
+    const campaign = withFilterPolicy(literalCampaign({ prompt: 'Tìm người học đàn piano', seed_queries: ['học piano'], suitable_target: 10, raw_cap: 30, model_usd: .1 }), mode);
+    const pipeline = await createOpportunityPipeline({ directory, runId: campaign.campaign_id, campaign,
+      config: { enabled: true, prompt: campaign.prompt, brandContext: '', filterMode: mode, totalTarget: 10, rawCap: 30, budgetUsd: mode === 'OFF' ? 0 : .1, commentsEnabled },
+      platforms: ['facebook'], gateway: { ...unassessedGateway, generateJson: async request => { calls++; inputs.push(JSON.stringify(request.input)); throw new ModelGatewayError('MODEL_GLOBAL_BUDGET_EXHAUSTED'); } },
+      collectConversation: async request => {
+        captures++; await request.onObservations([{ platform: 'facebook', entity_type: 'COMMENT', entity_id: 'captured-comment', root_post_id: 'root', parent_id: 'root',
+          text: 'COMMENT_ONLY_SENTINEL Tôi cần tìm lớp học piano', observed_at: '2026-11-04T00:00:00Z', provenance: { run_id: campaign.campaign_id, method: 'MOCK' } }]);
+        return { coverage: { status: 'PARTIAL' } };
+      },
+    });
+    try {
+      await pipeline.ingestRows('facebook', [
+        { post_id: 'root', text: 'Chia sẻ địa điểm học piano cho người mới', post_url: 'https://www.facebook.com/posts/root', comments_count: 2 },
+        { post_id: 'inline-comment', root_post_id: 'root', entity_type: 'COMMENT', text: 'COMMENT_ONLY_SENTINEL Tôi muốn mượn đàn piano', post_url: 'https://www.facebook.com/posts/root' },
+      ], {});
+      await pipeline.ingest([{ platform: 'facebook', entity_type: 'COMMENT', entity_id: 'direct-comment', root_post_id: 'root', parent_id: 'root',
+        text: 'COMMENT_ONLY_SENTINEL Ai biết nơi học piano không?', observed_at: '2026-11-04T00:00:00Z', provenance: { run_id: campaign.campaign_id, method: 'MOCK' } }]);
+      await pipeline.drain(); await pipeline.enrich('facebook', {} as WebContents, () => false, 1);
+      assert.equal(captures, commentsEnabled ? 1 : 0, mode);
+      const snapshot = await pipeline.store.snapshot('facebook', 'root');
+      assert.equal(snapshot!.comments.length, commentsEnabled ? 3 : 0, mode);
+      if (!commentsEnabled) { assert.ok(inputs.every(text => !text.includes('COMMENT_ONLY_SENTINEL'))); assert.equal((await pipeline.store.jobs()).filter(job => ['ENRICH_CONVERSATION','ROOT_RESOLVE','REVISIT'].includes(job.type)).length, 0); }
+      if (mode === 'OFF') { assert.equal(calls, 0); assert.equal(pipeline.progress().costUsd, 0); }
+      await pipeline.stop(); await pipeline.enrich('facebook', {} as WebContents, () => false, 1); assert.equal(captures, commentsEnabled ? 1 : 0);
+    } finally { await pipeline.close(); rmSync(directory, { recursive: true, force: true }); }
+  }
 });
 
 test('global admission uses durable arrival/assessment order, independent of dates and platform', () => {

@@ -31,7 +31,7 @@ api.geminiKey={status:async()=>({source:'NONE',readError:false})};contextBridge.
       prompt: 'Tìm các bài viết liên quan đến piano', brandContext: '', totalTarget: 10, rawCap: 30, budgetUsd: 3, commentsEnabled: false } };
   const cost = { measuredUsd: .001, unknownUpperUsd: 0, reservedUsd: 0, budgetUsd: 3, billableAttempts: 1 };
   const accounts = ['facebook', 'threads'].map(platform => ({ id: platform + '-fixture', platform, label: 'Tài khoản thử nghiệm', authenticated: true, open: false, persistenceError: null }));
-  const fresh = () => ({ version: '0.4.0-rebuild.5.2', config: structuredClone(config), accounts: structuredClone(accounts), run: null, campaignPresets: [] });
+  const fresh = () => ({ version: '0.4.0-rebuild.5.3', config: structuredClone(config), accounts: structuredClone(accounts), run: null, campaignPresets: [] });
   let state = fresh(), scene = 'READY', prepareResolve, startResolve, prepares = 0, starts = 0, answers = 0, lastStart;
   const draft = () => ({ runId: 'fixture-draft', revision: 'revision-ready', config: structuredClone(state.config.opportunity), configHash: 'fixture-hash', status: 'DRAFT', supported: true, cost,
     criteriaCapabilities: { extendedClassificationCriteria: true }, criteria: { topic: 'Piano', audience: [], needs: [], participation_intents: [], research_intents: [], inclusions: [], exclusions: [], required_geographies: [], preferred_geographies: [], languages: ['vi'], source_priority: ['PROFILE','GROUP','PAGE','UNKNOWN'],
@@ -82,6 +82,20 @@ api.geminiKey={status:async()=>({source:'NONE',readError:false})};contextBridge.
       assert.equal(await run("getComputedStyle(document.body).backgroundColor"), 'rgb(243, 246, 251)');
       assert.equal(await run("getComputedStyle(document.getElementById('status-facebook')).color"), 'rgb(18, 109, 76)');
       assert.equal(await run("document.getElementById('filter-mode').step"), '1');
+      assert.equal(await run("document.getElementById('filter-labels')"), null);
+      assert.equal(await run("document.getElementById('comments-warning').textContent"), 'Thời gian thu thập có thể lâu hơn vì AI cần phân tích các bình luận phù hợp');
+      assert.equal(await run("getComputedStyle(document.getElementById('comments-warning')).color"), 'rgb(145, 101, 0)');
+      assert.equal(await run("document.getElementById('collect-comments').checked"), false);
+      assert.equal(await run("document.getElementById('comments-warning').hidden"), true);
+      await run("document.getElementById('collect-comments').click()"); await until("document.getElementById('save-status').dataset.state==='saved'");
+      assert.equal(state.config.opportunity.commentsEnabled, true); await reload();
+      assert.equal(await run("document.getElementById('collect-comments').checked"), true);
+      assert.equal(await run("document.getElementById('comments-warning').hidden"), false);
+      await run("document.querySelector('.comments-setting').scrollIntoView({block:'center',behavior:'instant'})"); await screenshot('comments-toggle.png');
+      await run("document.getElementById('collect-comments').click()"); await until("document.getElementById('save-status').dataset.state==='saved'");
+      assert.equal(state.config.opportunity.commentsEnabled, false);
+      assert.equal(await run("document.getElementById('comments-warning').hidden"), true);
+      await run("window.scrollTo(0,0)");
       for (const [percent, mode] of [[0,'OFF'],[20,'OFF'],[21,'STANDARD'],[80,'STANDARD'],[81,'QUALITY'],[100,'QUALITY'],[57,'STANDARD']]) {
         await run(`(() => { const input=document.getElementById('filter-mode');input.value='${percent}';input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('blur')); })()`);
         await until("document.getElementById('save-status').dataset.state==='saved'");
@@ -98,6 +112,7 @@ api.geminiKey={status:async()=>({source:'NONE',readError:false})};contextBridge.
       await until("document.getElementById('start-label').textContent.includes('phân tích')");
       assert.equal(prepares, 1); assert.equal(starts, 0);
       assert.equal(await run("document.getElementById('start').getAttribute('aria-busy')"), 'true');
+      assert.equal(await run("document.getElementById('collect-comments').disabled"), true);
       assert.equal(await run("getComputedStyle(document.querySelector('.button-spinner')).animationName"), 'button-spin');
       assert.equal(await run("getComputedStyle(document.getElementById('start')).backgroundColor"), 'rgb(55, 101, 173)');
       await run("document.getElementById('start').scrollIntoView({block:'center',behavior:'instant'})"); await screenshot('planning-loading.png');
@@ -133,7 +148,8 @@ api.geminiKey={status:async()=>({source:'NONE',readError:false})};contextBridge.
       await run("document.querySelector('#campaign-dialogue input[value=all]').click();document.querySelector('#campaign-dialogue form').requestSubmit()");
       await until("!document.querySelector('#campaign-dialogue input[value=all]') && !document.getElementById('start').disabled"); assert.equal(starts, 0);
       assert.deepEqual(errors, []); assert.equal(blockedRequests, 0);
-      const report = { passed: true, actualRenderer: entry, percentageBandsAndPersistence: true, greenLoginStatus: true,
+      const report = { passed: true, actualRenderer: entry, percentageBandsAndPersistence: true, filterModeCardsRemoved: true,
+        commentToggleSavedAndRestored: true, yellowCommentWarning: true, yellowWarningOnlyWhenEnabled: true, greenLoginStatus: true,
         singleClickPlanAndStart: true, normalizedPromptStartsCorrectly: true, duplicateClickBlocked: true, animatedBusyPhases: true, redErrorScrolledAndFocused: true,
         clarificationResumesAutomatically: true, previewDoesNotStart: true, editsCancelAutomaticStart: true,
         isolatedData: true, liveApiCalls: 0, rendererErrors: errors };

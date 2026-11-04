@@ -321,6 +321,8 @@ export function createProductionService(input: {
     const currentRun = run;
     let storageHalted = false;
     try {
+      const commentConfig = join(currentRun.outputDirectory, 'opportunity-config.json');
+      const commentsEnabled = !pipeline || !existsSync(commentConfig) || (JSON.parse(readFileSync(commentConfig, 'utf8')) as OpportunityConfig).commentsEnabled;
       // Start every selected source before awaiting completion. A source failure must
       // never release the run lock while another collector is still using its profile.
       const outcomes = await Promise.allSettled(currentRun.platforms.map(async item => {
@@ -363,7 +365,7 @@ export function createProductionService(input: {
             ...(pipeline ? {
               collectionLimitReason: () => pipeline!.discoveryStopReason(item.platform),
               onRecords: (records: Row[], provenance: Row) => pipeline!.ingestRows(item.platform, records, provenance),
-              onQueryEnd: (value: { window: WebContents; query?: string; shouldStop(): boolean }) => pipeline!.enrich(item.platform, value.window, () => stopped || value.shouldStop(), 3, undefined, value.query),
+              ...(commentsEnabled ? { onQueryEnd: (value: { window: WebContents; query?: string; shouldStop(): boolean }) => pipeline!.enrich(item.platform, value.window, () => stopped || value.shouldStop(), 3, undefined, value.query) } : {}),
               beforeNextPage: () => pipeline!.backpressure(),
               expandQueries: () => pipeline!.expandQueries(),
               queryPriority: query => pipeline!.queryPriority(item.platform, query),
@@ -402,7 +404,7 @@ export function createProductionService(input: {
         const storageLimited = currentRun.platforms.some(item => storageStopped(item.reason)) || storageStopped(pipeline.progress().lastError);
         // Search may hit its limit in the middle of a query. Give queued comment work a bounded final turn.
         // User Stop, closed windows, account barriers and deadlines never reopen a profile here.
-        if (!stopped && !storageLimited && input.withConversationWindow) {
+        if (commentsEnabled && !stopped && !storageLimited && input.withConversationWindow) {
           const allowed = new Set(['TARGET_REACHED', 'INTENT_TARGET_REACHED', 'RAW_BUDGET_REACHED', 'QUERY_BUDGET_COMPLETE', 'REPLAY_BUDGET_REACHED', 'SOURCE_EXHAUSTED', 'NO_PROGRESS']);
           await Promise.allSettled(currentRun.platforms.filter(item => allowed.has(item.reason ?? '')).map(async item => {
             try {

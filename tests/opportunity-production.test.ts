@@ -381,6 +381,19 @@ test('collector query handoff passes its query to the bounded enrichment schedul
   } finally { await service.shutdown(); rmSync(directory, { recursive: true, force: true }); }
 });
 
+test('posts-only runs omit comment handoffs and final comment windows', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'csd-production-posts-only-')); let handoffs = 0, windows = 0;
+  const service = createProductionService({ directory, version: 'test', host: lifecycleHost(),
+    async createOpportunity(options) { const created = controlledPipeline(options); created.pipeline.enrich = async () => { handoffs++; }; return created.pipeline; },
+    async collectConversation() { throw Error('COMMENTS_DISABLED'); }, async withConversationWindow() { windows++; },
+    async collect(value) { assert.equal(value.onQueryEnd, undefined); return { stop_reason: 'SOURCE_EXHAUSTED', summary: { unique: 0 } }; },
+  });
+  try {
+    service.saveConfig({ ...lifecycleConfig, opportunity: { ...lifecycleConfig.opportunity, commentsEnabled: false } });
+    await service.start(lifecycleSelection); await service.settled(); assert.equal(handoffs, 0); assert.equal(windows, 0);
+  } finally { await service.shutdown(); rmSync(directory, { recursive: true, force: true }); }
+});
+
 test('storage receipts and measurement failures preserve both raw sources, stop resumably and never reopen comments or watch', async () => {
   for (const reason of ['STORAGE_RUN_BYTES_REACHED', 'STORAGE_DISK_RESERVE_REACHED', 'STORAGE_MEASUREMENT_FAILED']) {
     const directory = mkdtempSync(join(tmpdir(), 'csd-production-storage-'));

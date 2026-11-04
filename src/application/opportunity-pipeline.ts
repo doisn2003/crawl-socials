@@ -325,6 +325,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   }
   async function ingest(observations: ConversationObservation[]) {
     for (const observation of observations) {
+      if (!input.config.commentsEnabled && (observation.entity_type === 'COMMENT' || observation.entity_type === 'CANDIDATE')) continue;
       await store.ingest(observation, context);
       if (observation.coverage?.stop_reason === 'ACCOUNT_BARRIER') await blockEnrichment(observation.platform);
     }
@@ -347,6 +348,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   async function ingestRows(platform: Platform, rows: Row[], provenance: Row) {
     for (const row of rows) {
       const id = nullableText(row.post_id), isReply = row.entity_type === 'COMMENT' || row.is_reply === true;
+      if (!input.config.commentsEnabled && isReply) continue;
       const rootId = isReply ? nullableText(row.root_post_id) : id;
       const observedAt = nullableText(row.collected_at) ?? nullableText(provenance.observed_at) ?? new Date().toISOString();
       const existing = rootId ? await store.snapshot(platform, rootId) : null;
@@ -375,7 +377,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     schedule(); await publish();
   }
   async function enrich(platform: Platform, window: WebContents, externalStop: () => boolean, limit = 3, types: ConversationJobType[] = ['ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'REVISIT'], preferredQuery?: string) {
-    if (off || retained || stopped || closed || storageStopReason || !input.config.commentsEnabled || enrichmentBlocked.has(platform)) return;
+    if (retained || stopped || closed || storageStopReason || !input.config.commentsEnabled || enrichmentBlocked.has(platform)) return;
     const buckets = types.includes('ENRICH_CONVERSATION') ? await store.enrichmentQueries(platform) : [];
     let nextBucket = 0, preferCurrent = Boolean(preferredQuery?.trim()) && types.includes('ENRICH_CONVERSATION');
     let resolveSlots = types.includes('ROOT_RESOLVE') && platform === 'threads' && input.resolveThreadsReplyRoot ? (types.length === 1 ? limit : 1) : 0;

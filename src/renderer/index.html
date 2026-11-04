@@ -98,7 +98,6 @@
         <input id="opportunity-enabled" type="checkbox" checked hidden>
         <div class="filter-heading"><label for="filter-mode">Mức lọc</label><output id="filter-percent" for="filter-mode">0%</output></div>
         <div id="filter-slider" class="filter-slider"><div class="filter-rail" aria-hidden="true"><div class="filter-fill"></div></div><input id="filter-mode" type="range" min="0" max="100" step="1" value="0" aria-describedby="filter-mode-help" disabled></div>
-        <div id="filter-labels" class="filter-labels" aria-hidden="true"><span>Không lọc<small>0–20%</small></span><span>Tiêu chuẩn<small>21–80%</small></span><span>Chất lượng<small>81–100%</small></span></div>
         <p id="filter-mode-help" class="helper">Không lọc — lấy tất cả bài tìm được, không tốn tiền lọc.</p>
         <div id="opportunity-config" hidden>
           <div class="field" hidden><label for="content-language">Ngôn ngữ nội dung khi lọc</label>
@@ -134,6 +133,11 @@
             </div><p id="spend-status" class="helper"></p>
           </details>
           <p class="helper">Số bài muốn nhận tính chung cho cả hai mạng. Kết quả được lưu trong lúc tìm kiếm.</p>
+          <div class="comments-setting">
+            <label class="comments-toggle" for="collect-comments"><span>Thu thập bình luận</span><input id="collect-comments" type="checkbox" role="switch" aria-describedby="comments-warning comments-mode-note" disabled><span class="comments-switch" aria-hidden="true"></span></label>
+            <p id="comments-warning" class="comments-warning" hidden>Thời gian thu thập có thể lâu hơn vì AI cần phân tích các bình luận phù hợp</p>
+            <p id="comments-mode-note" class="helper"></p>
+          </div>
           <div class="campaign-planning" hidden>
             <div class="field"><label for="gemini-api-key">Gemini API Key</label>
               <input id="gemini-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API key tại đây để lưu trên máy này" disabled>

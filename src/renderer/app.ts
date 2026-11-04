@@ -28,7 +28,8 @@ const spendTotal = element<HTMLInputElement>('spend-total'), spendDaily = elemen
 const currentFilter = () => filterModeAtPercent(Number(filterMode.value));
 const rawCap = element<HTMLInputElement>('raw-cap');
 const modelBudget = element<HTMLInputElement>('model-budget');
-const intentInputs = [intentEnabled, campaignPrompt, brandContext, suitableTarget, filterMode, languageScope, rawCap, modelBudget, spendTotal, spendDaily];
+const collectComments = element<HTMLInputElement>('collect-comments');
+const intentInputs = [intentEnabled, campaignPrompt, brandContext, suitableTarget, filterMode, languageScope, rawCap, modelBudget, spendTotal, spendDaily, collectComments];
 let resultGroup: 'SUITABLE' | 'NOT_SUITABLE' = 'SUITABLE';
 const startButton = element<HTMLButtonElement>('start');
 const stopButton = element<HTMLButtonElement>('stop');
@@ -90,7 +91,7 @@ function readConfig(): UserConfig {
         enabled: true, filterMode: currentFilter(), prompt: campaignPrompt.value, brandContext: brandContext.value,
         languageScope: 'VIETNAMESE',
         totalTarget: Number(suitableTarget.value),
-        rawCap: Number(rawCap.value), budgetUsd: currentFilter() === 'OFF' ? 0 : 3, commentsEnabled: state?.config.opportunity?.commentsEnabled ?? true,
+        rawCap: Number(rawCap.value), budgetUsd: currentFilter() === 'OFF' ? 0 : 3, commentsEnabled: collectComments.checked,
       }
     } : {})
   };
@@ -182,7 +183,8 @@ function updateControls() {
   const percent = Number(filterMode.value), mode = currentFilter();
   element('filter-slider').style.setProperty('--filter-progress', percent + '%');
   element('filter-slider').style.setProperty('--filter-lightness', (79 - percent * .35) + '%');
-  element('filter-labels').dataset.mode = mode;
+  setText('comments-mode-note', !collectComments.checked ? 'Chỉ thu thập bài viết.' : mode === 'OFF' ? 'Lưu cả bình luận, không dùng AI ở chế độ Không lọc.' : 'Thu thập và phân tích cả bài viết lẫn bình luận.');
+  element('comments-warning').hidden = !collectComments.checked;
   setText('filter-percent', percent + '%'); filterMode.setAttribute('aria-valuetext', percent + '% · ' + ({ OFF: 'Không lọc', STANDARD: 'Tiêu chuẩn', QUALITY: 'Chất lượng' }[mode]));
   startButton.setAttribute('aria-busy', String(startPhase !== 'IDLE'));
   setText('start-label', { IDLE: pendingStart ? 'Chờ bạn làm rõ yêu cầu' : 'Bắt đầu thu thập', SAVING: 'Đang lưu yêu cầu…', PLANNING: 'Đang phân tích yêu cầu…', STARTING: 'Đang bắt đầu thu thập…' }[startPhase]);
@@ -465,6 +467,7 @@ function applyState(next: ProductionState, replaceConfig = false) {
     languageScope.value = 'VIETNAMESE';
     intentEnabled.checked = true; spendTotal.value = String(next.config.spendLimits?.totalUsd ?? 3); spendDaily.value = String(next.config.spendLimits?.dailyUsd ?? 3);
     rawCap.value = String(o?.rawCap || 3000); modelBudget.value = '3';
+    collectComments.checked = o?.commentsEnabled ?? true;
     savedConfig = key(next.config); initialized = true; configDirty = false; setSaveStatus('Đã lưu trên máy', 'saved');
     if (active() && next.run) for (const platform of next.run.platforms) {
       if (platform.profileId) { selectedProfiles.set(platform.platform, platform.profileId); selectedSources.add(platform.platform); }
@@ -558,6 +561,7 @@ for (const input of [keywords, minimumPosts, performanceMode, ...intentInputs]) 
   input.addEventListener('input', configChanged);
   input.addEventListener('blur', () => { if (configDirty) void saveConfiguration(); });
 }
+collectComments.addEventListener('change', () => { if (configDirty) void saveConfiguration(); });
 element<HTMLSelectElement>('off-saved-queries').addEventListener('change', event => {
   const select = event.target as HTMLSelectElement, plan = savedQueryPlans().find(p => p.id === select.value);
   if (plan) { keywords.value = [...new Set(plan.queries)].join('\n'); configChanged(); void saveConfiguration(); }

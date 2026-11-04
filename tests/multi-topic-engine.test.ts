@@ -129,7 +129,8 @@ test('streaming primary flow revises comment evidence while keeping same-root de
   const travel = (await compileCampaign({ campaign_id: 'shared-campaign-id', prompt: topics[1].prompt }, transport.gateway)).campaign;
   const context = (plan: typeof product) => ({ campaign_id: plan.campaign_id, campaign_version: plan.version, filter_version: plan.filter_version });
   const pipeline = await createOpportunityPipeline({ directory: join(directory, 'pipeline'), runId: 'stream-test', campaign: product,
-    config: { enabled: true, prompt: product.prompt, brandContext: '', totalTarget: 1000, threadsShare: .8, rawCap: 3000, budgetUsd: 3, commentsEnabled: false },
+    // This fixture explicitly studies comment updates; browser collection is never invoked.
+    config: { enabled: true, prompt: product.prompt, brandContext: '', totalTarget: 1000, threadsShare: .8, rawCap: 3000, budgetUsd: 3, commentsEnabled: true },
     platforms: ['threads'], gateway: transport.gateway, collectConversation: async () => { throw Error('NO_BROWSER_IN_TEST'); } });
   const root: ConversationObservation = { platform: 'threads', entity_type: 'POST', entity_id: 'root-stream', root_post_id: 'root-stream', parent_id: null,
     text: topics[0].post, observed_at: at, provenance: { run_id: 'stream-test', method: 'SYNTHETIC_OBSERVATION' } };
