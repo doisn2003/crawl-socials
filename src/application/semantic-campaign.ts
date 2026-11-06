@@ -17,7 +17,8 @@ export function semanticCampaign(input: CampaignPlanInput, intent: IntentInput, 
   const discovery = input.planner_policy === OPPORTUNITY_PLANNER_POLICY;
   if (discovery && ((input.suitable_target ?? 1000) > MAX_RESULT_TARGET || (input.raw_cap ?? 20000) > MAX_RAW_POSTS)) throw Error('DISCOVERY_LIMIT_INVALID');
   const limits = plan.intent.filter(item => ['geography', 'time'].includes(item.field) && item.status === 'CONFIRMED')
-    .filter(item => !discovery || item.evidence.some(e => /(?:\b(?:only|must)\b|(?:^|\s)chỉ\s|bắt buộc)/iu.test(e.quote)))
+    .filter(item => !discovery || item.evidence.some(e => /(?:\b(?:only|must)\b|(?:^|\s)chỉ\s|bắt buộc)/iu.test(e.quote)
+      && !/không chỉ|not only/iu.test(e.quote)))
     .filter(item => !item.evidence.some(evidence => plan.constraints.some(constraint => constraint.source === evidence.source && constraint.quote === evidence.quote)))
     .map(item => item.value);
   const campaign = campaignFromModel({ ...input, planner_policy: 'legacy-short-v1' }, {
@@ -56,8 +57,9 @@ export function semanticCampaign(input: CampaignPlanInput, intent: IntentInput, 
     campaign.max_age_days = input.max_age_days ?? null;
     const time = plan.intent.find(f => f.field === 'time' && f.status === 'CONFIRMED');
     if (input.max_age_days === undefined && time) for (const e of time.evidence) {
-      if (/ưu tiên|prefer|không giới hạn|no age limit/iu.test(e.quote)) continue;
-      const age = /(?:trong|last|past)\s+(\d+)\s*(ngày|tuần|days?|weeks?)/iu.exec(e.quote);
+      if (/ưu tiên|prefer|không giới hạn|no age limit|ngày tới|tuần tới|\bnext\b/iu.test(e.quote)) continue;
+      // A consumer's schedule is not a publication-age limit. Only explicit post-age wording can narrow it.
+      const age = /(?:bài\s+(?:viết|đăng)|posts?)\s+(?:(?:được\s+)?đăng\s+|published\s+|from\s+|in\s+|the\s+)*(?:trong\s+(?:vòng\s+)?|last\s+|past\s+)(\d+)\s*(ngày|tuần|days?|weeks?)/iu.exec(e.quote);
       if (age) campaign.max_age_days = Number(age[1]) * (/tuần|week/iu.test(age[2]!) ? 7 : 1);
     }
   }

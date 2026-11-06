@@ -84,6 +84,25 @@ test('geographic preference and seller context do not narrow post-only, unlimite
   assert.deepEqual(campaign(strict, hard).required_geographies, ['Hà Nội']);
 });
 
+test('consumer timing and not-only geography never become unintended collection restrictions', () => {
+  const i = input('Tìm người muốn đi spa trong 7 ngày tới. Không chỉ tại Hà Nội'), raw = response(i);
+  Object.assign(raw.intent.find((f: any) => f.field === 'time'), { value: 'Có dự định đi spa trong tuần tới', status: 'CONFIRMED',
+    evidence: [{ source: 'PROMPT', quote: 'Tìm người muốn đi spa trong 7 ngày tới' }] });
+  Object.assign(raw.intent.find((f: any) => f.field === 'geography'), { value: 'Hà Nội và nơi khác', status: 'CONFIRMED',
+    evidence: [{ source: 'PROMPT', quote: 'Không chỉ tại Hà Nội' }] });
+  const value = campaign(i, raw);
+  assert.equal(value.max_age_days, null); assert.deepEqual(value.required_geographies, []);
+  assert.ok(!value.inclusions.includes('Hà Nội và nơi khác'));
+  for (const [prompt, quote, days] of [
+    ['Tìm bài viết trong 7 ngày qua về spa', 'bài viết trong 7 ngày qua', 7],
+    ['Find spa posts from the last 2 weeks', 'posts from the last 2 weeks', 14],
+  ] as const) {
+    const explicit = input(prompt), answer = response(explicit);
+    Object.assign(answer.intent.find((f: any) => f.field === 'time'), { value: quote, status: 'CONFIRMED', evidence: [{ source: 'PROMPT', quote }] });
+    assert.equal(campaign(explicit, answer).max_age_days, days);
+  }
+});
+
 test('new desktop drafts pin v2 and reuse complete post-only plans and presets without another request', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'csd-discovery-draft-')), i = input('piano cafe, mượn đàn piano');
   let calls = 0;
@@ -130,6 +149,41 @@ test('all 24 families have distinct IDs and a 216-query portfolio survives seria
     const persisted = JSON.parse(readFileSync(join(directory, 'coverage-query-expansion.json'), 'utf8'));
     assert.equal(persisted.state, 'FROZEN_RESERVE'); assert.ok(persisted.waves.at(-1).wave > 1);
   } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('OFF reuses a saved v2 portfolio including every frozen reserve query without model calls', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'csd-discovery-off-')), i = input('piano'), raw = response(i);
+  const base = raw.queries[0];
+  raw.queries = DISCOVERY_FAMILIES.flatMap(([family_id], family) => Array.from({ length: 3 }, (_, variant) => ({ ...base,
+    text: `piano nhóm ${family} cách ${variant}`, family_id, kind: 'PARAPHRASE' })));
+  let planningCalls = 0, unexpectedCalls = 0;
+  const config = { enabled: true, filterMode: 'CONSISTENT' as const, languageScope: 'VIETNAMESE' as const,
+    prompt: i.prompt, brandContext: '', totalTarget: 5000, rawCap: 50000, budgetUsd: 3, commentsEnabled: false };
+  const gatewayFactory = (options: { directory: string; budgetUsd: number }) => createCampaignModelGateway({ ...options, mockTransport: true,
+    apiKey: 'synthetic', maxAttempts: 1, minRequestIntervalMs: 0, fetch: async () => {
+      planningCalls++; return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(raw) }] } }],
+        usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 500, totalTokenCount: 1500 } }), { status: 200 });
+    } });
+  let pipeline: Awaited<ReturnType<typeof createOpportunityPipeline>> | undefined;
+  try {
+    const draft = await prepareSemanticDraft({ directory, config, gatewayFactory }); assert.ok('campaign' in draft);
+    const saved = savePreset({ directory, name: 'Broad saved plan', source: { kind: 'DRAFT', runId: draft.runId, revision: draft.revision } });
+    const reused = applyPreset({ directory, presetId: saved.presetId, presetVersion: saved.version,
+      runtime: { filterMode: 'OFF', languageScope: 'VIETNAMESE', totalTarget: 5000, rawCap: 50000, budgetUsd: 0, commentsEnabled: false } });
+    const args = { directory: join(directory, 'runs', reused.runId), runId: reused.runId, campaign: reused.campaign,
+      config: reused.config, platforms: ['facebook', 'threads'] as ('facebook' | 'threads')[],
+      gateway: { generateJson: () => { unexpectedCalls++; throw Error('NO_MODEL_IN_OFF'); }, summary: () => { throw Error('NO_MODEL_IN_OFF'); } } as unknown as ModelGateway,
+      collectConversation: async () => { throw Error('NO_COMMENTS'); } };
+    pipeline = await createOpportunityPipeline(args);
+    const initial = pipeline.queries('facebook'), reserve = await pipeline.expandQueries();
+    assert.ok(initial.length <= 48); assert.ok(reserve.length > 24);
+    assert.equal(new Set([...initial, ...reserve]).size, 73);
+    assert.deepEqual([...initial, ...reserve], reused.campaign.queries.map(q => q.text));
+    await pipeline.close(); pipeline = await createOpportunityPipeline(args);
+    assert.deepEqual(await pipeline.expandQueries(), reserve);
+    assert.equal(planningCalls, 1); assert.equal(unexpectedCalls, 0);
+    assert.equal(pipeline.gateway.summary().billable_attempts, 0);
+  } finally { await pipeline?.close(); rmSync(directory, { recursive: true, force: true }); }
 });
 
 test('seeds retain explicit lineage and the model receives original facets and the full family catalog', () => {
