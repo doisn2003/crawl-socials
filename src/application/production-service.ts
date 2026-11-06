@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { atomicJson, createUserConfigStore } from '../infrastructure/config/user-config.js';
 import { throughput } from '../shared/throughput.js';
 import { isBrowserProfileId } from '../domain/browser-profile.js';
@@ -23,6 +23,7 @@ import { listRetainedSources as catalogRetainedSources } from './retained-source
 import { listRegisteredRetainedSourceRoots, registerRetainedSourceRoot, resolveRetainedSourceRoot } from './retained-source-roots.js';
 import { importRetainedData, prepareRetainedImport, readRetainedImport } from './retained-data-service.js';
 import type { RetainedImportState } from './retained-data-service.js';
+import { campaignVersion, validateCampaignPlan, type CampaignPlan } from '../domain/campaign-plan.js';
 
 export interface ProductionHost {
   list(): Promise<(BrowserProfile & { open: boolean; persistenceError: string | null })[]>;
@@ -41,6 +42,8 @@ export interface CollectorInput {
   beforeNextPage?(): Promise<void>;
   expandQueries?(): Promise<string[]>;
   queryPriority?(query: string): number;
+  /** Extend the current loaded query only while admission/fairness permits it. */
+  continueQuerySlice?(): boolean;
 }
 export interface CollectorReceipt { stop_reason: string; summary: { unique: number }; session_flush?: string; }
 type Row = Record<string, unknown>;
@@ -169,12 +172,22 @@ export function createProductionService(input: {
     return task;
   }
   const blockedProfiles = new Set<string>();
-  const saveRun = () => { if (run) atomicJson(latestFile, run); };
+  function readDiscoveryExclusions(outputDirectory: string): { excludedRootKeys?: string[] } {
+    const file = join(outputDirectory, 'discovery-parent.json');
+    if (!existsSync(file)) return {};
+    const record = JSON.parse(readFileSync(file, 'utf8')) as { schemaVersion: number; excludedRootKeys: unknown };
+    if (record.schemaVersion !== 1 || !Array.isArray(record.excludedRootKeys) || record.excludedRootKeys.length > 100000
+      || record.excludedRootKeys.some(key => typeof key !== 'string' || !/^(facebook|threads):[^\s:]{1,200}$/u.test(key))) throw Error('DISCOVERY_EXCLUSIONS_INVALID');
+    return { excludedRootKeys: record.excludedRootKeys as string[] };
+  }
+  const saveRun = () => { if (run) { atomicJson(join(run.outputDirectory, 'run-state.json'), run); atomicJson(latestFile, run); } };
   if (existsSync(latestFile)) {
     const saved = JSON.parse(readFileSync(latestFile, 'utf8')) as RunState;
     if (!/^crawl-[0-9a-f-]{36}$/.test(saved.id) || saved.outputDirectory !== join(input.directory, 'collections', saved.id) ||
-        !Array.isArray(saved.platforms) || saved.platforms.length > 2 || saved.platforms.some(p => !platformValue(p.platform)
+        !Array.isArray(saved.platforms) || saved.platforms.length > 50 || saved.platforms.some(p => !platformValue(p.platform)
           || (saved.mode === 'RETAINED' ? p.profileId !== null : !isBrowserProfileId(p.profileId)))
+        || (saved.collectionLayout !== undefined && saved.collectionLayout !== 'PROFILE_QUERY_V2')
+        || (saved.mode !== 'RETAINED' && new Set(saved.platforms.map(p => p.profileId)).size !== saved.platforms.length)
         || (saved.mode !== undefined && saved.mode !== 'DISCOVERY' && saved.mode !== 'RETAINED')
         || (saved.mode === 'RETAINED' && (!saved.retained || !/^crawl-[0-9a-f-]{36}$/u.test(saved.retained.sourceRunId)
           || !/^[0-9a-f]{64}$/u.test(saved.retained.inputHash)))) throw Error('RUN_STATE_INVALID');
@@ -187,9 +200,12 @@ export function createProductionService(input: {
       rebuildResults(); saveRun();
     }
   }
-  function rows(platform: Platform): Row[] {
-    if (!run || run.mode === 'RETAINED') return [];
-    const folder = join(run.outputDirectory, platform), json = join(folder, 'posts.json'), jsonl = join(folder, 'posts.jsonl');
+  function accountDirectory(current: RunState, item: RunState['platforms'][number]): string {
+    return current.collectionLayout === 'PROFILE_QUERY_V2' && item.profileId
+      ? join(current.outputDirectory, item.platform, 'profiles', item.profileId) : join(current.outputDirectory, item.platform);
+  }
+  function readRows(folder: string): Row[] {
+    const json = join(folder, 'posts.json'), jsonl = join(folder, 'posts.jsonl');
     // JSONL is the durable source after an interrupted run; skip only an incomplete final line.
     if (existsSync(jsonl)) {
       const text = readFileSync(jsonl, 'utf8'), lines = text.split('\n'), result: Row[] = [];
@@ -210,14 +226,39 @@ export function createProductionService(input: {
     if (!Array.isArray(data)) throw Error('COLLECTION_DATA_INVALID');
     return data as Row[];
   }
+  function accountRows(item: RunState['platforms'][number]): Row[] {
+    return !run || run.mode === 'RETAINED' ? [] : readRows(accountDirectory(run, item));
+  }
+  function rows(platform: Platform): Row[] {
+    if (!run || run.mode === 'RETAINED') return [];
+    if (run.collectionLayout !== 'PROFILE_QUERY_V2') return readRows(join(run.outputDirectory, platform));
+    const result: Row[] = [], ids = new Set<string>(), links = new Set<string>();
+    for (const item of run.platforms.filter(p => p.platform === platform)) for (const row of accountRows(item)) {
+      const id = String(row.post_id ?? ''), link = String(row.observed_post_url ?? row.post_url ?? '');
+      if ((!id && !link) || (id && ids.has(id)) || (link && links.has(link))) continue;
+      if (id) ids.add(id); if (link) links.add(link); result.push(row);
+    }
+    return result;
+  }
   function rebuildResults() {
     if (!run || run.mode === 'RETAINED') return;
     run.preview = [];
     const data = { facebook: rows('facebook'), threads: rows('threads') };
     for (const item of run.platforms) {
-      item.count = data[item.platform].length;
-      for (const row of data[item.platform].slice(0, 3)) run.preview.push({
-        platform: item.platform, post_id: String(row.post_id || ''), text: String(row.text || '').slice(0, 800),
+      item.count = accountRows(item).length;
+    }
+    for (const platform of [...new Set(run.platforms.map(p => p.platform))]) {
+      // All account writers have settled (or recovery owns the run). Keep the legacy
+      // aggregate export shape for retained imports without a shared collector writer.
+      if (run.collectionLayout === 'PROFILE_QUERY_V2') {
+        const folder = join(run.outputDirectory, platform); mkdirSync(folder, { recursive: true });
+        const file = join(folder, 'posts.jsonl');
+        writeFileSync(file + '.next', data[platform].map(row => JSON.stringify(row)).join('\n') + (data[platform].length ? '\n' : ''), { flush: true });
+        renameSync(file + '.next', file);
+        atomicJson(join(folder, 'posts.json'), data[platform]);
+      }
+      for (const row of data[platform].slice(0, 3)) run.preview.push({
+        platform, post_id: String(row.post_id || ''), text: String(row.text || '').slice(0, 800),
         query: String(row.query || ''), link: String(row.observed_post_url || row.post_url || ''),
       });
     }
@@ -320,6 +361,14 @@ export function createProductionService(input: {
     executing = true;
     const currentRun = run;
     let storageHalted = false;
+    // One owner publishes observations into the campaign store across all accounts.
+    let ingestion: Promise<void> = Promise.resolve();
+    const ingest = (platform: Platform, profileId: string, records: Row[], provenance: Row) => {
+      const task = ingestion.then(async () => { await pipeline?.ingestRows(platform, records, { ...provenance, profile_id: profileId }); });
+      ingestion = task;
+      void task.catch(() => {});
+      return task;
+    };
     try {
       const commentConfig = join(currentRun.outputDirectory, 'opportunity-config.json');
       const commentsEnabled = !pipeline || !existsSync(commentConfig) || (JSON.parse(readFileSync(commentConfig, 'utf8')) as OpportunityConfig).commentsEnabled;
@@ -332,27 +381,29 @@ export function createProductionService(input: {
           // discovery has already reached its global raw/accepted target.
           const existingLimit = resume ? pipeline?.discoveryStopReason(item.platform) : null;
           if (existingLimit) {
-            item.count = rows(item.platform).length; item.state = 'STOPPED'; item.reason = existingLimit; saveRun(); return;
+            item.count = accountRows(item).length; item.state = 'STOPPED'; item.reason = existingLimit; saveRun(); return;
           }
           item.state = 'RUNNING'; saveRun();
-          const output = join(currentRun.outputDirectory, item.platform);
+          const output = accountDirectory(currentRun, item);
           const queries = pipeline ? pipeline.queries(item.platform) : [...currentRun.keywords];
           // Each source may use the remaining global discovery allowance. Output mix is enforced
           // by qualified conversation counts, never by an assumed source-specific raw yield.
           const rawTarget = pipeline ? pipeline.runtimeLimits?.effective_raw_cap ?? pipeline.campaign.budget.raw_cap : currentRun.minimumPosts;
           const configFile = join(output, 'config.json');
           let config: Record<string, unknown> = resume && existsSync(configFile) ? JSON.parse(readFileSync(configFile, 'utf8')) as Record<string, unknown> :
-            { runId: currentRun.id + '-' + item.platform, output, queries,
+            { runId: currentRun.collectionLayout === 'PROFILE_QUERY_V2'
+                ? 'crawl-' + createHash('sha256').update(currentRun.id + ':' + item.platform + ':' + item.profileId).digest('hex').slice(0, 24)
+                : currentRun.id + '-' + item.platform, output, queries,
             parallelWorkers: throughput(configStore.read().performance).windowsPerPlatform,
-            ...(pipeline?.campaign.result_policy === 'GLOBAL_FIRST_QUALIFIED' ? { queryTaskPolicy: 'PER_QUERY_V1', windowMode: configStore.read().performance === 'FAST' ? 'ALL' : 'AUTO' } : {}),
-            maxScrollsPerQuery: pipeline ? 20 : item.platform === 'facebook' ? 50 : 100, maxMinutes: pipeline?.campaign.budget.max_run_minutes ?? 240, settleMs: 3000,
+            ...(pipeline?.campaign.result_policy === 'GLOBAL_FIRST_QUALIFIED' ? { queryTaskPolicy: 'PER_QUERY_V1', windowMode: configStore.read().performance === 'FAST' ? 'ALL' : 'AUTO', warmPageLimit: 24, maxReplayPages: 400 } : {}),
+            maxScrollsPerQuery: pipeline ? 20 : item.platform === 'facebook' ? 50 : 100, maxMinutes: pipeline?.campaign.budget.max_run_minutes ?? 720, settleMs: 3000,
             ...(pipeline ? { includeContextCandidates: true } : {}),
-            ...(item.platform === 'facebook' ? { targetNewRecords: rawTarget } : { targetTotal: pipeline ? 10000 : rawTarget, modes: ['top', 'recent'], ...(pipeline ? { interleaveModes: true } : {}) }) };
+            ...(item.platform === 'facebook' ? { targetNewRecords: rawTarget } : { targetTotal: rawTarget, modes: ['top', 'recent'], ...(pipeline ? { interleaveModes: true } : {}) }) };
           let collectorResume = resume;
           if (pipeline && resume) {
-            const attempt = prepareDiscoveryAttempt({ config, platform: item.platform, cumulativeRawCount: rows(item.platform).length,
+            const attempt = prepareDiscoveryAttempt({ config, platform: item.platform, cumulativeRawCount: accountRows(item).length,
               allocationTotal: item.platform === 'threads' ? Number(config.targetTotal) : rawTarget });
-            if (attempt.kind === 'ALLOCATION_COMPLETE') { item.count = rows(item.platform).length; item.state = 'STOPPED'; item.reason = 'RAW_BUDGET_REACHED'; saveRun(); return; }
+            if (attempt.kind === 'ALLOCATION_COMPLETE') { item.count = accountRows(item).length; item.state = 'STOPPED'; item.reason = 'RAW_BUDGET_REACHED'; saveRun(); return; }
             config = attempt.config; collectorResume = attempt.resume;
             if (attempt.attempt && attempt.recordPath) atomicJson(attempt.recordPath, attempt.attempt);
           }
@@ -364,7 +415,7 @@ export function createProductionService(input: {
             shouldStop: () => stopped,
             ...(pipeline ? {
               collectionLimitReason: () => pipeline!.discoveryStopReason(item.platform),
-              onRecords: (records: Row[], provenance: Row) => pipeline!.ingestRows(item.platform, records, provenance),
+              onRecords: (records: Row[], provenance: Row) => ingest(item.platform, item.profileId!, records, provenance),
               ...(commentsEnabled ? { onQueryEnd: (value: { window: WebContents; query?: string; shouldStop(): boolean }) => pipeline!.enrich(item.platform, value.window, () => stopped || value.shouldStop(), 3, undefined, value.query) } : {}),
               beforeNextPage: () => pipeline!.backpressure(),
               expandQueries: () => pipeline!.expandQueries(),
@@ -375,7 +426,7 @@ export function createProductionService(input: {
               if (Number.isSafeInteger(value.total) && Number(value.total) >= 0) item.count = Number(value.total);
               if (Date.now() - lastSaved > 1500) { saveRun(); lastSaved = Date.now(); }
             } });
-          item.count = rows(item.platform).length; item.reason = receipt.stop_reason;
+          item.count = accountRows(item).length; item.reason = receipt.stop_reason;
           const regular = ['TARGET_REACHED', 'INTENT_TARGET_REACHED', 'RAW_BUDGET_REACHED', 'MODEL_PAUSED', 'QUERY_BUDGET_COMPLETE', 'REPLAY_BUDGET_REACHED', 'SOURCE_EXHAUSTED', 'NO_PROGRESS', 'USER_STOP', 'RUN_DEADLINE', 'WINDOW_CLOSED'];
           item.state = !regular.includes(item.reason) && !storageStopped(item.reason) ? 'FAILED' : !pipeline && !storageStopped(item.reason) && item.count >= currentRun.minimumPosts ? 'COMPLETED' : 'STOPPED';
           if (receipt.session_flush && receipt.session_flush !== 'OK') { item.state = 'FAILED'; item.reason = 'SESSION_SAVE_FAILED'; }
@@ -386,7 +437,7 @@ export function createProductionService(input: {
           if (item.profileId && /ACCOUNT_BARRIER|LOGIN_REQUIRED/.test(item.reason)) blockedProfiles.add(item.profileId);
         }
         // Read only this finished source; the other source may still be writing.
-        const data = rows(item.platform);
+        const data = accountRows(item);
         item.count = data.length;
         for (const row of data.slice(0, 3)) currentRun.preview.push({
           platform: item.platform, post_id: String(row.post_id || ''), text: String(row.text || '').slice(0, 800),
@@ -394,6 +445,7 @@ export function createProductionService(input: {
         });
         saveRun();
       }));
+      await ingestion;
       for (const [index, outcome] of outcomes.entries()) {
         if (outcome.status === 'rejected') {
           const item = currentRun.platforms[index]!;
@@ -459,6 +511,64 @@ export function createProductionService(input: {
     return catalog;
   }
   return {
+    readRunState(runId: string): RunState | null {
+      if (!/^crawl-[0-9a-f-]{36}$/u.test(runId)) throw Error('RUN_ID_INVALID');
+      if (run?.id === runId) return structuredClone(run);
+      const directory = join(input.directory, 'collections', runId), file = join(directory, 'run-state.json');
+      if (!existsSync(file)) return null;
+      const saved = JSON.parse(readFileSync(file, 'utf8')) as RunState;
+      if (saved.id !== runId || saved.outputDirectory !== directory || !Array.isArray(saved.platforms)) throw Error('RUN_STATE_INVALID');
+      return saved;
+    },
+    /** Reuse a committed recipe without planning or mutating its source/cost history. */
+    async startDiscoveryFromRecipe(sourceRunId: string, totalTarget: number, excludedRootKeys: string[] = []): Promise<ProductionState> {
+      if (active(run) || starting || executing || preparingDraft) throw Error('COLLECTION_BUSY');
+      if (!/^crawl-[0-9a-f-]{36}$/u.test(sourceRunId) || !Number.isSafeInteger(totalTarget) || totalTarget < 1 || totalTarget > 5000
+        || !Array.isArray(excludedRootKeys) || excludedRootKeys.length > 100000
+        || excludedRootKeys.some(key => typeof key !== 'string' || !/^(facebook|threads):[^\s:]{1,200}$/u.test(key))) throw Error('DISCOVERY_INPUT_INVALID');
+      if (!input.collectConversation) throw Error('CONVERSATION_COLLECTOR_UNAVAILABLE');
+      const sourceDirectory = join(input.directory, 'collections', sourceRunId), sourceStateFile = join(sourceDirectory, 'run-state.json');
+      const source = existsSync(sourceStateFile) ? JSON.parse(readFileSync(sourceStateFile, 'utf8')) as RunState : run?.id === sourceRunId ? structuredClone(run) : null;
+      if (!source || source.id !== sourceRunId || source.outputDirectory !== sourceDirectory || source.mode === 'RETAINED'
+        || !Array.isArray(source.platforms) || !source.platforms.length || source.platforms.length > 50
+        || source.platforms.some(p => !platformValue(p.platform) || !isBrowserProfileId(p.profileId))
+        || new Set(source.platforms.map(p => p.profileId)).size !== source.platforms.length) throw Error('DISCOVERY_RECIPE_UNAVAILABLE');
+      const campaignFile = join(sourceDirectory, 'opportunity', 'campaign.json'), configFile = join(sourceDirectory, 'opportunity-config.json');
+      if (!existsSync(campaignFile) || !existsSync(configFile)) throw Error('DISCOVERY_RECIPE_UNAVAILABLE');
+      const originalCampaign = JSON.parse(readFileSync(campaignFile, 'utf8')) as CampaignPlan;
+      validateCampaignPlan(originalCampaign);
+      if (originalCampaign.campaign_id !== sourceRunId) throw Error('DISCOVERY_RECIPE_MISMATCH');
+      const config = { ...JSON.parse(readFileSync(configFile, 'utf8')) as OpportunityConfig, totalTarget, commentsEnabled: false };
+      if (!config.enabled || config.filterMode !== originalCampaign.filter_mode || config.budgetUsd !== originalCampaign.budget.model_usd) throw Error('DISCOVERY_RECIPE_MISMATCH');
+      config.rawCap = Math.max(totalTarget, config.rawCap);
+      const previousRun = run; starting = true; let launched = false;
+      try {
+        const available = await accounts();
+        for (const selected of source.platforms) if (!available.some(p => p.id === selected.profileId && p.platform === selected.platform && p.authenticated && !p.persistenceError)) throw Error('LOGIN_REQUIRED');
+        await closePipeline();
+        const id = 'crawl-' + randomUUID(), outputDirectory = join(input.directory, 'collections', id);
+        const { version: _version, created_at: _created, ...body } = originalCampaign;
+        const next = { ...body, campaign_id: id, suitable_target: totalTarget,
+          budget: { ...body.budget, raw_cap: config.rawCap }, watch: { enabled: false, revisit_hours: [], ttl_hours: 72, max_attempts: 0 } };
+        const campaign: CampaignPlan = { ...next, version: campaignVersion(next), created_at: new Date().toISOString() };
+        validateCampaignPlan(campaign);
+        run = { id, collectionLayout: 'PROFILE_QUERY_V2', discoverySourceRunId: sourceRunId, mode: 'DISCOVERY', state: 'RUNNING', startedAt: campaign.created_at, finishedAt: null,
+          minimumPosts: totalTarget, keywords: [...new Set(campaign.queries.map(q => q.text))], outputDirectory,
+          platforms: source.platforms.map(p => ({ platform: p.platform, profileId: p.profileId, state: 'QUEUED', count: 0, reason: null })), preview: [] };
+        const current = run; stopped = false;
+        atomicJson(join(outputDirectory, 'opportunity-config.json'), config);
+        atomicJson(join(outputDirectory, 'discovery-parent.json'), { schemaVersion: 1, sourceRunId, sourceCampaignHash: contentHash(originalCampaign),
+          excludedRootKeys: [...new Set(excludedRootKeys)], createdAt: campaign.created_at });
+        pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ directory: outputDirectory, runId: id, config, campaign,
+          platforms: [...new Set(current.platforms.map(p => p.platform))], collectConversation: input.collectConversation,
+          excludedRootKeys: [...new Set(excludedRootKeys)], onProgress: value => { current.opportunity = value; saveRun(); } });
+        saveRun(); work = execute(); launched = true; void work.catch(() => {});
+        return await getState();
+      } catch (error) {
+        if (!launched) { await closePipeline(); run = previousRun; if (run) saveRun(); }
+        throw error;
+      } finally { starting = false; }
+    },
     getState,
     listRetainedSources,
     /** Only main's native picker/explicit trusted caller may supply a filesystem path. */
@@ -646,30 +756,32 @@ export function createProductionService(input: {
         }
         if (config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF' && !selectedDraft) throw Error('DRAFT_REQUIRED');
         const selections = (value as { profiles: unknown }).profiles;
-        if (!Array.isArray(selections) || selections.length < 1 || selections.length > 2) throw Error('COLLECTION_INPUT_INVALID');
-        const available = await accounts(), platforms = new Set<Platform>();
+        if (!Array.isArray(selections) || selections.length < 1 || selections.length > 50) throw Error('COLLECTION_INPUT_INVALID');
+        const available = await accounts(), selectedProfiles = new Set<string>();
         for (const item of selections) {
           if (!item || typeof item !== 'object' || Object.keys(item).sort().join() !== 'platform,profileId' ||
-              !platformValue(item.platform) || !isBrowserProfileId(item.profileId) || platforms.has(item.platform)) throw Error('COLLECTION_INPUT_INVALID');
+              !platformValue(item.platform) || !isBrowserProfileId(item.profileId) || selectedProfiles.has(item.profileId)) throw Error('COLLECTION_INPUT_INVALID');
           const account = available.find(p => p.id === item.profileId && p.platform === item.platform);
           if (!account?.authenticated || account.persistenceError) throw Error('LOGIN_REQUIRED');
-          platforms.add(item.platform);
+          selectedProfiles.add(item.profileId);
         }
         const id = selectedDraft?.runId ?? 'crawl-' + randomUUID();
-        run = { id, state: 'RUNNING', startedAt: new Date().toISOString(), finishedAt: null,
+        run = { id, collectionLayout: 'PROFILE_QUERY_V2', state: 'RUNNING', startedAt: new Date().toISOString(), finishedAt: null,
           minimumPosts: config.minimumPosts, keywords: config.keywords, outputDirectory: selectedDraft?.outputDirectory ?? join(input.directory, 'collections', id),
           platforms: selections.map(item => ({ platform: item.platform as Platform, profileId: item.profileId as string, state: 'QUEUED', count: 0, reason: null })), preview: [] };
         stopped = false; mkdirSync(run.outputDirectory, { recursive: true }); saveRun();
         if (config.opportunity?.enabled) {
           if (!input.collectConversation) throw Error('CONVERSATION_COLLECTOR_UNAVAILABLE');
           const current = run;
-          atomicJson(join(run.outputDirectory, 'opportunity-config.json'), config.opportunity);
-          pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ directory: run.outputDirectory, runId: id, config: config.opportunity, seedQueries: config.keywords,
+          const runtimeConfig = selectedDraft?.campaign.filter_version.startsWith('opportunity-posts-') || config.opportunity.filterMode === 'OFF'
+            ? { ...config.opportunity, commentsEnabled: false } : config.opportunity;
+          atomicJson(join(run.outputDirectory, 'opportunity-config.json'), runtimeConfig);
+          pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ directory: run.outputDirectory, runId: id, config: runtimeConfig, seedQueries: config.keywords,
             ...(selectedDraft ? { campaign: selectedDraft.campaign } : {}),
-            platforms: run.platforms.map(p => p.platform), collectConversation: input.collectConversation,
+            platforms: [...new Set(run.platforms.map(p => p.platform))], collectConversation: input.collectConversation,
             ...(input.resolveThreadsReplyRoot ? { resolveThreadsReplyRoot: input.resolveThreadsReplyRoot } : {}),
             ...(input.withConversationWindow ? { withRevisitWindow: (platform: Platform, job: (window: WebContents) => Promise<void>) => {
-              const account = current.platforms.find(p => p.platform === platform); if (!account?.profileId) throw Error('PROFILE_NOT_FOUND');
+              const account = current.platforms.find(p => p.platform === platform && p.profileId && !blockedProfiles.has(p.profileId)); if (!account?.profileId) throw Error('PROFILE_NOT_FOUND');
               return input.withConversationWindow!(account.profileId, job);
             } } : {}),
             onProgress: value => { current.opportunity = value; saveRun(); } });
@@ -723,10 +835,11 @@ export function createProductionService(input: {
         await closePipeline();
         const config = JSON.parse(readFileSync(file, 'utf8')) as OpportunityConfig;
         pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ directory: current.outputDirectory, runId: current.id, config,
-          platforms: current.platforms.map(p => p.platform), collectConversation: input.collectConversation,
+          platforms: [...new Set(current.platforms.map(p => p.platform))], collectConversation: input.collectConversation,
+          ...readDiscoveryExclusions(current.outputDirectory),
           ...(input.resolveThreadsReplyRoot ? { resolveThreadsReplyRoot: input.resolveThreadsReplyRoot } : {}),
           ...(input.withConversationWindow ? { withRevisitWindow: (platform: Platform, job: (window: WebContents) => Promise<void>) => {
-            const account = current.platforms.find(p => p.platform === platform); if (!account?.profileId) throw Error('PROFILE_NOT_FOUND');
+            const account = current.platforms.find(p => p.platform === platform && p.profileId && !blockedProfiles.has(p.profileId)); if (!account?.profileId) throw Error('PROFILE_NOT_FOUND');
             return input.withConversationWindow!(account.profileId, job);
           } } : {}),
           onProgress: value => { current.opportunity = value; saveRun(); } });

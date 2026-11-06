@@ -5,7 +5,7 @@ import { resolve, join, relative, isAbsolute, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import { createDiscoveryFrontier } from './discovery-frontier.mjs';
+import { createDiscoveryFrontier, extendWarmSlice } from './discovery-frontier.mjs';
 import { runtimePaths } from '../dist/infrastructure/config/runtime-paths.js';
 import { createBrowserProfiles } from '../dist/infrastructure/browser/profile-repository.js';
 import { createElectronSecretStore } from '../dist/infrastructure/secrets/electron-secret-store.js';
@@ -19,8 +19,8 @@ const hash=v=>createHash('sha256').update(v).digest('hex');
 const arg=name=>{const i=process.argv.indexOf(name);return i<0?null:process.argv[i+1];};
 const bounded=(n,min,max)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
 async function timed(work,ms,code){let timer;try{return await Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(code)),ms);})]);}finally{clearTimeout(timer);}}
-export async function runFacebookCollector({config,host,profileId,onProgress=()=>{},shouldStop=()=>false,resume=false,onRecords=null,onQueryEnd=null,beforeNextPage=null,collectionLimitReason=null}){
- if(!/^[a-z0-9][a-z0-9-]{2,80}$/.test(config.runId)||!Array.isArray(config.queries)||!config.queries.length||config.queries.length>100||config.queries.some(q=>typeof q!=='string'||!q.trim()||q.length>200)||!bounded(config.maxScrollsPerQuery,0,50)||!bounded(config.maxMinutes,1,240)||!bounded(config.targetNewRecords,1,config.includeContextCandidates===true?10000:3000)||!bounded(config.settleMs,2000,15000))throw new Error('CONFIG_INVALID');
+export async function runFacebookCollector({config,host,profileId,onProgress=()=>{},shouldStop=()=>false,resume=false,onRecords=null,onQueryEnd=null,beforeNextPage=null,collectionLimitReason=null,continueQuerySlice=null}){
+ if(!/^[a-z0-9][a-z0-9-]{2,80}$/.test(config.runId)||!Array.isArray(config.queries)||!config.queries.length||config.queries.length>240||config.queries.some(q=>typeof q!=='string'||!q.trim()||q.length>200)||!bounded(config.maxScrollsPerQuery,0,50)||!bounded(config.maxMinutes,1,1440)||!bounded(config.targetNewRecords,1,config.includeContextCandidates===true?50000:5000)||!bounded(config.settleMs,2000,15000)||(config.maxReplayPages!==undefined&&!bounded(config.maxReplayPages,1,2000))||(config.warmPageLimit!==undefined&&!bounded(config.warmPageLimit,1,200)))throw new Error('CONFIG_INVALID');
  const directory=resolve(config.output),rel=relative(resolve(process.cwd()),directory);
  if(!isAbsolute(config.output)||(rel!=='..'&&!rel.startsWith('..'+sep)&&!isAbsolute(rel)))throw new Error('OUTPUT_MUST_BE_OUTSIDE_WORKSPACE');
  const runDirectory=join(directory,'runs',config.runId);mkdirSync(runDirectory,{recursive:true});
@@ -37,7 +37,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
    &&!(config.includeContextCandidates===true&&resume&&JSON.parse(readFileSync(priorReceipt,'utf8')).stop_reason==='QUERY_BUDGET_COMPLETE'))return {...JSON.parse(readFileSync(priorReceipt,'utf8')),summary:store.export()};
  if(Date.now()>deadline)throw new Error('RUN_DEADLINE_EXPIRED_USE_NEW_RUN_ID');
  let checkpoint=existsSync(checkpointPath)?JSON.parse(readFileSync(checkpointPath,'utf8')):{query_index:0,scroll_index:0,batch_sequence:0};
- const frontier=config.includeContextCandidates===true?createDiscoveryFrontier({platform:'facebook',runId:config.runId,jobs:config.queries.map(query=>({query})),pageBudget:config.maxScrollsPerQuery,checkpoint,checkpointExisted:existsSync(checkpointPath)}):null;
+ const frontier=config.includeContextCandidates===true?createDiscoveryFrontier({platform:'facebook',runId:config.runId,jobs:config.queries.map(query=>({query})),pageBudget:config.maxScrollsPerQuery,checkpoint,checkpointExisted:existsSync(checkpointPath),maxReplayPages:config.maxReplayPages}):null;
  const saveCheckpoint=()=>{if(frontier)checkpoint={...checkpoint,discovery_frontier:frontier.snapshot()};store.checkpoint(runDirectory,checkpoint);};
  const initialRunRecords=store.records().filter(r=>r.first_observation.run_id===config.runId).length;
  let newThisRun=initialRunRecords,activeQuery=null,activeQueryIndex=checkpoint.query_index,scrollIndex=0,stopReason=null,closing=false,captureAdmission=true,observer=null,observerStarted=0,activeReads=0,lastHasNext=null,lastEmbeddedHash=null;
@@ -158,6 +158,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
     if(frontier){check();frontier.page(qi,scroll);saveCheckpoint();}
     event({event:'YIELD',query_index:qi,scroll_index:scroll,new_records:gained,no_progress:noProgress,replaying:scroll<=slice.replayDepth});
     if(noProgress>=3&&geometry.after>=geometry.height-geometry.client-10){queryStop='NO_PROGRESS';break;}
+    if(extendWarmSlice(slice,{currentScroll:scroll,gained,pageBudget:config.maxScrollsPerQuery,warmPageLimit:config.warmPageLimit,maxReplayPages:config.maxReplayPages,canContinue:!onQueryEnd&&!!continueQuerySlice?.()}))event({event:'WARM_SLICE',query_index:qi,scroll_index:scroll,max_scroll:slice.maxScroll});
    }
    await drain(true);check();
    if(frontier)frontier.finish(qi,lastHasNext===false?'NATIVE_END_OBSERVED':queryStop);

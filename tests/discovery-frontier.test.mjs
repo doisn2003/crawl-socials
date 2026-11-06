@@ -1,11 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDiscoveryFrontier, MAX_DISCOVERY_REPLAY_PAGES } from '../scripts/discovery-frontier.mjs';
+import { createDiscoveryFrontier, extendWarmSlice, MAX_DISCOVERY_REPLAY_PAGES } from '../scripts/discovery-frontier.mjs';
 
 const input = (platform = 'threads') => ({ platform, runId: 'synthetic-frontier', pageBudget: 20,
   jobs: platform === 'threads' ? [{ query: 'synthetic topic', mode: 'top' }, { query: 'synthetic topic', mode: 'recent' }] : [{ query: 'synthetic topic' }],
   checkpoint: platform === 'threads' ? { job_index: 0, batch_sequence: 0 } : { query_index: 0, scroll_index: 0, batch_sequence: 0 } });
 const reopened = (original, frontier) => createDiscoveryFrontier({ ...original, checkpoint: { ...original.checkpoint, discovery_frontier: frontier.snapshot() }, checkpointExisted: true });
+
+test('warm slices retain a productive page within novelty, fairness and replay limits', () => {
+  const slice = { allowed: true, replayDepth: 0, maxScroll: 3 };
+  const options = { currentScroll: 3, gained: 4, pageBudget: 3, warmPageLimit: 9, canContinue: true };
+  assert.equal(extendWarmSlice(slice, { ...options, canContinue: false }), false);
+  assert.equal(extendWarmSlice(slice, { ...options, gained: 0 }), false);
+  assert.equal(extendWarmSlice(slice, options), true); assert.equal(slice.maxScroll, 6);
+  assert.equal(extendWarmSlice(slice, { ...options, currentScroll: 6 }), true); assert.equal(slice.maxScroll, 9);
+  assert.equal(extendWarmSlice(slice, { ...options, currentScroll: 9 }), false);
+  const deep = { replayDepth: 399, maxScroll: 402 };
+  assert.equal(extendWarmSlice(deep, { ...options, currentScroll: 402, maxReplayPages: 400 }), true);
+  assert.equal(deep.maxScroll, 403, 'cannot silently exceed the checkpoint replay ceiling');
+});
+
+test('large immutable query portfolio and longer frontier remain resumable', () => {
+  const original = { ...input(), maxReplayPages: 400, jobs: Array.from({ length: 240 }, (_, i) => ({ query: 'topic ' + i, mode: 'recent' })) };
+  const frontier = createDiscoveryFrontier(original); frontier.begin(0); frontier.page(0, 220); frontier.finish(0, 'PAGE_BUDGET_REACHED');
+  assert.equal(reopened(original, frontier).begin(0).replayDepth, 220);
+  assert.equal(frontier.snapshot().jobs.length, 240);
+});
 
 test('page budget preserves continuation and mode identity while native end is the only exhaustion proof', () => {
   const original = input(), frontier = createDiscoveryFrontier(original);

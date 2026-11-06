@@ -4,14 +4,21 @@ import { createHash } from 'node:crypto';
 // bounded observed prefix, then spend a new page slice. These are scroll depths,
 // not an assertion that the feed still has the same contents or pagination.
 export const MAX_DISCOVERY_REPLAY_PAGES = 100;
+/** Keep a productive page loaded for bounded extra slices; no cursor/API replay. */
+export function extendWarmSlice(slice, { currentScroll, gained, pageBudget, warmPageLimit = pageBudget, maxReplayPages = MAX_DISCOVERY_REPLAY_PAGES, canContinue = false }) {
+  if (!canContinue || gained <= 0 || currentScroll !== slice.maxScroll || pageBudget < 1) return false;
+  const limit = Math.min(slice.replayDepth + warmPageLimit, maxReplayPages + pageBudget);
+  if (slice.maxScroll >= limit) return false;
+  slice.maxScroll = Math.min(limit, slice.maxScroll + pageBudget); return true;
+}
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const states = new Set(['PENDING', 'RUNNING', 'BUDGET_LIMITED', 'EXHAUSTED', 'STALLED']);
 const reasons = new Set([null, 'PAGE_BUDGET_REACHED', 'NATIVE_END_OBSERVED', 'NO_PROGRESS', 'REPLAY_BUDGET_REACHED', 'LEGACY_DEPTH_UNKNOWN']);
 const integer = (value, maximum) => Number.isSafeInteger(value) && value >= 0 && value <= maximum;
 
-export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, checkpoint, checkpointExisted = false }) {
-  if (!['facebook', 'threads'].includes(platform) || typeof runId !== 'string' || !runId || !Array.isArray(jobs) || !jobs.length || jobs.length > 200
-      || !integer(pageBudget, 200) || !checkpoint || typeof checkpoint !== 'object') throw Error('DISCOVERY_FRONTIER_INVALID');
+export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, checkpoint, checkpointExisted = false, maxReplayPages = MAX_DISCOVERY_REPLAY_PAGES }) {
+  if (!['facebook', 'threads'].includes(platform) || typeof runId !== 'string' || !runId || !Array.isArray(jobs) || !jobs.length || jobs.length > 480
+      || !integer(pageBudget, 200) || !integer(maxReplayPages, 2000) || maxReplayPages < 1 || !checkpoint || typeof checkpoint !== 'object') throw Error('DISCOVERY_FRONTIER_INVALID');
   const definitions = jobs.map((job, index) => {
     if (!job || typeof job.query !== 'string' || !job.query.trim() || job.query.length > 200
         || (platform === 'threads' ? !['top', 'recent'].includes(job.mode) : job.mode !== undefined)) throw Error('DISCOVERY_FRONTIER_INVALID');
@@ -29,7 +36,7 @@ export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, che
     saved.jobs.forEach((job, index) => {
       const expected = definitions[index];
       if (!job || job.id !== expected.id || job.index !== index || job.query !== expected.query || job.mode !== expected.mode
-          || !states.has(job.state) || !integer(job.depth, MAX_DISCOVERY_REPLAY_PAGES + pageBudget)
+          || !states.has(job.state) || !integer(job.depth, maxReplayPages + pageBudget)
           || !integer(job.slices, Number.MAX_SAFE_INTEGER) || !reasons.has(job.reason)
           || (job.state === 'EXHAUSTED' && job.reason !== 'NATIVE_END_OBSERVED')
           || (job.state === 'PENDING' && (job.depth !== 0 || job.slices !== 0 || job.reason !== null))) throw Error('DISCOVERY_FRONTIER_INVALID');
@@ -54,7 +61,7 @@ export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, che
     begin(index) {
       const job = at(index), replayDepth = job.depth;
       if (job.state === 'EXHAUSTED') throw Error('DISCOVERY_FRONTIER_EXHAUSTED');
-      if (replayDepth > MAX_DISCOVERY_REPLAY_PAGES) {
+      if (replayDepth > maxReplayPages) {
         job.state = 'BUDGET_LIMITED'; job.reason = 'REPLAY_BUDGET_REACHED';
         return { allowed: false, replayDepth, maxScroll: 0 };
       }
@@ -64,7 +71,7 @@ export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, che
     // Call only after all currently received records are durably persisted.
     page(index, depth) {
       const job = at(index);
-      if (job.state !== 'RUNNING' || !integer(depth, MAX_DISCOVERY_REPLAY_PAGES + pageBudget)) throw Error('DISCOVERY_FRONTIER_INVALID');
+      if (job.state !== 'RUNNING' || !integer(depth, maxReplayPages + pageBudget)) throw Error('DISCOVERY_FRONTIER_INVALID');
       job.depth = Math.max(job.depth, depth);
     },
     finish(index, reason) {

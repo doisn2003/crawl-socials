@@ -132,8 +132,8 @@ function setup(platform, queries = ['cafe work', 'cafe date']) {
   };
 }
 
-test('Facebook intent raw ceiling accepts 5000 and 10000, while legacy and out-of-bound configurations remain rejected', async () => {
-  for (const target of [5000, 10000]) {
+test('Facebook supports a 50000 raw envelope and a 5000 unfiltered target with finite limits', async () => {
+  for (const target of [5000, 10000, 50000]) {
     const s = setup('facebook');
     try {
       s.config.targetNewRecords = target;
@@ -142,7 +142,7 @@ test('Facebook intent raw ceiling accepts 5000 and 10000, while legacy and out-o
       assert.equal(s.closed, 1);
     } finally { s.clean(); }
   }
-  for (const [target, intent] of [[5000, false], [5000, 'true'], [10001, true]]) {
+  for (const [target, intent] of [[5001, false], [5001, 'true'], [50001, true]]) {
     const s = setup('facebook');
     try {
       s.config.targetNewRecords = target; s.config.includeContextCandidates = intent;
@@ -358,6 +358,16 @@ function paginatedSetup(platform, pageBudget = 6, nativeEnd = Infinity) {
 }
 
 for (const platform of ['facebook', 'threads']) {
+  test(`${platform}: productive warm slices reach deeper pages without another navigation`, async () => {
+    const s = paginatedSetup(platform, 3); s.config.warmPageLimit = 9;
+    try {
+      const receipt = await s.run({ continueQuerySlice: () => true });
+      assert.equal(s.loads(), 1); assert.equal(s.depth(), 9); assert.equal(s.legacy().length, 10);
+      assert.equal(receipt.checkpoint.discovery_frontier.jobs[0].depth, 9);
+      assert.equal(receipt.stop_reason, 'QUERY_BUDGET_COMPLETE');
+    } finally { s.clean(); }
+  });
+
   test(`${platform}: explicit Resume continues budget-limited query beyond duplicate prefix under the same deadline`, async () => {
     const s = paginatedSetup(platform);
     try {

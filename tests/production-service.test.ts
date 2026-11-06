@@ -50,6 +50,29 @@ async function temporary(work: (directory: string) => Promise<void>): Promise<vo
 }
 const completed = async (input: CollectorInput): Promise<CollectorReceipt> => { posts(input, 1); return { stop_reason: 'TARGET_REACHED', summary: { unique: 1 } }; };
 
+test('same-network accounts have independent writers and one deduplicated durable platform export', async () => temporary(async directory => {
+  const secondId = 'csd-00000000-0000-4000-8000-000000000003';
+  const fixture = hostWithProfiles([profile(fbId, 'facebook'), profile(secondId, 'facebook')]), outputs: string[] = [], ids: string[] = [];
+  const service = createProductionService({ directory, version: 'test', host: fixture.host, collect: async input => {
+    outputs.push(String(input.config.output)); ids.push(String(input.config.runId));
+    const data = [{ post_id: 'shared', observed_post_url: 'https://www.facebook.com/example/posts/shared', text: 'Bài chung' },
+      { post_id: input.profileId, observed_post_url: 'https://www.facebook.com/example/posts/' + input.profileId, text: 'Bài riêng' }];
+    writeFileSync(join(String(input.config.output), 'posts.jsonl'), data.map(row => JSON.stringify(row)).join('\n') + '\n');
+    return { stop_reason: input.profileId === fbId ? 'ACCOUNT_BARRIER' : 'TARGET_REACHED', summary: { unique: 2 } };
+  } });
+  service.saveConfig({ keywords: ['x'], minimumPosts: 1 });
+  await service.start({ profiles: [fbId, secondId].map(profileId => ({ platform: 'facebook', profileId })) }); await service.settled();
+  const result = service.results();
+  assert.equal(new Set(outputs).size, 2); assert.equal(new Set(ids).size, 2);
+  assert.ok(outputs.every(path => path.includes('profiles')));
+  assert.equal(result.facebook.length, 3); assert.deepEqual(result.run.platforms.map(p => p.count), [2, 2]);
+  assert.equal(result.run.platforms[1]!.state, 'COMPLETED', 'one account barrier does not cancel healthy siblings');
+  const persisted = JSON.parse(readFileSync(join(result.run.outputDirectory, 'facebook', 'posts.json'), 'utf8'));
+  assert.equal(persisted.length, 3);
+  const restarted = createProductionService({ directory, version: 'test', host: fixture.host, collect: completed });
+  assert.equal(restarted.results().facebook.length, 3); assert.equal(restarted.readRunState(result.run.id)?.platforms.length, 2);
+}));
+
 test('crawl requires user keywords, valid profile UUIDs and an authenticated account for each selected platform', async () => temporary(async directory => {
   const fixture = hostWithProfiles(); let calls = 0;
   const service = createProductionService({ directory, version: 'test', host: fixture.host, collect: async input => { calls++; return completed(input); } });

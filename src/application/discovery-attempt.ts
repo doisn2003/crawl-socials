@@ -45,7 +45,7 @@ const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(valu
 export function prepareDiscoveryAttempt(input: DiscoveryAttemptInput): PreparedDiscoveryAttempt {
   const config = structuredClone(input.config), runId = config.runId, output = config.output, minutes = config.maxMinutes;
   if (!['facebook', 'threads'].includes(input.platform) || typeof runId !== 'string' || !/^[a-z0-9][a-z0-9-]{2,79}$/.test(runId)
-    || typeof output !== 'string' || !isAbsolute(output) || !positiveInteger(minutes) || minutes > 240
+    || typeof output !== 'string' || !isAbsolute(output) || !positiveInteger(minutes) || minutes > 1440
     || !Number.isSafeInteger(input.cumulativeRawCount) || input.cumulativeRawCount < 0
     || (input.allocationTotal !== undefined && !positiveInteger(input.allocationTotal))) throw Error('DISCOVERY_ATTEMPT_INPUT_INVALID');
   const target = input.platform === 'facebook' ? config.targetNewRecords : config.targetTotal;
@@ -84,7 +84,7 @@ export function prepareDiscoveryAttempt(input: DiscoveryAttemptInput): PreparedD
   const nextId = base.slice(0, 80 - suffix.length) + suffix;
   const recordPath = join(output, 'runs', nextId, 'discovery-attempt.json');
   if (existsSync(recordPath) || existsSync(join(output, 'runs', nextId, 'manifest.json'))) throw Error('DISCOVERY_ATTEMPT_ID_COLLISION');
-  const attemptTarget = input.platform === 'facebook' ? Math.min(remaining, 3000) : target;
+  const attemptTarget = input.platform === 'facebook' ? Math.min(remaining, config.includeContextCandidates === true ? 50000 : 5000) : target;
   const nextConfig: Record<string, unknown> = { ...config, runId: nextId, ...(input.platform === 'facebook' ? { targetNewRecords: attemptTarget } : {}) };
   const attempt: DiscoveryAttemptRecord = {
     schema_version: '1.0.0', platform: input.platform, run_id: nextId, previous_run_id: runId,

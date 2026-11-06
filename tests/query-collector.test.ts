@@ -70,3 +70,32 @@ test('optional AI expansion failure is recorded and does not stop raw collection
     assert.equal(saved.expansionError, 'MODEL_BUDGET_EXHAUSTED');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('all reserved waves receive a first slice and retain an immutable coordinator deadline', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-query-waves-'));
+  const windows = createWindowScheduler({ sample: () => ({ freeBytes: 12e9, totalBytes: 16e9, cpuBusy: 0 }), staggerMs: 0 });
+  const visited: string[] = []; let wave = 0;
+  try {
+    const config = { runId: 'waves-test', output: root, queries: ['initial'], maxMinutes: 720, windowMode: 'ALL', warmPageLimit: 24 };
+    const result = await runQueryCollectors({ platform: 'facebook', profileId: 'fixture', config, shouldStop: () => false, onProgress() {},
+      expandQueries: async () => ++wave <= 3 ? Array.from({ length: wave === 3 ? 79 : 80 }, (_, i) => `wave ${wave} query ${i}`) : [] },
+    async child => { visited.push((child.config.queries as string[])[0]!); return { stop_reason: 'SOURCE_EXHAUSTED', summary: { unique: 0 } }; }, windows);
+    assert.equal(visited.length, 240); assert.equal(new Set(visited).size, 240); assert.equal(result.stop_reason, 'SOURCE_EXHAUSTED');
+    const manifest = JSON.parse(readFileSync(join(root, 'runs', 'waves-test', 'manifest.json'), 'utf8'));
+    const state = JSON.parse(readFileSync(join(root, 'runs', 'waves-test', 'query-tasks.json'), 'utf8'));
+    assert.equal(manifest.started_at, state.startedAt); assert.equal(manifest.config.maxMinutes, 720);
+    assert.ok(state.tasks.every((task: { elapsedMs?: number }) => typeof task.elapsedMs === 'number'));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('AUTO keeps loaded windows through a transient CPU spike', async () => {
+  let clock = 10000, cpuBusy = .1;
+  const windows = createWindowScheduler({ sample: () => ({ freeBytes: 12e9, totalBytes: 16e9, cpuBusy }), now: () => clock, staggerMs: 0 });
+  const first = await windows.acquire('facebook', false, () => false, 'profile-a');
+  const second = await windows.acquire('facebook', false, () => false, 'profile-b');
+  cpuBusy = .99; clock += 1500;
+  assert.equal(first.shouldYield(), false); assert.equal(second.shouldYield(), false);
+  clock += 6000;
+  assert.equal(second.shouldYield(), true);
+  first.release(); second.release();
+});

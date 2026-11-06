@@ -4,7 +4,7 @@ import { resolve, join, relative, isAbsolute, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import { createDiscoveryFrontier } from './discovery-frontier.mjs';
+import { createDiscoveryFrontier, extendWarmSlice } from './discovery-frontier.mjs';
 import { runtimePaths } from '../dist/infrastructure/config/runtime-paths.js';
 import { createBrowserProfiles } from '../dist/infrastructure/browser/profile-repository.js';
 import { createElectronSecretStore } from '../dist/infrastructure/secrets/electron-secret-store.js';
@@ -17,8 +17,8 @@ const hash=v=>createHash('sha256').update(v).digest('hex');
 const arg=name=>{const i=process.argv.indexOf(name);return i<0?null:process.argv[i+1];};
 async function timed(work,ms,code){let timer;try{return await Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(code)),ms);})]);}finally{clearTimeout(timer);}}
 const bounded=(n,min,max)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
-export async function runThreadsCollector({config,host,profileId,onProgress=()=>{},shouldStop=()=>false,resume=false,onRecords=null,onQueryEnd=null,beforeNextPage=null,collectionLimitReason=null}){
- if(!/^[a-z0-9][a-z0-9-]{2,80}$/.test(config.runId)||!Array.isArray(config.queries)||!config.queries.length||config.queries.length>100||config.queries.some(q=>typeof q!=='string'||!q.trim()||q.length>200)||!bounded(config.maxScrollsPerQuery,0,200)||!bounded(config.maxMinutes,1,240)||!bounded(config.targetTotal,1,10000)||!bounded(config.settleMs,2000,15000))throw Error('CONFIG_INVALID');
+export async function runThreadsCollector({config,host,profileId,onProgress=()=>{},shouldStop=()=>false,resume=false,onRecords=null,onQueryEnd=null,beforeNextPage=null,collectionLimitReason=null,continueQuerySlice=null}){
+ if(!/^[a-z0-9][a-z0-9-]{2,80}$/.test(config.runId)||!Array.isArray(config.queries)||!config.queries.length||config.queries.length>240||config.queries.some(q=>typeof q!=='string'||!q.trim()||q.length>200)||!bounded(config.maxScrollsPerQuery,0,200)||!bounded(config.maxMinutes,1,1440)||!bounded(config.targetTotal,1,50000)||!bounded(config.settleMs,2000,15000)||(config.maxReplayPages!==undefined&&!bounded(config.maxReplayPages,1,2000))||(config.warmPageLimit!==undefined&&!bounded(config.warmPageLimit,1,200)))throw Error('CONFIG_INVALID');
  const directory=resolve(config.output),rel=relative(resolve(process.cwd()),directory);
  if(!isAbsolute(config.output)||(rel!=='..'&&!rel.startsWith('..'+sep)&&!isAbsolute(rel)))throw Error('OUTPUT_MUST_BE_OUTSIDE_WORKSPACE');
  const runDirectory=join(directory,'runs',config.runId);mkdirSync(runDirectory,{recursive:true});
@@ -35,7 +35,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
  const modes=config.modes||['top','recent'];
  const jobs=config.interleaveModes===true?config.queries.flatMap(query=>modes.map(mode=>({query,mode}))):modes.flatMap(mode=>config.queries.map(query=>({query,mode})));
  if(jobs.some(j=>!['top','recent'].includes(j.mode)))throw Error('SEARCH_MODE_INVALID');
- const frontier=config.includeContextCandidates===true?createDiscoveryFrontier({platform:'threads',runId:config.runId,jobs,pageBudget:config.maxScrollsPerQuery,checkpoint,checkpointExisted:existsSync(checkpointPath)}):null;
+ const frontier=config.includeContextCandidates===true?createDiscoveryFrontier({platform:'threads',runId:config.runId,jobs,pageBudget:config.maxScrollsPerQuery,checkpoint,checkpointExisted:existsSync(checkpointPath),maxReplayPages:config.maxReplayPages}):null;
  const saveCheckpoint=()=>{if(frontier)checkpoint={...checkpoint,discovery_frontier:frontier.snapshot()};store.checkpoint(runDirectory,checkpoint);};
  let active=null,jobIndex=checkpoint.job_index,scrollIndex=0,epoch=0,closing=false,captureAdmission=true,stopReason=null,observer=null,observerStarted=0,reads=0,lastNext=null,lastEmbedded=null;
  const initial=store.count,pending=new Map(),requestInfo=new Map(),operations=new Map(),readers=new Set();
@@ -135,6 +135,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
     if(frontier){check();frontier.page(ji,scroll);saveCheckpoint();}
     event({event:'YIELD',job_index:ji,scroll_index:scroll,new_records:gained,no_progress:noProgress,replaying:scroll<=slice.replayDepth,...geometry});
     if(noProgress>=4){queryStop='NO_PROGRESS';event({event:'NO_PROGRESS',job_index:ji});break;}
+    if(extendWarmSlice(slice,{currentScroll:scroll,gained,pageBudget:config.maxScrollsPerQuery,warmPageLimit:config.warmPageLimit,maxReplayPages:config.maxReplayPages,canContinue:!onQueryEnd&&!!continueQuerySlice?.()}))event({event:'WARM_SLICE',job_index:ji,scroll_index:scroll,max_scroll:slice.maxScroll});
    }
    await drain(true);check();if(frontier)frontier.finish(ji,lastNext===false?'NATIVE_END_OBSERVED':queryStop);checkpoint={...checkpoint,job_index:ji+1};saveCheckpoint();
    if(onQueryEnd){const completedQuery=active.query;active=null;epoch++;manager.stopAll();await timed(Promise.allSettled([...readers,...pending.values()]),12000,'CAPTURE_DRAIN_TIMEOUT');wc.debugger.removeListener('message',onRequest);try{await onQueryEnd({window:wc,profileId:profile.id,platform:'threads',query:completedQuery,shouldStop:externalStop});}finally{if(!wc.isDestroyed())wc.debugger.on('message',onRequest);}check();}
