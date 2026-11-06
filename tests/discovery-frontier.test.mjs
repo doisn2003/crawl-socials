@@ -30,13 +30,13 @@ test('large immutable query portfolio and longer frontier remain resumable', () 
 test('page budget preserves continuation and mode identity while native end is the only exhaustion proof', () => {
   const original = input(), frontier = createDiscoveryFrontier(original);
   assert.notEqual(frontier.snapshot().jobs[0].id, frontier.snapshot().jobs[1].id);
-  assert.deepEqual(frontier.begin(0), { allowed: true, replayDepth: 0, maxScroll: 20 });
+  assert.deepEqual(frontier.begin(0), { allowed: true, replayDepth: 0, maxScroll: 20, emptyPages: 0 });
   frontier.page(0, 20); frontier.finish(0, 'PAGE_BUDGET_REACHED');
   frontier.begin(1); frontier.page(1, 2); frontier.finish(1, 'NATIVE_END_OBSERVED');
   const restored = reopened(original, frontier);
   assert.deepEqual(restored.indices(), [], 'budget slices do not run again without explicit Resume');
   assert.deepEqual(restored.indices({ resume: true }), [0]);
-  assert.deepEqual(restored.begin(0), { allowed: true, replayDepth: 20, maxScroll: 40 });
+  assert.deepEqual(restored.begin(0), { allowed: true, replayDepth: 20, maxScroll: 40, emptyPages: 0 });
   restored.page(0, 21); restored.finish(0, 'NO_PROGRESS');
   assert.equal(restored.snapshot().jobs[0].state, 'STALLED'); assert.equal(restored.stopReason(), 'QUERY_BUDGET_COMPLETE');
   assert.deepEqual(reopened(original, restored).indices({ resume: true }), [0], 'duplicate stagnation is resumable, not native exhaustion');
@@ -57,7 +57,7 @@ test('checkpoint snapshots are detached and an uncommitted page replays safely',
   const committed = frontier.snapshot(); frontier.page(0, 8);
   assert.equal(committed.jobs[0].depth, 7);
   const recovered = createDiscoveryFrontier({ ...original, checkpoint: { ...original.checkpoint, discovery_frontier: committed }, checkpointExisted: true });
-  assert.deepEqual(recovered.begin(0), { allowed: true, replayDepth: 7, maxScroll: 27 });
+  assert.deepEqual(recovered.begin(0), { allowed: true, replayDepth: 7, maxScroll: 27, emptyPages: 0 });
   recovered.page(0, 1); assert.equal(recovered.snapshot().jobs[0].depth, 7, 'replay must not decrease known depth');
 });
 
@@ -84,4 +84,15 @@ test('invalid, tampered or query/mode-mismatched frontier fails closed', () => {
   }
   assert.throws(() => createDiscoveryFrontier({ ...original, jobs: [...original.jobs].reverse(), checkpoint: { ...original.checkpoint, discovery_frontier: saved } }), /DISCOVERY_FRONTIER_MISMATCH/);
   assert.throws(() => createDiscoveryFrontier({ ...original, jobs: [original.jobs[0], original.jobs[0]] }), /DISCOVERY_FRONTIER_DUPLICATE_JOB/);
+});
+
+
+test('four empty fresh pages remain detectable across three-page slices and repeated replay', () => {
+  const original = { ...input(), pageBudget: 3 }; let f = createDiscoveryFrontier(original);
+  f.begin(0); for(let depth=1;depth<=3;depth++)f.page(0,depth,0); f.finish(0,'PAGE_BUDGET_REACHED');
+  f=reopened(original,f);assert.equal(f.begin(0).emptyPages,3);
+  f.page(0,1,0);f.page(0,2,0);f.page(0,3,0);assert.equal(f.snapshot().jobs[0].empty_pages,3,'replay does not add or erase stagnation');
+  f.page(0,4,0);assert.equal(f.snapshot().jobs[0].empty_pages,4);f.finish(0,'NO_PROGRESS');
+  assert.equal(f.snapshot().jobs[0].state,'STALLED');assert.notEqual(f.stopReason(),'SOURCE_EXHAUSTED');
+  f=reopened(original,f);f.begin(0);f.page(0,2,1);assert.equal(f.snapshot().jobs[0].empty_pages,0,'new records during replay reset stagnation');
 });

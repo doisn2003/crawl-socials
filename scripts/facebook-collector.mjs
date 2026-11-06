@@ -146,7 +146,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
    const url=new URL('https://www.facebook.com/search/top');url.searchParams.set('q',activeQuery);url.searchParams.set('filters','eyJycF9hdXRob3I6MCI6IntcIm5hbWVcIjpcIm1lcmdlZF9wdWJsaWNfcG9zdHNcIixcImFyZ3NcIjpcIlwifSJ9');
    event({event:'QUERY',query_index:qi,query:activeQuery});await timed(wc.loadURL(url.href),30000,'NAVIGATION_TIMEOUT');await sleep(config.settleMs);check();
    const before=await snapshot();event({event:'VIEW',query_index:qi,...before,mainText:undefined,alert:undefined});await embedded();
-   let noProgress=0,queryStop='PAGE_BUDGET_REACHED';
+   let noProgress=slice.emptyPages??0,queryStop='PAGE_BUDGET_REACHED';
    for(let scroll=1;scroll<=slice.maxScroll;scroll++){
     check();if(beforeNextPage)await beforeNextPage();check();if(newThisRun>=config.targetNewRecords&&qi>=Math.min(1,config.queries.length-1))break;
     if(lastHasNext===false){queryStop='NATIVE_END_OBSERVED';event({event:'SOURCE_EXHAUSTED',query_index:qi});break;}
@@ -154,8 +154,8 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
     const geometry=await execute(`(()=>{const root=document.scrollingElement;const scrollable=e=>e.clientHeight>300&&e.scrollHeight>e.clientHeight+200&&/auto|scroll/.test(getComputedStyle(e).overflowY);const primary=[...document.querySelectorAll('[role="main"],[role="feed"],main')].filter(scrollable);const candidates=primary.length?primary:root.scrollHeight>root.clientHeight+100?[]:[...document.querySelectorAll('div')].filter(scrollable);const e=candidates.sort((a,b)=>b.clientHeight-a.clientHeight)[0]||root;const before=e.scrollTop;e.scrollTo({top:e.scrollHeight,behavior:'instant'});return {tag:e.tagName,role:e.getAttribute('role'),before,after:e.scrollTop,height:e.scrollHeight,client:e.clientHeight,root:e===root};})()`);
     event({event:'SCROLL',query_index:qi,scroll_index:scroll,...geometry});await sleep(config.settleMs);check();await snapshot();await embedded();
     await drain();
-    const gained=store.count-count;noProgress=scroll<=slice.replayDepth||gained?0:noProgress+1;
-    if(frontier){check();frontier.page(qi,scroll);saveCheckpoint();}
+    const gained=store.count-count;noProgress=gained?0:scroll<=slice.replayDepth?noProgress:noProgress+1;
+    if(frontier){check();frontier.page(qi,scroll,gained);saveCheckpoint();}
     event({event:'YIELD',query_index:qi,scroll_index:scroll,new_records:gained,no_progress:noProgress,replaying:scroll<=slice.replayDepth});
     if(noProgress>=3&&geometry.after>=geometry.height-geometry.client-10){queryStop='NO_PROGRESS';break;}
     if(extendWarmSlice(slice,{currentScroll:scroll,gained,pageBudget:config.maxScrollsPerQuery,warmPageLimit:config.warmPageLimit,maxReplayPages:config.maxReplayPages,canContinue:!onQueryEnd&&!!continueQuerySlice?.()}))event({event:'WARM_SLICE',query_index:qi,scroll_index:scroll,max_scroll:slice.maxScroll});

@@ -37,11 +37,11 @@ export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, che
       const expected = definitions[index];
       if (!job || job.id !== expected.id || job.index !== index || job.query !== expected.query || job.mode !== expected.mode
           || !states.has(job.state) || !integer(job.depth, maxReplayPages + pageBudget)
-          || !integer(job.slices, Number.MAX_SAFE_INTEGER) || !reasons.has(job.reason)
+          || !integer(job.slices, Number.MAX_SAFE_INTEGER) || !integer(job.empty_pages ?? 0, Number.MAX_SAFE_INTEGER) || !reasons.has(job.reason)
           || (job.state === 'EXHAUSTED' && job.reason !== 'NATIVE_END_OBSERVED')
           || (job.state === 'PENDING' && (job.depth !== 0 || job.slices !== 0 || job.reason !== null))) throw Error('DISCOVERY_FRONTIER_INVALID');
     });
-    frontier = structuredClone(saved);
+    frontier = structuredClone(saved); for (const job of frontier.jobs) job.empty_pages ??= 0;
   } else {
     frontier = { schema_version: 1, run_id: runId, platform, plan_sha256: planHash, jobs: definitions.map(job => {
       const prior = checkpointExisted && job.index < position;
@@ -50,7 +50,7 @@ export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, che
       // conservatively replay its former slice instead of stopping at duplicates.
       const depth = prior ? pageBudget : interrupted ? platform === 'facebook' && integer(checkpoint.scroll_index, pageBudget) ? checkpoint.scroll_index : pageBudget : 0;
       return { ...job, state: prior ? 'BUDGET_LIMITED' : interrupted ? 'RUNNING' : 'PENDING', depth,
-        slices: prior ? 1 : 0, reason: prior || interrupted ? 'LEGACY_DEPTH_UNKNOWN' : null };
+        slices: prior ? 1 : 0, empty_pages: 0, reason: prior || interrupted ? 'LEGACY_DEPTH_UNKNOWN' : null };
     }) };
   }
   const at = index => { const job = frontier.jobs[index]; if (!job) throw Error('DISCOVERY_FRONTIER_INVALID'); return job; };
@@ -66,12 +66,17 @@ export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, che
         return { allowed: false, replayDepth, maxScroll: 0 };
       }
       job.state = 'RUNNING'; job.reason = null;
-      return { allowed: true, replayDepth, maxScroll: replayDepth + pageBudget };
+      return { allowed: true, replayDepth, maxScroll: replayDepth + pageBudget, emptyPages: job.empty_pages ?? 0 };
     },
     // Call only after all currently received records are durably persisted.
-    page(index, depth) {
+    page(index, depth, gained) {
       const job = at(index);
       if (job.state !== 'RUNNING' || !integer(depth, maxReplayPages + pageBudget)) throw Error('DISCOVERY_FRONTIER_INVALID');
+      if (gained !== undefined) {
+        if (!integer(gained, Number.MAX_SAFE_INTEGER)) throw Error('DISCOVERY_FRONTIER_INVALID');
+        if (gained > 0) job.empty_pages = 0;
+        else if (depth > job.depth) job.empty_pages = (job.empty_pages ?? 0) + 1;
+      }
       job.depth = Math.max(job.depth, depth);
     },
     finish(index, reason) {

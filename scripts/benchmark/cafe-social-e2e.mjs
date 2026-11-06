@@ -39,12 +39,12 @@ function status(phase = 'RUNNING') {
 async function main() {
   if (!process.argv.includes('--live')) throw Error('LIVE_FLAG_REQUIRED');
   if (existsSync(join(dir,'closed-spending.json')) && !process.argv.includes('--resume')) throw Error('TASK_ALREADY_CLOSED');
-  if (baseSpending && (!process.argv.includes('--resume') || !((read('status.json').taskError === 'CAMPAIGN_SEMANTIC_VALIDATION_FAILED' && !read('status.json').results.length) || (process.argv.includes('--restart-empty-collection') && read('status.json').results.every(r=>r.raw===0)) || (process.argv.includes('--restart-after-fix') && read('status.json').taskError==='USER_STOP' && read('status.json').results.length===1 && read('status.json').results[0].topic==='A')))) throw Error('EXPLICIT_RESUME_HARNESS_REQUIRED');
+  if (baseSpending && (!process.argv.includes('--resume') || !((read('status.json').taskError === 'CAMPAIGN_SEMANTIC_VALIDATION_FAILED' && !read('status.json').results.length) || (process.argv.includes('--restart-empty-collection') && read('status.json').results.every(r=>r.raw===0)) || (process.argv.includes('--restart-after-fix') && read('status.json').taskError==='USER_STOP' && read('status.json').results.length>=1 && read('status.json').results.every(r=>r.topic==='A'))))) throw Error('EXPLICIT_RESUME_HARNESS_REQUIRED');
   if(baseSpending&&read('status.json').results.length)write('empty-collection-harness-failures-'+Date.now()+'.json',read('status.json'));
   let recoveredA=[];
   if(process.argv.includes('--restart-after-fix')){
     const archive=join(dir,'trial-before-fix-'+Date.now());mkdirSync(archive,{recursive:true});
-    for(const file of ['status.json','results-A-CONSISTENT.json','plan-A-CONSISTENT.json','summary.json'])if(existsSync(join(dir,file)))copyFileSync(join(dir,file),join(archive,file));
+    for(const file of ['status.json','results-A-CONSISTENT.json','results-A-STANDARD.json','results-A-QUALITY.json','plan-A-CONSISTENT.json','summary.json'])if(existsSync(join(dir,file)))copyFileSync(join(dir,file),join(archive,file));
     recoveredA=JSON.parse(readFileSync(join(archive,'results-A-CONSISTENT.json'),'utf8')).opportunity.snapshots.filter(s=>s.post);
     rmSync(join(dir,'STOP'),{force:true});
   }
@@ -149,7 +149,7 @@ async function main() {
       rootsHash:createHash('sha256').update(JSON.stringify(data.snapshots.map(s=>s.platform+':'+s.root_post_id).sort())).digest('hex'),
       opportunityTypes:data.conversations.filter(r=>r.decision.classification==='SUITABLE').reduce((out,r)=>{for(const t of (r.decision.attributes?.opportunity_types??'').split(',').filter(Boolean))out[t]=(out[t]??0)+1;return out;},{})};
     delete summary.progress; results.push(summary);write('summary.json',{task,results,cost:after});status();
-    if(stopping)throw Error('USER_STOP');
+    if(stopping||existsSync(join(dir,'STOP')))throw Error('USER_STOP');
     if(p.lastError&&/MODEL_|GEMINI_API/.test(p.lastError))throw Error(p.lastError);
     if(after.remaining_usd<=0)throw Error('TASK_BUDGET_REACHED');
   }

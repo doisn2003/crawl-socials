@@ -126,13 +126,13 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
    if(!slice.allowed){event({event:'REPLAY_BUDGET_REACHED',job_index:ji,replay_depth:slice.replayDepth});continue;}
    active=jobs[ji];jobIndex=ji;epoch++;scrollIndex=0;lastNext=null;lastEmbedded=null;await attach();
    const url=new URL('https://www.threads.com/search');url.searchParams.set('q',active.query);url.searchParams.set('serp_type','default');if(active.mode==='recent')url.searchParams.set('filter','recent');
-   event({event:'QUERY',job_index:ji,...active});await timed(wc.loadURL(url.href),30000,'NAVIGATION_TIMEOUT');await sleep(config.settleMs);check();await snapshot();await embedded();let noProgress=0,queryStop='PAGE_BUDGET_REACHED';
+   event({event:'QUERY',job_index:ji,...active});await timed(wc.loadURL(url.href),30000,'NAVIGATION_TIMEOUT');await sleep(config.settleMs);check();await snapshot();await embedded();let noProgress=slice.emptyPages??0,queryStop='PAGE_BUDGET_REACHED';
    for(let scroll=1;scroll<=slice.maxScroll;scroll++){
     check();if(beforeNextPage)await beforeNextPage();check();if(store.count>=config.targetTotal)break;if(lastNext===false){queryStop='NATIVE_END_OBSERVED';event({event:'SOURCE_EXHAUSTED',job_index:ji});break;}
     await attach();scrollIndex=scroll;const count=store.count;
     const geometry=await execute(`(()=>{const root=document.scrollingElement;const scrollable=e=>e.clientHeight>250&&e.scrollHeight>e.clientHeight+100&&/auto|scroll/.test(getComputedStyle(e).overflowY);const primary=[...document.querySelectorAll('main,[role="main"]')].filter(scrollable);const candidates=primary.length?primary:root.scrollHeight>root.clientHeight+100?[]:[...document.querySelectorAll('div')].filter(scrollable);const e=candidates.sort((a,b)=>b.clientHeight-a.clientHeight)[0]||root;const before=e.scrollTop;e.scrollTo({top:e.scrollHeight,behavior:'instant'});return {before,after:e.scrollTop,height:e.scrollHeight,client:e.clientHeight,root:e===root};})()`);
-    await sleep(config.settleMs);check();await snapshot();await embedded();await drain();const gained=store.count-count;noProgress=scroll<=slice.replayDepth||gained?0:noProgress+1;
-    if(frontier){check();frontier.page(ji,scroll);saveCheckpoint();}
+    await sleep(config.settleMs);check();await snapshot();await embedded();await drain();const gained=store.count-count;noProgress=gained?0:scroll<=slice.replayDepth?noProgress:noProgress+1;
+    if(frontier){check();frontier.page(ji,scroll,gained);saveCheckpoint();}
     event({event:'YIELD',job_index:ji,scroll_index:scroll,new_records:gained,no_progress:noProgress,replaying:scroll<=slice.replayDepth,...geometry});
     if(noProgress>=4){queryStop='NO_PROGRESS';event({event:'NO_PROGRESS',job_index:ji});break;}
     if(extendWarmSlice(slice,{currentScroll:scroll,gained,pageBudget:config.maxScrollsPerQuery,warmPageLimit:config.warmPageLimit,maxReplayPages:config.maxReplayPages,canContinue:!onQueryEnd&&!!continueQuerySlice?.()}))event({event:'WARM_SLICE',job_index:ji,scroll_index:scroll,max_scroll:slice.maxScroll});
