@@ -137,3 +137,15 @@ test('ordinary slices skip stalled modes until the coordinator grants a cooldown
   assert.deepEqual(f.indices({resume:true,recoverStalled:false}),[1]);
   assert.deepEqual(f.indices({resume:true,recoverStalled:true}),[0,1]);
 });
+
+
+test('old hidden-renderer stalls receive one versioned recovery with original counters retained', () => {
+  const original={...input('facebook'),pageBudget:3};let f=createDiscoveryFrontier(original);
+  for(let i=0;i<3;i++){const s=f.begin(0);f.page(0,s.replayDepth+3,0);f.finish(0,'NO_PROGRESS');}
+  const old=f.snapshot();delete old.rendering_revision;
+  f=createDiscoveryFrontier({...original,checkpoint:{...original.checkpoint,discovery_frontier:old},checkpointExisted:true});
+  assert.equal(f.begin(0).allowed,true);assert.equal(f.snapshot().jobs[0].recovery_attempts,2);
+  assert.equal(f.snapshot().jobs[0].rendering_recovery_attempts,1);assert.equal(f.snapshot().rendering_migration.previous[0].recovery_attempts,2);
+  f.page(0,12,0);f.finish(0,'NO_PROGRESS');f=reopened(original,f);
+  assert.equal(f.begin(0).allowed,false,'restarting cannot repeat the renderer migration allowance');
+});

@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 // not an assertion that the feed still has the same contents or pagination.
 export const MAX_DISCOVERY_REPLAY_PAGES = 100;
 export const MAX_STALL_RECOVERIES = 2;
+export const DISCOVERY_RENDERING_REVISION = 'offscreen-rendering-v1';
 
 /** Counters explain a local lack of progress; they never assert network-wide exhaustion. */
 export function createDiscoveryDiagnostics() {
@@ -73,11 +74,17 @@ export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, che
       if (!job || job.id !== expected.id || job.index !== index || job.query !== expected.query || job.mode !== expected.mode
           || !states.has(job.state) || !integer(job.depth, maxReplayPages + pageBudget)
           || !integer(job.slices, Number.MAX_SAFE_INTEGER) || !integer(job.empty_pages ?? 0, Number.MAX_SAFE_INTEGER)
-          || !integer(job.recovery_attempts ?? 0, MAX_STALL_RECOVERIES) || !reasons.has(job.reason)
+          || !integer(job.recovery_attempts ?? 0, MAX_STALL_RECOVERIES)
+          || !integer(job.rendering_recovery_attempts ?? 0, 1) || !reasons.has(job.reason)
           || (job.state === 'EXHAUSTED' && job.reason !== 'NATIVE_END_OBSERVED')
           || (job.state === 'PENDING' && (job.depth !== 0 || job.slices !== 0 || job.reason !== null))) throw Error('DISCOVERY_FRONTIER_INVALID');
     });
     frontier = structuredClone(saved); for (const job of frontier.jobs) job.empty_pages ??= 0;
+    if (frontier.rendering_revision !== DISCOVERY_RENDERING_REVISION) {
+      frontier.rendering_migration = { from: frontier.rendering_revision ?? 'hidden-native-v0', to: DISCOVERY_RENDERING_REVISION,
+        previous: frontier.jobs.map(job => ({ id: job.id, state: job.state, depth: job.depth, empty_pages: job.empty_pages, recovery_attempts: job.recovery_attempts ?? 0 })) };
+      for (const job of frontier.jobs) if (job.state === 'STALLED') job.rendering_recovery_pending = true;
+    }
   } else {
     frontier = { schema_version: 1, run_id: runId, platform, plan_sha256: planHash, jobs: definitions.map(job => {
       const prior = checkpointExisted && job.index < position;
@@ -89,6 +96,7 @@ export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, che
         slices: prior ? 1 : 0, empty_pages: 0, reason: prior || interrupted ? 'LEGACY_DEPTH_UNKNOWN' : null };
     }) };
   }
+  frontier.rendering_revision = DISCOVERY_RENDERING_REVISION;
   const at = index => { const job = frontier.jobs[index]; if (!job) throw Error('DISCOVERY_FRONTIER_INVALID'); return job; };
   return {
     snapshot: () => structuredClone(frontier),
@@ -98,8 +106,12 @@ export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, che
       const job = at(index), replayDepth = job.depth;
       if (job.state === 'EXHAUSTED') throw Error('DISCOVERY_FRONTIER_EXHAUSTED');
       if (job.state === 'STALLED') {
-        if ((job.recovery_attempts ?? 0) >= MAX_STALL_RECOVERIES) return { allowed: false, replayDepth, maxScroll: 0, reason: 'NO_PROGRESS' };
-        job.recovery_attempts = (job.recovery_attempts ?? 0) + 1;
+        if (job.rendering_recovery_pending === true && (job.rendering_recovery_attempts ?? 0) < 1) {
+          job.rendering_recovery_pending = false; job.rendering_recovery_attempts = 1;
+        } else {
+          if ((job.recovery_attempts ?? 0) >= MAX_STALL_RECOVERIES) return { allowed: false, replayDepth, maxScroll: 0, reason: 'NO_PROGRESS' };
+          job.recovery_attempts = (job.recovery_attempts ?? 0) + 1;
+        }
         // A deliberate retry must reach fresh depth rather than stop on its first replay page.
         job.empty_pages = 0;
       }

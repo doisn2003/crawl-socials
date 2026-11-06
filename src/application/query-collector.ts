@@ -12,6 +12,8 @@ type Task = { id: string; worker: number; query: string; state: string; reason: 
   observed?: number; duplicates?: number; elapsedMs?: number; pages?: number; replayPages?: number; warmExtensions?: number;
   stallRecoveries?: number; retryAt?: number | null; recoveryPending?: boolean; diagnostics?: unknown; };
 const code = (e: unknown) => e instanceof Error && /^[A-Z][A-Z0-9_]{1,100}$/.test(e.message) ? e.message : 'QUERY_FAILED';
+// Keep aligned with discovery-frontier.mjs; this grants one recovery after the renderer fix, not a budget reset.
+const COLLECTOR_REVISION = 'offscreen-rendering-v1';
 
 export async function runQueryCollectors(input: CollectorInput, collect: (input: CollectorInput, worker: string | null) => Promise<CollectorReceipt>,
   windows: ReturnType<typeof createWindowScheduler> = sharedWindows,
@@ -22,14 +24,21 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
     || new Set(queries).size !== queries.length || !Number.isSafeInteger(input.config.maxMinutes) || Number(input.config.maxMinutes) < 1 || Number(input.config.maxMinutes) > 1440) throw Error('CONFIG_INVALID');
   const directory = join(output, 'runs', runId), file = join(directory, 'query-tasks.json'); mkdirSync(directory, { recursive: true });
   const fingerprint = createHash('sha256').update(JSON.stringify(input.config)).digest('hex');
-  const saved = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as { fingerprint: string; startedAt: string; tasks: Task[]; expansionExhausted?: boolean } : null;
+  const saved = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as { fingerprint: string; startedAt: string; tasks: Task[]; expansionExhausted?: boolean; collectorRevision?: string; renderingMigration?: unknown } : null;
   if (saved && (saved.fingerprint !== fingerprint || saved.tasks.length < queries.length || queries.some((q, i) => saved.tasks[i]?.query !== q))) throw Error('RUN_CONFIG_CHANGED');
   const startedAt = saved?.startedAt ?? new Date().toISOString();
   const manifestFile = join(directory, 'manifest.json');
   if (!existsSync(manifestFile)) atomicJson(manifestFile, { run_id: runId, started_at: startedAt, config_sha256: fingerprint, config: input.config });
   const tasks: Task[] = saved?.tasks ?? queries.map((query, i) => ({ id: createHash('sha256').update(input.platform + ':' + input.profileId + ':' + query).digest('hex').slice(0, 16),
     worker: i + 1, query, state: 'QUEUED', reason: null, slices: 0, newRecords: 0, attempts: 0 }));
+  const renderingMigration = saved && saved.collectorRevision !== COLLECTOR_REVISION
+    ? { from: saved.collectorRevision ?? 'hidden-native-v0', to: COLLECTOR_REVISION,
+      previous: tasks.map(t => ({ id: t.id, state: t.state, reason: t.reason, stallRecoveries: t.stallRecoveries ?? 0, retryAt: t.retryAt ?? null })) }
+    : saved?.renderingMigration;
   for (const task of tasks) {
+    if (saved && saved.collectorRevision !== COLLECTOR_REVISION && task.state !== 'COMPLETED' && task.attempts > 0) {
+      task.state = 'QUEUED'; task.retryAt = null; task.recoveryPending = true; continue;
+    }
     // Resume retains both the cooldown and the campaign's recovery allowance.
     if (task.retryAt) { task.state = 'COOLDOWN'; continue; }
     if (task.state === 'COMPLETED' || task.state === 'COOLDOWN' || (task.reason === 'NO_PROGRESS' && (task.stallRecoveries ?? 0) >= 2)) continue;
@@ -38,9 +47,29 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
   const deadline = Date.parse(startedAt) + Number(input.config.maxMinutes) * 60000;
   const store = input.platform === 'facebook' ? createFacebookCollectorStore(output) : createThreadsCollectorStore(output);
   let barrier: string | null = null, ingestion: Promise<unknown> = Promise.resolve(), expansionExhausted = saved?.expansionExhausted ?? false, expansionError: string | null = null;
+  let expansionFailures = 0, expansionDeferred = false;
   const stopReason = () => input.shouldStop() ? 'USER_STOP' : barrier ?? input.collectionLimitReason?.() ?? (now() >= deadline ? 'RUN_DEADLINE' : null);
-  function publish() { atomicJson(file, { fingerprint, startedAt, tasks, resources: windows.status(), expansionError, expansionExhausted }); input.onProgress({ total: store.count, workers: structuredClone(tasks) }); }
+  function publish() { atomicJson(file, { fingerprint, startedAt, tasks, resources: windows.status(), expansionError, expansionExhausted,
+    expansionDeferred, collectorRevision: COLLECTOR_REVISION, ...(renderingMigration ? { renderingMigration } : {}) }); input.onProgress({ total: store.count, workers: structuredClone(tasks) }); }
+  async function expand(completeInitial = false) {
+    if (stopReason() || !input.expandQueries || tasks.length >= MAX_SEARCH_QUERIES || (!completeInitial && (expansionExhausted || expansionDeferred))) return;
+    try {
+      const expanded = await input.expandQueries({ knownQueries: tasks.map(t => t.query), completeInitial });
+      expansionExhausted = !completeInitial && !expanded.length; expansionError = null;
+      for (const query of expanded) if (tasks.length < MAX_SEARCH_QUERIES && typeof query === 'string' && query.trim() && query.length <= 200 && !tasks.some(t => t.query === query)) tasks.push({
+        id: createHash('sha256').update(input.platform + ':' + input.profileId + ':' + query).digest('hex').slice(0, 16),
+        worker: tasks.length + 1, query, state: 'QUEUED', reason: null, slices: 0, newRecords: 0, attempts: 0 });
+    } catch (error) {
+      expansionError = code(error);
+      const incomplete = ['QUERY_COVERAGE_INCOMPLETE', 'QUERY_EXPANSION_INVALID', 'QUERY_EXPANSION_UNGROUNDED'].includes(expansionError);
+      expansionExhausted = !incomplete; expansionDeferred = incomplete && ++expansionFailures >= 3;
+      input.onProgress({ event: 'QUERY_EXPANSION_FAILED' });
+    }
+    publish();
+  }
   publish();
+  // Even a previously terminal collector must consult the versioned shared portfolio on explicit resume.
+  await expand(true);
   // Every task gets a bounded first turn; productive windows may keep one extra warm slice.
   while (tasks.some(t => t.state === 'QUEUED' || t.state === 'COOLDOWN') && !stopReason()) {
     for (const task of tasks) if (task.state === 'COOLDOWN' && (task.retryAt ?? 0) <= now()) { task.state = 'QUEUED'; task.retryAt = null; }
@@ -117,16 +146,7 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
       finally { if (taskStarted) task.elapsedMs = (task.elapsedMs ?? 0) + now() - taskStarted; lease?.release(); publish(); }
     }));
     // Each completed round can consume or request the next shared, durably bounded query wave.
-    if (!stopReason() && !expansionExhausted && tasks.length < MAX_SEARCH_QUERIES && input.expandQueries) {
-      let expanded: string[] = [];
-      try { expanded = await input.expandQueries({ knownQueries: tasks.map(t => t.query) }); }
-      catch (error) { expansionError = code(error); expansionExhausted = true; input.onProgress({ event: 'QUERY_EXPANSION_FAILED' }); }
-      if (!expanded.length) expansionExhausted = true;
-      for (const query of expanded) if (tasks.length < MAX_SEARCH_QUERIES && typeof query === 'string' && query.trim() && query.length <= 200 && !tasks.some(t => t.query === query)) tasks.push({
-        id: createHash('sha256').update(input.platform + ':' + input.profileId + ':' + query).digest('hex').slice(0, 16),
-        worker: tasks.length + 1, query, state: 'QUEUED', reason: null, slices: 0, newRecords: 0, attempts: 0 });
-      publish();
-    }
+    await expand();
   }
   await ingestion;
   for (const task of tasks) if (task.state === 'QUEUED' || task.state === 'COOLDOWN') { task.state = 'STOPPED'; task.reason = stopReason() ?? 'QUERY_NOT_RUN'; }

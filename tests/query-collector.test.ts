@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runQueryCollectors } from '../src/application/query-collector.js';
@@ -181,5 +181,48 @@ test('campaign deadline still ends cooldown recovery before another browser is o
       config:{runId:'stall-deadline',output:root,queries:['cafe'],maxMinutes:1}},
       async()=>{calls++;return {stop_reason:'NO_PROGRESS',summary:{unique:0}};},windows,{now:()=>clock,sleep:async ms=>{clock+=ms;}});
     assert.equal(calls,2);assert.equal(result.stop_reason,'RUN_DEADLINE');assert.equal(windows.status().active,0);
+  } finally {rmSync(root,{recursive:true,force:true});}
+});
+
+
+test('renderer revision grants one recovery without resetting prior stall counters or ledger-independent config', async () => {
+  const root=mkdtempSync(join(tmpdir(),'csd-render-recovery-'));let clock=Date.now(),calls=0;
+  const windows=createWindowScheduler({sample:()=>({freeBytes:12e9,totalBytes:16e9,cpuBusy:0}),staggerMs:0});
+  const config={runId:'render-recovery',output:root,queries:['cafe'],maxMinutes:10};
+  const input:CollectorInput={platform:'facebook',profileId:'fixture',config,shouldStop:()=>false,onProgress(){}};
+  const runtime={now:()=>clock,sleep:async(ms:number)=>{clock+=ms;}};
+  try {
+    await runQueryCollectors(input,async()=>({stop_reason:'NO_PROGRESS',summary:{unique:0}}),windows,runtime);
+    const file=join(root,'runs/render-recovery/query-tasks.json'),old=JSON.parse(readFileSync(file,'utf8'));
+    delete old.collectorRevision;writeFileSync(file,JSON.stringify(old));
+    await runQueryCollectors(input,async child=>{calls++;assert.equal(child.recoverStalled,true);return {stop_reason:'NO_PROGRESS',summary:{unique:0}};},windows,runtime);
+    const saved=JSON.parse(readFileSync(file,'utf8'));assert.equal(calls,1);assert.equal(saved.tasks[0].stallRecoveries,2);
+    assert.equal(saved.renderingMigration.previous[0].stallRecoveries,2);assert.equal(saved.fingerprint,old.fingerprint);assert.equal(saved.startedAt,old.startedAt);
+    await runQueryCollectors(input,async()=>{throw Error('MIGRATION_MUST_NOT_REPEAT');},windows,runtime);
+  } finally {rmSync(root,{recursive:true,force:true});}
+});
+
+test('empty initial coverage preflight does not disable target-driven later waves', async () => {
+  const root=mkdtempSync(join(tmpdir(),'csd-preflight-waves-'));const requests:unknown[]=[];const visited:string[]=[];
+  const windows=createWindowScheduler({sample:()=>({freeBytes:12e9,totalBytes:16e9,cpuBusy:0}),staggerMs:0});
+  try {
+    await runQueryCollectors({platform:'facebook',profileId:'fixture',shouldStop:()=>false,onProgress(){},
+      config:{runId:'preflight-waves',output:root,queries:['initial'],maxMinutes:10},
+      expandQueries:async request=>{requests.push(request);return request?.completeInitial?[]:requests.length===2?['new branch']:[];}},
+      async child=>{visited.push((child.config.queries as string[])[0]!);return {stop_reason:'SOURCE_EXHAUSTED',summary:{unique:0}};},windows);
+    assert.deepEqual(visited,['initial','new branch']);assert.equal(requests.length,3);
+  } finally {rmSync(root,{recursive:true,force:true});}
+});
+
+test('invalid expansion remains visibly incomplete with bounded retries while existing collection continues', async () => {
+  const root=mkdtempSync(join(tmpdir(),'csd-incomplete-wave-'));let expands=0,collects=0;
+  const windows=createWindowScheduler({sample:()=>({freeBytes:12e9,totalBytes:16e9,cpuBusy:0}),staggerMs:0});
+  try {
+    await runQueryCollectors({platform:'facebook',profileId:'fixture',shouldStop:()=>false,onProgress(){},
+      config:{runId:'incomplete-wave',output:root,queries:['initial'],maxMinutes:10},
+      expandQueries:async()=>{expands++;throw Error('QUERY_COVERAGE_INCOMPLETE');}},
+      async()=>({stop_reason:++collects<4?'QUERY_BUDGET_COMPLETE':'SOURCE_EXHAUSTED',summary:{unique:0}}),windows);
+    const saved=JSON.parse(readFileSync(join(root,'runs/incomplete-wave/query-tasks.json'),'utf8'));
+    assert.equal(expands,3);assert.equal(collects,4);assert.equal(saved.expansionExhausted,false);assert.equal(saved.expansionDeferred,true);assert.equal(saved.expansionError,'QUERY_COVERAGE_INCOMPLETE');
   } finally {rmSync(root,{recursive:true,force:true});}
 });
