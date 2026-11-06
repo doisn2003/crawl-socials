@@ -54,6 +54,19 @@ test('wire schema keeps named data properties and enums while application enforc
     labels: { type: 'array', items: { type: 'string', enum: ['A', 'B'] } } }, required: ['maxItems', 'labels'] });
 });
 
+test('invalid schema diagnostics preserve the cause without persisting provider error prose', () => temporary(async directory => {
+  const gateway = createGeminiGateway({ mockTransport: true, directory, budgetUsd: 1, apiKey: 'never-log-this-secret', minRequestIntervalMs: 0,
+    fetch: async () => new Response(JSON.stringify({ error: { code: 400, status: 'INVALID_ARGUMENT',
+      message: 'The schema produces a constraint that has too many states for serving. never-log-this-secret private-account-detail',
+    } }), { status: 400 }) });
+  await assert.rejects(gateway.generateJson(request), /MODEL_REQUEST_INVALID/);
+  const ledger = readFileSync(join(directory, 'model-ledger.jsonl'), 'utf8');
+  const finish = JSON.parse(ledger.trim().split('\n').at(-1)!);
+  assert.equal(finish.request_diagnostic, 'SCHEMA_DECODER_COMPLEXITY');
+  assert.equal(finish.cost_usd, 0); assert.equal(gateway.summary().reserved_usd, 0);
+  assert.equal(ledger.includes('never-log-this-secret'), false); assert.equal(ledger.includes('private-account-detail'), false);
+}));
+
 test('usage includes cached discounts and thinking tokens without double billing', () => {
   const usage = parseGeminiUsage({ promptTokenCount: 1000, cachedContentTokenCount: 200, candidatesTokenCount: 50, thoughtsTokenCount: 10, totalTokenCount: 1060 });
   assert.deepEqual(usage, { input_tokens: 1000, cached_input_tokens: 200, output_tokens: 60, thinking_tokens: 10 });

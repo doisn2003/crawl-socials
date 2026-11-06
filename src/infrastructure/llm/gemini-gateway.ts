@@ -77,6 +77,7 @@ interface FinishEvent {
   type: 'FINISH'; invocation_id: string; request_hash: string; model: string; finished_at: string;
   result: JsonModelResult | null; cost_usd: number | null; unmetered_cost_upper_usd: number;
   error_code: string | null; http_status: number | null;
+  request_diagnostic?: string;
 }
 type LedgerEvent = StartEvent | FinishEvent;
 
@@ -112,6 +113,17 @@ function permanentFailure(status: number, payload: Record<string, unknown> | nul
   if (violations.some(v => Number(v.quotaValue ?? v.quota_value ?? -1) === 0
     || /per.?day|daily/u.test(JSON.stringify(v).toLowerCase()))) return 'MODEL_DAILY_QUOTA_EXHAUSTED';
   return null;
+}
+
+// Classify provider diagnostics in memory. Never journal provider error prose:
+// it may echo credentials, account details, or submitted content.
+function invalidRequestDiagnostic(payload: Record<string, unknown> | null): string {
+  const error = payload?.error as Record<string, unknown> | undefined;
+  const message = typeof error?.message === 'string' ? error.message : '';
+  if (/too many states|constraint.*(?:too large|too complex)|schema.*complexity/iu.test(message)) return 'SCHEMA_DECODER_COMPLEXITY';
+  if (/response[_ ]?json[_ ]?schema|response[_ ]?schema/iu.test(message)) return 'STRUCTURED_OUTPUT_SCHEMA_INVALID';
+  if (/unknown (?:name|field)|invalid json payload/iu.test(message)) return 'REQUEST_FIELD_INVALID';
+  return 'INVALID_REQUEST_UNSPECIFIED';
 }
 
 function readLedger(file: string): LedgerEvent[] {
@@ -274,7 +286,8 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
         unmetered_cost_upper_usd: unknown, cache_hit: false, elapsed_ms: Date.now() - started, price } : null;
       // A failed disk write leaves START unresolved; restart reserves its full cost conservatively.
       try { append({ type: 'FINISH', invocation_id: invocation, request_hash: hash, model, finished_at: new Date().toISOString(),
-        result, cost_usd: cost, unmetered_cost_upper_usd: unknown, error_code: errorCode, http_status: response?.status ?? null }); }
+        result, cost_usd: cost, unmetered_cost_upper_usd: unknown, error_code: errorCode, http_status: response?.status ?? null,
+        ...(response?.status === 400 ? { request_diagnostic: invalidRequestDiagnostic(payload) } : {}) }); }
       catch (error) { reserved = Math.max(0, reserved - upper); if (reserved < 1e-12) reserved = 0; unknownUpper += upper; accountBudget(); throw error; }
       reserved = Math.max(0, reserved - upper); if (reserved < 1e-12) reserved = 0; spent += cost ?? 0; unknownUpper += unknown;
       accountBudget();
