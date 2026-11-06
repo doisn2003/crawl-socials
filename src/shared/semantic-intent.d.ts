@@ -15,7 +15,7 @@ export interface IntentPlan {
   branches: { id: string; label: string; anchor: string; source: IntentSource; quote: string; scope: 'CORE' | 'OPTIONAL'; reason: string; facet_ids?: string[] }[];
   questions: IntentQuestion[]; unresolved_fields: IntentField[]; unconfirmed_assumptions: string[];
   queries: { id: string; text: string; branch_id: string; kind: 'EXACT' | 'PARAPHRASE'; anchor: string; rationale: string; risk: string; rejection: string | null;
-    family_id?: import('./discovery-plan.js').DiscoveryFamily; facet_ids?: string[]; origin?: 'MODEL' | 'LITERAL_INPUT' }[];
+    family_id?: import('./discovery-plan.js').DiscoveryFamily; facet_ids?: string[]; origin?: 'MODEL' | 'LITERAL_INPUT' | 'BARE_ANCHOR' }[];
   caveats: string[]; improvements: string[]; uncovered: string[];
 }
 export interface IntentResolution { schema_version: 1; input: IntentInput; plan: IntentPlan; recipe_hash: string }
