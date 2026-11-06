@@ -44,7 +44,7 @@ function harness(directory: string) {
       return new Response(JSON.stringify({ modelVersion: 'fixture', candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(value) }] } }],
         usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 300, totalTokenCount: 1300 } }), { status: 200 });
     } });
-  return { directory, gatewayFactory: factory, requests, fail: (v: boolean) => { fail = v; }, invalid: (n: number) => { invalid = n; }, uncovered: () => { uncovered = true; } };
+  return { directory, plannerPolicy: SEMANTIC_PLANNER_POLICY as typeof SEMANTIC_PLANNER_POLICY, gatewayFactory: factory, requests, fail: (v: boolean) => { fail = v; }, invalid: (n: number) => { invalid = n; }, uncovered: () => { uncovered = true; } };
 }
 async function temporary(work: (directory: string) => Promise<void>) {
   const directory = mkdtempSync(join(tmpdir(), 'csd-semantic-'));
@@ -160,7 +160,7 @@ test('desktop service exposes clarification after restart and blocks collection 
   const options = { directory, version: 'test', host: { list: async () => [], sessionStatus: async () => false,
     create: async () => { throw Error('NO_CREATE'); }, openLogin: async () => {} },
     collect: async () => { collected++; throw Error('NO_COLLECT'); },
-    prepareCampaignDraft: (v: Parameters<typeof prepareSemanticDraft>[0]) => prepareSemanticDraft({ ...v, gatewayFactory: h.gatewayFactory }),
+    prepareCampaignDraft: (v: Parameters<typeof prepareSemanticDraft>[0]) => prepareSemanticDraft({ ...v, plannerPolicy: SEMANTIC_PLANNER_POLICY, gatewayFactory: h.gatewayFactory }),
     continueCampaignDraft: (v: Parameters<typeof continueSemanticDraft>[0]) => continueSemanticDraft({ ...v, gatewayFactory: h.gatewayFactory }) };
   const service = createProductionService(options);
   service.saveConfig({ schemaVersion: 2, keywords: [], minimumPosts: 10, opportunity: config });

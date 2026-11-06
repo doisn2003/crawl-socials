@@ -1,0 +1,13 @@
+import type { IntentInput, IntentPlan, IntentAnswer, IntentEdit, ContinueCampaignRequest } from '../shared/semantic-intent.js';
+export const POLICY: string;
+export const VALIDATOR: string;
+export const EXPERIMENT_SYSTEM: string;
+export const EXPERIMENT_SCHEMA: { type: string; properties: Record<string, unknown>; required: string[] };
+export const FIELDS: Record<string, string>;
+export function activeAnswers(input: IntentInput): IntentAnswer[];
+export function activeEdits(input: IntentInput): IntentEdit[];
+export function reviseAnswers(input: IntentInput, plan: IntentPlan, submissions: NonNullable<ContinueCampaignRequest['answers']>, runId: string, expectedRevision: number, previous?: IntentPlan): IntentInput;
+export function reviseIntent(input: IntentInput, changes: NonNullable<ContinueCampaignRequest['edits']>, runId: string, expectedRevision: number): IntentInput;
+export function validateResult(raw: unknown, variant: string, input: IntentInput, baseline: unknown): IntentPlan;
+export function canonicalIntentQuote(text: string, quote: string): string | null;
+export function modelRequest(variant: string, input: IntentInput, baseline: unknown): { system: string; schema: Record<string, unknown>; input: Record<string, unknown>; maxOutputTokens: number };

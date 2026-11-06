@@ -20,7 +20,8 @@ export interface CampaignDraftPlan extends CampaignCriteria {
   budget: { raw_cap: number; model_usd: number; max_run_minutes: number; comments_per_capture: number; comment_pages: number };
   filter_version: string;
   intent_resolution?: import('./semantic-intent.js').IntentResolution;
-  planner_policy?: 'legacy-short-v1' | 'grounded-constraints-v1' | 'controlled-semantic-dialogue-v1';
+  planner_policy?: 'legacy-short-v1' | 'grounded-constraints-v1' | 'controlled-semantic-dialogue-v1' | 'opportunity-coverage-v2';
+  discovery_plan?: import('./discovery-plan.js').DiscoveryPlan;
   constraint_provenance?: {
     schema_version: 1; sources: Record<'PROMPT' | 'BRAND_CONTEXT', string>;
     compiled_values: Pick<CampaignCriteria, 'required_geographies' | 'preferred_geographies' | 'languages' | 'max_age_days' | 'source_priority'>;
@@ -47,7 +48,7 @@ export interface CampaignDraftSource {
   plannerRequestHash?: string; plannerInvocationId?: string;
   /** An earlier failed attempt was recovered locally; no new model response is claimed. */
   plannerRecovery?: 'EXPLICIT_USER_TOPIC_LIST' | 'RECORDED_VALIDATED_RESPONSE';
-  plannerPolicy?: 'legacy-short-v1' | 'grounded-constraints-v1' | 'controlled-semantic-dialogue-v1'; plannerRecipeHash?: string;
+  plannerPolicy?: 'legacy-short-v1' | 'grounded-constraints-v1' | 'controlled-semantic-dialogue-v1' | 'opportunity-coverage-v2'; plannerRecipeHash?: string;
 }
 export interface CampaignCriteriaOverride {
   at: string; previousRevision: string; patch: CampaignCriteriaPatch;

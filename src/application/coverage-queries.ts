@@ -5,12 +5,30 @@ import { contentHash } from '../domain/conversation.js';
 import type { CampaignPlan } from '../domain/campaign-plan.js';
 import type { ModelGateway } from './ports/model-gateway.js';
 
+/** Initial coverage and the durable reserve are separate; every profile can replay the same reserve safely. */
+export function initialDiscoveryQueries(campaign: CampaignPlan, platform: 'facebook' | 'threads'): string[] {
+  return campaign.queries.filter(q => q.platforms.includes(platform) && (!campaign.discovery_plan || q.wave === 0)).map(q => q.text);
+}
+
 /** At most one paid expansion per campaign, shared by both platforms and persisted before dispatch. */
 export function createCoverageExpansion(directory: string, campaign: CampaignPlan, gateway: ModelGateway, signal: AbortSignal) {
   const file = join(directory, 'coverage-query-expansion.json');
   let work: Promise<string[]> | undefined;
   return () => work ??= (async () => {
     const fingerprint = contentHash(campaign);
+    if (campaign.discovery_plan) {
+      // This is a frozen retrieval portfolio, not a new inference or a destructive queue pop.
+      // Replaying the full reserve avoids one platform/profile consuming another's query wave.
+      signal.throwIfAborted();
+      const queries = campaign.discovery_plan.queries.filter(q => q.wave > 0).map(q => q.text);
+      if (existsSync(file)) {
+        const saved = JSON.parse(readFileSync(file, 'utf8')) as { fingerprint: string; queries: string[]; state: string };
+        if (saved.fingerprint !== fingerprint || saved.state !== 'FROZEN_RESERVE'
+          || JSON.stringify(saved.queries) !== JSON.stringify(queries)) throw Error('QUERY_EXPANSION_STATE_INVALID');
+      } else atomicJson(file, { fingerprint, queries, state: 'FROZEN_RESERVE',
+        waves: campaign.discovery_plan.queries.filter(q => q.wave > 0).map(q => ({ query_id: q.query_id, wave: q.wave, family_id: q.family_id, facet_ids: q.facet_ids })) });
+      return [...queries];
+    }
     if (existsSync(file)) {
       const saved = JSON.parse(readFileSync(file, 'utf8')) as { fingerprint: string; queries: string[] };
       if (saved.fingerprint !== fingerprint || !Array.isArray(saved.queries)) throw Error('QUERY_EXPANSION_STATE_INVALID');

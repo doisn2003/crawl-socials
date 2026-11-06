@@ -6,6 +6,8 @@ import { contentHash } from '../domain/conversation.js';
 import { SEMANTIC_PLANNER_POLICY } from '../domain/campaign-plan.js';
 import { EXPERIMENT_SYSTEM, EXPERIMENT_SCHEMA, VALIDATOR } from '../domain/semantic-keywords.mjs';
 import type { ModelGateway, JsonModelResult } from './ports/model-gateway.js';
+import { OPPORTUNITY_PLANNER_POLICY, DISCOVERY_FAMILIES } from '../domain/discovery-contract.js';
+import { EXPERIMENT_SYSTEM as DISCOVERY_SYSTEM, EXPERIMENT_SCHEMA as DISCOVERY_SCHEMA, VALIDATOR as DISCOVERY_VALIDATOR } from '../domain/opportunity-keywords.mjs';
 
 const listSchema = { type: 'array', items: { type: 'string' }, maxItems: 20 };
 export const CAMPAIGN_MODEL_SCHEMA: Record<string, unknown> = {
@@ -82,6 +84,8 @@ Do not add missing geography/language/age/source constraints to inclusions or ex
 Existing default source ordering is a product default, not a fact extracted from the user's prompt.`;
 
 const plannerRecipes = {
+  [OPPORTUNITY_PLANNER_POLICY]: { planner_policy: OPPORTUNITY_PLANNER_POLICY, version: 'campaign-planner-v3.0.0-opportunity-coverage',
+    system: DISCOVERY_SYSTEM, schema: DISCOVERY_SCHEMA, validator: DISCOVERY_VALIDATOR, family_catalog: DISCOVERY_FAMILIES },
   [SEMANTIC_PLANNER_POLICY]: { planner_policy: SEMANTIC_PLANNER_POLICY, version: 'campaign-planner-v2.0.0-semantic-dialogue', system: EXPERIMENT_SYSTEM, schema: EXPERIMENT_SCHEMA, validator: VALIDATOR },
   'legacy-short-v1': { planner_policy: 'legacy-short-v1', version: 'campaign-planner-v1.1-grounded-short', system: PLANNER_SYSTEM, schema: CAMPAIGN_MODEL_SCHEMA },
   [GROUNDED_CONSTRAINT_PLANNER_POLICY]: { planner_policy: GROUNDED_CONSTRAINT_PLANNER_POLICY, version: 'campaign-planner-v1.2.1-grounded-constraints',
@@ -276,7 +280,7 @@ export function campaignFromModel(input: CampaignPlanInput, value: unknown, now 
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('CAMPAIGN_MODEL_INVALID');
   const plan = value as Record<string, unknown>;
   if (typeof plan.topic !== 'string' || !plan.topic.trim() || plan.topic.length > 300) throw Error('CAMPAIGN_MODEL_TOPIC_INVALID');
-  if (!Array.isArray(plan.queries) || plan.queries.length < 1 || plan.queries.length > 48) throw Error('CAMPAIGN_MODEL_QUERIES_INVALID');
+  if (!Array.isArray(plan.queries) || plan.queries.length < 1 || plan.queries.length > (literal ? 240 : 48)) throw Error('CAMPAIGN_MODEL_QUERIES_INVALID');
   const generatedQueries: CampaignQuery[] = plan.queries.map(q => {
     if (!q || typeof q !== 'object' || typeof q.text !== 'string' || typeof q.family !== 'string') throw Error('CAMPAIGN_MODEL_QUERY_INVALID');
     return { text: q.text.normalize('NFC').trim(), family: q.family as QueryFamily, platforms: ['threads', 'facebook'] };
@@ -311,7 +315,7 @@ export function literalCampaign(input: CampaignPlanInput, now = new Date().toISO
 }
 
 export async function compileCampaign(input: CampaignPlanInput, gateway: ModelGateway, options: { signal?: AbortSignal } = {}): Promise<{ campaign: CampaignPlan; model_result: JsonModelResult }> {
-  if (input.planner_policy === SEMANTIC_PLANNER_POLICY) {
+  if (input.planner_policy === SEMANTIC_PLANNER_POLICY || input.planner_policy === OPPORTUNITY_PLANNER_POLICY) {
     const { compileSemanticTurn } = await import('./semantic-campaign.js');
     const result = await compileSemanticTurn(input, { stage: 'S2', prompt: input.prompt.normalize('NFC').trim(), context: input.brand_context?.trim() ?? '',
       seeds: input.seed_queries ?? [], revision: 1, answers: [], edits: [] }, gateway, options);

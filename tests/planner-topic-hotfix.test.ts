@@ -93,7 +93,7 @@ test('retrying a failed draft preserves recipe pins and all charged attempts, th
         usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 300, totalTokenCount: 1300 } }), { status: 200 });
     } });
   let runId = '';
-  try { await prepareSemanticDraft({ directory, config, gatewayFactory: factory }); assert.fail('Expected invalid topics'); }
+  try { await prepareSemanticDraft({ directory, config, gatewayFactory: factory, plannerPolicy: 'controlled-semantic-dialogue-v1' }); assert.fail('Expected invalid topics'); }
   catch (error) { assert.ok(error instanceof CampaignDraftPreparationError); runId = error.runId; }
   assert.equal(calls, 2);
   const opportunity = join(directory, 'collections', runId, 'opportunity');

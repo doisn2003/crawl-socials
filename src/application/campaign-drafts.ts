@@ -11,7 +11,7 @@ import { createCampaignModelGateway } from '../infrastructure/llm/campaign-model
 import { classifierRecipe } from './classification-service.js';
 import { compileCampaign, plannerRecipeHash } from './compile-campaign.js';
 import { pinPlannerRecipe } from './planner-recipe-pin.js';
-import { SEMANTIC_PLANNER_POLICY, INTENT_OPPORTUNITY_FILTER_VERSION } from '../domain/campaign-plan.js';
+import { SEMANTIC_PLANNER_POLICY, OPPORTUNITY_PLANNER_POLICY, INTENT_OPPORTUNITY_FILTER_VERSION } from '../domain/campaign-plan.js';
 import { compileSemanticTurn } from './semantic-campaign.js';
 import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
 import { reviseAnswers, reviseIntent } from '../domain/semantic-keywords.mjs';
@@ -85,7 +85,8 @@ function read(file: string): unknown {
   try { return JSON.parse(readFileSync(file, 'utf8')); } catch { throw Error('DRAFT_READ_FAILED'); }
 }
 function criteria(campaign: CampaignPlan): CampaignCriteria {
-  return structuredClone(Object.fromEntries(criteriaKeys.map(key => [key, campaign[key]]))) as unknown as CampaignCriteria;
+  return structuredClone(Object.fromEntries(criteriaKeys.map(key => [key, key === 'queries'
+    ? campaign.queries.map(({ text, family, platforms }) => ({ text, family, platforms })) : campaign[key]]))) as unknown as CampaignCriteria;
 }
 /** Explicit user edits are accepted as authority; generated-query lexical restrictions do not erase them. */
 export function validateCriteriaPatch(value: unknown): CampaignCriteriaPatch {
@@ -103,7 +104,7 @@ export function validateCriteriaPatch(value: unknown): CampaignCriteriaPatch {
     output.source_priority = [...value.source_priority];
   }
   if ('queries' in value) {
-    if (!Array.isArray(value.queries) || !value.queries.length || value.queries.length > 100) throw Error('DRAFT_CRITERIA_INVALID');
+    if (!Array.isArray(value.queries) || !value.queries.length || value.queries.length > 240) throw Error('DRAFT_CRITERIA_INVALID');
     output.queries = value.queries.map(query => {
       if (!object(query) || !exactKeys(query, ['text', 'family', 'platforms']) || typeof query.family !== 'string' || !queryFamilies.includes(query.family)
         || !Array.isArray(query.platforms) || !query.platforms.length || query.platforms.length > 2 || query.platforms.some(p => p !== 'threads' && p !== 'facebook')
@@ -161,7 +162,7 @@ function gatewayFor(input: Located, config: OpportunityConfig) {
 function view(record: DraftRecord, pointer: DraftPointer, receipt: CampaignDraftCost): CampaignDraftView {
   let supported = true; try { assertRecipe(record.campaign, record.recipe, record.recipeHash); } catch { supported = false; }
   return structuredClone({ runId: record.runId, revision: pointer.revision, status: pointer.status, supported, config: record.config,
-    criteriaCapabilities: { extendedClassificationCriteria: supported && [TEMPORAL_OPPORTUNITY_FILTER_VERSION, INTENT_OPPORTUNITY_FILTER_VERSION, GOAL_FILTER_VERSION, 'coverage-standard-v1', 'coverage-quality-v1'].includes(record.campaign.filter_version) },
+    criteriaCapabilities: { extendedClassificationCriteria: supported && [TEMPORAL_OPPORTUNITY_FILTER_VERSION, INTENT_OPPORTUNITY_FILTER_VERSION, GOAL_FILTER_VERSION, 'coverage-standard-v1', 'coverage-quality-v1', 'opportunity-posts-consistent-v1', 'opportunity-posts-standard-v1', 'opportunity-posts-quality-v1'].includes(record.campaign.filter_version) },
     configHash: contentHash(record.config), campaign: record.campaign, criteria: criteria(record.campaign), recipeHash: record.recipeHash,
     source: record.source, sourceHash: contentHash(record.source), cost: receipt, createdAt: record.createdAt,
     updatedAt: record.updatedAt, userOverrides: record.userOverrides });
@@ -256,6 +257,12 @@ export function updateDraft(input: { directory: string } & UpdateCampaignDraftRe
   // Keep that exact plan retryable; never create a draft revision that can no longer be started.
   if (existsSync(join(paths(input).opportunity, 'campaign.json'))) throw Error('DRAFT_PLAN_COMMITTED');
   const patch = validateCriteriaPatch(input.criteriaPatch), campaign = { ...record.campaign, ...patch };
+  if (campaign.discovery_plan && patch.queries) {
+    // Query lineage is immutable. An unchanged editor round-trip preserves it; changes
+    // go through the intent dialogue so removal cannot silently erase a requested facet.
+    if (contentHash(patch.queries) !== contentHash(criteria(record.campaign).queries)) throw Error('DRAFT_DISCOVERY_REPLAN_REQUIRED');
+    campaign.queries = structuredClone(record.campaign.queries);
+  }
   const { version: _version, created_at: _created, ...base } = campaign; campaign.version = campaignVersion(base);
   const config = { ...record.config, brandContext: campaign.brand_context ?? '',
     ...(patch.languages && record.config.languageScope ? { languageScope: patch.languages.length === 1 && patch.languages[0] === 'vi' ? 'VIETNAMESE' as const : 'PROMPT' as const } : {}) };
@@ -277,7 +284,7 @@ export function resolveDraftForStart(input: StartInput): ResolvedCampaignDraft {
   return { ...view(record, pointer, readDraftCost(input)), outputDirectory: paths(input).output };
 }
 
-type PrepareInput = Parameters<typeof prepareDraft>[0];
+type PrepareInput = Parameters<typeof prepareDraft>[0] & { plannerPolicy?: typeof SEMANTIC_PLANNER_POLICY | typeof OPPORTUNITY_PLANNER_POLICY };
 type DialogueRecord = Omit<CampaignDialogueView, 'revision' | 'cost'>;
 function dialogueFile(input: Located) { return join(paths(input).opportunity, 'intent-dialogue.json'); }
 export function readDialogue(input: Located): CampaignDialogueView | null {
@@ -296,16 +303,16 @@ function saveDialogue(input: Located, record: DialogueRecord): CampaignDialogueV
 /** New desktop campaigns use the approved dialogue. Historical allocations retain their exact recipe. */
 export async function prepareSemanticDraft(input: PrepareInput): Promise<CampaignDraftView | CampaignDialogueView> {
   const config = parseOpportunityConfig(input.config); if (!config.enabled) throw Error('DRAFT_OPPORTUNITY_REQUIRED');
-  const location = input.resumeRunId ? { directory: input.directory, runId: input.resumeRunId } : allocated(input.directory, config, SEMANTIC_PLANNER_POLICY);
+  const location = input.resumeRunId ? { directory: input.directory, runId: input.resumeRunId } : allocated(input.directory, config, input.plannerPolicy ?? OPPORTUNITY_PLANNER_POLICY);
   const allocation = readAllocation(location);
   if (allocation.configHash !== contentHash(config)) throw Error('DRAFT_CONFIG_MISMATCH');
-  if (allocation.plannerPolicy !== SEMANTIC_PLANNER_POLICY) return prepareDraft({ ...input, resumeRunId: location.runId });
+  if (allocation.plannerPolicy !== SEMANTIC_PLANNER_POLICY && allocation.plannerPolicy !== OPPORTUNITY_PLANNER_POLICY) return prepareDraft({ ...input, resumeRunId: location.runId });
   const files = paths(location), pendingFile = join(files.opportunity, 'intent-pending.json');
   if (existsSync(join(files.opportunity, 'campaign.json')) || (existsSync(files.pointer) && load(location).pointer.status === 'STARTED')) throw Error('DRAFT_ALREADY_CONSUMED');
   const previous = readDialogue(location);
   if (previous && !existsSync(pendingFile)) return previous.plan.state === 'READY' ? readDraft(location) : previous;
-  const planner = pinPlannerRecipe({ directory: files.opportunity, defaultPolicy: SEMANTIC_PLANNER_POLICY,
-    requiredPolicy: SEMANTIC_PLANNER_POLICY, requiredHash: allocation.plannerRecipeHash! });
+  const planner = pinPlannerRecipe({ directory: files.opportunity, defaultPolicy: allocation.plannerPolicy,
+    requiredPolicy: allocation.plannerPolicy, requiredHash: allocation.plannerRecipeHash! });
   const intent: IntentInput = existsSync(pendingFile) ? (read(pendingFile) as { input: IntentInput }).input
     : { stage: 'S2', prompt: config.prompt, context: config.brandContext, seeds: [], revision: 1, answers: [], edits: [] };
   const gateway = input.gateway ?? (input.gatewayFactory ? input.gatewayFactory({ directory: files.opportunity, budgetUsd: config.budgetUsd }) : gatewayFor(location, config));
@@ -334,7 +341,7 @@ export async function prepareSemanticDraft(input: PrepareInput): Promise<Campaig
     const result = await compileSemanticTurn({ campaign_id: location.runId, prompt: config.prompt, brand_context: config.brandContext,
       ...(config.languageScope === 'VIETNAMESE' ? { languages: ['vi'] } : {}),
       suitable_target: config.totalTarget, desired_platform_weights: { threads: config.threadsShare ?? 0.5, facebook: 1 - (config.threadsShare ?? 0.5) },
-      raw_cap: config.rawCap, model_usd: config.budgetUsd }, intent, gateway, {
+      raw_cap: config.rawCap, model_usd: config.budgetUsd, planner_policy: planner.planner_policy }, intent, gateway, {
       cacheNamespace: 'semantic-dialogue:' + generation.id,
       recordedAttempts,
       ...(input.signal ? { signal: input.signal } : {}),
