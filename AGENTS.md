@@ -2,6 +2,9 @@
 
 ## Authorized live E2E — 2026-11-06
 
+- **Completed and closed**:5cases executed in order; actual output A C/S/Q=293/269/236 on470raw; B C/Q=209/118 on331raw. A CONSISTENT failed target1000; query frontiers stopped NO_PROGRESS, no claim of exhaustive coverage. See [.brain/reports/csd-cafe-social-e2e-20261106.md](.brain/reports/csd-cafe-social-e2e-20261106.md).
+- Task318calls, USD0.484191234 durable measured (token ledger0.484191225; conservative nanodollar rounding), held0. Cumulative DEVELOPMENT closed at1468calls / USD1.942324035 measured / held0. The unused USD5 allowance does not authorize another experiment.
+
 - User authorized ordered live tests A cafe chill: CONSISTENT target1000 accepted, STANDARD and QUALITY max1000 raw; B meeting/dating/socializing with strangers: CONSISTENT then QUALITY max1000 raw.
 - Whole task maximum USD5 including failed planning, retries and reviews. Use Gemini3.1 Flash-Lite, the original cumulative DEVELOPMENT ledger, task cap1500 new calls (operational ceiling). Baseline1150calls/USD1.458132801, held0; never reset these totals.
 - Task artifacts/status: `artifacts/cafe-social-e2e-20261106`; real collection data outside workspace in `%APPDATA%/csd-e2e-tests/cafe-social-e2e-20261106`. Use existing authenticated profiles with a single BrowserHost writer.
