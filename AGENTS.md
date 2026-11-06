@@ -2,6 +2,7 @@
 
 ## Authorized live E2E — 2026-11-06
 
+- Final summary email sent to the authorized recipient; progress heartbeat `email-ti-n-e2e-csd` is PAUSED. Do not send further progress or restart this task automatically.
 - **Completed and closed**:5cases executed in order; actual output A C/S/Q=293/269/236 on470raw; B C/Q=209/118 on331raw. A CONSISTENT failed target1000; query frontiers stopped NO_PROGRESS, no claim of exhaustive coverage. See [.brain/reports/csd-cafe-social-e2e-20261106.md](.brain/reports/csd-cafe-social-e2e-20261106.md).
 - Task318calls, USD0.484191234 durable measured (token ledger0.484191225; conservative nanodollar rounding), held0. Cumulative DEVELOPMENT closed at1468calls / USD1.942324035 measured / held0. The unused USD5 allowance does not authorize another experiment.
 

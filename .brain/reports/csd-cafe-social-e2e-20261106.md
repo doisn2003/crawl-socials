@@ -62,3 +62,7 @@ Chi phí chung cho lỗi chuẩn bị, các lượt dừng/sửa và thử lại
 
 A CONSISTENT chưa đạt target1000 được nhận. Không thể xác nhận cam kết500–5000 bằng kết quả này. Cần ưu tiên mở rộng truy xuất, giảm replay và đo số root mới thực sự tăng thêm trước khi phát hành.
 Nếu các mode dùng dưới1000raw, chỉ kết luận trên tập đã thu; không nội suy thành kết quả1000raw. Chưa nghiệm thu100bài/tháng.
+
+## Bàn giao
+
+Email khởi đầu, hai email tiến độ và email tổng kết đã gửi từ `trangnguyen208203@gmail.com` tới `ngocdoisamsung@gmail.com` qua Gmail plugin. Email tổng kết có nhãn SENT, message ID `1a1b06a72f88d239`. Lịch `email-ti-n-e2e-csd` đã PAUSED sau hoàn tất. Cumulative DEVELOPMENT đã đóng; không có giữ chỗ chi phí.
