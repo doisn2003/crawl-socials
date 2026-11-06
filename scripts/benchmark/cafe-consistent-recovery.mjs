@@ -75,6 +75,14 @@ async function main() {
   if (task.id !== id || task.maxTaskUsd !== MAX_USD || task.prompt !== prompt
     || authorization.totalUsd > task.startingSpending.measuredUsd + MAX_USD + 1e-9
     || authorization.maxCalls > task.startingSpending.calls + MAX_CALLS) throw Error('TASK_ENVELOPE_MISMATCH');
+  if (process.argv.includes('--resume')) {
+    // Keep each interrupted outcome inspectable while the current output advances.
+    const archive = join(directory, 'checkpoints', new Date().toISOString().replace(/[:.]/g, '-'));
+    mkdirSync(archive, { recursive: true });
+    for (const name of ['status.json', 'results.json', 'summary.json', 'spending-checkpoint.json', 'A-CONSISTENT.xlsx']) {
+      if (existsSync(join(directory, name))) copyFileSync(join(directory, name), join(archive, name));
+    }
+  }
   appendFileSync(join(directory, 'launches.jsonl'), JSON.stringify({ at: new Date().toISOString(), resume: process.argv.includes('--resume'), spending: spending.status() }) + '\n');
   const paths = runtimePaths(app.getPath('appData'));
   for (const [name, path] of Object.entries(paths)) { mkdirSync(path, { recursive: true }); app.setPath(name, path); }
@@ -192,6 +200,8 @@ async function main() {
   }, 10000);
   snapshotTimer = setInterval(() => { void checkpoint(); }, 60000);
   await service.settled(); await ingestion; await snapshotWork;
+  // Collectors may notice STOP and settle before the ten-second heartbeat does.
+  if (existsSync(join(directory, 'STOP'))) { stopping = true; error ??= 'USER_STOP'; }
   const result = await service.snapshotResults(); write('results.json', result);
   lastProgress = result.run.opportunity;
   if (!result.opportunity) throw Error('RESULTS_MISSING');

@@ -631,8 +631,19 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     queryPriority: (platform: Platform, query: string) => { const score = queryScores.find(s => s.platform === platform && s.query === query); return score ? score.accepted / Math.max(1, score.observed) : 0; },
     async expandQueries(request?: CoverageExpansionRequest) {
       if (!rebuild || (off && !campaign.discovery_plan) || stopped || (modelHalted && !campaign.discovery_plan) || targetReached()) return [];
-      try { return await expandCoverage(request); }
-      catch (error) { lastError = safeCode(error); if (fatalModelCode(lastError)) haltModel(lastError); await publish(); return []; }
+      try {
+        const expanded = await expandCoverage(request);
+        if (expanded.length && ['QUERY_COVERAGE_INCOMPLETE', 'QUERY_EXPANSION_INVALID', 'QUERY_EXPANSION_UNGROUNDED'].includes(lastError ?? '')) {
+          lastError = null; await publish();
+        }
+        return expanded;
+      }
+      catch (error) {
+        lastError = safeCode(error); if (fatalModelCode(lastError)) haltModel(lastError); await publish();
+        // A malformed/underfilled wave is not evidence that useful search directions ended.
+        if (['QUERY_COVERAGE_INCOMPLETE', 'QUERY_EXPANSION_INVALID', 'QUERY_EXPANSION_UNGROUNDED'].includes(lastError)) throw error;
+        return [];
+      }
     },
     targetReached, discoveryStopReason,
     discoveryShouldStop: (platform: Platform) => discoveryStopReason(platform) !== null,

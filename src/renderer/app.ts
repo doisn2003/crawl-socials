@@ -321,7 +321,7 @@ const reasonLabels: Record<string, string> = {
   EVALUATION_REFRESH_REQUIRED: 'Cần đánh giá lại theo bộ lọc hiện tại. Chọn Tiếp tục để xử lý các bài đã lưu.',
   RETAINED_INPUT_COMPLETE: 'Đã xử lý hết phần dữ liệu đã chọn; số bài phù hợp có thể chưa đạt mục tiêu.',
   RESULTS_STALE_EVALUATION_CONTEXT: 'Kết quả cần được cập nhật theo bộ lọc hiện tại.',
-  SOURCE_EXHAUSTED: 'Nguồn tìm kiếm không còn bài mới.',
+  SOURCE_EXHAUSTED: 'Không còn kết quả tiếp theo trong các truy vấn đã chạy.',
   NO_PROGRESS: 'Không tìm thêm được bài mới.',
   NO_NEW_BATCHES: 'Không tìm thêm được bài mới.',
   USER_STOP: 'Đã dừng theo yêu cầu.',
