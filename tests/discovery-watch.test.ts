@@ -235,11 +235,76 @@ test('migration preserves old awaiting batches and recalculates expected count b
   const s = sandbox();
   try {
     const sub = ready(s); s.store.beginRun(sub.id, 'followup'); s.store.finishRun(sub.id, 3);
-    const db = new DatabaseSync(s.file); db.exec('ALTER TABLE subscriptions DROP COLUMN expected_count'); db.exec('ALTER TABLE delivery_exports DROP COLUMN error'); db.close();
+    const db = new DatabaseSync(s.file); db.exec('ALTER TABLE subscriptions DROP COLUMN expected_count'); db.exec('ALTER TABLE subscriptions DROP COLUMN recipe_run'); db.exec('ALTER TABLE delivery_exports DROP COLUMN error'); db.close();
     s.reopen(); assert.equal(s.store.list()[0]!.awaitingExport, true);
+    assert.equal(s.store.list()[0]!.recipeRunId, 'source');
     const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => stateFor(run('followup', 3, 'COMPLETED', 'source')),
       readRunState: () => null, start: async () => { throw Error('must not start'); } });
     await watch.tick(); s.export('followup', ['facebook:a']); assert.equal(s.store.list()[0]!.awaitingExport, true);
     s.export('followup', ['facebook:b', 'facebook:c']); assert.equal(s.store.list()[0]!.awaitingExport, false); await watch.stop();
+  } finally { s.close(); }
+});
+
+test('explicit recipe attachment preserves stable customer/topic scope and receipts without merging equal labels', () => {
+  const s = sandbox();
+  try {
+    const sub = ready(s);
+    s.export('new-manual-recipe', ['facebook:initial', 'threads:new']);
+    const attached = s.store.attachRecipe(sub.id, 'new-manual-recipe')[0]!;
+    assert.equal(attached.id, sub.id); assert.equal(attached.sourceRunId, 'source'); assert.equal(attached.recipeRunId, 'new-manual-recipe');
+    assert.equal(s.store.scopeForRun('new-manual-recipe'), 'source'); assert.equal(attached.deliveredTotal, 2);
+    assert.equal(attached.deliveredThisMonth, 1, 'only the stable original initial batch is excluded from monthly additions');
+    const unrelated = s.store.create({ sourceRunId: 'another-customer', label: 'Spa' }).find(v => v.sourceRunId === 'another-customer')!;
+    assert.equal(unrelated.deliveredTotal, 0, 'equal labels/prompts cannot merge customers implicitly');
+    assert.throws(() => s.store.attachRecipe(sub.id, 'another-customer'), /DISCOVERY_SCOPE_CONFLICT/);
+    assert.throws(() => s.store.attachRecipe(unrelated.id, 'new-manual-recipe'), /DISCOVERY_SCOPE_CONFLICT/);
+    assert.equal(s.reopen().list().find(v => v.id === sub.id)!.recipeRunId, 'new-manual-recipe');
+  } finally { s.close(); }
+});
+
+test('recipe attachment cannot replace active or awaited work and does not accept path-like run IDs', () => {
+  const s = sandbox();
+  try {
+    const sub = ready(s); s.store.beginRun(sub.id, 'active');
+    assert.throws(() => s.store.attachRecipe(sub.id, 'new-recipe'), /DISCOVERY_BUSY/);
+    s.store.finishRun(sub.id, 2); s.export('active', ['facebook:a']);
+    assert.throws(() => s.store.attachRecipe(sub.id, 'new-recipe'), /DISCOVERY_BUSY/);
+    s.export('active', ['facebook:b']); s.store.setEnabled(sub.id, false);
+    assert.throws(() => s.store.attachRecipe(sub.id, '../outside'), /DISCOVERY_INPUT_INVALID/);
+    s.store.attachRecipe(sub.id, 'new-recipe'); assert.equal(s.store.list()[0]!.enabled, false);
+  } finally { s.close(); }
+});
+
+test('previouslyDeliveredForRun removes other batches while preserving repeat exports of this same batch', () => {
+  const s = sandbox();
+  try {
+    const sub = ready(s); s.store.attachRecipe(sub.id, 'manual');
+    assert.deepEqual(s.store.previouslyDeliveredForRun('manual'), ['facebook:initial']);
+    s.export('manual', ['facebook:initial', 'threads:mine']);
+    assert.deepEqual(s.store.previouslyDeliveredForRun('manual'), ['facebook:initial']);
+    assert.deepEqual(s.store.previouslyDeliveredForRun('source'), ['threads:mine']);
+    s.store.beginRun(sub.id, 'followup');
+    assert.deepEqual(s.store.previouslyDeliveredForRun('followup'), ['facebook:initial', 'threads:mine']);
+    s.export('followup', ['facebook:new-followup']);
+    assert.deepEqual(s.store.previouslyDeliveredForRun('followup'), ['facebook:initial', 'threads:mine']);
+    assert.throws(() => s.store.previouslyDeliveredForRun('../outside'), /DISCOVERY_RUN_INVALID/);
+  } finally { s.close(); }
+});
+
+test('watch starts the attached recipe using stable lifetime exclusions and recovers descendants of that recipe', async () => {
+  const s = sandbox();
+  try {
+    const sub = ready(s); s.store.attachRecipe(sub.id, 'manual'); s.export('manual', ['threads:mine']);
+    let current = stateFor(run('manual', 1)); const starts: Array<{ recipe: string; target: number; excluded: string[] }> = [];
+    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => current, readRunState: () => null,
+      start: async (recipe, target, excluded) => { starts.push({ recipe, target, excluded }); current = stateFor(run('next', 0, 'RUNNING', recipe)); return current; } });
+    await watch.tick(); assert.equal(starts[0]!.recipe, 'manual'); assert.equal(starts[0]!.target, 99);
+    assert.deepEqual(starts[0]!.excluded.sort(), ['facebook:initial', 'threads:mine']);
+    assert.equal(s.store.scopeForRun('next'), 'source'); await watch.stop();
+    s.store.finishRun(sub.id, 0); current = stateFor(run('orphan-next', 2, 'COMPLETED', 'manual'));
+    const recovered = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => current, readRunState: () => null,
+      start: async () => { throw Error('must not start'); } });
+    await recovered.tick(); assert.equal(s.store.scopeForRun('orphan-next'), 'source'); assert.equal(s.store.list()[0]!.awaitingExport, true);
+    await recovered.stop();
   } finally { s.close(); }
 });

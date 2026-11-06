@@ -15,7 +15,7 @@ export function createDiscoveryStore(file: string, now: () => Date = () => new D
   mkdirSync(dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;
-    CREATE TABLE IF NOT EXISTS subscriptions(id TEXT PRIMARY KEY, source_run TEXT UNIQUE NOT NULL, label TEXT NOT NULL,
+    CREATE TABLE IF NOT EXISTS subscriptions(id TEXT PRIMARY KEY, source_run TEXT UNIQUE NOT NULL, recipe_run TEXT, label TEXT NOT NULL,
       enabled INTEGER NOT NULL, interval_hours INTEGER NOT NULL, monthly_target INTEGER NOT NULL, next_at TEXT NOT NULL,
       last_run TEXT, active_run TEXT, awaiting_export INTEGER NOT NULL DEFAULT 0, expected_count INTEGER NOT NULL DEFAULT 0, error TEXT);
     CREATE TABLE IF NOT EXISTS discovery_runs(run_id TEXT PRIMARY KEY, scope TEXT NOT NULL);
@@ -26,6 +26,9 @@ export function createDiscoveryStore(file: string, now: () => Date = () => new D
   // Additive migration: preserve receipts and first-delivery history from earlier versions.
   if (!db.prepare('PRAGMA table_info(subscriptions)').all().some(row => row.name === 'expected_count'))
     db.exec('ALTER TABLE subscriptions ADD COLUMN expected_count INTEGER NOT NULL DEFAULT 0');
+  if (!db.prepare('PRAGMA table_info(subscriptions)').all().some(row => row.name === 'recipe_run'))
+    db.exec('ALTER TABLE subscriptions ADD COLUMN recipe_run TEXT');
+  db.exec('UPDATE subscriptions SET recipe_run=source_run WHERE recipe_run IS NULL');
   if (!db.prepare('PRAGMA table_info(delivery_exports)').all().some(row => row.name === 'error'))
     db.exec('ALTER TABLE delivery_exports ADD COLUMN error TEXT');
   function transaction<T>(fn: () => T): T {
@@ -74,6 +77,25 @@ export function createDiscoveryStore(file: string, now: () => Date = () => new D
         .run(String(row.run_id), exportedCount(String(row.run_id)));
     });
   }
+  /** Call inside a transaction. Never merge two explicitly separate customer/topic subscriptions. */
+  function mapRun(runId: string, stableScope: string) {
+    const mapped = db.prepare('SELECT scope FROM discovery_runs WHERE run_id=?').get(runId);
+    const owner = db.prepare('SELECT source_run FROM subscriptions WHERE source_run=?').get(runId);
+    if ((mapped && mapped.scope !== stableScope) || (owner && owner.source_run !== stableScope)) throw Error('DISCOVERY_SCOPE_CONFLICT');
+    if (runId === stableScope) return;
+    db.prepare('INSERT OR IGNORE INTO discovery_runs(run_id,scope) VALUES(?,?)').run(runId, stableScope);
+    // Include exports made before an explicit recipe attachment or before crash recovery mapped this run.
+    const orphanReceipts = db.prepare('SELECT id FROM delivery_exports WHERE run_id=? AND scope=?').all(runId, runId);
+    for (const receipt of orphanReceipts) {
+      db.prepare(`INSERT INTO deliveries(scope,root_key,first_at,month,export_id)
+        SELECT ?,root_key,first_at,month,export_id FROM deliveries WHERE scope=? AND export_id=?
+        ON CONFLICT(scope,root_key) DO UPDATE SET first_at=excluded.first_at,month=excluded.month,export_id=excluded.export_id
+          WHERE excluded.first_at<deliveries.first_at`)
+        .run(stableScope, runId, String(receipt.id));
+      db.prepare('DELETE FROM deliveries WHERE scope=? AND export_id=?').run(runId, String(receipt.id));
+    }
+    db.prepare('UPDATE delivery_exports SET scope=? WHERE run_id=? AND scope=?').run(stableScope, runId, runId);
+  }
   // Recover the rename/SQLite boundary only when the exact durable file was saved.
   for (const row of db.prepare('SELECT id FROM delivery_exports WHERE complete=0').all()) {
     try { completeExport(String(row.id)); }
@@ -83,7 +105,7 @@ export function createDiscoveryStore(file: string, now: () => Date = () => new D
     }
   }
   function list(): DiscoverySubscription[] {
-    return db.prepare('SELECT * FROM subscriptions ORDER BY rowid').all().map(row => ({ id: String(row.id), sourceRunId: String(row.source_run), label: String(row.label),
+    return db.prepare('SELECT * FROM subscriptions ORDER BY rowid').all().map(row => ({ id: String(row.id), sourceRunId: String(row.source_run), recipeRunId: String(row.recipe_run ?? row.source_run), label: String(row.label),
       enabled: !!row.enabled, intervalHours: Number(row.interval_hours), monthlyTarget: Number(row.monthly_target), nextRunAt: String(row.next_at),
       lastRunId: row.last_run === null ? null : String(row.last_run), activeRunId: row.active_run === null ? null : String(row.active_run),
       awaitingExport: !!row.awaiting_export,
@@ -101,8 +123,8 @@ export function createDiscoveryStore(file: string, now: () => Date = () => new D
         || !Number.isInteger(hours) || hours < 6 || hours > 168 || !Number.isInteger(target) || target < 1 || target > 5000) throw Error('DISCOVERY_INPUT_INVALID');
       const source = scope(input.sourceRunId);
       if (db.prepare('SELECT id FROM subscriptions WHERE source_run=?').get(source)) throw Error('DISCOVERY_ALREADY_EXISTS');
-      db.prepare('INSERT INTO subscriptions(id,source_run,label,enabled,interval_hours,monthly_target,next_at) VALUES(?,?,?,?,?,?,?)')
-        .run(randomUUID(), source, input.label.trim(), 1, hours, target, new Date(now().getTime() + hours * 3600000).toISOString());
+      db.prepare('INSERT INTO subscriptions(id,source_run,recipe_run,label,enabled,interval_hours,monthly_target,next_at) VALUES(?,?,?,?,?,?,?,?)')
+        .run(randomUUID(), source, input.sourceRunId, input.label.trim(), 1, hours, target, new Date(now().getTime() + hours * 3600000).toISOString());
       return list();
     },
     setEnabled(id: string, enabled: boolean) {
@@ -110,6 +132,21 @@ export function createDiscoveryStore(file: string, now: () => Date = () => new D
       db.prepare('UPDATE subscriptions SET enabled=?,error=NULL WHERE id=?').run(Number(enabled), id); return list();
     },
     deliveredKeys(runId: string): string[] { return db.prepare('SELECT root_key FROM deliveries WHERE scope=?').all(scope(runId)).map(row => String(row.root_key)); },
+    previouslyDeliveredForRun(runId: string): string[] {
+      return db.prepare(`SELECT d.root_key FROM deliveries d JOIN delivery_exports e ON e.id=d.export_id
+        WHERE d.scope=? AND e.run_id<>? ORDER BY d.root_key`).all(scope(runId), runId).map(row => String(row.root_key));
+    },
+    attachRecipe(id: string, sourceRunId: string) {
+      if (!validId(id) || !validRun(sourceRunId)) throw Error('DISCOVERY_INPUT_INVALID');
+      transaction(() => {
+        const row = db.prepare('SELECT * FROM subscriptions WHERE id=?').get(id);
+        if (!row) throw Error('DISCOVERY_INPUT_INVALID');
+        if (row.active_run || row.awaiting_export) throw Error('DISCOVERY_BUSY');
+        mapRun(sourceRunId, String(row.source_run));
+        db.prepare('UPDATE subscriptions SET recipe_run=?,error=NULL WHERE id=?').run(sourceRunId, id);
+      });
+      return list();
+    },
     exportedCount,
     hasExport(runId: string, minimumCount = 1): boolean {
       if (!Number.isSafeInteger(minimumCount) || minimumCount < 1) throw Error('DELIVERY_COUNT_INVALID');
@@ -120,21 +157,7 @@ export function createDiscoveryStore(file: string, now: () => Date = () => new D
       transaction(() => {
         const row = db.prepare('SELECT * FROM subscriptions WHERE id=?').get(id);
         if (!row || (row.active_run && row.active_run !== runId) || row.awaiting_export || runId === row.source_run) throw Error('DISCOVERY_BUSY');
-        const mapped = db.prepare('SELECT scope FROM discovery_runs WHERE run_id=?').get(runId);
-        if (mapped && mapped.scope !== row.source_run) throw Error('DISCOVERY_SCOPE_CONFLICT');
-        db.prepare('INSERT OR IGNORE INTO discovery_runs(run_id,scope) VALUES(?,?)').run(runId, String(row.source_run));
-        // A crash after service.start can leave a completed export under the run's temporary own scope.
-        // Recover that receipt atomically before applying the original lifetime deduplication scope.
-        const orphanReceipts = db.prepare('SELECT id FROM delivery_exports WHERE run_id=? AND scope=?').all(runId, runId);
-        for (const receipt of orphanReceipts) {
-          db.prepare(`INSERT INTO deliveries(scope,root_key,first_at,month,export_id)
-            SELECT ?,root_key,first_at,month,export_id FROM deliveries WHERE scope=? AND export_id=?
-            ON CONFLICT(scope,root_key) DO UPDATE SET first_at=excluded.first_at,month=excluded.month,export_id=excluded.export_id
-              WHERE excluded.first_at<deliveries.first_at`)
-            .run(String(row.source_run), runId, String(receipt.id));
-          db.prepare('DELETE FROM deliveries WHERE scope=? AND export_id=?').run(runId, String(receipt.id));
-        }
-        db.prepare('UPDATE delivery_exports SET scope=? WHERE run_id=? AND scope=?').run(String(row.source_run), runId, runId);
+        mapRun(runId, String(row.source_run));
         db.prepare('UPDATE subscriptions SET active_run=?,last_run=?,expected_count=0,error=NULL WHERE id=?').run(runId, runId, id);
       });
     },

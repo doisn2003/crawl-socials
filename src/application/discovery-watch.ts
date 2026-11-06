@@ -50,8 +50,9 @@ export function createDiscoveryWatch(input: {
       if (!selected) { if (requestId) throw Error('DISCOVERY_NOT_DUE'); return; }
       if (stopped) return;
       try {
-        const next = await input.start(selected.sourceRunId, selected.monthlyTarget - selected.deliveredThisMonth, input.store.deliveredKeys(selected.sourceRunId));
-        if (!next.run || next.run.discoverySourceRunId !== selected.sourceRunId) throw Error('DISCOVERY_START_FAILED');
+        const recipe = selected.recipeRunId ?? selected.sourceRunId;
+        const next = await input.start(recipe, selected.monthlyTarget - selected.deliveredThisMonth, input.store.deliveredKeys(selected.sourceRunId));
+        if (!next.run || next.run.discoverySourceRunId !== recipe) throw Error('DISCOVERY_START_FAILED');
         input.store.beginRun(selected.id, next.run.id);
       } catch (error) {
         const code = error instanceof Error && /^[A-Z][A-Z0-9_]+$/.test(error.message) ? error.message : 'DISCOVERY_START_FAILED';
