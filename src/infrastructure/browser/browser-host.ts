@@ -182,17 +182,23 @@ export function createBrowserHost(input: {
     }
     const policy = entry.policy;
     const previousContents = slot.view?.webContents;
-    if (previousContents && !previousContents.isDestroyed()) {
+    if (previousContents && !previousContents.isDestroyed() && previousContents.isOffscreen() === !visible) {
       slot.window?.setSkipTaskbar(!visible);
       if (visible) { slot.window?.show(); slot.window?.focus(); }
       else { slot.window?.hide(); previousContents.setBackgroundThrottling(false); }
       return entry;
     }
+    if (previousContents && !previousContents.isDestroyed()) {
+      // Interactive login needs a normal view; collection needs an offscreen compositor.
+      // Recreate only the view, keeping the profile's authenticated Session and journal.
+      await closeEntry(entry, workerId);
+      if (workerId) entry.workers.set(workerId, slot);
+    }
     if (slot.window && !slot.window.isDestroyed()) slot.window.destroy();
     slot.view = null; slot.window = null;
     const window = new BaseWindow({ title: 'CSD — ' + (entry.profile.platform === 'threads' ? 'Threads' : 'Facebook'), width: 1000, height: 760, show: visible, skipTaskbar: !visible });
     const view = new WebContentsView({ webPreferences: { session: entry.session, sandbox: true,
-      contextIsolation: true, nodeIntegration: false, webviewTag: false,
+      contextIsolation: true, nodeIntegration: false, webviewTag: false, offscreen: !visible,
       backgroundThrottling: visible ? input.backgroundThrottling ?? true : false } });
     slot.window = window; slot.view = view; slot.closing = false; slot.viewGeneration = ++nextViewGeneration;
     const resize = () => {
@@ -202,6 +208,10 @@ export function createBrowserHost(input: {
     window.contentView.addChildView(view); resize(); window.on('resize', resize);
     window.on('close', event => { event.preventDefault(); void close(id, workerId).catch(() => {}); });
     const wc = view.webContents;
+    // A hidden normal WebContentsView reports visibility=visible but produces no
+    // compositor frames on Windows: scroll/IntersectionObserver pagination never runs.
+    // Offscreen frames keep native windows hidden without showing or capturing posts.
+    if (!visible) { wc.setFrameRate(15); wc.startPainting(); }
     const contextFor = (resourceType: string) => !slot.closing && !stopping && slot.view?.webContents === wc
       ? ownedRequestContext(wc, wc.id, resourceType) : undefined;
     wc.setWindowOpenHandler(details => { deniedPopups++; record('POPUP_DENIED', { url: details.url, view: slot.viewGeneration }); return { action: 'deny' }; });

@@ -100,11 +100,13 @@ if (!process.versions.electron) {
     const loginHost = createBrowserHost({ profiles, secrets: { async get() { return null; }, async set() {}, async delete() {} },
       journalDirectory: join(temporary, 'login-journal'), manualLoginEnabled: true,
       sessionForPartition: partition => session.fromPartition('login-memory-' + partition) });
+    const localLoginContents = (_event, contents) => { const load = contents.loadURL.bind(contents); contents.loadURL = () => load('about:blank'); };
+    app.on('web-contents-created', localLoginContents);
     try {
       for (const account of [profile, facebook]) {
         await loginHost.open(account.id);
-        const contents = loginHost.ownedContents(account.id), load = contents.loadURL.bind(contents);
-        contents.loadURL = () => load('about:blank');
+        const contents = loginHost.ownedContents(account.id);
+        assert.equal(contents.isOffscreen(), true);
         assert.ok(BaseWindow.getAllWindows().every(window => !window.isVisible()));
         await loginHost.openLogin(account.id);
         assert.equal(BaseWindow.getAllWindows().filter(window => window.isVisible()).length, 1, 'explicit login opens one window');
@@ -118,10 +120,11 @@ if (!process.versions.electron) {
         assert.equal(BaseWindow.getAllWindows().filter(window => window.isVisible()).length, 1, 'manual login can be reopened');
         await loginHost.open(account.id);
         assert.ok(BaseWindow.getAllWindows().every(window => !window.isVisible()), 'comment collection is hidden too');
-        assert.equal(contents.getBackgroundThrottling(), false);
+        assert.equal(loginHost.ownedContents(account.id).getBackgroundThrottling(), false);
+        assert.equal(loginHost.ownedContents(account.id).isOffscreen(), true);
         await loginHost.close(account.id);
       }
-    } finally { await loginHost.shutdown(); }
+    } finally { app.removeListener('web-contents-created', localLoginContents); await loginHost.shutdown(); }
     const result = { passed: true, checks: ['two real Electron windows navigate independently', 'shared login session per profile',
       'different profiles isolated', 'observer cannot claim sibling window', 'closing one window preserves sibling inflight request',
       'reopened window invalidates old ownership', '24 query windows (12 per platform) own distinct webContents',
