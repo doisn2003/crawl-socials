@@ -1,5 +1,13 @@
 # CSD — current development instructions
 
+## Authorized live E2E — 2026-11-06
+
+- User authorized ordered live tests A cafe chill: CONSISTENT target1000 accepted, STANDARD and QUALITY max1000 raw; B meeting/dating/socializing with strangers: CONSISTENT then QUALITY max1000 raw.
+- Whole task maximum USD5 including failed planning, retries and reviews. Use Gemini3.1 Flash-Lite, the original cumulative DEVELOPMENT ledger, task cap1500 new calls (operational ceiling). Baseline1150calls/USD1.458132801, held0; never reset these totals.
+- Task artifacts/status: `artifacts/cafe-social-e2e-20261106`; real collection data outside workspace in `%APPDATA%/csd-e2e-tests/cafe-social-e2e-20261106`. Use existing authenticated profiles with a single BrowserHost writer.
+- User explicitly authorized progress email every30minutes and final summary from `trangnguyen208203@gmail.com` to `ngocdoisamsung@gmail.com`. Gmail plugin is connected; sender verified. Heartbeat `email-ti-n-e2e-csd`; use email-log to avoid duplicates and stop heartbeat after final mail.
+- Keep all failed preflight/harness attempts charged and saved. A/B root pools are frozen without predicted labels for paired mode comparison. Tests are POST_ONLY. Do not infer useful precision from acceptance rate.
+
 ## Production v2 authorization — 2026-11-06
 
 - The user authorized implementing [.brain/master-plans_restructor_version2.0.0.md](.brain/master-plans_restructor_version2.0.0.md) on **production-v2**, created from production (`codex/csd-production`, `738dc8e`). This supersedes older integration-branch instructions for this work.

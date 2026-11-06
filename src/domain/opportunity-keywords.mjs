@@ -259,6 +259,24 @@ export function validateResult(raw, variant, input, baseline) {
     queries.push({ id: 'literal-' + facet.id, text: facet.literal_query, branch_id: branch.id, kind: 'EXACT', anchor: branch.anchor,
       family_id: 'TOPIC', facet_ids: [facet.id], rationale: 'Giữ đường tìm từ nguyên văn ý người dùng, không suy thêm nhu cầu.', risk: 'MEDIUM', rejection: null, origin: 'LITERAL_INPUT' });
   }
+  // Preserve broad lexical anchors even when a model returns only narrowed recommendations.
+  // A new query must use words from a grounded CORE branch; it never adds a user constraint.
+  for (const branch of raw.state === 'READY' ? raw.branches.filter(b => b.scope === 'CORE') : []) {
+    const bare = branch.anchor.normalize('NFC').trim().replace(/^(?:(?:tìm|xin|gợi ý|review|trải nghiệm|thảo luận(?: về)?|nhu cầu)\s+)+/iu, '').trim();
+    const candidates = [bare, bare.replace(/^(?:quán|dịch vụ|lớp)\s+/iu, '')];
+    for (const text of candidates) {
+      if (!text || text.length > 100 || text.split(/\s+/u).length < 2 || text.split(/\s+/u).length > 8
+        || /[?？\r\n<>:#]|https?:/u.test(text) || queryRoleReversal(text, input)
+        || !words(text).every(w => words(branch.quote).includes(w))) continue;
+      const linked = branch.facet_ids.filter(id => raw.coverage.some(c => c.facet_id === id && c.disposition === 'SEARCH' && c.branch_ids.includes(branch.id)));
+      if (!linked.length) continue;
+      const existing = queries.find(q => !q.rejection && q.text.toLowerCase() === text.toLowerCase());
+      if (existing) { existing.facet_ids = [...new Set([...existing.facet_ids, ...linked])]; continue; }
+      if (queries.filter(q => !q.rejection).length >= MAX_DISCOVERY_QUERIES) break;
+      queries.push({ id: 'bare-' + branch.id + '-' + queries.length, text, branch_id: branch.id, kind: 'EXACT', anchor: text,
+        family_id: 'TOPIC', facet_ids: linked, rationale: 'Giữ query chủ đề không kèm điều kiện, dùng từ của nhánh đã có nguồn.', risk: 'MEDIUM', rejection: null, origin: 'BARE_ANCHOR' });
+    }
+  }
   const uncovered = raw.branches.filter(b => b.scope === 'CORE' && !queries.some(q => !q.rejection && q.branch_id === b.id));
   const missingFacets = raw.coverage.filter(c => c.disposition === 'SEARCH' && !queries.some(q => !q.rejection && q.facet_ids?.includes(c.facet_id)));
   if (raw.state === 'READY' && missingFacets.length) fail('ý gốc chưa có query dùng được', { code: 'ORIGINAL_FACET_COVERAGE', facets: missingFacets.map(c => facets.find(f => f.id === c.facet_id)) });

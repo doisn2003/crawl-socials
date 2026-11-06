@@ -7,5 +7,5 @@ export interface RequestFacet {
   kind: 'SEARCH' | 'CONSTRAINT' | 'EXCLUSION' | 'BUSINESS_CONTEXT'; literal_query: string | null;
 }
 export interface FacetCoverage { facet_id: string; disposition: 'SEARCH' | 'CONSTRAINT' | 'EXCLUSION' | 'BUSINESS_CONTEXT' | 'SUPERSEDED'; branch_ids: string[]; reason: string; superseded_by: string | null }
-export interface DiscoveryQuery { query_id: string; text: string; family_id: DiscoveryFamily; facet_ids: string[]; wave: number; origin: 'MODEL' | 'LITERAL_INPUT'; rationale: string }
+export interface DiscoveryQuery { query_id: string; text: string; family_id: DiscoveryFamily; facet_ids: string[]; wave: number; origin: 'MODEL' | 'LITERAL_INPUT' | 'BARE_ANCHOR'; rationale: string }
 export interface DiscoveryPlan { version: '2.0.0'; evidence_scope: 'POST_ONLY'; facets: RequestFacet[]; coverage: FacetCoverage[]; queries: DiscoveryQuery[]; max_queries: number; initial_wave: 0 }

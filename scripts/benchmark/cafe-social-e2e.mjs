@@ -1,6 +1,6 @@
 // Explicit user-authorized live E2E, 2026-11-06. One cumulative USD5 envelope.
 import { app } from 'electron';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, copyFileSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { runtimePaths } from '../../dist/infrastructure/config/runtime-paths.js';
@@ -39,8 +39,15 @@ function status(phase = 'RUNNING') {
 async function main() {
   if (!process.argv.includes('--live')) throw Error('LIVE_FLAG_REQUIRED');
   if (existsSync(join(dir,'closed-spending.json')) && !process.argv.includes('--resume')) throw Error('TASK_ALREADY_CLOSED');
-  if (baseSpending && (!process.argv.includes('--resume') || !((read('status.json').taskError === 'CAMPAIGN_SEMANTIC_VALIDATION_FAILED' && !read('status.json').results.length) || (process.argv.includes('--restart-empty-collection') && read('status.json').results.every(r=>r.raw===0))))) throw Error('EXPLICIT_RESUME_HARNESS_REQUIRED');
+  if (baseSpending && (!process.argv.includes('--resume') || !((read('status.json').taskError === 'CAMPAIGN_SEMANTIC_VALIDATION_FAILED' && !read('status.json').results.length) || (process.argv.includes('--restart-empty-collection') && read('status.json').results.every(r=>r.raw===0)) || (process.argv.includes('--restart-after-fix') && read('status.json').taskError==='USER_STOP' && read('status.json').results.length===1 && read('status.json').results[0].topic==='A')))) throw Error('EXPLICIT_RESUME_HARNESS_REQUIRED');
   if(baseSpending&&read('status.json').results.length)write('empty-collection-harness-failures-'+Date.now()+'.json',read('status.json'));
+  let recoveredA=[];
+  if(process.argv.includes('--restart-after-fix')){
+    const archive=join(dir,'trial-before-bare-anchor-fix');mkdirSync(archive,{recursive:true});
+    for(const file of ['status.json','results-A-CONSISTENT.json','plan-A-CONSISTENT.json','summary.json'])if(existsSync(join(dir,file)))copyFileSync(join(dir,file),join(archive,file));
+    recoveredA=JSON.parse(readFileSync(join(archive,'results-A-CONSISTENT.json'),'utf8')).opportunity.snapshots.filter(s=>s.post);
+    rmSync(join(dir,'STOP'),{force:true});
+  }
   const paths = runtimePaths(app.getPath('appData'));
   for (const [name,path] of Object.entries(paths)) { mkdirSync(path,{recursive:true}); app.setPath(name,path); }
   app.setName('CSD'); app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
@@ -79,12 +86,21 @@ async function main() {
   const liveData=join(app.getPath('appData'),'csd-e2e-tests',taskId);write('live-data-path.json',{directory:liveData});
   service = createProductionService({directory:liveData,version:'production-v2-e2e',host,watchAfterDiscovery:false,
     prepareCampaignDraft:args=>prepareSemanticDraft({...args,gatewayFactory:()=>gateway}),
-    createOpportunity:args=>createOpportunityPipeline({...args,gateway,classificationWorkers:2,assessmentCacheDirectory:join(dir,'assessment-cache'),
-      onProgress:p=>{args.onProgress?.(p);if(current)current.progress=p;}}),
+    createOpportunity:async args=>{
+      const pipeline=await createOpportunityPipeline({...args,gateway,classificationWorkers:2,assessmentCacheDirectory:join(dir,'assessment-cache'),
+        onProgress:p=>{args.onProgress?.(p);if(current)current.progress=p;}});
+      if(current.index===1&&recoveredA.length){
+        for(const platform of ['facebook','threads']){
+          const rows=recoveredA.filter(s=>s.platform===platform).map(s=>({post_id:s.root_post_id,text:s.post.text,collected_at:s.observed_at,post_url:s.post.permalink,published_at:s.post.published_at,author_name:s.post.author?.name,source_type:s.post.source?.kind}));
+          rows.forEach(row=>admission.add(platform+':'+row.post_id));await pipeline.ingestRows(platform,rows,{method:'RECOVERED_PRE_FIX_RAW'});
+        }
+      }
+      return pipeline;
+    },
     collectConversation:async()=>{throw Error('COMMENTS_FORBIDDEN');},
     async collect(input){
       if(current.source==='REPLAY'){
-        const rows=(pools[current.topic]??[]).filter(s=>s.platform===input.platform).map(s=>({post_id:s.root_post_id,text:s.post.text,
+        const rows=(pools[current.topic]??[]).filter(s=>s.platform===input.platform).map(s=>({post_id:s.root_post_id,text:s.post.text,collected_at:s.observed_at,
           post_url:s.post.permalink,published_at:s.post.published_at,author_name:s.post.author?.name,source_type:s.post.source?.kind}));
         await input.onRecords?.(rows,{method:'FROZEN_RAW_REPLAY',observed_at:new Date().toISOString()});
         return {stop_reason:'SOURCE_EXHAUSTED',summary:{unique:rows.length},session_flush:'OK'};

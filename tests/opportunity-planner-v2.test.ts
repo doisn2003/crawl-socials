@@ -245,3 +245,14 @@ test('natural geography preference and exclusion lists never become required sea
   const i = input('Tìm quán cafe chill');
   assert.deepEqual((modelRequest('B', i, {}) as any).input.INTENT_FIELD_CATALOG, Object.keys(FIELDS));
 });
+
+
+test('a narrowed cafe plan retains unqualified source-backed cafe chill anchors', () => {
+  const i = input('Tìm quán cafe chill'); const value = response(i);
+  value.branches[0].anchor = 'quán cafe chill'; value.queries[0].text = 'quán cafe chill yên tĩnh';
+  value.queries[0].kind = 'PARAPHRASE';
+  const plan = validateResult(value, 'B', i, {});
+  assert.ok(plan.queries.some(q => !q.rejection && q.text === 'quán cafe chill'));
+  assert.ok(plan.queries.some(q => !q.rejection && q.text === 'cafe chill'));
+  assert.ok(!plan.queries.some(q => q.origin === 'BARE_ANCHOR' && /yên tĩnh/u.test(q.text)));
+});
