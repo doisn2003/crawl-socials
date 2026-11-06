@@ -37,23 +37,25 @@ export function originalRequestFacets(input: IntentInput): RequestFacet[] {
   const facets: RequestFacet[] = [];
   for (const [source_index, source] of sources.entries()) {
     const boundary = /[,;\r\n]+|[.!?…]+(?=\s|$)/gu;
-    let from = 0;
+    let from = 0, inheritedExclusion = false;
     const append = (to: number) => {
       const segment = source.text.slice(from, to), quote = segment.trim();
       if (!quote || !/[\p{L}\p{N}]/u.test(quote)) return;
       const start = from + segment.indexOf(quote), end = start + quote.length;
-      const exclusion = source.field === 'exclude' || /^(?:không (?:lấy|nhận|thu|tìm)|loại(?: bỏ)?|ngoại trừ|exclude|do not (?:include|collect))/iu.test(quote);
-      const constraint = ['geography', 'time'].includes(source.field ?? '') || /^(?:ưu tiên|vẫn (?:nhận|lấy)|chỉ (?:tại|ở|lấy bài|nội dung|tiếng)|nội dung (?:bằng|tiếng)|bài (?:đăng|viết) (?:trong|bằng)|không giới hạn|prefer|only (?:in|posts)|posts (?:from|in)|include other (?:places|cities))/iu.test(quote);
+      const explicitSearch = /^(?:tìm|nhận|lấy|thu thập|chia sẻ|find|include|collect)\s/iu.test(quote);
+      const exclusion = (inheritedExclusion && !explicitSearch) || source.field === 'exclude' || /^(?:không (?:lấy|nhận|thu|tìm)|loại(?: bỏ)?|ngoại trừ|exclude|do not (?:include|collect))/iu.test(quote);
+      const constraint = ['geography', 'time'].includes(source.field ?? '') || /^(?:(?:địa bàn|địa điểm|khu vực) (?:chỉ là ưu tiên|là ưu tiên)|ưu tiên|vẫn (?:nhận|lấy)|chỉ (?:tại|ở|lấy bài|nội dung|tiếng)|nội dung (?:bằng|tiếng)|bài (?:đăng|viết) (?:trong|bằng)|không giới hạn|prefer|only (?:in|posts)|posts (?:from|in)|include other (?:places|cities))/iu.test(quote);
       const business = source.source === 'CONTEXT' || /^(?:tôi|mình) (?:là|có|cung cấp|kinh doanh|bán)|^my (?:business|company)|^i (?:sell|provide|own)/iu.test(quote);
       const kind = source.source === 'SEED' ? 'SEARCH' : exclusion ? 'EXCLUSION' : constraint ? 'CONSTRAINT' : business ? 'BUSINESS_CONTEXT' : 'SEARCH';
       let literal = quote.replace(/^(?:hãy\s+)?(?:tìm|thu thập|lấy)\s+(?:(?:những|các)\s+)?(?:người(?:\s+dùng)?|khách hàng)\s+(?:đang\s+)?(?:có nhu cầu\s+|muốn\s+)?/iu, '')
         .replace(/^(?:find|collect|search for)\s+(?:people|users|customers)\s+(?:who\s+)?(?:want to\s+|looking for\s+)?/iu, '')
         .replace(/^(?:tìm|thu thập|lấy)\s+(?:các\s+)?bài\s+(?:viết|đăng)\s+(?:liên quan (?:đến|tới|về)\s+|về\s+)?/iu, '').trim();
       if (kind !== 'SEARCH' || !literal || literal.length > 100 || literal.split(/\s/u).length > 12 || /[<>:#]|https?:/iu.test(literal)) literal = '';
+      inheritedExclusion = kind === 'EXCLUSION';
       facets.push({ id: 'facet-' + contentHash({ source: source.source, source_index, start, quote }).slice(0, 12), source: source.source,
         source_index, quote, start, end, kind, literal_query: literal || null });
     };
-    for (const match of source.text.matchAll(boundary)) { append(match.index!); from = match.index! + match[0].length; }
+    for (const match of source.text.matchAll(boundary)) { append(match.index!); if (!match[0].includes(',')) inheritedExclusion = false; from = match.index! + match[0].length; }
     append(source.text.length);
   }
   if (!facets.length || facets.length > 96) throw Error('DISCOVERY_INPUT_FACETS_INVALID');

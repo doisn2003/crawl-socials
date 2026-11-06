@@ -235,3 +235,13 @@ test('default v2 desktop plan starts through the real pipeline with frozen queri
     assert.equal(state.run!.opportunity!.watchActive, false);
   } finally { await service.shutdown(); rmSync(directory, { recursive: true, force: true }); }
 });
+
+
+test('natural geography preference and exclusion lists never become required search queries', () => {
+  const facets = originalRequestFacets(input('Tìm quán cafe chill. Không giới hạn tuổi bài; địa bàn chỉ là ưu tiên, vẫn nhận bài ngoài khu vực. Loại bài chào bán, quảng cáo quán/dịch vụ và bài chỉ trùng từ nhưng lạc đề. Tìm bạn trò chuyện.'));
+  assert.equal(facets.find(f => f.quote === 'địa bàn chỉ là ưu tiên')!.kind, 'CONSTRAINT');
+  assert.equal(facets.find(f => f.quote.startsWith('quảng cáo quán'))!.kind, 'EXCLUSION');
+  assert.equal(facets.find(f => f.quote === 'Tìm bạn trò chuyện')!.kind, 'SEARCH');
+  const i = input('Tìm quán cafe chill');
+  assert.deepEqual((modelRequest('B', i, {}) as any).input.INTENT_FIELD_CATALOG, Object.keys(FIELDS));
+});
