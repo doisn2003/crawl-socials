@@ -114,7 +114,9 @@ export function createCoverageExpansion(directory: string, campaign: CampaignPla
           if (state.attempts.at(-1) === attempt) state.attempts.pop();
           save(state); throw error;
         }
-        attempt.state = 'FAILED'; save(state);
+        attempt.state = 'FAILED';
+        if (state.attempts.length >= MAX_ATTEMPTS) state.stop_reason = 'EXPANSION_ATTEMPT_LIMIT';
+        save(state);
         // Transport/auth/monetary failures must not become semantic retries or exhausted source coverage.
         if (!(error instanceof Error) || !['QUERY_EXPANSION_INVALID', 'QUERY_EXPANSION_UNGROUNDED'].includes(error.message)) throw error;
         if (call + 1 >= MAX_CALLS_PER_REQUEST) throw error;

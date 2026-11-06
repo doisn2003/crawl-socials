@@ -35,8 +35,9 @@ function fixture(): CampaignPlan {
 }
 const context = (): CoverageExpansionContext => ({ allowModel: true, accepted: 293, raw: 470, pending: 35 });
 function response(plan: CampaignPlan, request: JsonModelRequest): Record<string, any> {
-  const input = request.input as { requested_buckets: { id: string; style: string | null; slots: string[] }[] };
-  return Object.fromEntries(input.requested_buckets.map(bucket => [bucket.id, {
+  const input = request.input as { requested_buckets: { id: string; style: string | null; slots: string[] }[];
+    slot_registry: { slot_id: string; bucket_id: string; bucket_slot: string }[] };
+  const grouped = Object.fromEntries(input.requested_buckets.map(bucket => [bucket.id, {
     branch_ids: ['cafe'], not_applicable_reason: '', queries: Object.fromEntries(bucket.slots.map((slot, index) => {
       const text = variedCafeQueries[bucket.id]![index]!;
       const lexical_basis = bucket.style ? { source_expression: ['SYNONYM', 'ABBREVIATION'].includes(bucket.style) ? 'cafe' : 'quán cafe chill',
@@ -45,6 +46,14 @@ function response(plan: CampaignPlan, request: JsonModelRequest): Record<string,
         : bucket.id === 'EXPERIENCE' ? 'REVIEW' : bucket.id === 'DECISION' ? 'COMPARISON' : bucket.id === 'DISCUSSION' ? 'DEBATE' : bucket.id === 'LATENT_CONTEXT' ? 'FEELING' : 'RECOMMENDATION',
       facet_ids: [plan.discovery_plan!.facets[0]!.id], rationale: 'Cách nói hoặc hoàn cảnh gắn với việc tìm không gian uống cafe thư giãn', lexical_basis }];
     })) }]));
+  return {
+    queries: Object.fromEntries(input.slot_registry.map(s => [s.slot_id, grouped[s.bucket_id]!.queries[s.bucket_slot]!.text])),
+    metadata: input.slot_registry.map(s => { const q = grouped[s.bucket_id]!.queries[s.bucket_slot]!; return {
+      slot_id: s.slot_id, branch_id: q.branch_id, family_id: q.family_id, facet_ids: q.facet_ids, rationale: q.rationale,
+      source_expression: q.lexical_basis?.source_expression ?? '', search_expression: q.lexical_basis?.search_expression ?? '', relation: q.lexical_basis?.relation ?? 'NONE',
+    }; }),
+    bucket_notes: Object.entries(grouped).map(([bucket_id, b]) => ({ bucket_id, branch_ids: b.branch_ids, not_applicable_reason: b.not_applicable_reason })),
+  };
 }
 function model(generate: (request: JsonModelRequest) => unknown | Promise<unknown>): ModelGateway {
   return { summary: () => ({ remaining_usd: 3 }), generateJson: async (request: JsonModelRequest) => ({ value: await generate(request), request_hash: 'recorded', model: 'fixture' }) } as unknown as ModelGateway;
@@ -57,8 +66,10 @@ test('actual 13-query plan and 10-query old expansion are incomplete; required s
   assert.equal(d.total_queries, 23); assert.equal(d.state, 'INCOMPLETE'); assert.ok(d.missing.includes('LEXICAL_DIVERSITY'));
   const request = coverageWaveRequest(plan, [...observedInitialCafeQueries, ...observedLegacyExpansion], [], 48, {}, [], new AbortController().signal);
   const wire = geminiWireSchema(request.schema) as { required: string[]; properties: Record<string, any> };
-  assert.equal(wire.required.length, 8);
-  assert.equal(wire.required.reduce((n, id) => n + wire.properties[id].properties.queries.required.length, 0), 48);
+  assert.equal(wire.required.length, 3);
+  assert.equal(wire.properties.queries.required.length, 48);
+  assert.ok(Object.values(wire.properties.queries.properties).every((p: any) => p.type === 'string'));
+  assert.ok(JSON.stringify(wire).length < 4000); assert.ok(!JSON.stringify(wire).includes('anyOf'));
   const parsed = parseCoverageWave(response(plan, request), request, plan, observedInitialCafeQueries);
   assert.equal(parsed.queries.length, 48);
   const complete = portfolioDiagnostics(plan, [parsed], parsed.queries.map(q => q.text));
@@ -87,9 +98,9 @@ test('resume migrates old stopped expansion without resetting attempts, complete
 test('synonym claims that merely append words to the original anchor are rejected, as are wrong-role queries', () => {
   const plan = fixture(), request = coverageWaveRequest(plan, observedInitialCafeQueries, [], 48, {}, [], new AbortController().signal);
   const raw = response(plan, request);
-  raw.TOPIC_SYNONYMS.queries.q1.text = 'quán cafe chill thư giãn';
-  raw.TOPIC_SYNONYMS.queries.q1.lexical_basis = { source_expression: 'cafe', search_expression: 'thư giãn', relation: 'SYNONYM' };
-  raw.DIRECT_NEED.queries.q1.text = 'tìm người đi cafe';
+  raw.queries.q01 = 'quán cafe chill thư giãn';
+  Object.assign(raw.metadata.find((m: any) => m.slot_id === 'q01'), { source_expression: 'cafe', search_expression: 'thư giãn', relation: 'SYNONYM' });
+  raw.queries.q05 = 'tìm người đi cafe';
   const parsed = parseCoverageWave(raw, request, plan, observedInitialCafeQueries);
   assert.equal(parsed.queries.length, 46); assert.equal(parsed.buckets.reduce((n, b) => n + b.rejected, 0), 2);
 });
@@ -113,7 +124,7 @@ test('missing named buckets receive bounded repair, then an explicit incomplete 
   const gateway = model(() => { calls++; return { queries: [], exhausted: true, reason: 'Old soft format' }; });
   try {
     for (let n = 0; n < 3; n++) await assert.rejects(createCoverageExpansion(directory, plan, gateway, new AbortController().signal, context)
-      ({ knownQueries: observedInitialCafeQueries, completeInitial: true }), /QUERY_COVERAGE_INCOMPLETE/);
+      ({ knownQueries: observedInitialCafeQueries, completeInitial: true }), /QUERY_COVERAGE_INCOMPLETE|QUERY_EXPANSION_INVALID/);
     assert.equal(calls, 6); assert.equal(read(directory).attempts.length, 6);
     assert.equal(read(directory).stop_reason, 'EXPANSION_ATTEMPT_LIMIT'); assert.equal(read(directory).coverage.state, 'INCOMPLETE');
     const saved = read(directory); saved.attempts[5].state = 'STARTED'; writeFileSync(join(directory, 'coverage-query-expansion.json'), JSON.stringify(saved));
@@ -125,10 +136,10 @@ test('missing named buckets receive bounded repair, then an explicit incomplete 
 
 test('no unsupported padding is invented when every requested bucket is explicitly not applicable', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'csd-expand-limited-')), plan = fixture(); let calls = 0;
-  const gateway = model(request => { calls++; const raw = response(plan, request); for (const b of Object.values(raw)) {
-    b.not_applicable_reason = 'Trong phạm vi hẹp này chưa có cách diễn đạt khác được xác nhận hợp lý';
-    for (const k of Object.keys(b.queries)) b.queries[k] = null;
-  } return raw; });
+  const gateway = model(request => { calls++; const raw = response(plan, request);
+    for (const note of raw.bucket_notes) note.not_applicable_reason = 'Trong phạm vi hẹp này chưa có cách diễn đạt khác được xác nhận hợp lý';
+    for (const k of Object.keys(raw.queries)) raw.queries[k] = ''; raw.metadata = []; return raw;
+  });
   try {
     await assert.rejects(createCoverageExpansion(directory, plan, gateway, new AbortController().signal, context)
       ({ knownQueries: observedInitialCafeQueries, completeInitial: true }), /QUERY_COVERAGE_INCOMPLETE/);
