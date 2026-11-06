@@ -194,3 +194,28 @@ test('a budget stop before transport does not poison cache and can resume after 
     assert.equal(second.decisions[0]!.classification, 'SUITABLE'); assert.equal(mock.requests.length, 2);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('current operational criteria override original prompt and omit superseded dialogue from classifier input', async () => {
+  const campaign = plan('STANDARD'); campaign.prompt = 'Chỉ tìm người đi spa tại Hà Nội trong 30 ngày';
+  campaign.required_geographies = []; campaign.preferred_geographies = ['Hà Nội']; campaign.max_age_days = null;
+  campaign.inclusions = ['Giữ mong muốn và tâm sự làm đẹp']; campaign.exclusions = [];
+  campaign.intent_resolution = { schema_version: 1, recipe_hash: 'a'.repeat(64), input: {
+    stage: 'S2', prompt: campaign.prompt, context: '', seeds: [], revision: 3, answers: [], edits: [
+      { field: 'geography', value: 'HISTORICAL_MANDATORY_CITY', source: 'EDIT', revision: 1, source_revision: 0, source_run_id: 'test' },
+      { field: 'geography', value: 'Không giới hạn địa bàn', source: 'EDIT', revision: 2, source_revision: 1, source_run_id: 'test' },
+    ] }, plan: { state: 'READY', intent_revision: 3, understanding: 'Spa', target_roles: [],
+      intent: [{ field: 'geography', value: 'HISTORICAL_MANDATORY_CITY', status: 'CONFIRMED', evidence: [{ source: 'EDIT', quote: 'HISTORICAL_MANDATORY_CITY' }] }],
+      constraints: [{ text: 'HISTORICAL_FORBIDDEN_REVIEW', strength: 'REQUIRED', source: 'PROMPT', quote: 'Chỉ tìm người đi spa tại Hà Nội' }],
+      branches: [], questions: [], unresolved_fields: [], unconfirmed_assumptions: [], queries: [], caveats: [], improvements: [], uncovered: [] } };
+  const mock = model(request => {
+    const goal = (request.input as { goal: { authority: string; current_criteria: { required_geographies: string[]; preferred_geographies: string[]; max_age_days: number | null; include: string[] }; source_context: { original_prompt: string } } }).goal;
+    assert.equal(goal.authority, 'CURRENT_CAMPAIGN_CRITERIA');
+    assert.deepEqual(goal.current_criteria.required_geographies, []); assert.deepEqual(goal.current_criteria.preferred_geographies, ['Hà Nội']);
+    assert.equal(goal.current_criteria.max_age_days, null); assert.deepEqual(goal.current_criteria.include, ['Giữ mong muốn và tâm sự làm đẹp']);
+    assert.equal(goal.source_context.original_prompt, campaign.prompt);
+    assert.ok(!JSON.stringify(request.input).includes('HISTORICAL_'));
+    return [fact(0, { opportunities: ['PERSONAL_DESIRE'], usefulness: 'POSSIBLE', goal_fit: 'RELATED' })];
+  });
+  const out = await classifyConversations(campaign, [snapshot('Mình ở Đà Nẵng, ước gì xinh đẹp hơn')], mock.gateway);
+  assert.equal(out.decisions[0]!.classification, 'SUITABLE');
+});
