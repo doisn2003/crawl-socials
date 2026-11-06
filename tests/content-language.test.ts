@@ -5,7 +5,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { vietnameseEvidence, enforceContentLanguage } from '../src/domain/content-language.js';
 import { literalCampaign } from '../src/application/compile-campaign.js';
-import { withFilterPolicy, unassessedGateway } from '../src/application/filter-policy.js';
+import { withFilterPolicy as currentFilterPolicy, unassessedGateway } from '../src/application/filter-policy.js';
+import type { CampaignPlan } from '../src/domain/campaign-plan.js';
+import type { FilterMode } from '../src/shared/filter-policy.js';
+// Historical conversation policies still support language evidence on comment candidates.
+const withFilterPolicy = (plan: CampaignPlan, mode: FilterMode) => ({ ...currentFilterPolicy(plan, mode),
+  filter_version: mode === 'QUALITY' ? 'coverage-quality-v1' : mode === 'STANDARD' ? 'coverage-standard-v1' : 'unassessed-v1' });
 import { classifyConversations } from '../src/application/classification-service.js';
 import { createConversationStore } from '../src/infrastructure/storage/conversation-store.js';
 import type { ModelGateway } from '../src/application/ports/model-gateway.js';

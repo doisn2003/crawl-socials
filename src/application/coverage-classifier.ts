@@ -4,7 +4,6 @@ import { atomicJson } from '../infrastructure/config/user-config.js';
 import { contentHash, type ConversationSnapshot } from '../domain/conversation.js';
 import { validateConversationDecision, type ConversationDecisionInput } from '../domain/conversation-decision.js';
 import type { CampaignPlan } from '../domain/campaign-plan.js';
-import { FILTER_VERSIONS } from '../shared/filter-policy.js';
 import { beforeLanguageAssessment, enforceContentLanguage, CONTENT_LANGUAGE_POLICY, vietnameseOnly, vietnameseEvidence } from '../domain/content-language.js';
 import type { ClassificationBatchResult, ClassifyOptions } from './classification-service.js';
 import { ModelGatewayError, type ModelGateway } from './ports/model-gateway.js';
@@ -23,9 +22,11 @@ role TARGET khi người đang xét đúng vai được tìm; REPRESENTATIVE khi
 fit DIRECT: nhu cầu/mục đích thể hiện rõ. PLAUSIBLE: tín hiệu gián tiếp hợp lý, cùng chủ đề và đúng vai: hỏi chọn đàn, cân nhắc học, hỏi học phí/giá, xin trải nghiệm để quyết định. Không bắt phải có câu 'tôi muốn mua/học'. Chỉ nhắc tên ngành, trích lời người khác, đùa/ẩn dụ hoặc quảng cáo bên bán khi tìm khách mua không đủ. NONE khi sai mục tiêu rõ; UNKNOWN khi thiếu nội dung để hiểu. Không coi thiếu thông tin phụ hoặc thiếu bình luận là NONE.
 hard PASS khi không có giới hạn bắt buộc hoặc bằng chứng đáp ứng các giới hạn áp dụng cho nhánh phù hợp; FAIL chỉ khi có bằng chứng trái điều kiện bắt buộc; UNKNOWN khi thiếu bằng chứng quyết định. Giữ phân biệt mua, thuê, mượn. Giá/địa bàn/giới hạn thời gian phải đọc đúng. Điều kiện 'ưu tiên' không gây FAIL. Dùng as_of và published_at nếu có thời hạn; ngày bắt đầu không phải hạn kết thúc; không tự suy bài cũ là hết nhu cầu. Nếu hạn thật nhưng không tính được thì hard UNKNOWN. Không bịa nội dung ảnh.
 Chọn candidate là alias của tác giả bài hoặc một người bình luận có nhu cầu; mục đích bình luận khác bài quảng cáo cha. ev là 1–3 chỉ số đoạn bằng chứng, phải có đoạn của candidate. NONE/FAIL cũng cần bằng chứng; thiếu dữ kiện dùng UNKNOWN và ev có thể rỗng. why một câu ngắn tiếng Việt nêu tín hiệu và ràng buộc quyết định, gồm điều kiện bị vi phạm/thiếu nếu có. flags ghi ca cần xem thêm: NEGATION, LIMIT, COMMENT, ROLE, AMBIGUOUS. Trả một object cho mỗi i. Không chấm confidence; không ép đủ chỉ tiêu; chỉ JSON.`;
-export const COVERAGE_RECIPE = Object.freeze({ filter_version: FILTER_VERSIONS.STANDARD, system: COVERAGE_SYSTEM, schema: COVERAGE_SCHEMA });
+// Immutable legacy recipes remain available for saved campaigns and historical comparisons.
+const LEGACY_VERSIONS = { STANDARD: 'coverage-standard-v1', QUALITY: 'coverage-quality-v1' } as const;
+export const COVERAGE_RECIPE = Object.freeze({ filter_version: LEGACY_VERSIONS.STANDARD, system: COVERAGE_SYSTEM, schema: COVERAGE_SCHEMA });
 const REVIEW_SYSTEM = COVERAGE_SYSTEM + `\nLượt kiểm tra bổ sung có chọn lọc: đối chiếu first_assessment với bằng chứng, tập trung cờ nghi vấn. Kiểm tra phủ định, điều kiện số/địa lý/thời hạn, người đại diện và nghĩa bình luận. Không mặc định đánh giá đầu sai, không tự thêm điều kiện chặt hơn mục tiêu. Nếu thay đổi quyết định, why phải nêu điều kiện và bằng chứng quyết định; không lặp lại 'không phù hợp' chung chung. Phụ huynh tìm thầy cho con vẫn đúng nhu cầu học. Tín hiệu PLAUSIBLE chỉ thành DIRECT nếu nội dung thực sự chứng minh được; không nâng nhãn vì thiếu chỉ tiêu.`;
-export const QUALITY_RECIPE = Object.freeze({ filter_version: FILTER_VERSIONS.QUALITY, system: REVIEW_SYSTEM, schema: COVERAGE_SCHEMA });
+export const QUALITY_RECIPE = Object.freeze({ filter_version: LEGACY_VERSIONS.QUALITY, system: REVIEW_SYSTEM, schema: COVERAGE_SCHEMA });
 type Verdict = { i: number; candidate: string; role: 'TARGET' | 'REPRESENTATIVE' | 'WRONG' | 'UNKNOWN'; fit: 'DIRECT' | 'PLAUSIBLE' | 'NONE' | 'UNKNOWN';
   hard: 'PASS' | 'FAIL' | 'UNKNOWN'; ev: number[]; why: string; flags: string[] };
 function document(snapshot: ConversationSnapshot, checkLanguage = false) {
@@ -65,7 +66,7 @@ function decision(plan: CampaignPlan, snapshot: ConversationSnapshot, v: Verdict
     assessment_status: positive || rejection ? 'ASSESSED' : 'PENDING', reason_code: 'COVERAGE_' + (positive ? v.fit : rejection ? 'MISMATCH' : 'EVIDENCE_REQUIRED'),
     evidence_ids: v.ev.map(i => snapshot.spans[i]!.id), model, action_target: positive && entity ? { entity_id: entity.entity_id, type: entity.entity_type } : null,
     attributes: { need_summary: v.why, signal_strength: positive ? v.fit === 'DIRECT' ? 3 : 2 : 0, role: v.role, fit: v.fit, hard: v.hard,
-      review_flags: v.flags.join(','), recipe: FILTER_VERSIONS.STANDARD } };
+      review_flags: v.flags.join(','), recipe: LEGACY_VERSIONS.STANDARD } };
   const guarded = enforceContentLanguage(plan, snapshot, result);
   validateConversationDecision(guarded, snapshot); return guarded;
 }
@@ -106,7 +107,7 @@ export async function classifyCoverage(plan: CampaignPlan, snapshots: Conversati
     }
     if (!batch.length) continue;
     try {
-      const result = await gateway.generateJson({ purpose: FILTER_VERSIONS.STANDARD, system: COVERAGE_SYSTEM, schema: COVERAGE_SCHEMA,
+      const result = await gateway.generateJson({ purpose: LEGACY_VERSIONS.STANDARD, system: COVERAGE_SYSTEM, schema: COVERAGE_SCHEMA,
         input: { goal: target, as_of: asOf, conversations: batch.map((e, i) => ({ i, ...e.doc })) }, max_output_tokens: 128 + batch.length * 200,
         ...(options.signal ? { signal: options.signal } : {}), cache_namespace: 'coverage-primary-v1' });
       output.model_results.push(result);
@@ -146,7 +147,7 @@ export async function classifyCoverage(plan: CampaignPlan, snapshots: Conversati
       }
       try {
         for (const e of batch) { reviews.set(e.snapshot.id, null); if (e.file) atomicJson(e.file, { reviewKey: e.reviewKey, state: 'STARTED' }); }
-        const result = await gateway.generateJson({ purpose: FILTER_VERSIONS.QUALITY, system: REVIEW_SYSTEM, schema: COVERAGE_SCHEMA,
+        const result = await gateway.generateJson({ purpose: LEGACY_VERSIONS.QUALITY, system: REVIEW_SYSTEM, schema: COVERAGE_SCHEMA,
           input: { goal: target, as_of: asOf, conversations: batch.map((e, i) => ({ i, ...e.doc, first_assessment: { ...verdicts.get(e.snapshot.id), i } })) },
           max_output_tokens: 128 + batch.length * 220, ...(options.signal ? { signal: options.signal } : {}), cache_namespace: 'coverage-review-v1' });
         output.model_results.push(result);
@@ -180,7 +181,7 @@ export async function classifyCoverage(plan: CampaignPlan, snapshots: Conversati
       reason_code: conflict ? 'COVERAGE_REVIEW_DISAGREEMENT' : 'COVERAGE_QUALITY_EVIDENCE_REQUIRED', action_target: null } : second!;
     final.attributes = { ...final.attributes, standard_classification: first.classification, standard_reason: v.why,
       review_classification: second?.classification ?? null, review_reason: review?.why ?? 'Chưa có kiểm chứng bổ sung hợp lệ',
-      review_state: conflict ? 'DISAGREEMENT' : unresolved ? 'UNRESOLVED' : 'CONFIRMED', recipe: FILTER_VERSIONS.QUALITY };
+      review_state: conflict ? 'DISAGREEMENT' : unresolved ? 'UNRESOLVED' : 'CONFIRMED', recipe: LEGACY_VERSIONS.QUALITY };
     validateConversationDecision(final, entry.snapshot); output.decisions.push(final);
   }
   return output;

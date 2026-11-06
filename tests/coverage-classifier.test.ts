@@ -5,10 +5,16 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createConversationStore } from '../src/infrastructure/storage/conversation-store.js';
 import { literalCampaign } from '../src/application/compile-campaign.js';
-import { withFilterPolicy } from '../src/application/filter-policy.js';
+import { withFilterPolicy as currentFilterPolicy } from '../src/application/filter-policy.js';
+import type { CampaignPlan } from '../src/domain/campaign-plan.js';
+import type { FilterMode } from '../src/shared/filter-policy.js';
 import { classifyConversations } from '../src/application/classification-service.js';
 import { unassessedGateway } from '../src/application/filter-policy.js';
 import type { ModelGateway } from '../src/application/ports/model-gateway.js';
+
+// Saved v1 campaigns retain their original classifier contract after new-run defaults change.
+const withFilterPolicy = (plan: CampaignPlan, mode: FilterMode) => ({ ...currentFilterPolicy(plan, mode),
+  filter_version: mode === 'QUALITY' ? 'coverage-quality-v1' : mode === 'STANDARD' ? 'coverage-standard-v1' : 'unassessed-v1' });
 
 test('one missing or duplicated model item does not discard its valid batch siblings or trigger a paid repair', async () => {
   const root = mkdtempSync(join(tmpdir(), 'csd-partial-')), store = createConversationStore(join(root, 'store'));
