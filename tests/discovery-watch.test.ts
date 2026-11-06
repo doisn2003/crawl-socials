@@ -308,3 +308,34 @@ test('watch starts the attached recipe using stable lifetime exclusions and reco
     await recovered.stop();
   } finally { s.close(); }
 });
+
+test('attached manual results use eligible export count instead of blocking forever on roots already delivered', async () => {
+  const s = sandbox();
+  try {
+    const sub = ready(s); s.export('source', ['facebook:another-initial']); s.store.attachRecipe(sub.id, 'manual');
+    let current = stateFor(run('manual', 3)), starts = 0;
+    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => current, readRunState: () => null,
+      expectedResultCount: (r, fallback) => { assert.ok(fallback >= 0); return r.id === 'manual' ? 1 : fallback; },
+      start: async recipe => { starts++; current = stateFor(run('next', 0, 'RUNNING', recipe)); return current; } });
+    await watch.tick(); assert.equal(starts, 0);
+    await assert.rejects(watch.tick(sub.id), /DISCOVERY_EXPORT_REQUIRED/);
+    s.export('manual', ['facebook:only-new-root']); await watch.tick();
+    assert.equal(starts, 1); assert.equal(s.store.exportedCount('manual'), 1);
+    await watch.stop();
+  } finally { s.close(); }
+});
+
+test('eligible-count callback still blocks partial customer exports and cannot increase or invent a count', async () => {
+  const s = sandbox();
+  try {
+    const sub = ready(s); s.store.attachRecipe(sub.id, 'manual'); let expected = 2, starts = 0;
+    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => stateFor(run('manual', 3)), readRunState: () => null,
+      expectedResultCount: () => expected, start: async recipe => { starts++; return stateFor(run('next', 0, 'RUNNING', recipe)); } });
+    s.export('manual', ['facebook:a']); await watch.tick(); assert.equal(starts, 0);
+    for (const invalid of [-1, 4, .5, Number.NaN]) {
+      expected = invalid; await assert.rejects(watch.tick(), /DISCOVERY_RESULT_COUNT_INVALID/);
+    }
+    expected = 2; s.export('manual', ['facebook:b']); await watch.tick(); assert.equal(starts, 1);
+    await watch.stop();
+  } finally { s.close(); }
+});

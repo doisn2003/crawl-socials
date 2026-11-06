@@ -4,6 +4,8 @@ import type { DiscoveryStore } from '../infrastructure/storage/discovery-store.j
 export function createDiscoveryWatch(input: {
   store: DiscoveryStore; getState(): Promise<ProductionState>; readRunState(id: string): RunState | null;
   start(sourceRunId: string, target: number, excludedRootKeys: string[]): Promise<ProductionState>;
+  /** Customer-visible target after excluding earlier batches; historical scheduled runs can keep fallback. */
+  expectedResultCount?(run: RunState, fallback: number): number;
   now?: () => Date;
 }) {
   const now = input.now ?? (() => new Date()); let busy = false, stopped = false;
@@ -12,7 +14,9 @@ export function createDiscoveryWatch(input: {
     const o = run.opportunity;
     const count = o ? o.targetCount ?? (o.filterMode === 'OFF' ? o.counts.raw : o.counts.suitable) : 0;
     if (!Number.isSafeInteger(count) || count < 0 || count > 100000) throw Error('DISCOVERY_RESULT_COUNT_INVALID');
-    return count;
+    const expected = input.expectedResultCount ? input.expectedResultCount(run, count) : count;
+    if (!Number.isSafeInteger(expected) || expected < 0 || expected > count) throw Error('DISCOVERY_RESULT_COUNT_INVALID');
+    return expected;
   };
   async function tick(requestId?: string) {
     if (requestId !== undefined && (typeof requestId !== 'string' || !input.store.list().some(s => s.id === requestId))) throw Error('DISCOVERY_INPUT_INVALID');
@@ -42,7 +46,8 @@ export function createDiscoveryWatch(input: {
       if (outstandingRun) { if (requestId) throw Error('RUN_ACTIVE'); return; }
       if (active(state.run) || state.campaignDraftPreparing) { if (requestId) throw Error('RUN_ACTIVE'); return; }
       // Do not replace a completed result the user has not exported.
-      if (state.run?.opportunity && resultCount(state.run) > 0 && !input.store.hasExport(state.run.id, resultCount(state.run))) {
+      const currentCount = state.run ? resultCount(state.run) : 0;
+      if (state.run?.opportunity && currentCount > 0 && !input.store.hasExport(state.run.id, currentCount)) {
         if (requestId) throw Error('DISCOVERY_EXPORT_REQUIRED'); return;
       }
       const selected = input.store.list().find(s => (!requestId || s.id === requestId) && s.enabled && !s.activeRunId && !s.awaitingExport
