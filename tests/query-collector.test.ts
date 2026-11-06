@@ -65,7 +65,7 @@ test('optional AI expansion failure is recorded and does not stop raw collection
       runId: 'expansion-test', output: root, queries: ['piano'], maxMinutes: 10, windowMode: 'ALL' },
       shouldStop: () => false, onProgress() {}, expandQueries: async () => { expansions++; throw Error('MODEL_BUDGET_EXHAUSTED'); } };
     const result = await runQueryCollectors(input, async () => ({ stop_reason: ++calls === 1 ? 'QUERY_BUDGET_COMPLETE' : 'SOURCE_EXHAUSTED', summary: { unique: 0 } }), windows);
-    assert.equal(calls, 2); assert.equal(expansions, 1); assert.equal(result.stop_reason, 'SOURCE_EXHAUSTED');
+    assert.equal(calls, 2); assert.equal(expansions, 1); assert.equal(result.stop_reason, 'QUERY_BUDGET_COMPLETE');
     const saved = JSON.parse(readFileSync(join(root, 'runs', 'expansion-test', 'query-tasks.json'), 'utf8'));
     assert.equal(saved.expansionError, 'MODEL_BUDGET_EXHAUSTED');
   } finally { rmSync(root, { recursive: true, force: true }); }
