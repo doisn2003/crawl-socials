@@ -37,6 +37,31 @@ ev là 1–3 chỉ số spans có thật của bài, nêu bằng chứng quyết
 const REVIEW_SYSTEM = POST_EVIDENCE_SYSTEM + '\nĐây là lượt kiểm tra độc lập các sự kiện có rủi ro. Bạn không được cung cấp kết luận trước. Đọc lại bài gốc theo đúng cùng mục tiêu, không thêm điều kiện.';
 export const POST_EVIDENCE_RECIPE = Object.freeze({ evidence_version: POST_EVIDENCE_VERSION, system: POST_EVIDENCE_SYSTEM,
   schema: POST_EVIDENCE_SCHEMA, review_system: REVIEW_SYSTEM, policy_version: 'opportunity-policy-v1', evidence_scope: POST_ONLY_EVIDENCE_SCOPE });
+// Keep the canonical evidence recipe/cache stable. The wire adapter only makes
+// the model's existing citation obligation explicit; it never supplies a citation.
+export const POST_EVIDENCE_WIRE_VERSION = 'post-evidence-wire-v2';
+const WIRE_SYSTEM = '\nĐịnh dạng truyền v2: e0 là chỉ số e của span bằng chứng chính trong chính bài i (bắt buộc cho mọi kết luận, kể cả UNRELATED). ev là các chỉ số bằng chứng bổ sung, có thể []. Chỉ dùng trường e đã cung cấp trong spans; không dùng số dòng, vị trí ký tự hay chỉ số bài. Nếu thiếu ngữ cảnh, vẫn dẫn phần văn bản đã đọc và dùng UNKNOWN; không suy đoán. Tổng số chỉ số bằng chứng phân biệt không quá 3.';
+export function postEvidenceWireSchema(spanCounts: number[]): Record<string, unknown> {
+  if (!spanCounts.length || spanCounts.some(n => !Number.isSafeInteger(n) || n < 1)) throw Error('POST_WIRE_SPANS_INVALID');
+  const indices = Array.from({ length: Math.max(...spanCounts) }, (_, i) => i);
+  return { ...POST_EVIDENCE_SCHEMA, items: { ...POST_EVIDENCE_SCHEMA.items,
+    properties: { ...properties, i: { type: 'integer', enum: spanCounts.map((_, i) => i) },
+      e0: { type: 'integer', enum: indices }, ev: { ...properties.ev, items: { type: 'integer', enum: indices } } },
+    required: [...POST_EVIDENCE_SCHEMA.items.required, 'e0'] } };
+}
+export function postEvidenceFromWire(value: unknown, snapshot: ConversationSnapshot): OpportunityEvidence {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('POST_EVIDENCE_FORMAT_INVALID');
+  const { e0, ...canonical } = value as Record<string, unknown>;
+  // Recorded/provider responses already carrying explicit canonical citations
+  // need no fabricated scalar or paid reread to remain valid.
+  if (e0 === undefined && Array.isArray(canonical.ev) && canonical.ev.length)
+    return validateOpportunityEvidence(canonical, snapshot);
+  if (e0 === undefined || e0 === null) throw Error('POST_EVIDENCE_REQUIRED');
+  if (!Number.isInteger(e0) || Number(e0) < 0 || !snapshot.spans[Number(e0)] || !Array.isArray(canonical.ev)
+    || canonical.ev.some(e => !Number.isInteger(e) || e < 0 || !snapshot.spans[e])) throw Error('POST_EVIDENCE_FORMAT_INVALID');
+  // Repeated references to the same real span have one canonical identity.
+  return validateOpportunityEvidence({ ...canonical, ev: [...new Set([e0, ...canonical.ev])] }, snapshot);
+}
 export function postClassifierRecipe(version: string) {
   if (!POST_FILTER_VERSIONS.includes(version)) throw Error('POST_POLICY_UNSUPPORTED');
   return { filter_version: version, ...POST_EVIDENCE_RECIPE };
@@ -53,7 +78,8 @@ function goal(plan: CampaignPlan) {
     source_context: { original_prompt: plan.prompt, business: plan.brand_context } };
 }
 type Cached = { key: string; state: 'STARTED' | 'COMPLETE' | 'FAILED'; evidence?: OpportunityEvidence;
-  attempts?: number; last_error?: string; failure_history?: Array<{ attempt: number; code: string }> };
+  attempts?: number; last_error?: string; failure_history?: Array<{ attempt: number; code: string }>;
+  failed_response?: { invocation_id: string; request_hash: string; item: unknown } };
 const REPAIR_SYSTEM = '\nLượt sửa định dạng có giới hạn, chỉ gồm bài chưa có kết quả hợp lệ. Đọc lại độc lập từ bài gốc; không suy kết luận từ mã lỗi. Trả đúng một object cho mỗi i. ev phải chỉ tới 1–3 spans thực có trong bài khi đưa ra kết luận; không bỏ ev cho bài bị loại. Không chế bằng chứng: nếu thiếu nội dung, dùng UNKNOWN và giữ chưa rõ.';
 
 export async function classifyOpportunityPosts(plan: CampaignPlan, snapshots: ConversationSnapshot[], gateway: ModelGateway,
@@ -101,7 +127,7 @@ export async function classifyOpportunityPosts(plan: CampaignPlan, snapshots: Co
   function beforeTransport(error: unknown) {
     return error instanceof ModelGatewayError && error.invocation_id === null;
   }
-  function recordFailure(key: string, error: unknown, previous: Cached | null) {
+  function recordFailure(key: string, error: unknown, previous: Cached | null, response?: Cached['failed_response']) {
     const file = path(key);
     if (beforeTransport(error)) {
       // Budget/authorization/abort gates did not dispatch. Restore past attempts, never erase them.
@@ -110,6 +136,7 @@ export async function classifyOpportunityPosts(plan: CampaignPlan, snapshots: Co
     } else {
       const started = read(key)!;
       save({ ...started, state: 'FAILED', last_error: code(error),
+        ...(response ? { failed_response: response } : {}),
         failure_history: [...(started.failure_history ?? []), { attempt: started.attempts!, code: code(error) }] });
     }
   }
@@ -163,8 +190,8 @@ export async function classifyOpportunityPosts(plan: CampaignPlan, snapshots: Co
       }
       const batch = batchFrom(queue, review), previous = new Map(batch.map(e => [key(e), read(key(e))]));
       const repairing = batch.some(e => (previous.get(key(e))?.attempts ?? 0) > 0);
-      function failed(e: typeof entries[number], error: unknown) {
-        recordFailure(key(e), error, previous.get(key(e)) ?? null);
+      function failed(e: typeof entries[number], error: unknown, response?: Cached['failed_response']) {
+        recordFailure(key(e), error, previous.get(key(e)) ?? null, response);
         const cached = read(key(e));
         pending(e.snapshot, error, review ? e.evidence ?? undefined : undefined, cached);
         if (!beforeTransport(error) && retryable(error) && canRetry(cached)) queue.push(e);
@@ -175,23 +202,25 @@ export async function classifyOpportunityPosts(plan: CampaignPlan, snapshots: Co
           save({ ...old, key: key(e), state: 'STARTED', attempts: (old?.attempts ?? 0) + 1 });
         }
         const result = await gateway.generateJson({ purpose: POST_EVIDENCE_VERSION + (review ? '-review' : ''),
-          system: (review ? REVIEW_SYSTEM : POST_EVIDENCE_SYSTEM) + (repairing ? REPAIR_SYSTEM : ''), schema: POST_EVIDENCE_SCHEMA,
+          system: (review ? REVIEW_SYSTEM : POST_EVIDENCE_SYSTEM) + (repairing ? REPAIR_SYSTEM : '') + WIRE_SYSTEM,
+          schema: postEvidenceWireSchema(batch.map(e => e.snapshot.spans.length)),
           input: { goal: target, as_of: asOf, posts: batch.map((e, i) => ({ i, ...e.doc })),
             ...(repairing ? { repair: batch.map((e, i) => ({ i, attempt: read(key(e))!.attempts,
               previous_error: previous.get(key(e))?.last_error ?? 'PREVIOUS_ATTEMPT_UNRESOLVED' })) } : {}) },
           max_output_tokens: 128 + batch.length * 480,
-          cache_namespace: POST_EVIDENCE_VERSION + (review ? '-review' : '') + (repairing ? ':repair-v1' : ''),
+          cache_namespace: POST_EVIDENCE_VERSION + (review ? '-review' : '') + ':' + POST_EVIDENCE_WIRE_VERSION + (repairing ? ':repair-v1' : ''),
           ...(options.signal ? { signal: options.signal } : {}) });
         output.model_results.push(result);
         if (!Array.isArray(result.value)) throw Error(review ? 'POST_REVIEW_BATCH_INCOMPLETE' : 'POST_BATCH_INCOMPLETE');
         for (const [i, e] of batch.entries()) {
+          const rows = result.value.filter(v => v?.i === i);
           try {
-            const rows = result.value.filter(v => v?.i === i);
             if (rows.length !== 1) throw Error(rows.length ? 'POST_ITEM_DUPLICATED' : 'POST_ITEM_MISSING');
-            const evidence = validateOpportunityEvidence(rows[0], e.snapshot);
+            const evidence = postEvidenceFromWire(rows[0], e.snapshot);
             save({ ...read(key(e))!, state: 'COMPLETE', evidence });
             decisions.delete(e.snapshot.id); failures.delete(e.snapshot.id); success(e, evidence);
-          } catch (error) { failed(e, error); }
+          } catch (error) { failed(e, error, { invocation_id: result.invocation_id, request_hash: result.request_hash,
+            item: rows.length === 1 ? rows[0] : rows }); }
         }
       } catch (error) {
         for (const e of batch) failed(e, error);

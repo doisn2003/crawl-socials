@@ -27,6 +27,9 @@ function segment(text: string): LanguageEvidence {
   const distinct = [...new Set(words)], viWords = distinct.filter(w => accentedWords.has(w) && /[^a-z]/u.test(w)).length;
   const plainWords = distinct.filter(w => asciiWords.has(w)).length;
   const vietnameseMarks = words.filter(w => /[đăơưạ-ỹ]/u.test(w)).length;
+  const locativeProse = /(?:^|[^\p{L}])(?:tới|đến|ở|trên|dưới)\s+(?:quán|tiệm|chỗ|hẻm|phố|đường)(?:$|[^\p{L}])/u.test(lower);
+  if (locativeProse && words.length >= 5 && vietnameseMarks >= 2 && vietnameseMarks / words.length >= 0.2)
+    return { state: 'MATCH', detected: 'vie', method: 'VIETNAMESE_LOCATIVE_PROSE' };
   // Colloquial Vietnamese plus borrowed words is poorly represented by UDHR
   // trigrams. Script-specific marks with prose cues preserve these real cases.
   if (viWords >= 1 && vietnameseMarks >= 2 && vietnameseMarks / words.length >= 0.2)

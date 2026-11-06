@@ -32,10 +32,14 @@ test('Vietnamese content includes unaccented and overseas writing, without using
 
 test('colloquial short venue questions retain Vietnamese while names and foreign advertising remain insufficient', () => {
   for (const text of ['Sg quán cafe nào decor giáng sinh đẹp mng ơii',
-    'Mấy quán cafe xik xik gần đây ☺️☺️', 'Tiệm nào xinh vậy mng', 'Chỗ nào đẹp nè mấy bà'])
+    'Mấy quán cafe xik xik gần đây ☺️☺️', 'Tiệm nào xinh vậy mng', 'Chỗ nào đẹp nè mấy bà',
+    'tới quán ún nước dc anhchudeptrai tặng 4 popsocket (toi nhét chữ) 😆',
+    '木漏れ日 ✨\nV7coffee ở hẻm 3, số nhà 73 Nguyễn Thiếp, căn nhà gỗ rợp bóng cây🌿',
+    'Quán cafe tone xám nhỏ xinh trên Phố Huế, ánh sáng đẹp, matcha chất lượng.\n📍 SOLUS Brew & Tea - 70 Phố Huế, Hai Bà Trưng, HN'])
     assert.equal(vietnameseEvidence(text).state, 'MATCH', text);
   for (const text of ['Nguyễn Chí Thanh', 'Đặng Thái Sơn', 'Nguyễn Phương Thảo', 'Quán Cafe Đẹp',
-    'Beautiful cafe in Hà Nội — best coffee, book your table now!',
+    'Nguyễn Văn Tới', '73 Nguyễn Thiếp', 'Beautiful cafe in Hà Nội — best coffee, book your table now!',
+    'Cafe syahduuu di malang lagi <3', 'Warga Shah Alam, tengah cari port lepak chill sambil menikmati makanan sedap?',
     'Buy now for the best price! #quán #nào #mấy #đây', 'Cafe https://example.test/mấy-quán-nào-đẹp'])
     assert.notEqual(vietnameseEvidence(text).state, 'MATCH', text);
 });

@@ -9,7 +9,8 @@ import { opportunityPolicy, type OpportunityEvidence } from '../src/domain/oppor
 import { literalCampaign } from '../src/application/compile-campaign.js';
 import { withFilterPolicy, unassessedGateway } from '../src/application/filter-policy.js';
 import { classifyConversations, classifierRecipe } from '../src/application/classification-service.js';
-import { POST_EVIDENCE_VERSION, POST_EVIDENCE_SYSTEM } from '../src/application/opportunity-post-classifier.js';
+import { POST_EVIDENCE_VERSION, POST_EVIDENCE_SYSTEM, postEvidenceFromWire, postEvidenceWireSchema } from '../src/application/opportunity-post-classifier.js';
+import { geminiWireSchema } from '../src/infrastructure/llm/gemini-gateway.js';
 import { FILTER_MODES, FILTER_VERSIONS, type FilterMode } from '../src/shared/filter-policy.js';
 import type { JsonModelRequest, JsonModelResult, ModelGateway } from '../src/application/ports/model-gateway.js';
 import { ModelGatewayError } from '../src/application/ports/model-gateway.js';
@@ -33,11 +34,33 @@ const result = (value: unknown): JsonModelResult => ({ value, model: 'fixture', 
 function model(reply: (request: JsonModelRequest, call: number) => unknown) {
   const requests: JsonModelRequest[] = [];
   const gateway: ModelGateway = { summary: () => ({ ...unassessedGateway.summary(), model: 'fixture' }), generateJson: async request => {
-    requests.push(request); return result(reply(request, requests.length));
+    requests.push(request);
+    const value = reply(request, requests.length);
+    // Canonical fixtures use ev; the mock provider expresses their first explicit
+    // citation through the wire's required scalar, without adding missing evidence.
+    return result(Array.isArray(value) ? value.map(v => v && typeof v === 'object' && !('e0' in v) && Array.isArray(v.ev) && v.ev.length
+      ? { ...v, e0: v.ev[0], ev: v.ev.slice(1) } : v) : value);
   } };
   return { gateway, requests };
 }
 const plan = (mode: FilterMode) => withFilterPolicy(literalCampaign({ prompt: 'Tìm người có nhu cầu đi spa, chăm sóc sắc đẹp', seed_queries: ['spa'] }), mode);
+
+test('wire requires an explicit real citation even when gateway removes array minimums', () => {
+  const schema = geminiWireSchema(postEvidenceWireSchema([1])) as { items: { properties: { e0: { enum: number[] }; ev: { items: { enum: number[] } } }; required: string[] } };
+  assert.ok(schema.items.required.includes('e0')); assert.deepEqual(schema.items.properties.e0.enum, [0]);
+  assert.deepEqual(schema.items.properties.ev.items.enum, [0]);
+  const source = snapshot('Bài viết thảo luận về một bộ phim');
+  const negative = { ...fact(0, { topic: 'UNRELATED', opportunities: [], usefulness: 'NONE', goal_fit: 'NONE', ev: [] }), e0: 0 };
+  assert.deepEqual(postEvidenceFromWire(negative, source).ev, [0]);
+  assert.equal(opportunityPolicy('CONSISTENT', postEvidenceFromWire(negative, source)).classification, 'NOT_SUITABLE');
+  assert.deepEqual(postEvidenceFromWire({ ...negative, ev: [0] }, source).ev, [0]);
+  assert.deepEqual(postEvidenceFromWire(fact(0), source).ev, [0], 'legacy explicit citations remain valid');
+  assert.throws(() => postEvidenceFromWire({ ...negative, e0: undefined }, source), /POST_EVIDENCE_REQUIRED/);
+  assert.throws(() => postEvidenceFromWire({ ...negative, e0: '0' }, source), /POST_EVIDENCE_FORMAT_INVALID/);
+  assert.throws(() => postEvidenceFromWire({ ...negative, e0: 10 }, source), /POST_EVIDENCE_FORMAT_INVALID/);
+  assert.throws(() => postEvidenceFromWire({ ...negative, ev: [10] }, source), /POST_EVIDENCE_FORMAT_INVALID/);
+  assert.throws(() => postEvidenceWireSchema([]), /POST_WIRE_SPANS_INVALID/);
+});
 
 test('four named policies retain weak personal beauty wishes in Standard without inventing purchase intent', async () => {
   const root = mkdtempSync(join(tmpdir(), 'csd-post-policy-'));
@@ -215,6 +238,7 @@ test('exhausted malformed evidence preserves its cause and total attempt ceiling
     assert.equal(first.decisions[0]!.attributes?.assessment_attempts, 3);
     const saved = JSON.parse(readFileSync(join(root, readdirSync(root)[0]!), 'utf8'));
     assert.equal(saved.attempts, 3); assert.equal(saved.failure_history.length, 3);
+    assert.deepEqual(saved.failed_response.item.ev, []); assert.equal(saved.failed_response.invocation_id, 'test');
     const second = await classifyConversations(plan('CONSISTENT'), sources, mock.gateway, options);
     assert.equal(second.decisions[0]!.reason_code, 'POST_EVIDENCE_REQUIRED'); assert.equal(mock.requests.length, 3);
   } finally { rmSync(root, { recursive: true, force: true }); }
