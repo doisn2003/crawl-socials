@@ -99,3 +99,24 @@ test('AUTO keeps loaded windows through a transient CPU spike', async () => {
   assert.equal(second.shouldYield(), true);
   first.release(); second.release();
 });
+
+
+test('CPU yield waits until resumed replay reaches a fresh durable page, while critical memory yields immediately', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-replay-pressure-'));
+  try {
+    for (const critical of [false, true]) {
+      const windows = { acquire: async () => ({release() {}, shouldYield: () => true}),
+        status: () => ({ freeBytes: critical ? 100e6 : 8e9 }) } as unknown as ReturnType<typeof createWindowScheduler>;
+      await runQueryCollectors({ platform: 'threads', profileId: 'fixture', shouldStop: () => false, onProgress() {},
+        config: { runId: 'pressure-' + critical, output: join(root, String(critical)), queries: ['cafe'], maxMinutes: 10, warmPageLimit: 24 } },
+      async child => {
+        assert.equal(child.collectionLimitReason?.(), critical ? 'RESOURCE_YIELD' : null);
+        child.onProgress({ event: 'YIELD', replaying: true });
+        assert.equal(child.collectionLimitReason?.(), critical ? 'RESOURCE_YIELD' : null);
+        child.onProgress({ event: 'YIELD', replaying: false });
+        assert.equal(child.collectionLimitReason?.(), 'RESOURCE_YIELD');
+        return { stop_reason: 'SOURCE_EXHAUSTED', summary: { unique: 0 } };
+      }, windows);
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

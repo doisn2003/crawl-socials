@@ -35,7 +35,7 @@ export interface CollectorInput {
   platform: Platform; profileId: string; config: Record<string, unknown>;
   shouldStop(): boolean;
   collectionLimitReason?(): string | null;
-  onProgress(value: { total?: number; event?: string; query?: string; workers?: import('../shared/production-api.js').PlatformRun['workers'] }): void;
+  onProgress(value: { total?: number; event?: string; query?: string; replaying?: boolean; workers?: import('../shared/production-api.js').PlatformRun['workers'] }): void;
   resume?: boolean;
   onRecords?(rows: Record<string, unknown>[], provenance: Record<string, unknown>): Promise<void>;
   onQueryEnd?(value: { window: WebContents; platform: Platform; query?: string; shouldStop(): boolean }): Promise<void>;

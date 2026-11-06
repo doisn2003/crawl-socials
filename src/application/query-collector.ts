@@ -38,7 +38,13 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
     const pending = tasks.filter(t => t.state === 'QUEUED' && t.slices === round).sort((a, b) =>
       (input.queryPriority?.(b.query) ?? 0) - (input.queryPriority?.(a.query) ?? 0) || b.newRecords - a.newRecords || a.worker - b.worker);
     await Promise.all(pending.map(async task => {
-      let lease: Awaited<ReturnType<typeof windows.acquire>> | undefined, taskStarted = 0;
+      let lease: Awaited<ReturnType<typeof windows.acquire>> | undefined, taskStarted = 0, freshPage = false;
+      const resourceYield = () => {
+        if (!lease?.shouldYield()) return false;
+        if (windows.status().freeBytes < 512 * 1024 * 1024) return true;
+        // CPU pressure limits new admissions; a resumed window must reach new depth first.
+        return freshPage || Date.now() - taskStarted >= 120000;
+      };
       try {
         lease = await windows.acquire(input.platform, input.config.windowMode === 'ALL', () => !!stopReason(), input.profileId);
         taskStarted = Date.now();
@@ -47,8 +53,8 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
         const child = { ...input.config, queryTaskPolicy: undefined, parallelWorkers: 1, runId: childId,
           output: join(output, 'queries', task.id), queries: [task.query], maxScrollsPerQuery: 3, includeContextCandidates: true };
         const receipt = await collect({ ...input, config: child, resume: input.resume || task.attempts > 1,
-          shouldStop: () => !!stopReason(), collectionLimitReason: () => stopReason() ?? (lease!.shouldYield() ? 'RESOURCE_YIELD' : null),
-          continueQuerySlice: () => !!input.config.warmPageLimit && !stopReason() && !lease!.shouldYield()
+          shouldStop: () => !!stopReason(), collectionLimitReason: () => stopReason() ?? (resourceYield() ? 'RESOURCE_YIELD' : null),
+          continueQuerySlice: () => !!input.config.warmPageLimit && !stopReason() && !resourceYield()
             && !tasks.some(t => t.state === 'QUEUED' && t.slices === 0)
             && Date.now() - taskStarted < 120000,
           onRecords(rows, provenance) {
@@ -63,6 +69,7 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
           onProgress(value) {
             if (['BARRIER', 'HTTP_BARRIER', 'GRAPHQL_BARRIER'].includes(value.event ?? '')) barrier = 'ACCOUNT_BARRIER';
             const details = value as typeof value & { replaying?: boolean };
+            if (value.event === 'YIELD' && details.replaying === false) freshPage = true;
             if (value.event === 'YIELD') { task.pages = (task.pages ?? 0) + 1; if (details.replaying) task.replayPages = (task.replayPages ?? 0) + 1; }
             if (value.event === 'WARM_SLICE') task.warmExtensions = (task.warmExtensions ?? 0) + 1;
           },

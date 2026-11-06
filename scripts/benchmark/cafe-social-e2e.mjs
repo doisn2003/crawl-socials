@@ -43,7 +43,7 @@ async function main() {
   if(baseSpending&&read('status.json').results.length)write('empty-collection-harness-failures-'+Date.now()+'.json',read('status.json'));
   let recoveredA=[];
   if(process.argv.includes('--restart-after-fix')){
-    const archive=join(dir,'trial-before-bare-anchor-fix');mkdirSync(archive,{recursive:true});
+    const archive=join(dir,'trial-before-fix-'+Date.now());mkdirSync(archive,{recursive:true});
     for(const file of ['status.json','results-A-CONSISTENT.json','plan-A-CONSISTENT.json','summary.json'])if(existsSync(join(dir,file)))copyFileSync(join(dir,file),join(archive,file));
     recoveredA=JSON.parse(readFileSync(join(archive,'results-A-CONSISTENT.json'),'utf8')).opportunity.snapshots.filter(s=>s.post);
     rmSync(join(dir,'STOP'),{force:true});
