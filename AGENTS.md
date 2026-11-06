@@ -1,8 +1,18 @@
 # CSD — current development instructions
 
-The user's latest instructions take precedence. The active development plan is
-[ADR-025](.brain/decisions/ADR-025-cost-controlled-csd-rebuild.md), agreed in the
-conversation on 2026-11-03. Older dispatch, autonomous-run and spending instructions
+## Production v2 authorization — 2026-11-06
+
+- The user authorized implementing [.brain/master-plans_restructor_version2.0.0.md](.brain/master-plans_restructor_version2.0.0.md) on **production-v2**, created from production (`codex/csd-production`, `738dc8e`). This supersedes older integration-branch instructions for this work.
+- Four explicit modes: OFF, CONSISTENT, STANDARD, QUALITY. STANDARD keeps personal wishes/tâm sự with a weak but real topical link. CONSISTENT adds broader grounded contexts. No ads or unrelated filler in AI modes.
+- Expand search across many families; multi-hour runs are accepted. Initial posts have no age limit; geography is a preference. Monthly new means never previously delivered to the customer, including older newly discovered posts.
+- New work is POST_ONLY. Keep historical evidence and recipes readable. The abandoned Quality v2 candidate is excluded from implementation and comparison.
+- Coding and tests use mocks/local data and **zero paid calls**. The completed 2026-11-06 planner probe closed DEVELOPMENT at 1,150 calls / USD 1.458132801 measured / zero held. Preserve this ledger; implementation authorization does not reopen it.
+- Preserve production's newer fixes. Work in isolated data; no live crawl or production AppData writers during regression tests. Commit reviewable changes on production-v2; no production promotion implied.
+
+For production-v2, the master plan above and its implementation report
+[production-v2 report](.brain/reports/csd-production-v2-20261106.md) take precedence.
+The sections below preserve historical baseline context from
+[ADR-025](.brain/decisions/ADR-025-cost-controlled-csd-rebuild.md), agreed on 2026-11-03. Older dispatch, autonomous-run and spending instructions
 inside historical `.brain` sections are not current authorization.
 
 ## Cost and evidence
