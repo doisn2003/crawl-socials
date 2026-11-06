@@ -713,13 +713,14 @@ export function createProductionService(input: {
       try {
       if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('LOGIN_INPUT_INVALID');
       const v = value as Record<string, unknown>;
-      if (!platformValue(v.platform) || !['platform', 'platform,profileId'].includes(Object.keys(v).sort().join()) ||
-          (v.profileId !== undefined && !isBrowserProfileId(v.profileId))) throw Error('LOGIN_INPUT_INVALID');
+      if (!platformValue(v.platform) || !['platform', 'platform,profileId', 'createNew,platform'].includes(Object.keys(v).sort().join()) ||
+          (v.profileId !== undefined && !isBrowserProfileId(v.profileId)) || (v.createNew !== undefined && typeof v.createNew !== 'boolean')) throw Error('LOGIN_INPUT_INVALID');
       const list = await input.host.list();
-      let profile = v.profileId ? list.find(p => p.id === v.profileId) : list.find(p => (p.platform || 'facebook') === v.platform);
+      let profile = v.createNew === true ? undefined : v.profileId ? list.find(p => p.id === v.profileId) : list.find(p => (p.platform || 'facebook') === v.platform);
       if (v.profileId && (!profile || (profile.platform || 'facebook') !== v.platform)) throw Error('PROFILE_NOT_FOUND');
       if (!profile) {
-        const created = await input.host.create(v.platform === 'facebook' ? 'CSD Facebook' : 'CSD Threads', v.platform);
+        const count = list.filter(p => (p.platform || 'facebook') === v.platform).length;
+        const created = await input.host.create((v.platform === 'facebook' ? 'CSD Facebook' : 'CSD Threads') + (count ? ' ' + (count + 1) : ''), v.platform);
         profile = { ...created, open: false, persistenceError: null };
       }
       blockedProfiles.delete(profile.id); await input.host.openLogin(profile.id); await accounts();

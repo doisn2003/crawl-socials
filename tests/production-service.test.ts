@@ -50,6 +50,15 @@ async function temporary(work: (directory: string) => Promise<void>): Promise<vo
 }
 const completed = async (input: CollectorInput): Promise<CollectorReceipt> => { posts(input, 1); return { stop_reason: 'TARGET_REACHED', summary: { unique: 1 } }; };
 
+test('explicit add-account creates another isolated profile while ordinary login reuses the selected account', async () => temporary(async directory => {
+  const fixture = hostWithProfiles(), service = createProductionService({ directory, version: 'test', host: fixture.host, collect: completed });
+  await service.login({ platform: 'facebook' }); assert.equal(fixture.profiles.length, 2); assert.equal(fixture.opened.at(-1), fbId);
+  await service.login({ platform: 'facebook', createNew: true });
+  assert.equal(fixture.profiles.length, 3); assert.notEqual(fixture.opened.at(-1), fbId); assert.equal(fixture.profiles.at(-1)!.label, 'CSD Facebook 2');
+  await service.login({ platform: 'facebook', profileId: fbId }); assert.equal(fixture.opened.at(-1), fbId);
+  await assert.rejects(service.login({ platform: 'facebook', profileId: fbId, createNew: true }), /LOGIN_INPUT_INVALID/);
+}));
+
 test('same-network accounts have independent writers and one deduplicated durable platform export', async () => temporary(async directory => {
   const secondId = 'csd-00000000-0000-4000-8000-000000000003';
   const fixture = hostWithProfiles([profile(fbId, 'facebook'), profile(secondId, 'facebook')]), outputs: string[] = [], ids: string[] = [];
