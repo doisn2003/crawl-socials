@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDiscoveryFrontier, extendWarmSlice, MAX_DISCOVERY_REPLAY_PAGES } from '../scripts/discovery-frontier.mjs';
+import { createDiscoveryFrontier, extendWarmSlice, MAX_DISCOVERY_REPLAY_PAGES, createDiscoveryDiagnostics, settleDiscoveryPage } from '../scripts/discovery-frontier.mjs';
 
 const input = (platform = 'threads') => ({ platform, runId: 'synthetic-frontier', pageBudget: 20,
   jobs: platform === 'threads' ? [{ query: 'synthetic topic', mode: 'top' }, { query: 'synthetic topic', mode: 'recent' }] : [{ query: 'synthetic topic' }],
@@ -95,4 +95,45 @@ test('four empty fresh pages remain detectable across three-page slices and repe
   f.page(0,4,0);assert.equal(f.snapshot().jobs[0].empty_pages,4);f.finish(0,'NO_PROGRESS');
   assert.equal(f.snapshot().jobs[0].state,'STALLED');assert.notEqual(f.stopReason(),'SOURCE_EXHAUSTED');
   f=reopened(original,f);f.begin(0);f.page(0,2,1);assert.equal(f.snapshot().jobs[0].empty_pages,0,'new records during replay reset stagnation');
+});
+
+
+test('stagnation recovery clears empty counts, preserves depth and cannot reset its allowance by reopening', () => {
+  const original={...input('facebook'),pageBudget:3};let frontier=createDiscoveryFrontier(original);
+  for(let retry=0;retry<3;retry++) {
+    const slice=frontier.begin(0);assert.equal(slice.allowed,true);assert.equal(slice.emptyPages,0);
+    for(let i=1;i<=3;i++)frontier.page(0,slice.replayDepth+i,0);
+    frontier.finish(0,'NO_PROGRESS');frontier=reopened(original,frontier);
+  }
+  assert.deepEqual(frontier.begin(0),{allowed:false,replayDepth:9,maxScroll:0,reason:'NO_PROGRESS'});
+  assert.equal(frontier.snapshot().jobs[0].recovery_attempts,2);assert.notEqual(frontier.stopReason(),'SOURCE_EXHAUSTED');
+});
+
+test('discovery diagnostics distinguish no request, uncaptured response, parser and duplicate causes', () => {
+  const d=createDiscoveryDiagnostics(),before=d.snapshot();
+  assert.equal(d.diagnose(before),'NO_SEARCH_REQUEST_OBSERVED');
+  d.add('search_requests');assert.equal(d.diagnose(before),'SEARCH_RESPONSE_NOT_CAPTURED');
+  assert.equal(d.diagnose(before,{pendingRequests:1}),'RESPONSE_PENDING');
+  d.add('response_bodies');d.add('unsupported_responses');assert.equal(d.diagnose(before),'RESPONSE_SHAPE_UNSUPPORTED');
+  d.add('parsed_batches');assert.equal(d.diagnose(before),'NO_PARSED_ROOTS');
+  d.add('parsed_records',5);assert.equal(d.diagnose(before),'DUPLICATE_ROOTS');
+  assert.equal(d.diagnose(before,{gained:1}),'NEW_ROOTS');assert.equal(d.diagnose(before,{hasNext:false}),'NATIVE_END_OBSERVED');
+});
+
+test('page settling gives pending responses bounded grace without blocking cancellation', async () => {
+  let clock=0,count=0,refreshes=0;const diagnostics=createDiscoveryDiagnostics();
+  const base={settleMs:3000,now:()=>clock,sleep:async ms=>{clock+=ms;},check(){},refresh:async()=>{refreshes++;if(clock>=5000)count=2;},
+    pending:()=>1,count:()=>count,beforeCount:0,diagnostics};
+  await settleDiscoveryPage(base);assert.equal(clock,5000);assert.equal(count,2);assert.equal(diagnostics.snapshot().loading_waits,2);
+  clock=0;count=0;await settleDiscoveryPage({...base,refresh:async()=>{}});assert.equal(clock,15000,'a stuck request cannot wait forever');
+  clock=0;await assert.rejects(settleDiscoveryPage({...base,refresh:async()=>{},check(){if(clock>=4000)throw Error('USER_STOP');}}),/USER_STOP/);
+});
+
+
+test('ordinary slices skip stalled modes until the coordinator grants a cooldown recovery', () => {
+  const original=input(),f=createDiscoveryFrontier(original);
+  f.begin(0);f.page(0,3,0);f.finish(0,'NO_PROGRESS');
+  f.begin(1);f.page(1,3,2);f.finish(1,'PAGE_BUDGET_REACHED');
+  assert.deepEqual(f.indices({resume:true,recoverStalled:false}),[1]);
+  assert.deepEqual(f.indices({resume:true,recoverStalled:true}),[0,1]);
 });

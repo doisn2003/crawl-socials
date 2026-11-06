@@ -122,17 +122,64 @@ test('CPU yield waits until resumed replay reaches a fresh durable page, while c
 });
 
 
-test('a fully stalled native frontier is not endlessly requeued or called exhausted', async () => {
-  const root=mkdtempSync(join(tmpdir(),'csd-stalled-native-'));let calls=0;
+test('stalled native frontiers receive only two durable cooldown recoveries without false exhaustion', async () => {
+  const root=mkdtempSync(join(tmpdir(),'csd-stalled-native-'));let calls=0,clock=Date.now();
   const windows=createWindowScheduler({sample:()=>({freeBytes:12e9,totalBytes:16e9,cpuBusy:0}),staggerMs:0});
   try {
     const result=await runQueryCollectors({platform:'threads',profileId:'fixture',shouldStop:()=>false,onProgress(){},
       config:{runId:'stalled-native',output:root,queries:['cafe chill'],maxMinutes:10}},async()=>{
         calls++;return {stop_reason:calls===1?'QUERY_BUDGET_COMPLETE':'SOURCE_EXHAUSTED',summary:{unique:0},
           checkpoint:{discovery_frontier:{jobs:[{state:'STALLED',reason:'NO_PROGRESS'},{state:'EXHAUSTED',reason:'NATIVE_END_OBSERVED'}]}}};
-      },windows);
-    assert.equal(calls,1);assert.equal(result.stop_reason,'QUERY_BUDGET_COMPLETE');
+      },windows,{now:()=>clock,sleep:async ms=>{assert.equal(windows.status().active,0);clock+=ms;}});
+    assert.equal(calls,3);assert.equal(result.stop_reason,'QUERY_BUDGET_COMPLETE');
     const saved=JSON.parse(readFileSync(join(root,'runs/stalled-native/query-tasks.json'),'utf8'));
-    assert.equal(saved.tasks[0].reason,'NO_PROGRESS');assert.equal(saved.tasks[0].state,'STOPPED');
+    assert.equal(saved.tasks[0].reason,'NO_PROGRESS');assert.equal(saved.tasks[0].state,'STOPPED');assert.equal(saved.tasks[0].stallRecoveries,2);
+    await runQueryCollectors({platform:'threads',profileId:'fixture',shouldStop:()=>false,onProgress(){},
+      config:{runId:'stalled-native',output:root,queries:['cafe chill'],maxMinutes:10}},async()=>{throw Error('RECOVERY_MUST_NOT_RESET');},windows,{now:()=>clock});
+  } finally {rmSync(root,{recursive:true,force:true});}
+});
+
+
+test('Stop interrupts stall cooldown and resume retains its remaining wait', async () => {
+  const root=mkdtempSync(join(tmpdir(),'csd-stall-stop-'));let clock=Date.now(),stop=false,calls=0;
+  const windows=createWindowScheduler({sample:()=>({freeBytes:12e9,totalBytes:16e9,cpuBusy:0}),staggerMs:0});
+  const config={runId:'stall-stop',output:root,queries:['cafe'],maxMinutes:10};
+  const collect=async()=>{calls++;return {stop_reason:'NO_PROGRESS',summary:{unique:0}};};
+  try {
+    const result=await runQueryCollectors({platform:'facebook',profileId:'fixture',config,shouldStop:()=>stop,onProgress(){}},collect,windows,
+      {now:()=>clock,sleep:async ms=>{clock+=ms;stop=true;}});
+    assert.equal(calls,1);assert.equal(result.stop_reason,'USER_STOP');
+    const saved=JSON.parse(readFileSync(join(root,'runs/stall-stop/query-tasks.json'),'utf8'));
+    assert.ok(saved.tasks[0].retryAt>clock);assert.equal(saved.tasks[0].stallRecoveries,1);
+    stop=false;let waited=0;
+    await runQueryCollectors({platform:'facebook',profileId:'fixture',config,shouldStop:()=>stop,onProgress(){}},
+      async child=>{assert.ok(waited>=29750);assert.equal(child.recoverStalled,true);calls++;return {stop_reason:'SOURCE_EXHAUSTED',summary:{unique:0}};},windows,
+      {now:()=>clock,sleep:async ms=>{clock+=ms;waited+=ms;}});
+    assert.equal(calls,2);
+  } finally {rmSync(root,{recursive:true,force:true});}
+});
+
+test('expansion sees all known queries and every new query runs before deeper work', async () => {
+  const root=mkdtempSync(join(tmpdir(),'csd-known-query-'));
+  const windows=createWindowScheduler({sample:()=>({freeBytes:12e9,totalBytes:16e9,cpuBusy:0}),staggerMs:0});
+  const known:string[][]=[],visited:string[]=[];
+  try {
+    await runQueryCollectors({platform:'facebook',profileId:'fixture',shouldStop:()=>false,onProgress(){},
+      config:{runId:'known-query',output:root,queries:['initial'],maxMinutes:10},
+      expandQueries:async request=>{known.push(request?.knownQueries??[]);return known.length===1?['new branch']:[];}},
+      async child=>{visited.push((child.config.queries as string[])[0]!);return {stop_reason:'SOURCE_EXHAUSTED',summary:{unique:0}};},windows);
+    assert.deepEqual(known,[['initial'],['initial','new branch']]);assert.deepEqual(visited,['initial','new branch']);
+  } finally {rmSync(root,{recursive:true,force:true});}
+});
+
+
+test('campaign deadline still ends cooldown recovery before another browser is opened', async () => {
+  const root=mkdtempSync(join(tmpdir(),'csd-stall-deadline-'));let clock=Date.now(),calls=0;
+  const windows=createWindowScheduler({sample:()=>({freeBytes:12e9,totalBytes:16e9,cpuBusy:0}),staggerMs:0});
+  try {
+    const result=await runQueryCollectors({platform:'facebook',profileId:'fixture',shouldStop:()=>false,onProgress(){},
+      config:{runId:'stall-deadline',output:root,queries:['cafe'],maxMinutes:1}},
+      async()=>{calls++;return {stop_reason:'NO_PROGRESS',summary:{unique:0}};},windows,{now:()=>clock,sleep:async ms=>{clock+=ms;}});
+    assert.equal(calls,2);assert.equal(result.stop_reason,'RUN_DEADLINE');assert.equal(windows.status().active,0);
   } finally {rmSync(root,{recursive:true,force:true});}
 });

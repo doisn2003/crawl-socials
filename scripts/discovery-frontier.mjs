@@ -4,6 +4,41 @@ import { createHash } from 'node:crypto';
 // bounded observed prefix, then spend a new page slice. These are scroll depths,
 // not an assertion that the feed still has the same contents or pagination.
 export const MAX_DISCOVERY_REPLAY_PAGES = 100;
+export const MAX_STALL_RECOVERIES = 2;
+
+/** Counters explain a local lack of progress; they never assert network-wide exhaustion. */
+export function createDiscoveryDiagnostics() {
+  const counts = { search_requests: 0, response_bodies: 0, parsed_batches: 0, parsed_records: 0, new_roots: 0,
+    unsupported_responses: 0, scrolls: 0, loading_waits: 0 };
+  return {
+    add(key, value = 1) { if (!Object.hasOwn(counts, key) || !Number.isSafeInteger(value) || value < 0) throw Error('DISCOVERY_DIAGNOSTIC_INVALID'); counts[key] += value; },
+    snapshot: () => ({ ...counts }),
+    diagnose(before, { gained = 0, hasNext = null, pendingRequests = 0 } = {}) {
+      if (hasNext === false) return 'NATIVE_END_OBSERVED';
+      if (gained > 0) return 'NEW_ROOTS';
+      const delta = key => counts[key] - (before?.[key] ?? 0);
+      if (pendingRequests > 0) return 'RESPONSE_PENDING';
+      if (delta('unsupported_responses') > 0 && delta('parsed_batches') === 0) return 'RESPONSE_SHAPE_UNSUPPORTED';
+      if (delta('parsed_records') > 0) return 'DUPLICATE_ROOTS';
+      if (delta('parsed_batches') > 0) return 'NO_PARSED_ROOTS';
+      if (delta('response_bodies') > 0) return 'RESPONSE_WITHOUT_SEARCH_CONNECTION';
+      if (delta('search_requests') > 0) return 'SEARCH_RESPONSE_NOT_CAPTURED';
+      return 'NO_SEARCH_REQUEST_OBSERVED';
+    },
+  };
+}
+
+/** Loaders get a bounded response grace period, with cancellation checks between waits. */
+export async function settleDiscoveryPage({ settleMs, sleep, check, refresh, pending, count, beforeCount, diagnostics, now = Date.now }) {
+  const maxWait = Math.max(settleMs, 15000), deadline = now() + maxWait;
+  let waited = settleMs;
+  await sleep(settleMs); check(); await refresh();
+  while (count() === beforeCount && pending() > 0 && now() < deadline && waited < maxWait) {
+    diagnostics?.add('loading_waits');
+    const interval = Math.min(1000, deadline - now(), maxWait - waited); waited += interval;
+    await sleep(interval); check(); await refresh();
+  }
+}
 /** Keep a productive page loaded for bounded extra slices; no cursor/API replay. */
 export function extendWarmSlice(slice, { currentScroll, gained, pageBudget, warmPageLimit = pageBudget, maxReplayPages = MAX_DISCOVERY_REPLAY_PAGES, canContinue = false }) {
   if (!canContinue || gained <= 0 || currentScroll !== slice.maxScroll || pageBudget < 1) return false;
@@ -37,7 +72,8 @@ export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, che
       const expected = definitions[index];
       if (!job || job.id !== expected.id || job.index !== index || job.query !== expected.query || job.mode !== expected.mode
           || !states.has(job.state) || !integer(job.depth, maxReplayPages + pageBudget)
-          || !integer(job.slices, Number.MAX_SAFE_INTEGER) || !integer(job.empty_pages ?? 0, Number.MAX_SAFE_INTEGER) || !reasons.has(job.reason)
+          || !integer(job.slices, Number.MAX_SAFE_INTEGER) || !integer(job.empty_pages ?? 0, Number.MAX_SAFE_INTEGER)
+          || !integer(job.recovery_attempts ?? 0, MAX_STALL_RECOVERIES) || !reasons.has(job.reason)
           || (job.state === 'EXHAUSTED' && job.reason !== 'NATIVE_END_OBSERVED')
           || (job.state === 'PENDING' && (job.depth !== 0 || job.slices !== 0 || job.reason !== null))) throw Error('DISCOVERY_FRONTIER_INVALID');
     });
@@ -56,11 +92,17 @@ export function createDiscoveryFrontier({ platform, runId, jobs, pageBudget, che
   const at = index => { const job = frontier.jobs[index]; if (!job) throw Error('DISCOVERY_FRONTIER_INVALID'); return job; };
   return {
     snapshot: () => structuredClone(frontier),
-    indices: ({ resume = false } = {}) => frontier.jobs.filter(job => job.state === 'PENDING' || job.state === 'RUNNING'
-      || (resume && job.state !== 'EXHAUSTED')).map(job => job.index),
+    indices: ({ resume = false, recoverStalled = true } = {}) => frontier.jobs.filter(job => job.state === 'PENDING' || job.state === 'RUNNING'
+      || (resume && job.state !== 'EXHAUSTED' && (job.state !== 'STALLED' || recoverStalled))).map(job => job.index),
     begin(index) {
       const job = at(index), replayDepth = job.depth;
       if (job.state === 'EXHAUSTED') throw Error('DISCOVERY_FRONTIER_EXHAUSTED');
+      if (job.state === 'STALLED') {
+        if ((job.recovery_attempts ?? 0) >= MAX_STALL_RECOVERIES) return { allowed: false, replayDepth, maxScroll: 0, reason: 'NO_PROGRESS' };
+        job.recovery_attempts = (job.recovery_attempts ?? 0) + 1;
+        // A deliberate retry must reach fresh depth rather than stop on its first replay page.
+        job.empty_pages = 0;
+      }
       if (replayDepth > maxReplayPages) {
         job.state = 'BUDGET_LIMITED'; job.reason = 'REPLAY_BUDGET_REACHED';
         return { allowed: false, replayDepth, maxScroll: 0 };

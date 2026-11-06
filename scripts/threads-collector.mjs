@@ -4,7 +4,7 @@ import { resolve, join, relative, isAbsolute, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import { createDiscoveryFrontier, extendWarmSlice } from './discovery-frontier.mjs';
+import { createDiscoveryFrontier, extendWarmSlice, createDiscoveryDiagnostics, settleDiscoveryPage } from './discovery-frontier.mjs';
 import { runtimePaths } from '../dist/infrastructure/config/runtime-paths.js';
 import { createBrowserProfiles } from '../dist/infrastructure/browser/profile-repository.js';
 import { createElectronSecretStore } from '../dist/infrastructure/secrets/electron-secret-store.js';
@@ -17,7 +17,7 @@ const hash=v=>createHash('sha256').update(v).digest('hex');
 const arg=name=>{const i=process.argv.indexOf(name);return i<0?null:process.argv[i+1];};
 async function timed(work,ms,code){let timer;try{return await Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(code)),ms);})]);}finally{clearTimeout(timer);}}
 const bounded=(n,min,max)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
-export async function runThreadsCollector({config,host,profileId,onProgress=()=>{},shouldStop=()=>false,resume=false,onRecords=null,onQueryEnd=null,beforeNextPage=null,collectionLimitReason=null,continueQuerySlice=null}){
+export async function runThreadsCollector({config,host,profileId,onProgress=()=>{},shouldStop=()=>false,resume=false,recoverStalled=true,onRecords=null,onQueryEnd=null,beforeNextPage=null,collectionLimitReason=null,continueQuerySlice=null}){
  if(!/^[a-z0-9][a-z0-9-]{2,80}$/.test(config.runId)||!Array.isArray(config.queries)||!config.queries.length||config.queries.length>240||config.queries.some(q=>typeof q!=='string'||!q.trim()||q.length>200)||!bounded(config.maxScrollsPerQuery,0,200)||!bounded(config.maxMinutes,1,1440)||!bounded(config.targetTotal,1,50000)||!bounded(config.settleMs,2000,15000)||(config.maxReplayPages!==undefined&&!bounded(config.maxReplayPages,1,2000))||(config.warmPageLimit!==undefined&&!bounded(config.warmPageLimit,1,200)))throw Error('CONFIG_INVALID');
  const directory=resolve(config.output),rel=relative(resolve(process.cwd()),directory);
  if(!isAbsolute(config.output)||(rel!=='..'&&!rel.startsWith('..'+sep)&&!isAbsolute(rel)))throw Error('OUTPUT_MUST_BE_OUTSIDE_WORKSPACE');
@@ -38,7 +38,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
  const frontier=config.includeContextCandidates===true?createDiscoveryFrontier({platform:'threads',runId:config.runId,jobs,pageBudget:config.maxScrollsPerQuery,checkpoint,checkpointExisted:existsSync(checkpointPath),maxReplayPages:config.maxReplayPages}):null;
  const saveCheckpoint=()=>{if(frontier)checkpoint={...checkpoint,discovery_frontier:frontier.snapshot()};store.checkpoint(runDirectory,checkpoint);};
  let active=null,jobIndex=checkpoint.job_index,scrollIndex=0,epoch=0,closing=false,captureAdmission=true,stopReason=null,observer=null,observerStarted=0,reads=0,lastNext=null,lastEmbedded=null;
- const initial=store.count,pending=new Map(),requestInfo=new Map(),operations=new Map(),readers=new Set();
+ const initial=store.count,pending=new Map(),requestInfo=new Map(),operations=new Map(),readers=new Set(),queryDiagnostics=[];let diagnostics=createDiscoveryDiagnostics(),lastDiagnosis=null,lastGeometry=null;
  const event=value=>{const row={at:new Date().toISOString(),...value,total:store.count};appendFileSync(join(runDirectory,'events.jsonl'),JSON.stringify(row)+'\n',{flush:true});writeFileSync(join(runDirectory,'status.json'),JSON.stringify(row,null,2));onProgress({event:row.event,total:store.count,...(typeof row.replaying==='boolean'?{replaying:row.replaying}:{}),new_this_run:store.count-initial,...(typeof row.query==='string'?{query:row.query}:{}),...(Number.isInteger(row.job_index)?{job_index:row.job_index}:{}),...(typeof row.stop_reason==='string'?{stop_reason:row.stop_reason}:{})});};
  const externalStop=()=>shouldStop()||existsSync(stopPath)||Date.now()>deadline;
  const check=()=>{if(stopReason)throw Error(stopReason);if(shouldStop()||existsSync(stopPath))throw Error('USER_STOP');if(Date.now()>deadline)throw Error('RUN_DEADLINE');const limit=collectionLimitReason?.();if(limit)throw Error(limit);};
@@ -63,12 +63,13 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
   if(!active||closing||info&&info.epoch!==epoch)return;
   current();
   const parsed=parseThreadsSearch(objects,{query:active.query,mode:active.mode,collectedAt:new Date().toISOString(),method,includeContextCandidates:config.includeContextCandidates===true});
-  if(!parsed.connections){if(info?.operation?.includes('Search'))event({event:'SEARCH_SHAPE_UNSUPPORTED',operation:info.operation,root_keys:objects.map(o=>Object.keys(o?.data||{}))});return;}
+  if(!parsed.connections){if(info?.operation?.includes('Search')){diagnostics.add('unsupported_responses');}if(info?.operation?.includes('Search'))event({event:'SEARCH_SHAPE_UNSUPPORTED',operation:info.operation,root_keys:objects.map(o=>Object.keys(o?.data||{}))});return;}
+  diagnostics.add('parsed_batches');diagnostics.add('parsed_records',parsed.records.length);
   if(method==='BROWSER_RESPONSE'||lastNext===null)lastNext=parsed.has_next_page;
   const batchId=`${config.runId}-${++checkpoint.batch_sequence}`;
   const provenance={run_id:config.runId,batch_id:batchId,query_index:jobIndex,scroll_index:scrollIndex,method,response_sha256:digest,operation:info?.operation??null,request_id:info?.id??null};
   if(onRecords)await onRecords(parsed.records,{...provenance,platform:'threads',observed_at:new Date().toISOString()});
-  const saved=store.persist(parsed.records,provenance);checkpoint={...checkpoint,job_index:jobIndex};saveCheckpoint();
+  const saved=store.persist(parsed.records,provenance);diagnostics.add('new_roots',saved.new_records);checkpoint={...checkpoint,job_index:jobIndex};saveCheckpoint();
   event({event:'BATCH',...provenance,...saved,has_next_page:parsed.has_next_page,skipped:parsed.skipped});
   const s=await snapshot();
   appendFileSync(join(runDirectory,'verification.jsonl'),JSON.stringify({batch_id:batchId,dom_sha256:hash(s.text),permalink_matches:parsed.records.filter(r=>s.links.includes(r.post_url)).map(r=>r.post_id),text_prefix_matches:parsed.records.filter(r=>s.text.includes(r.text.slice(0,60))).map(r=>r.post_id)})+'\n',{flush:true});
@@ -82,6 +83,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
    const name=new URLSearchParams(body||'').get('fb_api_req_friendly_name');const operation=name&&/^[A-Za-z0-9_]{1,200}$/.test(name)?name:null;
    requestInfo.set(p.requestId,{id:p.requestId,epoch:requestEpoch,operation});while(requestInfo.size>500)requestInfo.delete(requestInfo.keys().next().value);
    if(operation)operations.set(operation,(operations.get(operation)||0)+1);
+   if(operation?.includes('Search')&&requestEpoch===epoch)diagnostics.add('search_requests');
    if(operation?.includes('Search'))event({event:'SEARCH_REQUEST',operation,job_index:jobIndex,scroll_index:scrollIndex});
   })();pending.set(p.requestId,task);void task.finally(()=>pending.delete(p.requestId)).catch(()=>{stopReason='REQUEST_CAPTURE_FAILED';});
  };
@@ -95,6 +97,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
    if(e.kind!=='BODY'){event({event:'OBSERVER',code:e.code});continue;}
    reads++;try{if(pending.has(e.transportRequestId))await pending.get(e.transportRequestId);const info=requestInfo.get(e.transportRequestId);
     if(!info||info.epoch!==epoch||!info.operation?.includes('Search'))continue;
+    diagnostics.add('response_bodies');
     if([401,403,429].includes(e.status)){stopReason='ACCOUNT_BARRIER';event({event:'HTTP_BARRIER',status:e.status});continue;}
     const objects=decode(e.body),errors=JSON.stringify(objects.flatMap(o=>o?.errors||o?.error||[]));
     if(/rate.?limit|challenge|checkpoint|login required|temporarily blocked/i.test(errors)){stopReason='ACCOUNT_BARRIER';event({event:'GRAPHQL_BARRIER',response_sha256:hash(e.body)});continue;}
@@ -119,25 +122,29 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
  }
  try{
   event({event:'START',run_id:config.runId,existing_records:initial,profile_platform:profile.platform,code_sha256:hash(readFileSync(new URL(import.meta.url))),component_hashes:Object.fromEntries(['../dist/infrastructure/browser/threads-search-parser.js','../dist/infrastructure/browser/threads-collector-store.js','../dist/infrastructure/browser/browser-host.js'].map(path=>[path,hash(readFileSync(new URL(path,import.meta.url)))]))});
-  const jobIndices=frontier?frontier.indices({resume}):jobs.map((_,index)=>index).filter(index=>index>=checkpoint.job_index);
+  const jobIndices=frontier?frontier.indices({resume,recoverStalled}):jobs.map((_,index)=>index).filter(index=>index>=checkpoint.job_index);
   for(const ji of jobIndices){
    check();await drain();if(beforeNextPage)await beforeNextPage();check();const slice=frontier?.begin(ji)??{allowed:true,replayDepth:0,maxScroll:config.maxScrollsPerQuery};
    if(frontier){checkpoint={...checkpoint,job_index:ji};saveCheckpoint();}
-   if(!slice.allowed){event({event:'REPLAY_BUDGET_REACHED',job_index:ji,replay_depth:slice.replayDepth});continue;}
-   active=jobs[ji];jobIndex=ji;epoch++;scrollIndex=0;lastNext=null;lastEmbedded=null;await attach();
+   if(!slice.allowed){event({event:slice.reason??'REPLAY_BUDGET_REACHED',job_index:ji,replay_depth:slice.replayDepth});continue;}
+   diagnostics=createDiscoveryDiagnostics();lastDiagnosis=null;lastGeometry=null;active=jobs[ji];jobIndex=ji;epoch++;scrollIndex=0;lastNext=null;lastEmbedded=null;await attach();
    const url=new URL('https://www.threads.com/search');url.searchParams.set('q',active.query);url.searchParams.set('serp_type','default');if(active.mode==='recent')url.searchParams.set('filter','recent');
    event({event:'QUERY',job_index:ji,...active});await timed(wc.loadURL(url.href),30000,'NAVIGATION_TIMEOUT');await sleep(config.settleMs);check();await snapshot();await embedded();let noProgress=slice.emptyPages??0,queryStop='PAGE_BUDGET_REACHED';
    for(let scroll=1;scroll<=slice.maxScroll;scroll++){
     check();if(beforeNextPage)await beforeNextPage();check();if(store.count>=config.targetTotal)break;if(lastNext===false){queryStop='NATIVE_END_OBSERVED';event({event:'SOURCE_EXHAUSTED',job_index:ji});break;}
-    await attach();scrollIndex=scroll;const count=store.count;
+    await attach();scrollIndex=scroll;const count=store.count,beforeDiagnostics=diagnostics.snapshot();diagnostics.add('scrolls');
     const geometry=await execute(`(()=>{const root=document.scrollingElement;const scrollable=e=>e.clientHeight>250&&e.scrollHeight>e.clientHeight+100&&/auto|scroll/.test(getComputedStyle(e).overflowY);const primary=[...document.querySelectorAll('main,[role="main"]')].filter(scrollable);const candidates=primary.length?primary:root.scrollHeight>root.clientHeight+100?[]:[...document.querySelectorAll('div')].filter(scrollable);const e=candidates.sort((a,b)=>b.clientHeight-a.clientHeight)[0]||root;const before=e.scrollTop;e.scrollTo({top:e.scrollHeight,behavior:'instant'});return {before,after:e.scrollTop,height:e.scrollHeight,client:e.clientHeight,root:e===root};})()`);
-    await sleep(config.settleMs);check();await snapshot();await embedded();await drain();const gained=store.count-count;noProgress=gained?0:scroll<=slice.replayDepth?noProgress:noProgress+1;
+    await settleDiscoveryPage({settleMs:config.settleMs,sleep,check,diagnostics,count:()=>store.count,beforeCount:count,
+     pending:()=>observer?.snapshot().pendingRequests??0,refresh:async()=>{await snapshot();await embedded();await drain();}});const gained=store.count-count;noProgress=gained?0:scroll<=slice.replayDepth?noProgress:noProgress+1;
     if(frontier){check();frontier.page(ji,scroll,gained);saveCheckpoint();}
-    event({event:'YIELD',job_index:ji,scroll_index:scroll,new_records:gained,no_progress:noProgress,replaying:scroll<=slice.replayDepth,...geometry});
-    if(noProgress>=4){queryStop='NO_PROGRESS';event({event:'NO_PROGRESS',job_index:ji});break;}
+    lastDiagnosis=diagnostics.diagnose(beforeDiagnostics,{gained,hasNext:lastNext,pendingRequests:observer?.snapshot().pendingRequests??0});lastGeometry=geometry;
+    event({event:'YIELD',job_index:ji,scroll_index:scroll,new_records:gained,no_progress:noProgress,replaying:scroll<=slice.replayDepth,...geometry,
+     diagnosis:lastDiagnosis,diagnostics:diagnostics.snapshot()});
+    if(scroll>slice.replayDepth&&noProgress>=4){queryStop='NO_PROGRESS';event({event:'NO_PROGRESS',job_index:ji});break;}
     if(extendWarmSlice(slice,{currentScroll:scroll,gained,pageBudget:config.maxScrollsPerQuery,warmPageLimit:config.warmPageLimit,maxReplayPages:config.maxReplayPages,canContinue:!onQueryEnd&&!!continueQuerySlice?.()}))event({event:'WARM_SLICE',job_index:ji,scroll_index:scroll,max_scroll:slice.maxScroll});
    }
-   await drain(true);check();if(frontier)frontier.finish(ji,lastNext===false?'NATIVE_END_OBSERVED':queryStop);checkpoint={...checkpoint,job_index:ji+1};saveCheckpoint();
+   await drain(true);check();if(frontier)frontier.finish(ji,lastNext===false?'NATIVE_END_OBSERVED':queryStop);
+   queryDiagnostics.push({query:active.query,mode:active.mode,reason:lastNext===false?'NATIVE_END_OBSERVED':queryStop,has_next_page:lastNext,last_diagnosis:lastDiagnosis,last_scroll:lastGeometry,...diagnostics.snapshot()});checkpoint={...checkpoint,job_index:ji+1};saveCheckpoint();
    if(onQueryEnd){const completedQuery=active.query;active=null;epoch++;manager.stopAll();await timed(Promise.allSettled([...readers,...pending.values()]),12000,'CAPTURE_DRAIN_TIMEOUT');wc.debugger.removeListener('message',onRequest);try{await onQueryEnd({window:wc,profileId:profile.id,platform:'threads',query:completedQuery,shouldStop:externalStop});}finally{if(!wc.isDestroyed())wc.debugger.on('message',onRequest);}check();}
    if(store.count>=config.targetTotal&&ji>=config.queries.length-1){stopReason='TARGET_REACHED';break;}
   }
@@ -146,7 +153,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
  finally{
   try{await drain(true);}catch{stopReason='CAPTURE_DRAIN_TIMEOUT';}active=null;closing=true;manager.stopAll();if(!wc.isDestroyed())wc.debugger.removeListener('message',onRequest);let sessionFlush='OK';
   try{await timed(Promise.allSettled([...readers,...pending.values()]),12000,'CAPTURE_DRAIN_TIMEOUT');await timed(host.close(profile.id),60000,'SESSION_FLUSH_TIMEOUT');profileClosed=true;}catch{sessionFlush='FAILED';}
-  const receipt={run_id:config.runId,stop_reason:stopReason,new_this_run:store.records().filter(r=>r.first_observation.run_id===config.runId).length,new_this_invocation:store.count-initial,elapsed_ms:Date.now()-Date.parse(manifest.started_at),session_flush:sessionFlush,summary:store.export(),operations:Object.fromEntries(operations),checkpoint,content_review:'NOT_REQUESTED'};
+  const receipt={run_id:config.runId,stop_reason:stopReason,new_this_run:store.records().filter(r=>r.first_observation.run_id===config.runId).length,new_this_invocation:store.count-initial,elapsed_ms:Date.now()-Date.parse(manifest.started_at),session_flush:sessionFlush,summary:store.export(),operations:Object.fromEntries(operations),diagnostics:queryDiagnostics,checkpoint,content_review:'NOT_REQUESTED'};
   writeFileSync(join(runDirectory,'receipt.json'),JSON.stringify(receipt,null,2),{flush:true});event({event:'STOP',...receipt});
   return receipt;
  }

@@ -329,6 +329,12 @@ test('Threads duplicate response batches do not reset the unique-record exhausti
     assert.equal(events.filter(event => event.event === 'NO_PROGRESS').length, 1);
     assert.equal(events.filter(event => event.event === 'YIELD').at(-1).no_progress, 4);
     assert.equal(receipt.checkpoint.discovery_frontier.jobs[0].state, 'STALLED');
+    assert.equal(receipt.diagnostics[0].last_diagnosis, 'DUPLICATE_ROOTS');
+    assert.equal(receipt.diagnostics[0].search_requests, 5);assert.equal(receipt.diagnostics[0].response_bodies, 5);
+    await s.run({resume:true,recoverStalled:false});assert.equal(scrolls,5,'ordinary continuation does not bypass cooldown');
+    const recovered=await s.run({resume:true,recoverStalled:true});
+    assert.equal(scrolls,14,'recovery replays five pages then tries four fresh pages rather than immediately re-stalling');
+    assert.equal(recovered.checkpoint.discovery_frontier.jobs[0].recovery_attempts,1);
   } finally { s.clean(); }
 });
 
@@ -365,6 +371,8 @@ for (const platform of ['facebook', 'threads']) {
       assert.equal(s.loads(), 1); assert.equal(s.depth(), 9); assert.equal(s.legacy().length, 10);
       assert.equal(receipt.checkpoint.discovery_frontier.jobs[0].depth, 9);
       assert.equal(receipt.stop_reason, 'QUERY_BUDGET_COMPLETE');
+      assert.equal(receipt.diagnostics[0].new_roots,10);assert.equal(receipt.diagnostics[0].scrolls,9);
+      assert.equal(receipt.diagnostics[0].last_diagnosis,'NEW_ROOTS');
     } finally { s.clean(); }
   });
 

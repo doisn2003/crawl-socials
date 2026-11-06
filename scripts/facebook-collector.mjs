@@ -5,7 +5,7 @@ import { resolve, join, relative, isAbsolute, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import { createDiscoveryFrontier, extendWarmSlice } from './discovery-frontier.mjs';
+import { createDiscoveryFrontier, extendWarmSlice, createDiscoveryDiagnostics, settleDiscoveryPage } from './discovery-frontier.mjs';
 import { runtimePaths } from '../dist/infrastructure/config/runtime-paths.js';
 import { createBrowserProfiles } from '../dist/infrastructure/browser/profile-repository.js';
 import { createElectronSecretStore } from '../dist/infrastructure/secrets/electron-secret-store.js';
@@ -19,7 +19,7 @@ const hash=v=>createHash('sha256').update(v).digest('hex');
 const arg=name=>{const i=process.argv.indexOf(name);return i<0?null:process.argv[i+1];};
 const bounded=(n,min,max)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
 async function timed(work,ms,code){let timer;try{return await Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(code)),ms);})]);}finally{clearTimeout(timer);}}
-export async function runFacebookCollector({config,host,profileId,onProgress=()=>{},shouldStop=()=>false,resume=false,onRecords=null,onQueryEnd=null,beforeNextPage=null,collectionLimitReason=null,continueQuerySlice=null}){
+export async function runFacebookCollector({config,host,profileId,onProgress=()=>{},shouldStop=()=>false,resume=false,recoverStalled=true,onRecords=null,onQueryEnd=null,beforeNextPage=null,collectionLimitReason=null,continueQuerySlice=null}){
  if(!/^[a-z0-9][a-z0-9-]{2,80}$/.test(config.runId)||!Array.isArray(config.queries)||!config.queries.length||config.queries.length>240||config.queries.some(q=>typeof q!=='string'||!q.trim()||q.length>200)||!bounded(config.maxScrollsPerQuery,0,50)||!bounded(config.maxMinutes,1,1440)||!bounded(config.targetNewRecords,1,config.includeContextCandidates===true?50000:5000)||!bounded(config.settleMs,2000,15000)||(config.maxReplayPages!==undefined&&!bounded(config.maxReplayPages,1,2000))||(config.warmPageLimit!==undefined&&!bounded(config.warmPageLimit,1,200)))throw new Error('CONFIG_INVALID');
  const directory=resolve(config.output),rel=relative(resolve(process.cwd()),directory);
  if(!isAbsolute(config.output)||(rel!=='..'&&!rel.startsWith('..'+sep)&&!isAbsolute(rel)))throw new Error('OUTPUT_MUST_BE_OUTSIDE_WORKSPACE');
@@ -41,7 +41,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
  const saveCheckpoint=()=>{if(frontier)checkpoint={...checkpoint,discovery_frontier:frontier.snapshot()};store.checkpoint(runDirectory,checkpoint);};
  const initialRunRecords=store.records().filter(r=>r.first_observation.run_id===config.runId).length;
  let newThisRun=initialRunRecords,activeQuery=null,activeQueryIndex=checkpoint.query_index,scrollIndex=0,stopReason=null,closing=false,captureAdmission=true,observer=null,observerStarted=0,activeReads=0,lastHasNext=null,lastEmbeddedHash=null;
- const pending=new Map(),requestInfo=new Map(),operations=new Map(),readers=new Set();
+ const pending=new Map(),requestInfo=new Map(),operations=new Map(),readers=new Set(),queryDiagnostics=[];let diagnostics=createDiscoveryDiagnostics(),lastDiagnosis=null,lastGeometry=null;
  const event=value=>{const row={at:new Date().toISOString(),...value};appendFileSync(join(runDirectory,'events.jsonl'),JSON.stringify(row)+'\n',{flush:true});writeFileSync(join(runDirectory,'status.json'),JSON.stringify({...row,total:store.count,new_this_run:newThisRun},null,2));onProgress({event:row.event,total:store.count,...(typeof row.replaying==='boolean'?{replaying:row.replaying}:{}),new_this_run:newThisRun,...(typeof row.query==='string'?{query:row.query}:{}),...(Number.isInteger(row.query_index)?{query_index:row.query_index}:{}),...(typeof row.stop_reason==='string'?{stop_reason:row.stop_reason}:{})});};
  const externalStop=()=>shouldStop()||existsSync(join(runDirectory,'STOP'))||Date.now()>deadline;
  const check=()=>{if(Date.now()>deadline)throw new Error('RUN_DEADLINE');if(shouldStop()||existsSync(join(runDirectory,'STOP')))throw new Error('USER_STOP');if(stopReason)throw new Error(stopReason);const limit=collectionLimitReason?.();if(limit)throw Error(limit);};
@@ -63,14 +63,15 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
   if(!activeQuery||closing)return;current();
   let parsed;
   try{parsed=parseFacebookEmbeddedSearch(objects,{query:activeQuery,collectedAt:new Date().toISOString(),documentUrl:wc.getURL(),extractionMethod:method,includeContextCandidates:config.includeContextCandidates===true});}
-  catch(e){event({event:'PARSER_REJECTED',method,code:e.message});return;}
-  if(!parsed.connections)return;
+  catch(e){diagnostics.add('unsupported_responses');event({event:'PARSER_REJECTED',method,code:e.message});return;}
+  if(!parsed.connections){if(info?.operation?.includes('Search'))diagnostics.add('unsupported_responses');return;}
+  diagnostics.add('parsed_batches');diagnostics.add('parsed_records',parsed.records.length);
   if(method==='BROWSER_RESPONSE'||lastHasNext===null)lastHasNext=parsed.has_next_page;
   for(const skipped of parsed.skipped)if(skipped.observed_post_url)appendFileSync(join(runDirectory,'parser-candidates.jsonl'),JSON.stringify({at:new Date().toISOString(),query:activeQuery,...skipped})+'\n',{flush:true});
   const batchId=`${config.runId}-${++checkpoint.batch_sequence}`;
   const provenance={run_id:config.runId,batch_id:batchId,query_index:activeQueryIndex,scroll_index:scrollIndex,method,response_sha256:responseHash,operation:info?.operation??null,transport_request_id:info?.id??null};
   if(onRecords)await onRecords(parsed.records,{...provenance,platform:'facebook',observed_at:new Date().toISOString()});
-  const saved=store.persist(parsed.records,provenance);newThisRun+=saved.new_records;
+  const saved=store.persist(parsed.records,provenance);newThisRun+=saved.new_records;diagnostics.add('new_roots',saved.new_records);
   checkpoint={...checkpoint,query_index:activeQueryIndex,scroll_index:scrollIndex};saveCheckpoint();
   event({event:'BATCH',...provenance,...saved,has_next_page:parsed.has_next_page,skipped:parsed.skipped.map(s=>s.reason)});
   const s=await snapshot();const norm=v=>v.normalize('NFKD').replace(/[^\p{L}\p{N}]/gu,'').toLowerCase();
@@ -89,6 +90,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
    requestInfo.set(p.requestId,{id:p.requestId,query,queryIndex,operation:safeName});
    while(requestInfo.size>500)requestInfo.delete(requestInfo.keys().next().value);
    if(safeName)operations.set(safeName,(operations.get(safeName)||0)+1);
+   if(safeName?.includes('Search')&&query===activeQuery)diagnostics.add('search_requests');
    event({event:'REQUEST',request_id:p.requestId,operation:safeName,has_body:!!body,body_bytes:body?.length??0,query_index:queryIndex});
   })().catch(()=>{stopReason='REQUEST_OBSERVER_FAILED';});pending.set(p.requestId,task);void task.finally(()=>pending.delete(p.requestId));
  };
@@ -103,6 +105,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
     if(pending.has(e.transportRequestId))await pending.get(e.transportRequestId);
     const info=requestInfo.get(e.transportRequestId);
     if(info&&info.query!==activeQuery)continue;
+    if(info?.operation?.includes('Search'))diagnostics.add('response_bodies');
     const objects=decode(e.body);
     if(info?.operation==='SearchCometResultsPaginatedResultsQuery'){
      const errors=objects.flatMap(o=>o&&(o.errors||o.error)?[o.errors||o.error]:[]);
@@ -137,12 +140,12 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
  const started=Date.now();
  try{
   event({event:'START',run_id:config.runId,resumed:initialRunRecords>0,existing_records:store.count,code_hashes:{entry:hash(readFileSync(new URL(import.meta.url))),parser:hash(readFileSync(new URL('../dist/infrastructure/browser/facebook-search-embedded-parser.js',import.meta.url))),store:hash(readFileSync(new URL('../dist/infrastructure/browser/facebook-collector-store.js',import.meta.url)))}});
-  const queryIndices=frontier?frontier.indices({resume}):config.queries.map((_,index)=>index).filter(index=>index>=checkpoint.query_index);
+  const queryIndices=frontier?frontier.indices({resume,recoverStalled}):config.queries.map((_,index)=>index).filter(index=>index>=checkpoint.query_index);
   for(const qi of queryIndices){
    check();if(beforeNextPage)await beforeNextPage();check();const slice=frontier?.begin(qi)??{allowed:true,replayDepth:0,maxScroll:config.maxScrollsPerQuery};
    if(frontier){checkpoint={...checkpoint,query_index:qi,scroll_index:0};saveCheckpoint();}
-   if(!slice.allowed){event({event:'REPLAY_BUDGET_REACHED',query_index:qi,replay_depth:slice.replayDepth});continue;}
-   activeQuery=config.queries[qi];activeQueryIndex=qi;scrollIndex=0;lastHasNext=null;lastEmbeddedHash=null;await attach();
+   if(!slice.allowed){event({event:slice.reason??'REPLAY_BUDGET_REACHED',query_index:qi,replay_depth:slice.replayDepth});continue;}
+   diagnostics=createDiscoveryDiagnostics();lastDiagnosis=null;lastGeometry=null;activeQuery=config.queries[qi];activeQueryIndex=qi;scrollIndex=0;lastHasNext=null;lastEmbeddedHash=null;await attach();
    const url=new URL('https://www.facebook.com/search/top');url.searchParams.set('q',activeQuery);url.searchParams.set('filters','eyJycF9hdXRob3I6MCI6IntcIm5hbWVcIjpcIm1lcmdlZF9wdWJsaWNfcG9zdHNcIixcImFyZ3NcIjpcIlwifSJ9');
    event({event:'QUERY',query_index:qi,query:activeQuery});await timed(wc.loadURL(url.href),30000,'NAVIGATION_TIMEOUT');await sleep(config.settleMs);check();
    const before=await snapshot();event({event:'VIEW',query_index:qi,...before,mainText:undefined,alert:undefined});await embedded();
@@ -150,18 +153,22 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
    for(let scroll=1;scroll<=slice.maxScroll;scroll++){
     check();if(beforeNextPage)await beforeNextPage();check();if(newThisRun>=config.targetNewRecords&&qi>=Math.min(1,config.queries.length-1))break;
     if(lastHasNext===false){queryStop='NATIVE_END_OBSERVED';event({event:'SOURCE_EXHAUSTED',query_index:qi});break;}
-    await attach();scrollIndex=scroll;const count=store.count;
+    await attach();scrollIndex=scroll;const count=store.count,beforeDiagnostics=diagnostics.snapshot();diagnostics.add('scrolls');
     const geometry=await execute(`(()=>{const root=document.scrollingElement;const scrollable=e=>e.clientHeight>300&&e.scrollHeight>e.clientHeight+200&&/auto|scroll/.test(getComputedStyle(e).overflowY);const primary=[...document.querySelectorAll('[role="main"],[role="feed"],main')].filter(scrollable);const candidates=primary.length?primary:root.scrollHeight>root.clientHeight+100?[]:[...document.querySelectorAll('div')].filter(scrollable);const e=candidates.sort((a,b)=>b.clientHeight-a.clientHeight)[0]||root;const before=e.scrollTop;e.scrollTo({top:e.scrollHeight,behavior:'instant'});return {tag:e.tagName,role:e.getAttribute('role'),before,after:e.scrollTop,height:e.scrollHeight,client:e.clientHeight,root:e===root};})()`);
-    event({event:'SCROLL',query_index:qi,scroll_index:scroll,...geometry});await sleep(config.settleMs);check();await snapshot();await embedded();
-    await drain();
+    event({event:'SCROLL',query_index:qi,scroll_index:scroll,...geometry});
+    await settleDiscoveryPage({settleMs:config.settleMs,sleep,check,diagnostics,count:()=>store.count,beforeCount:count,
+     pending:()=>observer?.snapshot().pendingRequests??0,refresh:async()=>{await snapshot();await embedded();await drain();}});
     const gained=store.count-count;noProgress=gained?0:scroll<=slice.replayDepth?noProgress:noProgress+1;
     if(frontier){check();frontier.page(qi,scroll,gained);saveCheckpoint();}
-    event({event:'YIELD',query_index:qi,scroll_index:scroll,new_records:gained,no_progress:noProgress,replaying:scroll<=slice.replayDepth});
-    if(noProgress>=3&&geometry.after>=geometry.height-geometry.client-10){queryStop='NO_PROGRESS';break;}
+    lastDiagnosis=diagnostics.diagnose(beforeDiagnostics,{gained,hasNext:lastHasNext,pendingRequests:observer?.snapshot().pendingRequests??0});lastGeometry=geometry;
+    event({event:'YIELD',query_index:qi,scroll_index:scroll,new_records:gained,no_progress:noProgress,replaying:scroll<=slice.replayDepth,
+     diagnosis:lastDiagnosis,diagnostics:diagnostics.snapshot()});
+    if(scroll>slice.replayDepth&&noProgress>=3&&geometry.after>=geometry.height-geometry.client-10){queryStop='NO_PROGRESS';break;}
     if(extendWarmSlice(slice,{currentScroll:scroll,gained,pageBudget:config.maxScrollsPerQuery,warmPageLimit:config.warmPageLimit,maxReplayPages:config.maxReplayPages,canContinue:!onQueryEnd&&!!continueQuerySlice?.()}))event({event:'WARM_SLICE',query_index:qi,scroll_index:scroll,max_scroll:slice.maxScroll});
    }
    await drain(true);check();
    if(frontier)frontier.finish(qi,lastHasNext===false?'NATIVE_END_OBSERVED':queryStop);
+   queryDiagnostics.push({query:activeQuery,reason:lastHasNext===false?'NATIVE_END_OBSERVED':queryStop,has_next_page:lastHasNext,last_diagnosis:lastDiagnosis,last_scroll:lastGeometry,...diagnostics.snapshot()});
    checkpoint={...checkpoint,query_index:qi+1,scroll_index:0};saveCheckpoint();
    if(onQueryEnd){const completedQuery=activeQuery;activeQuery=null;manager.stopAll();await timed(Promise.allSettled([...readers,...pending.values()]),12000,'CAPTURE_DRAIN_TIMEOUT');wc.debugger.removeListener('message',onRequest);try{await onQueryEnd({window:wc,profileId:profile.id,platform:'facebook',query:completedQuery,shouldStop:externalStop});}finally{if(!wc.isDestroyed())wc.debugger.on('message',onRequest);}check();}
    if(newThisRun>=config.targetNewRecords&&qi>=Math.min(1,config.queries.length-1)){stopReason='TARGET_REACHED';break;}
@@ -172,7 +179,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
   try{await drain(true);}catch{stopReason='CAPTURE_DRAIN_TIMEOUT';}activeQuery=null;
   let sessionFlush='OK';try{await close();}catch(e){sessionFlush=e.message;}
   const summary=store.export();
-  const receipt={run_id:config.runId,stop_reason:stopReason,new_this_run:newThisRun,elapsed_ms:Date.now()-Date.parse(manifest.started_at),invocation_ms:Date.now()-started,session_flush:sessionFlush,summary,operations:Object.fromEntries(operations),checkpoint,platform_permission:'UNKNOWN',benchmark_pass:false};
+  const receipt={run_id:config.runId,stop_reason:stopReason,new_this_run:newThisRun,elapsed_ms:Date.now()-Date.parse(manifest.started_at),invocation_ms:Date.now()-started,session_flush:sessionFlush,summary,operations:Object.fromEntries(operations),diagnostics:queryDiagnostics,checkpoint,platform_permission:'UNKNOWN',benchmark_pass:false};
   writeFileSync(join(runDirectory,'receipt.json'),JSON.stringify(receipt,null,2),{flush:true});event({event:'STOP',...receipt});
   return receipt;
  }
