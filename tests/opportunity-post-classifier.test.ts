@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { contentHash, evidenceSpans, type ConversationEntity, type ConversationSnapshot } from '../src/domain/conversation.js';
@@ -112,15 +112,22 @@ test('advertising post is not rescued by stored consumer comment; hard unknown r
   assert.deepEqual(out.decisions.map(d => d.classification), ['NOT_SUITABLE', null, 'NOT_SUITABLE']);
 });
 
-test('one missing and one fabricated item preserve valid siblings, and cached failure never triggers automatic repeat', async () => {
+test('targeted repair preserves valid siblings and never accepts missing or fabricated evidence', async () => {
   const root = mkdtempSync(join(tmpdir(), 'csd-post-partial-'));
   try {
     const sources = [snapshot('Tôi muốn chăm da', 'a'), snapshot('Tôi muốn đẹp hơn', 'b'), snapshot('Mình muốn tìm spa', 'c')];
-    const mock = model(() => [fact(0), fact(2, { ev: [100] })]), options = { assessmentCacheDirectory: root };
+    const mock = model((request, call) => {
+      if (call === 1) return [fact(0), fact(2, { ev: [100] })];
+      const input = request.input as { posts: { i: number; spans: { text: string }[] }[]; repair: { attempt: number; previous_error: string }[] };
+      assert.equal(input.posts.length, 2); assert.ok(input.posts.every(p => p.spans[0]!.text !== sources[0]!.post!.text));
+      assert.deepEqual(input.repair.map(r => r.previous_error), ['POST_ITEM_MISSING', 'POST_EVIDENCE_FORMAT_INVALID']);
+      assert.ok(input.repair.every(r => r.attempt === 2));
+      return input.posts.map(p => fact(p.i));
+    }), options = { assessmentCacheDirectory: root };
     const out = await classifyConversations(plan('STANDARD'), sources, mock.gateway, options);
-    assert.deepEqual(out.decisions.map(d => d.classification), ['SUITABLE', null, null]);
-    assert.equal(out.failures.length, 2);
-    await classifyConversations(plan('STANDARD'), sources, mock.gateway, options); assert.equal(mock.requests.length, 1);
+    assert.deepEqual(out.decisions.map(d => d.classification), ['SUITABLE', 'SUITABLE', 'SUITABLE']);
+    assert.equal(out.failures.length, 0);
+    await classifyConversations(plan('STANDARD'), sources, mock.gateway, options); assert.equal(mock.requests.length, 2);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -164,7 +171,7 @@ test('new recipes and historical recipes are independently pinned; OFF never inv
   await assert.rejects(classifyConversations(plan('STANDARD'), [snapshot('Mình cần spa')], mock.gateway, { maxBatchSize: 0 }), /POST_BATCH_INVALID/);
 });
 
-test('a billed incomplete review stays pending across restart instead of silently buying another review', async () => {
+test('a billed incomplete review gets a bounded repair without rerunning the successful primary', async () => {
   const root = mkdtempSync(join(tmpdir(), 'csd-post-review-failed-'));
   try {
     const mock = model((_request, call) => {
@@ -173,10 +180,11 @@ test('a billed incomplete review stays pending across restart instead of silentl
     });
     const sources = [snapshot('Mình muốn tìm spa chăm sóc da')], options = { assessmentCacheDirectory: root };
     const first = await classifyConversations(plan('QUALITY'), sources, mock.gateway, options);
-    assert.equal(first.decisions[0]!.classification, null);
-    assert.equal(first.decisions[0]!.reason_code, 'MODEL_INCOMPLETE_RESPONSE');
+    assert.equal(first.decisions[0]!.classification, 'SUITABLE');
+    assert.equal(first.failures.length, 0);
     const second = await classifyConversations(plan('QUALITY'), sources, mock.gateway, options);
-    assert.equal(second.decisions[0]!.reason_code, 'POST_REVIEW_UNRESOLVED'); assert.equal(mock.requests.length, 2);
+    assert.equal(second.decisions[0]!.classification, 'SUITABLE'); assert.equal(mock.requests.length, 3);
+    assert.equal(mock.requests.filter(r => r.purpose === POST_EVIDENCE_VERSION).length, 1);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -193,6 +201,80 @@ test('a budget stop before transport does not poison cache and can resume after 
     const second = await classifyConversations(plan('STANDARD'), sources, mock.gateway, options);
     assert.equal(second.decisions[0]!.classification, 'SUITABLE'); assert.equal(mock.requests.length, 2);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('exhausted malformed evidence preserves its cause and total attempt ceiling across restarts', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-post-repair-cap-'));
+  try {
+    const sources = [snapshot('Mình cần tìm spa chăm sóc da')], mock = model(() => [fact(0, { ev: [] })]);
+    const options = { assessmentCacheDirectory: root, postMaxAttempts: 3 };
+    const first = await classifyConversations(plan('CONSISTENT'), sources, mock.gateway, options);
+    assert.equal(mock.requests.length, 3); assert.equal(first.decisions[0]!.classification, null);
+    assert.equal(first.decisions[0]!.reason_code, 'POST_EVIDENCE_REQUIRED');
+    assert.equal(first.decisions[0]!.attributes?.recovery_exhausted, true);
+    assert.equal(first.decisions[0]!.attributes?.assessment_attempts, 3);
+    const saved = JSON.parse(readFileSync(join(root, readdirSync(root)[0]!), 'utf8'));
+    assert.equal(saved.attempts, 3); assert.equal(saved.failure_history.length, 3);
+    const second = await classifyConversations(plan('CONSISTENT'), sources, mock.gateway, options);
+    assert.equal(second.decisions[0]!.reason_code, 'POST_EVIDENCE_REQUIRED'); assert.equal(mock.requests.length, 3);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('legacy FAILED and interrupted STARTED caches resume without discarding previously spent attempts', async () => {
+  for (const state of ['FAILED', 'STARTED']) {
+    const root = mkdtempSync(join(tmpdir(), 'csd-post-legacy-repair-'));
+    try {
+      const sources = [snapshot('Mình cần tìm spa chăm sóc da')], mock = model(() => [fact(0)]);
+      const options = { assessmentCacheDirectory: root };
+      await classifyConversations(plan('STANDARD'), sources, mock.gateway, options);
+      const file = join(root, readdirSync(root)[0]!), old = JSON.parse(readFileSync(file, 'utf8'));
+      writeFileSync(file, JSON.stringify({ key: old.key, state }));
+      const repaired = await classifyConversations(plan('STANDARD'), sources, mock.gateway, options);
+      assert.equal(repaired.decisions[0]!.classification, 'SUITABLE'); assert.equal(mock.requests.length, 2);
+      assert.equal(JSON.parse(readFileSync(file, 'utf8')).attempts, 2);
+      assert.equal((mock.requests[1]!.input as { repair: { attempt: number }[] }).repair[0]!.attempt, 2);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  }
+});
+
+test('a pretransport budget stop during repair preserves previous failures and their spent attempt', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-post-repair-budget-'));
+  try {
+    const mock = model((_request, call) => {
+      if (call === 1) return [fact(0, { ev: [] })];
+      if (call === 2) throw new ModelGatewayError('MODEL_GLOBAL_BUDGET_EXHAUSTED', false, null);
+      return [fact(0)];
+    });
+    const sources = [snapshot('Mình cần tìm spa chăm sóc da')], options = { assessmentCacheDirectory: root };
+    const first = await classifyConversations(plan('STANDARD'), sources, mock.gateway, options);
+    assert.equal(first.decisions[0]!.reason_code, 'MODEL_GLOBAL_BUDGET_EXHAUSTED'); assert.equal(mock.requests.length, 2);
+    const file = join(root, readdirSync(root)[0]!), saved = JSON.parse(readFileSync(file, 'utf8'));
+    assert.equal(saved.attempts, 1); assert.equal(saved.last_error, 'POST_EVIDENCE_REQUIRED'); assert.equal(saved.failure_history.length, 1);
+    const second = await classifyConversations(plan('STANDARD'), sources, mock.gateway, options);
+    assert.equal(second.decisions[0]!.classification, 'SUITABLE'); assert.equal(mock.requests.length, 3);
+    assert.equal(JSON.parse(readFileSync(file, 'utf8')).attempts, 2);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('malformed review reaches its durable cap without repeating primary or silently accepting', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-post-review-cap-'));
+  try {
+    const mock = model((request) => [fact(0, { flags: ['CONTEXT'], ev: request.purpose.endsWith('-review') ? [] : [0] })]);
+    const sources = [snapshot('Mình muốn tìm spa chăm sóc da')], options = { assessmentCacheDirectory: root };
+    const first = await classifyConversations(plan('QUALITY'), sources, mock.gateway, options);
+    assert.equal(first.decisions[0]!.classification, null); assert.equal(first.decisions[0]!.reason_code, 'POST_EVIDENCE_REQUIRED');
+    assert.equal(first.decisions[0]!.attributes?.assessment_attempts, 3); assert.equal(mock.requests.length, 4);
+    await classifyConversations(plan('QUALITY'), sources, mock.gateway, options); assert.equal(mock.requests.length, 4);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('repair can be disabled and invalid repair limits cannot dispatch model requests', async () => {
+  const mock = model(() => [fact(0, { ev: [] })]), sources = [snapshot('Mình muốn tìm spa chăm sóc da')];
+  const first = await classifyConversations(plan('STANDARD'), sources, mock.gateway, { recoverFormat: false });
+  assert.equal(first.decisions[0]!.classification, null); assert.equal(mock.requests.length, 1);
+  await assert.rejects(classifyConversations(plan('STANDARD'), sources, mock.gateway, { postMaxAttempts: 0 }), /POST_REPAIR_LIMIT_INVALID/);
+  await assert.rejects(classifyConversations(plan('STANDARD'), sources, mock.gateway, { postRepairBatchSize: 5 }), /POST_REPAIR_LIMIT_INVALID/);
+  assert.equal(mock.requests.length, 1);
 });
 
 test('current operational criteria override original prompt and omit superseded dialogue from classifier input', async () => {

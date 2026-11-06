@@ -8,7 +8,9 @@ export type LanguageEvidence = { state: 'MATCH' | 'MISMATCH' | 'UNKNOWN'; detect
 const vietnameseNames = new Set(['vi', 'vie', 'vietnamese', 'tiếng việt']);
 export const vietnameseOnly = (plan: Pick<CampaignPlan, 'languages'>) => plan.languages.length > 0
   && plan.languages.every(v => vietnameseNames.has(v.normalize('NFC').trim().toLowerCase()));
-const accentedWords = new Set('tôi mình bạn muốn cần tìm học thích mê đàn người những đang được không với cho của này rồi quá các một là có hỏi cảm ơn nhiều bao nhiêu nhỉ nhé vậy thì chưa rất đam chuyện chia sẻ và mà đã để nhưng cũng vẫn sẽ chỉ mới vì đi lại nữa từ cùng thấy nên về sự mọi cả ấy đó biết phải được vừa lớp việc tiền giúp giáo viên nhận à ạ hả'.split(' '));
+// Include common question/determiner words from colloquial short posts. These are
+// prose cues; venue names, addresses and topical nouns alone still cannot prove language.
+const accentedWords = new Set('tôi mình bạn muốn cần tìm học thích mê đàn người những đang được không với cho của này rồi quá các một là có hỏi cảm ơn nhiều bao nhiêu nhỉ nhé vậy thì chưa rất đam chuyện chia sẻ và mà đã để nhưng cũng vẫn sẽ chỉ mới vì đi lại nữa từ cùng thấy nên về sự mọi cả ấy đó biết phải được vừa lớp việc tiền giúp giáo viên nhận à ạ hả nào mấy đây đâu tụi nè ơi'.split(' '));
 const asciiWords = new Set([...accentedWords].map(w => w.normalize('NFD').replace(/\p{M}/gu, '').replaceAll('đ', 'd')));
 const asciiPhrase = /\b(?:minh muon|toi muon|can tim|co ai|xin hoi|cho minh|cam on|duoc khong|bao nhieu|nha minh|moi nguoi|o dau|khong biet|rat thich|dang can|can hoc)\b/u;
 function prose(text: string): string {

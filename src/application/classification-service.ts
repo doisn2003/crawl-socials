@@ -131,6 +131,10 @@ export interface ClassifyOptions {
   cacheNamespace?: string;
   systemSuffix?: string;
   recoverFormat?: boolean;
+  /** Post-only requests per item/stage, persisted across restarts (initial + repairs). */
+  postMaxAttempts?: number;
+  /** Repair only failed items in smaller batches; valid siblings remain cached. */
+  postRepairBatchSize?: number;
   /** Optional separately budgeted stronger model. Missing context is never invented by escalation. */
   escalationGateway?: ModelGateway;
 }

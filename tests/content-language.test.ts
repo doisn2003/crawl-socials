@@ -30,6 +30,16 @@ test('Vietnamese content includes unaccented and overseas writing, without using
   assert.equal(vietnameseEvidence('piano 🎹').state, 'UNKNOWN');
 });
 
+test('colloquial short venue questions retain Vietnamese while names and foreign advertising remain insufficient', () => {
+  for (const text of ['Sg quán cafe nào decor giáng sinh đẹp mng ơii',
+    'Mấy quán cafe xik xik gần đây ☺️☺️', 'Tiệm nào xinh vậy mng', 'Chỗ nào đẹp nè mấy bà'])
+    assert.equal(vietnameseEvidence(text).state, 'MATCH', text);
+  for (const text of ['Nguyễn Chí Thanh', 'Đặng Thái Sơn', 'Nguyễn Phương Thảo', 'Quán Cafe Đẹp',
+    'Beautiful cafe in Hà Nội — best coffee, book your table now!',
+    'Buy now for the best price! #quán #nào #mấy #đây', 'Cafe https://example.test/mấy-quán-nào-đẹp'])
+    assert.notEqual(vietnameseEvidence(text).state, 'MATCH', text);
+});
+
 test('foreign-only evidence is excluded in both filter modes before any paid call; OFF retains raw evidence', async () => {
   const root = mkdtempSync(join(tmpdir(), 'csd-language-')), store = createConversationStore(join(root, 'store'));
   try {
