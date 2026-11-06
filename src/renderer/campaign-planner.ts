@@ -63,6 +63,10 @@ export function createCampaignPlanner(host: PlannerHost) {
     node<HTMLDetailsElement>('campaign-plan-editor').hidden = !draft && !dirty;
     if (draft && draft.revision !== displayedRevision && !dirty) fill(draft);
     for (const control of controls) control.disabled = !editable;
+    const discoveryPlan = !!draft?.campaign?.discovery_plan;
+    node<HTMLTextAreaElement>('criteria-queries').readOnly = discoveryPlan;
+    node<HTMLTextAreaElement>('criteria-queries').title = discoveryPlan ? 'Sửa mục tiêu trong phần hội thoại để tạo lại các nhóm tìm kiếm và giữ nguồn của từng ý.' : '';
+    if (discoveryPlan || draft?.campaign?.filter_version?.startsWith('opportunity-posts-')) for (const name of ['criteria-watch-enabled', 'criteria-watch-hours', 'criteria-watch-ttl', 'criteria-watch-attempts']) node<HTMLInputElement>(name).disabled = true;
     const extendedCriteria = draft?.criteriaCapabilities.extendedClassificationCriteria === true;
     node('criteria-context-note').hidden = !draft || extendedCriteria;
     for (const field of ['audience', 'languages', 'research_intents']) node<HTMLTextAreaElement>(inputId(field)).disabled = !editable || !extendedCriteria;
@@ -76,7 +80,7 @@ export function createCampaignPlanner(host: PlannerHost) {
     const cost = state?.campaignDraftPreparing?.cost ?? state?.campaignDraftError?.cost ?? draft?.cost ?? state?.campaignDialogue?.cost;
     node('campaign-plan-cost').textContent = cost ? `Chi phí lập kế hoạch: $${cost.measuredUsd.toFixed(4)}`
       + (cost.unknownUpperUsd + cost.reservedUsd > 0 ? `–$${(cost.measuredUsd + cost.unknownUpperUsd + cost.reservedUsd).toFixed(4)}` : '')
-      + ' · Được tính trong ngân sách của lượt thu.' : 'CSD sẽ làm rõ yêu cầu trước khi tìm bài. Chi phí nằm trong giới hạn $3 của lượt này.';
+      + ' · Được tính trong ngân sách của lượt thu.' : 'CSD sẽ làm rõ yêu cầu trước khi tìm bài. Chi phí nằm trong ngân sách đã chọn của lượt này.';
     const presets = state?.campaignPresets ?? [], nextKey = JSON.stringify(presets.map(p => [p.presetId, p.version, p.name, p.supported]));
     const select = node<HTMLSelectElement>('campaign-preset');
     if (nextKey !== presetKey) {

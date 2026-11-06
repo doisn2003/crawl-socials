@@ -51,15 +51,15 @@ test('configuration rejects malformed values and unsupported targets before touc
   store.save(original);
   const invalid: unknown[] = [
     null, [], { keywords: [], minimumPosts: '10' }, { keywords: [], minimumPosts: 0 },
-    { keywords: [], minimumPosts: 3001 }, { keywords: [], minimumPosts: 1.5 },
+    { keywords: [], minimumPosts: 5001 }, { keywords: [], minimumPosts: 1.5 },
     { keywords: [], minimumPosts: 10, trial: true }, { keywords: [''], minimumPosts: 10 },
     { keywords: ['   '], minimumPosts: 10 }, { keywords: ['line\nbreak'], minimumPosts: 10 },
     { keywords: [17], minimumPosts: 10 }, { keywords: ['x'.repeat(201)], minimumPosts: 10 },
-    { keywords: Array.from({ length: 101 }, (_, index) => String(index)), minimumPosts: 10 },
+    { keywords: Array.from({ length: 241 }, (_, index) => String(index)), minimumPosts: 10 },
   ];
   for (const value of invalid) assert.throws(() => store.save(value), /CONFIG_INVALID/);
   assert.deepEqual(store.read(), original);
-  assert.deepEqual(parseUserConfig({ keywords: ['x'], minimumPosts: 3000 }), { keywords: ['x'], minimumPosts: 3000 });
+  assert.deepEqual(parseUserConfig({ keywords: ['x'], minimumPosts: 5000 }), { keywords: ['x'], minimumPosts: 5000 });
 }));
 
 test('write failure preserves the last saved config; corrupt files fail visibly instead of resetting user input', () => temporary(directory => {

@@ -9,7 +9,17 @@ import { withFilterPolicy } from '../src/application/filter-policy.js';
 import { literalCampaign } from '../src/application/compile-campaign.js';
 import { ModelGatewayError } from '../src/application/ports/model-gateway.js';
 import { createConversationStore } from '../src/infrastructure/storage/conversation-store.js';
+import { campaignVersion, type CampaignPlan } from '../src/domain/campaign-plan.js';
+import type { FilterMode } from '../src/shared/filter-policy.js';
 import type { WebContents } from 'electron';
+
+
+function legacyCommentPolicy(plan: CampaignPlan, mode: FilterMode): CampaignPlan {
+  const next = withFilterPolicy(plan, mode);
+  if (mode !== 'OFF') next.filter_version = mode === 'QUALITY' ? 'coverage-quality-v1' : 'coverage-standard-v1';
+  const { version: _, created_at: __, ...base } = next; next.version = campaignVersion(base);
+  return next;
+}
 
 test('OFF collects a global target, persists extras/resume and never invokes AI; comments require an explicit browser turn', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'csd-rebuild-'));
@@ -56,7 +66,7 @@ test('model budget pause leaves new raw collection usable with a durable pending
 
 test('AI budget pause does not block bounded comment collection; the new evidence waits without further AI requests', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'csd-rebuild-comments-')); let calls = 0, captures = 0;
-  const campaign = withFilterPolicy(literalCampaign({ prompt: 'Tìm người học tiếng Anh', seed_queries: ['học tiếng Anh'], suitable_target: 10, raw_cap: 30, model_usd: .1 }), 'STANDARD');
+  const campaign = legacyCommentPolicy(literalCampaign({ prompt: 'Tìm người học tiếng Anh', seed_queries: ['học tiếng Anh'], suitable_target: 10, raw_cap: 30, model_usd: .1 }), 'STANDARD');
   const pipeline = await createOpportunityPipeline({ directory, runId: campaign.campaign_id, campaign,
     config: { enabled: true, prompt: campaign.prompt, brandContext: '', filterMode: 'STANDARD', totalTarget: 10, rawCap: 30, budgetUsd: .1, commentsEnabled: true },
     platforms: ['facebook'], gateway: { ...unassessedGateway, generateJson: async () => { calls++; throw new ModelGatewayError('MODEL_GLOBAL_BUDGET_EXHAUSTED'); } },
@@ -82,10 +92,10 @@ test('AI budget pause does not block bounded comment collection; the new evidenc
   } finally { await pipeline.close(); rmSync(directory, { recursive: true, force: true }); }
 });
 
-test('the comment toggle gates browser capture and inline comment assessment in all three modes', async () => {
+test('historical recipes: the comment toggle gates browser capture and inline comment assessment in all three modes', async () => {
   for (const mode of ['OFF', 'STANDARD', 'QUALITY'] as const) for (const commentsEnabled of [false, true]) {
     const directory = mkdtempSync(join(tmpdir(), 'csd-comments-toggle-')); let calls = 0, captures = 0; const inputs: string[] = [];
-    const campaign = withFilterPolicy(literalCampaign({ prompt: 'Tìm người học đàn piano', seed_queries: ['học piano'], suitable_target: 10, raw_cap: 30, model_usd: .1 }), mode);
+    const campaign = legacyCommentPolicy(literalCampaign({ prompt: 'Tìm người học đàn piano', seed_queries: ['học piano'], suitable_target: 10, raw_cap: 30, model_usd: .1 }), mode);
     const pipeline = await createOpportunityPipeline({ directory, runId: campaign.campaign_id, campaign,
       config: { enabled: true, prompt: campaign.prompt, brandContext: '', filterMode: mode, totalTarget: 10, rawCap: 30, budgetUsd: mode === 'OFF' ? 0 : .1, commentsEnabled },
       platforms: ['facebook'], gateway: { ...unassessedGateway, generateJson: async request => { calls++; inputs.push(JSON.stringify(request.input)); throw new ModelGatewayError('MODEL_GLOBAL_BUDGET_EXHAUSTED'); } },

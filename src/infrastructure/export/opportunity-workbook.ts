@@ -13,18 +13,43 @@ export interface OpportunityExportData {
   selection?: { target: { platform: string; rootId: string; acceptedSequence: number }[]; extra: { platform: string; rootId: string; acceptedSequence: number }[] };
   conversations: { snapshot: ConversationSnapshot; decision: ConversationDecision; stale: boolean }[];
 }
-export function selectOpportunityExport(value: unknown, classification?: ConversationClassification): OpportunityExportData {
+function retainExportRoots(input: OpportunityExportData, keys: Set<string>): OpportunityExportData {
+  const keep = (platform: string, rootId: string) => keys.has(platform + ':' + rootId);
+  return { ...input, conversations: input.conversations.filter(r => keep(r.snapshot.platform, r.snapshot.root_post_id)),
+    snapshots: input.snapshots.filter(s => keep(s.platform, s.root_post_id)),
+    decisions: input.decisions.filter(d => keep(d.platform, d.root_post_id)),
+    ...(input.selection ? { selection: { target: input.selection.target.filter(r => keep(r.platform, r.rootId)), extra: input.selection.extra.filter(r => keep(r.platform, r.rootId)) } } : {}),
+    ...(input.decision_snapshots ? { decision_snapshots: input.decision_snapshots.filter(s => keep(s.platform, s.root_post_id)) } : {}) };
+}
+function isUnassessedExport(input: OpportunityExportData): boolean {
+  return !!input.campaign && typeof input.campaign === 'object' && 'filter_mode' in input.campaign && input.campaign.filter_mode === 'OFF';
+}
+/** Customer exports omit earlier deliveries; the immutable internal raw archive remains complete. */
+export function selectOpportunityExport(value: unknown, classification?: ConversationClassification, excludedRootKeys: readonly string[] = []): OpportunityExportData {
   if (!value || typeof value !== 'object') throw Error('OPPORTUNITY_EXPORT_INVALID');
-  const input = value as OpportunityExportData;
+  let input = value as OpportunityExportData;
   if (!Array.isArray(input.snapshots) || !Array.isArray(input.decisions) || !Array.isArray(input.conversations)) throw Error('OPPORTUNITY_EXPORT_INVALID');
+  if (classification && isUnassessedExport(input)) throw Error('OFF_EXPORT_CLASSIFICATION_INVALID');
+  if (excludedRootKeys.length) {
+    const excluded = new Set(excludedRootKeys);
+    input = retainExportRoots(input, new Set(input.snapshots.map(s => s.platform + ':' + s.root_post_id).filter(k => !excluded.has(k))));
+  }
   if (!classification) return input;
+  const targetKeys = input.selection ? new Set(input.selection.target.map(r => r.platform + ':' + r.rootId)) : null;
   const conversations = input.conversations.filter(item => !item.stale && item.decision.snapshot_id === item.snapshot.id
-    && item.decision.assessment_status === 'ASSESSED' && (classification === 'NOT_SUITABLE'
-      ? ['NOT_SUITABLE', 'NOT_YET', 'UNRELATED'].includes(item.decision.classification ?? '') : item.decision.classification === classification));
-  const keys = new Set(conversations.map(item => `${item.snapshot.platform}:${item.snapshot.root_post_id}`));
-  return { ...input, conversations, snapshots: input.snapshots.filter(s => keys.has(`${s.platform}:${s.root_post_id}`)),
-    decisions: input.decisions.filter(d => keys.has(`${d.platform}:${d.root_post_id}`)),
-    ...(input.decision_snapshots ? { decision_snapshots: input.decision_snapshots.filter(s => keys.has(`${s.platform}:${s.root_post_id}`)) } : {}) };
+    && item.decision.assessment_status === 'ASSESSED'
+    && (classification !== 'SUITABLE' || !targetKeys || targetKeys.has(item.snapshot.platform + ':' + item.snapshot.root_post_id))
+    && (classification === 'NOT_SUITABLE' ? ['NOT_SUITABLE', 'NOT_YET', 'UNRELATED'].includes(item.decision.classification ?? '') : item.decision.classification === classification));
+  const keys = new Set(conversations.map(item => item.snapshot.platform + ':' + item.snapshot.root_post_id));
+  return { ...retainExportRoots(input, keys), conversations };
+}
+/** Count only roots present in the actual delivered file; OFF rows remain explicitly unassessed. */
+export function deliveredOpportunityRoots(input: OpportunityExportData): string[] {
+  const present = new Set(input.snapshots.filter(s => !!s.post).map(s => s.platform + ':' + s.root_post_id));
+  if (isUnassessedExport(input)) return [...present];
+  return [...new Set(input.conversations.filter(r => !r.stale && r.decision.snapshot_id === r.snapshot.id
+    && r.decision.classification === 'SUITABLE' && r.decision.assessment_status === 'ASSESSED')
+    .map(r => r.snapshot.platform + ':' + r.snapshot.root_post_id).filter(key => present.has(key)))];
 }
 function text(value: unknown): string {
   const result = value == null ? '' : typeof value === 'string' ? value : JSON.stringify(value);
@@ -53,10 +78,10 @@ export async function exportOpportunityWorkbook(path: string, value: unknown, cl
   const membership = new Map(['target', 'extra'].flatMap(group => (data.selection?.[group as 'target' | 'extra'] ?? [])
     .map(row => [row.platform + ':' + row.rootId, { group: group.toUpperCase(), sequence: row.acceptedSequence }] as const)));
   const off = !!data.campaign && typeof data.campaign === 'object' && 'filter_mode' in data.campaign && data.campaign.filter_mode === 'OFF';
-  sheet(workbook, 'Conversations', ['platform', 'root_post_id', 'classification', 'reason', 'need_summary', 'post_text', 'post_url', 'evidence', 'action_entity_id', 'snapshot_id', 'observed_at', 'coverage', 'assessment_status', 'evaluated_at', 'valid_until', 'temporal_evidence', 'decision_id', 'selection_group', 'accepted_sequence'],
+  sheet(workbook, 'Conversations', ['platform', 'root_post_id', 'classification', 'reason', 'need_summary', 'post_text', 'post_url', 'evidence', 'action_entity_id', 'snapshot_id', 'observed_at', 'coverage', 'assessment_status', 'evaluated_at', 'valid_until', 'temporal_evidence', 'decision_id', 'selection_group', 'accepted_sequence', 'opportunity_types', 'published_at'],
     [...ordered.values()].map(s => { const d = current.get(s.id); return [s.platform, s.root_post_id, d?.classification, d?.reason_code ?? 'AWAITING_CURRENT_ASSESSMENT', d?.attributes?.need_summary, s.post?.text,
       s.post?.permalink, s.spans.filter(span => d?.evidence_ids.includes(span.id)).map(span => `${span.entity_type}:${span.entity_id}: ${span.text}`).join('\n'), d?.action_target?.entity_id, s.id, s.observed_at, s.coverage.status, d?.assessment_status ?? (off ? 'UNASSESSED' : 'PENDING'),
-      d?.evaluated_at, d?.valid_until, d?.temporal_evidence, d?.id, membership.get(s.platform + ':' + s.root_post_id)?.group, membership.get(s.platform + ':' + s.root_post_id)?.sequence]; }));
+      d?.evaluated_at, d?.valid_until, d?.temporal_evidence, d?.id, membership.get(s.platform + ':' + s.root_post_id)?.group, membership.get(s.platform + ':' + s.root_post_id)?.sequence, d?.attributes?.opportunity_types, s.post?.published_at]; }));
   sheet(workbook, 'Comments', ['platform', 'root_post_id', 'comment_id', 'parent_id', 'text', 'author_name', 'published_at', 'observed_at', 'permalink', 'snapshot_id'],
     data.snapshots.flatMap(s => s.comments.map(c => [s.platform, s.root_post_id, c.entity_id, c.parent_id, c.text, c.author.name, c.published_at, c.observed_at, c.permalink, s.id])));
   if(goalRows.length)sheet(workbook,'GoalEvidence',['platform','root_post_id','snapshot_id','classification','assessment_status','candidate_entity_id','candidate_text','candidate_url','criterion_id','criterion','strength','branches','status','evidence','contract_hash'],

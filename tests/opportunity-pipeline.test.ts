@@ -139,7 +139,7 @@ test('initial CLI run minutes are committed once; Resume and supplied campaigns 
 test('invalid initial run minutes reject before planner persistence or any model invocation', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'csd-invalid-minutes-')), model = gateway();
   try {
-    for (const value of [0, -1, 241, 1.5, NaN, Infinity, '15', null]) {
+    for (const value of [0, -1, 1441, 1.5, NaN, Infinity, '15', null]) {
       await assert.rejects(createOpportunityPipeline({ directory, runId: 'invalid-minutes', maxRunMinutes: value as number, gateway: model,
         config: { enabled: true, prompt: 'Tìm tai nghe', brandContext: '', totalTarget: 100, threadsShare: 0.8, rawCap: 300, budgetUsd: 1, commentsEnabled: false },
         platforms: ['threads'], collectConversation: async () => { throw Error('UNEXPECTED_BROWSER'); } }), /CAMPAIGN_RUN_MINUTES_INVALID/);

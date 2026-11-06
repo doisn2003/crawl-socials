@@ -24,12 +24,13 @@ export interface OpportunityPreview {
   platform: Platform; rootId: string; /** UNASSESSED is an operational status, never a filter verdict. */
   classification: 'SUITABLE' | 'NOT_SUITABLE' | 'NOT_YET' | 'UNRELATED' | 'UNASSESSED';
   text: string; link: string; reason: string; evidence: string[]; observedAt: string; coverage: string;
+  opportunityTypes?: string[]; publishedAt?: string | null;
   conditions?: { label: string; status: 'PASS' | 'FAIL' | 'UNKNOWN'; evidence: string[] }[];
 }
 export interface OpportunityProgress {
   filterMode?: import('./filter-policy.js').FilterMode;
   resultPolicy?: 'GLOBAL_FIRST_QUALIFIED';
-  targetCount?: number; extraCount?: number;
+  targetCount?: number; extraCount?: number; previouslyDelivered?: number;
   shortfallWarning?: string | null;
   campaignId: string; totalTarget: number; threadsShare: number;
   counts: OpportunityCounts; byPlatform: Record<Platform, OpportunityCounts>;
@@ -45,6 +46,10 @@ export interface RunState {
   id: string; state: 'RUNNING' | 'STOPPING' | 'COMPLETED' | 'STOPPED' | 'FAILED' | 'INTERRUPTED';
   startedAt: string; finishedAt: string | null; minimumPosts: number; keywords: string[];
   outputDirectory: string; platforms: PlatformRun[]; preview: PostPreview[]; opportunity?: OpportunityProgress;
+  discoverySourceRunId?: string;
+  collectionLayout?: 'PROFILE_QUERY_V2';
+  discoverySourceRunId?: string;
+  collectionLayout?: 'PROFILE_QUERY_V2';
   mode?: 'DISCOVERY' | 'RETAINED';
   retained?: RetainedRunProgress;
 }
@@ -72,10 +77,11 @@ export interface ProductionState {
 }
 export interface GeminiKeyStatus { source: 'SAVED' | 'ENVIRONMENT' | 'NONE'; readError: boolean; }
 export interface ProductionApi {
+  discoveryWatch: import('./discovery-watch.js').DiscoveryWatchApi;
   geminiKey: { status(): Promise<GeminiKeyStatus>; save(input: { key: string }): Promise<GeminiKeyStatus>; remove(): Promise<GeminiKeyStatus>; };
   getState(): Promise<ProductionState>;
   saveConfig(input: UserConfig): Promise<UserConfig>;
-  login(input: { platform: Platform; profileId?: string }): Promise<void>;
+  login(input: { platform: Platform; profileId?: string; createNew?: boolean }): Promise<void>;
   prepareCampaign(): Promise<ProductionState>;
   continueCampaign(request: import('./semantic-intent.js').ContinueCampaignRequest): Promise<ProductionState>;
   updateCampaign(input: UpdateCampaignDraftRequest): Promise<ProductionState>;

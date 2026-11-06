@@ -1,5 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { MAX_RESULT_TARGET, MAX_RAW_POSTS, MAX_SEARCH_QUERIES } from '../../shared/collection-limits.js';
 import { FILTER_MODES } from '../../shared/filter-policy.js';
 import { PERFORMANCE_MODES } from '../../shared/throughput.js';
 import type { OpportunityConfig, UserConfig } from '../../shared/production-api.js';
@@ -14,8 +15,8 @@ export function parseOpportunityConfig(value: unknown): OpportunityConfig {
       typeof v.enabled !== 'boolean' || typeof v.commentsEnabled !== 'boolean' ||
       typeof v.prompt !== 'string' || v.prompt.length > 10000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(v.prompt) ||
       typeof v.brandContext !== 'string' || v.brandContext.length > 10000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(v.brandContext) ||
-      !Number.isSafeInteger(v.totalTarget) || Number(v.totalTarget) < 1 || Number(v.totalTarget) > 3000 ||
-      !Number.isSafeInteger(v.rawCap) || Number(v.rawCap) < Number(v.totalTarget) || Number(v.rawCap) > 10000 ||
+      !Number.isSafeInteger(v.totalTarget) || Number(v.totalTarget) < 1 || Number(v.totalTarget) > MAX_RESULT_TARGET ||
+      !Number.isSafeInteger(v.rawCap) || Number(v.rawCap) < Number(v.totalTarget) || Number(v.rawCap) > MAX_RAW_POSTS ||
       (!modern && v.threadsShare !== 0.7 && v.threadsShare !== 0.8) ||
       typeof v.budgetUsd !== 'number' || !Number.isFinite(v.budgetUsd) || (off ? v.budgetUsd !== 0 : v.budgetUsd <= 0) || v.budgetUsd > 30 ||
       (v.enabled && !off && !v.prompt.trim())) throw Error('CONFIG_INVALID');
@@ -37,8 +38,8 @@ export function parseUserConfig(value: unknown): UserConfig {
   }
   if (v.performance !== undefined && !PERFORMANCE_MODES.includes(v.performance as never)) throw Error('CONFIG_INVALID');
   const versionTwo = keys === 'keywords,minimumPosts,opportunity,schemaVersion' && v.schemaVersion === 2;
-  if ((!versionTwo && keys !== 'keywords,minimumPosts') || !Array.isArray(v.keywords) || v.keywords.length > 100 ||
-      !Number.isSafeInteger(v.minimumPosts) || Number(v.minimumPosts) < 1 || Number(v.minimumPosts) > 3000) throw Error('CONFIG_INVALID');
+  if ((!versionTwo && keys !== 'keywords,minimumPosts') || !Array.isArray(v.keywords) || v.keywords.length > MAX_SEARCH_QUERIES ||
+      !Number.isSafeInteger(v.minimumPosts) || Number(v.minimumPosts) < 1 || Number(v.minimumPosts) > MAX_RESULT_TARGET) throw Error('CONFIG_INVALID');
   const keywords: string[] = [];
   for (const raw of v.keywords) {
     if (typeof raw !== 'string') throw Error('CONFIG_INVALID');

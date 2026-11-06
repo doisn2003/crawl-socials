@@ -1,5 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, powerMonitor, session, shell } from 'electron';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { createDiscoveryStore, exportDigest } from '../infrastructure/storage/discovery-store.js';
+import { createDiscoveryWatch } from '../application/discovery-watch.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { runtimePaths } from '../infrastructure/config/runtime-paths.js';
@@ -9,7 +12,7 @@ import { createElectronSecretStore } from '../infrastructure/secrets/electron-se
 import { createProductionService } from '../application/production-service.js';
 import type { CollectorInput, CollectorReceipt } from '../application/production-service.js';
 import { exportSocialWorkbook } from '../infrastructure/export/social-workbook.js';
-import { exportOpportunityWorkbook, selectOpportunityExport } from '../infrastructure/export/opportunity-workbook.js';
+import { exportOpportunityWorkbook, selectOpportunityExport, deliveredOpportunityRoots } from '../infrastructure/export/opportunity-workbook.js';
 import type { ConversationClassification } from '../domain/conversation-decision.js';
 import { allowDesktopRequest } from './ipc-policy.js';
 import { createGeminiKeySettings } from '../application/gemini-key-settings.js';
@@ -92,11 +95,25 @@ async function bootstrap() {
         await work(target.contents);
       } finally { await browserHost.close(profileId); }
     } });
+  const discoveryStore = createDiscoveryStore(join(paths.userData, 'data', 'discovery.sqlite'));
+  const discoveryWatch = createDiscoveryWatch({ store: discoveryStore, getState: () => service.getState(),
+    readRunState: id => service.readRunState(id), start: (id, target, excluded) => service.startDiscoveryFromRecipe(id, target, excluded),
+    expectedResultCount: (run, fallback) => {
+      const frozen = service.results();
+      if (frozen.run.id !== run.id || !frozen.opportunity) return fallback;
+      const data = frozen.opportunity as import('../infrastructure/export/opportunity-workbook.js').OpportunityExportData;
+      if (!data.selection) return fallback;
+      const earlier = new Set(discoveryStore.previouslyDeliveredForRun(run.id));
+      return data.selection.target.filter(row => !earlier.has(row.platform + ':' + row.rootId)).length;
+    } });
+  let discoveryTimer: ReturnType<typeof setInterval> | null = null;
   let closing = false, shutdownComplete = false;
   app.on('before-quit', event => {
     if (shutdownComplete) return;
     event.preventDefault(); if (closing) return; closing = true;
-    void service.shutdown().then(() => browserHost.shutdown()).then(() => {
+    if (discoveryTimer) clearInterval(discoveryTimer);
+    void discoveryWatch.stop().then(() => service.shutdown()).then(() => browserHost.shutdown()).then(() => {
+      discoveryStore.close();
       shutdownComplete = true; app.quit();
     }).catch(() => { console.error('CSD_SESSION_SAVE_FAILED'); app.exit(1); });
   });
@@ -126,6 +143,7 @@ async function bootstrap() {
   let keyChanging = false, modelCommands = 0;
   async function modelCommand<T>(work: () => Promise<T>): Promise<T> {
     if (keyChanging) throw Error('GEMINI_KEY_BUSY');
+    if (discoveryWatch.busy) throw Error('DISCOVERY_BUSY');
     modelCommands++; try { return await work(); } finally { modelCommands--; }
   }
   const requireIdleForKey = async () => {
@@ -142,6 +160,29 @@ async function bootstrap() {
     'csd:gemini-key:save': value => changeKey(() => geminiKey.save(value)),
     'csd:gemini-key:remove': () => changeKey(() => geminiKey.remove()),
     'csd:state': () => service.getState(),
+    'csd:discovery:list': () => discoveryStore.list(),
+    'csd:discovery:create': async value => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('DISCOVERY_INPUT_INVALID');
+      const v = value as { sourceRunId: string; label: string; intervalHours?: number; monthlyTarget?: number };
+      if (Object.keys(v).some(k => !['sourceRunId', 'label', 'intervalHours', 'monthlyTarget'].includes(k))) throw Error('DISCOVERY_INPUT_INVALID');
+      const run = service.readRunState(v.sourceRunId);
+      if (!run?.opportunity || run.mode === 'RETAINED' || ['RUNNING', 'STOPPING'].includes(run.state)) throw Error('DISCOVERY_SOURCE_UNAVAILABLE');
+      return discoveryStore.create(v);
+    },
+    'csd:discovery:attach': value => {
+      if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join() !== 'id,sourceRunId') throw Error('DISCOVERY_INPUT_INVALID');
+      const v = value as { id: string; sourceRunId: string }, run = service.readRunState(v.sourceRunId);
+      if (!run?.opportunity || run.mode === 'RETAINED' || ['RUNNING', 'STOPPING'].includes(run.state)) throw Error('DISCOVERY_SOURCE_UNAVAILABLE');
+      return discoveryStore.attachRecipe(v.id, v.sourceRunId);
+    },
+    'csd:discovery:enabled': value => {
+      if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join() !== 'enabled,id') throw Error('DISCOVERY_INPUT_INVALID');
+      const v = value as { id: string; enabled: boolean }; return discoveryStore.setEnabled(v.id, v.enabled);
+    },
+    'csd:discovery:run': value => modelCommand(async () => {
+      if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).join() !== 'id' || typeof (value as {id: unknown}).id !== 'string') throw Error('DISCOVERY_INPUT_INVALID');
+      await discoveryWatch.tick((value as {id: string}).id); return discoveryStore.list();
+    }),
     'csd:config': value => service.saveConfig(value),
     'csd:login': value => service.login(value),
     'csd:campaign:prepare': () => modelCommand(() => service.prepareCampaign()),
@@ -186,15 +227,21 @@ async function bootstrap() {
           defaultPath: join(app.getPath('downloads'), 'CSD-' + result.run.id + (result.opportunity ? '-' + (group ?? 'ALL') : '') + '.' + format),
           filters: [{ name: format === 'xlsx' ? 'Excel Workbook' : 'JSON', extensions: [format] }] });
         if (choice.canceled || !choice.filePath) return { canceled: true, path: null };
+        const staged = choice.filePath + '.csd-' + randomUUID() + '.' + format;
+        const exported = result.opportunity ? selectOpportunityExport(result.opportunity, group, discoveryStore.previouslyDeliveredForRun(result.run.id)) : null;
         if (format === 'xlsx') {
-          if (result.opportunity) await exportOpportunityWorkbook(choice.filePath, result.opportunity, group);
-          else await exportSocialWorkbook(choice.filePath, result.facebook, result.threads);
-        } else writeFileSync(choice.filePath, JSON.stringify(result.opportunity ? selectOpportunityExport(result.opportunity, group) : result, null, 2), { flush: true });
+          if (exported) await exportOpportunityWorkbook(staged, exported);
+          else await exportSocialWorkbook(staged, result.facebook, result.threads);
+        } else writeFileSync(staged, JSON.stringify(exported ?? result, null, 2), { flush: true });
+        const roots = exported ? deliveredOpportunityRoots(exported) : [];
+        const receipt = roots.length ? discoveryStore.prepareExport(result.run.id, roots, choice.filePath, exportDigest(staged)) : null;
+        renameSync(staged, choice.filePath);
+        if (receipt) discoveryStore.completeExport(receipt);
         return { canceled: false, path: choice.filePath };
       } finally { exporting = false; }
     },
   };
-  const noPayload = new Set(['csd:gemini-key:status', 'csd:gemini-key:remove', 'csd:state', 'csd:stop', 'csd:resume', 'csd:open-output', 'csd:campaign:prepare', 'csd:retained:list', 'csd:retained:choose-root']);
+  const noPayload = new Set(['csd:discovery:list', 'csd:gemini-key:status', 'csd:gemini-key:remove', 'csd:state', 'csd:stop', 'csd:resume', 'csd:open-output', 'csd:campaign:prepare', 'csd:retained:list', 'csd:retained:choose-root']);
   for (const [channel, handler] of Object.entries(handlers)) ipcMain.handle(channel, (event, ...args: unknown[]) => {
     if (closing || !allowDesktopRequest({ senderId: event.sender.id, expectedSenderId: mainWindow.webContents.id,
       isMainFrame: event.senderFrame === event.sender.mainFrame, frameUrl: event.senderFrame?.url || '', expectedUrl: uiUrl, args: [] }) ||
@@ -202,6 +249,8 @@ async function bootstrap() {
     return handler(args[0]);
   });
   app.once('will-quit', () => { for (const channel of Object.keys(handlers)) ipcMain.removeHandler(channel); });
+  discoveryTimer = setInterval(() => { if (!closing && !exporting && !keyChanging && !modelCommands && !discoveryWatch.busy) void modelCommand(() => discoveryWatch.tick()).catch(() => {}); }, 60000);
+  discoveryTimer.unref();
   await mainWindow.loadFile(uiFile);
 }
 void bootstrap().catch(() => {

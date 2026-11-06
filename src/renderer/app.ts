@@ -3,7 +3,9 @@ import { allocatePlatformTargets } from '../shared/platform-targets.js';
 import { createCampaignPlanner } from './campaign-planner.js';
 import { bindGeminiKeySettings } from './gemini-key-settings.js';
 import { modelPauseMessage } from '../shared/model-status.js';
-import { FILTER_DEFAULT_PERCENT, filterModeAtPercent } from '../shared/filter-policy.js';
+import { FILTER_MODES, filterModeAtPercent, type FilterMode } from '../shared/filter-policy.js';
+import { MAX_RESULT_TARGET, MAX_RAW_POSTS, MAX_SEARCH_QUERIES, DEFAULT_RAW_CAP } from '../shared/collection-limits.js';
+import { bindDiscoveryWatch } from './discovery-watch.js';
 import { planAndStart } from './start-workflow.js';
 
 declare global { interface Window { readonly csd: ProductionApi; } }
@@ -22,10 +24,10 @@ const intentEnabled = element<HTMLInputElement>('opportunity-enabled');
 const campaignPrompt = element<HTMLTextAreaElement>('campaign-prompt');
 const brandContext = element<HTMLTextAreaElement>('brand-context');
 const suitableTarget = element<HTMLInputElement>('suitable-target');
-const filterMode = element<HTMLInputElement>('filter-mode');
+const filterMode = element<HTMLSelectElement>('filter-mode');
 const languageScope = element<HTMLSelectElement>('content-language');
 const spendTotal = element<HTMLInputElement>('spend-total'), spendDaily = element<HTMLInputElement>('spend-daily');
-const currentFilter = () => filterModeAtPercent(Number(filterMode.value));
+const currentFilter = (): FilterMode => FILTER_MODES.includes(filterMode.value as FilterMode) ? filterMode.value as FilterMode : 'CONSISTENT';
 const rawCap = element<HTMLInputElement>('raw-cap');
 const modelBudget = element<HTMLInputElement>('model-budget');
 const collectComments = element<HTMLInputElement>('collect-comments');
@@ -34,6 +36,7 @@ let resultGroup: 'SUITABLE' | 'NOT_SUITABLE' = 'SUITABLE';
 const startButton = element<HTMLButtonElement>('start');
 const stopButton = element<HTMLButtonElement>('stop');
 const selectedProfiles = new Map<Platform, string>();
+const selectedProfileIds = new Set<string>();
 const selectedSources = new Set<Platform>();
 const loginPending = new Set<Platform>();
 let state: ProductionState | null = null;
@@ -52,6 +55,7 @@ let lastRunKey = '';
 let startPhase: 'IDLE' | 'SAVING' | 'PLANNING' | 'STARTING' = 'IDLE';
 let pendingStart: string | null = null;
 
+const opportunityNames: Record<string, string> = { DIRECT_NEED: 'Nhu cầu trực tiếp', LATENT_PROBLEM: 'Vấn đề tiềm ẩn', PERSONAL_DESIRE: 'Mong muốn / tâm sự', EXPERIENCE: 'Trải nghiệm', DISCUSSION: 'Thảo luận', INTEREST: 'Sở thích', CONTEXT: 'Bối cảnh liên quan' };
 const number = (value: number) => value.toLocaleString('vi-VN');
 const key = (value: UserConfig) => JSON.stringify(value);
 const active = () => state?.run?.state === 'RUNNING' || state?.run?.state === 'STOPPING'
@@ -81,7 +85,6 @@ function setSaveStatus(message: string, kind: string) {
 }
 function readConfig(): UserConfig {
   return {
-    filterPercent: Number(filterMode.value),
     spendLimits: { totalUsd: Number(spendTotal.value), dailyUsd: Number(spendDaily.value) },
     performance: 'BALANCED',
     keywords: [...new Set(keywords.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean))],
@@ -91,21 +94,21 @@ function readConfig(): UserConfig {
         enabled: true, filterMode: currentFilter(), prompt: campaignPrompt.value, brandContext: brandContext.value,
         languageScope: 'VIETNAMESE',
         totalTarget: Number(suitableTarget.value),
-        rawCap: Number(rawCap.value), budgetUsd: currentFilter() === 'OFF' ? 0 : 3, commentsEnabled: collectComments.checked,
+        rawCap: Number(rawCap.value), budgetUsd: currentFilter() === 'OFF' ? 0 : Number(modelBudget.value), commentsEnabled: false,
       }
     } : {})
   };
 }
 function validateConfig(value: UserConfig): string {
-  if (value.keywords.length > 100) return 'Tối đa 100 từ khóa cho mỗi lượt thu thập.';
+  if (value.keywords.length > MAX_SEARCH_QUERIES) return 'Tối đa 240 từ khóa cho mỗi lượt thu thập.';
   if (value.keywords.some(word => word.length > 200)) return 'Mỗi từ khóa cần có tối đa 200 ký tự.';
-  if (!Number.isSafeInteger(value.minimumPosts) || value.minimumPosts < 1 || value.minimumPosts > 3000)
-    return 'Mục tiêu phải là số nguyên từ 1 đến 3.000 bài cho mỗi mạng.';
+  if (!Number.isSafeInteger(value.minimumPosts) || value.minimumPosts < 1 || value.minimumPosts > MAX_RESULT_TARGET)
+    return 'Mục tiêu phải là số nguyên từ 1 đến 5.000 bài cho mỗi mạng.';
   if (value.opportunity) {
     const o = value.opportunity;
     if (o.enabled && o.filterMode !== 'OFF' && !o.prompt.trim()) return 'Hãy mô tả cuộc thảo luận bạn muốn tìm.';
-    if (!Number.isSafeInteger(o.totalTarget) || o.totalTarget < 1 || o.totalTarget > 3000) return 'Số bài muốn nhận phải từ 1 đến 3.000.';
-    if (!Number.isSafeInteger(o.rawCap) || o.rawCap < o.totalTarget || o.rawCap > 10000) return 'Số bài tìm tối đa cần ít nhất bằng số bài muốn nhận và không quá 10.000.';
+    if (!Number.isSafeInteger(o.totalTarget) || o.totalTarget < 1 || o.totalTarget > MAX_RESULT_TARGET) return 'Số bài muốn nhận phải từ 1 đến 5.000.';
+    if (!Number.isSafeInteger(o.rawCap) || o.rawCap < o.totalTarget || o.rawCap > MAX_RAW_POSTS) return 'Số bài tìm tối đa cần ít nhất bằng số bài muốn nhận và không quá 50.000.';
     if (!Number.isFinite(o.budgetUsd) || (o.filterMode === 'OFF' ? o.budgetUsd !== 0 : o.budgetUsd <= 0) || o.budgetUsd > 30) return 'Ngân sách AI cần lớn hơn 0 và không quá 30 USD.';
   }
   return '';
@@ -114,13 +117,14 @@ function selectedAccount(platform: Platform): Account | undefined {
   return state?.accounts.find(account => account.platform === platform && account.id === selectedProfiles.get(platform));
 }
 function selectableProfiles() {
-  return platforms.flatMap(platform => {
-    const account = selectedAccount(platform);
-    return selectedSources.has(platform) && account?.authenticated && !account.persistenceError ? [{ platform, profileId: account.id }] : [];
-  });
+  return (state?.accounts ?? []).filter(account => selectedSources.has(account.platform)
+    && selectedProfileIds.has(account.id) && account.authenticated && !account.persistenceError)
+    .map(account => ({ platform: account.platform, profileId: account.id }));
 }
+
 function friendlyError(error: unknown, fallback: string): string {
   const text = error instanceof Error ? error.message : String(error);
+  if (/DISCOVERY_BUSY/.test(text)) return 'Đang bắt đầu lượt tìm bổ sung, vui lòng đợi hoàn tất.';
   if (/CAMPAIGN_INTENT_UNRESOLVED|DRAFT_REQUIRED/.test(text)) return 'Hãy làm rõ nhu cầu và xem kế hoạch trước khi thu thập.';
   if (/CAMPAIGN_ANSWER_INVALID/.test(text)) return 'Hãy trả lời các câu hỏi bắt buộc hoặc nhập nội dung sửa mục tiêu trước khi gửi.';
   if (/CAMPAIGN_SEMANTIC_VALIDATION_FAILED/.test(text)) return 'AI chưa tạo được bộ từ khóa hợp lệ sau một lượt sửa. Chọn Thử lại kế hoạch; câu trả lời và chi phí vẫn được giữ.';
@@ -180,12 +184,9 @@ function friendlyError(error: unknown, fallback: string): string {
 function updateControls() {
   geminiKeyUi.refresh();
   const running = active();
-  const percent = Number(filterMode.value), mode = currentFilter();
-  element('filter-slider').style.setProperty('--filter-progress', percent + '%');
-  element('filter-slider').style.setProperty('--filter-lightness', (79 - percent * .35) + '%');
-  setText('comments-mode-note', !collectComments.checked ? 'Chỉ thu thập bài viết.' : mode === 'OFF' ? 'Lưu cả bình luận, không dùng AI ở chế độ Không lọc.' : 'Thu thập và phân tích cả bài viết lẫn bình luận.');
-  element('comments-warning').hidden = !collectComments.checked;
-  setText('filter-percent', percent + '%'); filterMode.setAttribute('aria-valuetext', percent + '% · ' + ({ OFF: 'Không lọc', STANDARD: 'Tiêu chuẩn', QUALITY: 'Chất lượng' }[mode]));
+  const mode = currentFilter();
+  setText('comments-mode-note', 'Chỉ thu thập và phân tích bài viết gốc.');
+  element('comments-warning').hidden = true;
   startButton.setAttribute('aria-busy', String(startPhase !== 'IDLE'));
   setText('start-label', { IDLE: pendingStart ? 'Chờ bạn làm rõ yêu cầu' : 'Bắt đầu thu thập', SAVING: 'Đang lưu yêu cầu…', PLANNING: 'Đang phân tích yêu cầu…', STARTING: 'Đang bắt đầu thu thập…' }[startPhase]);
   keywords.disabled = !connected || running || commandPending;
@@ -204,13 +205,14 @@ function updateControls() {
   reuse.disabled = !connected || running || commandPending || !plans.length;
   minimumPosts.closest<HTMLElement>('.field')!.hidden = true;
   modelBudget.disabled ||= currentFilter() === 'OFF';
-  setText('filter-mode-help', currentFilter() === 'OFF' ? 'Không lọc — lấy tất cả bài tìm được, không tốn tiền lọc.' : currentFilter() === 'STANDARD' ? 'Tiêu chuẩn — tìm rộng hơn, có thể giữ cả bài chưa thể hiện nhu cầu rõ ràng.' : 'Chất lượng — chọn kỹ hơn, số bài nhận được có thể ít hơn.');
+  collectComments.disabled = true;
+  setText('filter-mode-help', { OFF: 'Lấy bài đã tìm được, chưa đánh giá; không gọi AI.', CONSISTENT: 'Tìm rộng cả bối cảnh, sở thích và cơ hội gián tiếp; loại quảng cáo và bài lạc đề.', STANDARD: 'Giữ nhu cầu, vấn đề, tâm sự, mong muốn, trải nghiệm và thảo luận liên quan.', QUALITY: 'Ưu tiên bằng chứng rõ đáp ứng mục tiêu; kiểm tra kỹ các ca dễ hiểu sai.' }[mode]);
   const money = state?.spending;
   setText('spend-status', money ? 'Đã dùng $' + money.measuredUsd.toFixed(4) + ' · Đang dự phòng/chưa rõ $' + money.heldUsd.toFixed(4) + ' · Còn $' + money.remainingUsd.toFixed(4) + ' · ' + money.calls + ' lượt gọi. Chi phí ước tính CSD, không phải hóa đơn Google.' : '');
   const config = readConfig();
   const selected = selectableProfiles();
   setText('keyword-count', config.keywords.length ? number(config.keywords.length) + ' từ khóa' : '');
-  setText('selected-count', selected.length ? selected.length + ' / 2 nguồn được chọn' : 'Chưa chọn nguồn');
+  setText('selected-count', selected.length ? selected.length + ' tài khoản được chọn' : 'Chưa chọn nguồn');
   startButton.disabled = !connected || running || commandPending || savePending > 0 || exportPending ||
     !(config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF' ? config.opportunity.prompt.trim() : config.keywords.length) || !!validateConfig(config) || !selected.length || loginPending.size > 0
     || (intentEnabled.checked && planner.hasUnsavedEdits()) || (!!pendingStart && state?.campaignDialogue?.plan.state === 'NEEDS_CLARIFICATION');
@@ -258,7 +260,7 @@ function renderAccounts() {
       selected = accounts.find(account => account.authenticated && !account.persistenceError) || accounts[0];
       if (selected) selectedProfiles.set(platform, selected.id); else selectedProfiles.delete(platform);
     }
-    if (!selected?.authenticated || selected.persistenceError) selectedSources.delete(platform);
+    if (!accounts.some(a => a.authenticated && !a.persistenceError && selectedProfileIds.has(a.id))) selectedSources.delete(platform);
     const selector = element<HTMLSelectElement>('profile-' + platform);
     const optionsKey = JSON.stringify(accounts.map(account => [account.id, account.label]));
     if (selector.dataset.options !== optionsKey) {
@@ -269,6 +271,23 @@ function renderAccounts() {
     }
     selector.value = selected?.id || '';
     element('profile-field-' + platform).hidden = accounts.length < 2;
+    let list = document.getElementById('accounts-list-' + platform);
+    if (!list) { list = document.createElement('div'); list.id = 'accounts-list-' + platform; list.className = 'account-options'; element('account-detail-' + platform).after(list); }
+    const accountKey = JSON.stringify([accounts.map(a => [a.id, a.label, a.authenticated, a.persistenceError, selectedProfileIds.has(a.id)]), active(), commandPending]);
+    if (list.dataset.key !== accountKey) {
+      list.dataset.key = accountKey;
+      list.replaceChildren(...accounts.map(account => {
+        const label = document.createElement('label'), box = document.createElement('input'); box.type = 'checkbox'; box.checked = selectedProfileIds.has(account.id);
+        box.disabled = active() || commandPending || !account.authenticated || !!account.persistenceError;
+        box.addEventListener('change', () => { pendingStart = null; if (box.checked) { selectedProfileIds.add(account.id); selectedSources.add(platform); }
+          else { selectedProfileIds.delete(account.id); if (!accounts.some(a => selectedProfileIds.has(a.id))) selectedSources.delete(platform); } updateControls(); });
+        label.append(box, document.createTextNode(account.label)); return label;
+      }));
+      const add = document.createElement('button'); add.type = 'button'; add.className = 'text-button'; add.textContent = '+ Thêm tài khoản'; add.disabled = active() || commandPending;
+      add.addEventListener('click', () => { if (loginPending.has(platform)) return; loginPending.add(platform); updateControls();
+        void window.csd.login({ platform, createNew: true }).then(() => refresh()).catch(error => operation(friendlyError(error, 'Chưa mở được tài khoản mới.'), true))
+          .finally(() => { loginPending.delete(platform); renderAccounts(); updateControls(); }); }); list.append(add);
+    }
     const status = element('status-' + platform);
     status.dataset.ready = String(!!selected?.authenticated && !selected.persistenceError);
     status.dataset.error = String(!!selected?.persistenceError);
@@ -357,7 +376,7 @@ function renderRun() {
   setError('run-error', runError);
   const badge = element('run-badge'); badge.dataset.state = run.state;
   badge.textContent = { RUNNING: run.mode === 'RETAINED' ? 'ĐANG LỌC LẠI' : 'ĐANG THU THẬP', STOPPING: 'ĐANG DỪNG', COMPLETED: 'ĐÃ KẾT THÚC', STOPPED: 'ĐÃ DỪNG', FAILED: 'CÓ LỖI', INTERRUPTED: 'BỊ GIÁN ĐOẠN' }[run.state];
-  const total = run.platforms.reduce((sum, platform) => sum + platform.count, 0);
+  const total = run.opportunity?.counts.raw ?? run.platforms.reduce((sum, platform) => sum + platform.count, 0);
   const met = run.platforms.every(platform => platform.count >= run.minimumPosts);
   const runMessages = {
     RUNNING: 'Đang thu thập bài viết theo từ khóa. Mục tiêu ' + number(run.minimumPosts) + ' bài / mạng.',
@@ -376,7 +395,12 @@ function renderRun() {
   if (runKey !== lastRunKey) {
     const targets = run.opportunity?.resultPolicy === 'GLOBAL_FIRST_QUALIFIED' ? { facebook: run.opportunity.totalTarget, threads: run.opportunity.totalTarget } : run.opportunity ? allocatePlatformTargets(run.opportunity.totalTarget,
       { threads: run.opportunity.threadsShare, facebook: 1 - run.opportunity.threadsShare }, run.platforms.map(item => item.platform)) : null;
-    progress.replaceChildren(...run.platforms.map(platform => run.opportunity ? createProgress({ ...platform, count: run.opportunity.filterMode === 'OFF' ? run.opportunity.byPlatform[platform.platform].raw : run.opportunity.byPlatform[platform.platform].suitable },
+    const grouped = run.opportunity ? [...new Set(run.platforms.map(p => p.platform))].map(name => {
+      const rows = run.platforms.filter(p => p.platform === name), first = rows[0]!;
+      const status = (['RUNNING', 'QUEUED', 'FAILED', 'STOPPED', 'COMPLETED'] as const).find(value => rows.some(p => p.state === value))!;
+      return { ...first, state: status, reason: rows.find(p => !!p.reason)?.reason ?? null };
+    }) : run.platforms;
+    progress.replaceChildren(...grouped.map(platform => run.opportunity ? createProgress({ ...platform, count: run.opportunity.filterMode === 'OFF' ? run.opportunity.byPlatform[platform.platform].raw : run.opportunity.byPlatform[platform.platform].suitable },
       targets![platform.platform], run.opportunity.filterMode !== 'OFF', run.opportunity.resultPolicy === 'GLOBAL_FIRST_QUALIFIED') : createProgress(platform, run.minimumPosts)));
     setText('json-preview', run.preview.map(post => platformNames[post.platform] + '\n' + post.text).join('\n\n──────────\n\n'));
     lastRunKey = runKey;
@@ -384,7 +408,7 @@ function renderRun() {
   setText('result-count', number(total) + ' BÀI');
   element('empty-result').hidden = run.preview.length > 0;
   element('preview-wrapper').hidden = !run.preview.length;
-  setText('preview-note', 'Xem trước ' + number(run.preview.length) + ' bài · File xuất chứa toàn bộ dữ liệu đã lưu.');
+  setText('preview-note', 'Xem trước ' + number(run.preview.length) + ' bài · File xuất theo nhóm bạn chọn; bản lưu gốc được giữ trên máy.');
   setText('output-name', run.outputDirectory); element('output-name').title = run.outputDirectory;
   renderOpportunities();
 }
@@ -395,15 +419,16 @@ function renderOpportunities() {
   const all = opportunity?.filterMode === 'OFF' || element<HTMLSelectElement>('export-scope').value === 'ALL';
   const groupNames = { SUITABLE: 'Phù hợp', NOT_SUITABLE: 'Không phù hợp' };
   setText('export-description', opportunity ? (all ? 'Tất cả bài đã thu, gồm cả bài đang chờ lọc.' : 'Nhóm ' + groupNames[resultGroup] + ' đang xem.')
-    + ' Bản tải về có cả bình luận đã thu của những bài này.' : 'Tải bài viết từ Facebook và Threads về một file Excel.');
+    + ' Bản tải về ghi loại cơ hội và ngày đăng khi có dữ liệu.' : 'Tải bài viết từ Facebook và Threads về một file Excel.');
   if (!opportunity) return;
   element('preview-wrapper').hidden = true; element('empty-result').hidden = true;
   const counts = opportunity.counts;
   setText('result-count', number(opportunity.targetCount ?? counts.suitable) + ' / ' + number(opportunity.totalTarget) + (opportunity.filterMode === 'OFF' ? ' BÀI CHƯA ĐÁNH GIÁ' : ' BÀI ĐƯỢC NHẬN'));
   setText('opportunity-summary', number(counts.raw) + ' bài đã tìm · ' + number(counts.comments) + ' bình luận · ' + number(counts.pending) + (opportunity.filterMode === 'OFF' ? ' bài chưa đánh giá' : ' bài chưa kiểm tra') + ' · Chi phí $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2)
     + (opportunity.resultPolicy === 'GLOBAL_FIRST_QUALIFIED' || opportunity.evaluationPolicy === 'GOAL_EVIDENCE' ? '' : ' · Kết quả cũ: cần lọc lại để áp dụng cách đánh giá mới.'));
+  if (opportunity.previouslyDelivered) element('opportunity-summary').textContent += ' · ' + number(opportunity.previouslyDelivered) + ' bài đã giao trước đây (không tính lại)';
   if (opportunity.shortfallWarning) element('opportunity-summary').textContent += ' · Có thể chưa tìm đủ số bài phù hợp bạn muốn nhận.';
-  if (opportunity.extraCount) element('opportunity-summary').textContent += ' · ' + number(opportunity.extraCount) + ' bài bổ sung ngoài chỉ tiêu (được giữ trong bản xuất)';
+  if (opportunity.extraCount) element('opportunity-summary').textContent += ' · ' + number(opportunity.extraCount) + ' bài dư ngoài chỉ tiêu (xem trong bản xuất tất cả)';
   if (opportunity.phase === 'MODEL_PAUSED') element('opportunity-summary').append(document.createTextNode(' · Đã tạm dừng lọc. ' + reasonText(opportunity.lastError)));
   const retained = state?.run?.mode === 'RETAINED' ? state.run.retained : undefined;
   const importProgress = retained && retained.status !== 'IMPORTED'
@@ -433,10 +458,12 @@ function renderOpportunities() {
     const group = button.dataset.resultGroup as keyof typeof labels;
     button.textContent = labels[group] + ' · ' + number(totals[group]); button.setAttribute('aria-pressed', String(resultGroup === group));
   }
-  const cards = opportunity.preview.filter(result => opportunity.filterMode === 'OFF' ? result.classification === 'UNASSESSED'
+  const typeFilter = element<HTMLSelectElement>('opportunity-type').value;
+  element('opportunity-type').hidden = opportunity.filterMode === 'OFF';
+  const cards = opportunity.preview.filter(result => !typeFilter || result.opportunityTypes?.includes(typeFilter)).filter(result => opportunity.filterMode === 'OFF' ? result.classification === 'UNASSESSED'
     : result.classification !== 'UNASSESSED' && (result.classification === 'SUITABLE' ? 'SUITABLE' : 'NOT_SUITABLE') === resultGroup).slice(0, 20).map(result => {
     const card = document.createElement('article'); card.className = 'opportunity-card';
-    const meta = document.createElement('small'); meta.textContent = [platformNames[result.platform], result.reason, coverageLabels[result.coverage]].filter(Boolean).join(' · ');
+    const meta = document.createElement('small'); meta.textContent = [platformNames[result.platform], ...(result.opportunityTypes ?? []).map(t => opportunityNames[t] ?? t), result.reason, result.publishedAt ? 'Đăng ' + new Date(result.publishedAt).toLocaleDateString('vi-VN') : '', coverageLabels[result.coverage]].filter(Boolean).join(' · ');
     const text = document.createElement('p'); text.textContent = result.text;
     card.append(meta, text);
     if (result.conditions?.length) {
@@ -462,18 +489,17 @@ function applyState(next: ProductionState, replaceConfig = false) {
     const o = next.config.opportunity;
     intentEnabled.checked = !!o?.enabled; campaignPrompt.value = o?.prompt || ''; brandContext.value = o?.brandContext || '';
     suitableTarget.value = String(o?.totalTarget || 1000);
-    const mode = o?.filterMode ?? 'OFF', savedPercent = next.config.filterPercent;
-    filterMode.value = String(savedPercent !== undefined && filterModeAtPercent(savedPercent) === mode ? savedPercent : FILTER_DEFAULT_PERCENT[mode]);
+    filterMode.value = o?.filterMode ?? (next.config.filterPercent !== undefined ? filterModeAtPercent(next.config.filterPercent) : 'CONSISTENT');
     languageScope.value = 'VIETNAMESE';
     intentEnabled.checked = true; spendTotal.value = String(next.config.spendLimits?.totalUsd ?? 3); spendDaily.value = String(next.config.spendLimits?.dailyUsd ?? 3);
-    rawCap.value = String(o?.rawCap || 3000); modelBudget.value = '3';
-    collectComments.checked = o?.commentsEnabled ?? true;
+    rawCap.value = String(o?.rawCap || DEFAULT_RAW_CAP); modelBudget.value = String(o?.budgetUsd || 3);
+    collectComments.checked = false;
     savedConfig = key(next.config); initialized = true; configDirty = false; setSaveStatus('Đã lưu trên máy', 'saved');
     if (active() && next.run) for (const platform of next.run.platforms) {
-      if (platform.profileId) { selectedProfiles.set(platform.platform, platform.profileId); selectedSources.add(platform.platform); }
+      if (platform.profileId) { selectedProfiles.set(platform.platform, platform.profileId); selectedProfileIds.add(platform.profileId); selectedSources.add(platform.platform); }
     }
   }
-  renderAccounts(); renderRun(); updateControls();
+  renderAccounts(); renderRun(); updateControls(); void discoveryUi.refresh();
   if (next.campaignDraftError && !commandPending) operation(friendlyError(next.campaignDraftError.code, 'Chưa lập được kế hoạch. Hãy thử lại.'), true);
 }
 async function refresh() {
@@ -519,6 +545,7 @@ function configChanged() {
   editRevision++; configDirty = true; setSaveStatus('Rời ô để lưu', 'dirty');
   setError('config-error', ''); updateControls();
 }
+const discoveryUi = bindDiscoveryWatch(window.csd, () => state, () => commandPending || active(), operation);
 const geminiKeyUi = bindGeminiKeySettings(window.csd.geminiKey, () => commandPending || active() || !!state?.campaignDraftPreparing);
 function startSignature() { return JSON.stringify([readConfig(), selectableProfiles()]); }
 async function collectFromCurrentPlan() {
@@ -574,12 +601,13 @@ for (const platform of platforms) {
   element<HTMLInputElement>('select-' + platform).addEventListener('change', event => {
     pendingStart = null;
     const checked = (event.target as HTMLInputElement).checked;
-    if (checked && selectedAccount(platform)?.authenticated) selectedSources.add(platform); else selectedSources.delete(platform);
+    if (checked && selectedAccount(platform)?.authenticated) { selectedSources.add(platform); selectedProfileIds.add(selectedAccount(platform)!.id); } else { selectedSources.delete(platform); for (const account of state?.accounts ?? []) if (account.platform === platform) selectedProfileIds.delete(account.id); }
+    renderAccounts();
     updateControls();
   });
   element<HTMLSelectElement>('profile-' + platform).addEventListener('change', event => {
     pendingStart = null;
-    selectedProfiles.set(platform, (event.target as HTMLSelectElement).value); selectedSources.delete(platform);
+    selectedProfiles.set(platform, (event.target as HTMLSelectElement).value);
     renderAccounts(); updateControls();
   });
   element<HTMLButtonElement>('login-' + platform).addEventListener('click', () => {
@@ -651,3 +679,5 @@ element<HTMLButtonElement>('reload-state').addEventListener('click', () => { voi
 window.addEventListener('focus', () => { void refresh(); });
 void refresh();
 window.setInterval(() => { void refresh(); }, 2000);
+
+element('opportunity-type').addEventListener('change', () => { if (state) renderRun(); });

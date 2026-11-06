@@ -443,7 +443,7 @@ export class ConversationStore {
       params.push(asOf);
     }
     const sources = options.ranked ? sourcePriorityScores(options.source_priority) : null;
-    const rank = options.ranked && context.filter_version.startsWith('coverage-') ? `CASE d.classification WHEN 'SUITABLE' THEN 3 WHEN 'NOT_SUITABLE' THEN 1 ELSE 0 END DESC, COALESCE(json_extract(d.payload,'$.attributes.signal_strength'),0) DESC,` : options.ranked && context.filter_version === GOAL_FILTER_VERSION ? `CASE d.classification WHEN 'SUITABLE' THEN 3 WHEN 'NOT_SUITABLE' THEN 1 ELSE 0 END DESC,
+    const rank = options.ranked && (context.filter_version.startsWith('coverage-') || context.filter_version.startsWith('opportunity-posts-')) ? `CASE d.classification WHEN 'SUITABLE' THEN 3 WHEN 'NOT_SUITABLE' THEN 1 ELSE 0 END DESC, COALESCE(json_extract(d.payload,'$.attributes.signal_strength'),0) DESC,` : options.ranked && context.filter_version === GOAL_FILTER_VERSION ? `CASE d.classification WHEN 'SUITABLE' THEN 3 WHEN 'NOT_SUITABLE' THEN 1 ELSE 0 END DESC,
       COALESCE(json_extract(d.payload,'$.attributes.goal_preferred'),0) DESC,
       COALESCE(json_extract(d.payload,'$.attributes.goal_actionability'),0) DESC,
       COALESCE(json_extract(d.payload,'$.attributes.goal_freshness'),0) DESC,
@@ -499,7 +499,7 @@ export class ConversationStore {
       const candidates = unassessed ? this.snapshots().filter(s => s.post && order.has(s.platform + ':' + s.root_post_id)).map(snapshot => ({ snapshot, strength: 0 }))
         : this.results(context, { classification: 'SUITABLE' }).filter(r => !r.stale).map(r => ({ snapshot: r.snapshot,
           strength: Number(r.decision.attributes?.signal_strength ?? 0) }));
-      candidates.sort((a, b) => b.strength - a.strength || order.get(a.snapshot.platform + ':' + a.snapshot.root_post_id)! - order.get(b.snapshot.platform + ':' + b.snapshot.root_post_id)!);
+      candidates.sort((a, b) => (context.filter_version.startsWith('opportunity-posts-') ? 0 : b.strength - a.strength) || order.get(a.snapshot.platform + ':' + a.snapshot.root_post_id)! - order.get(b.snapshot.platform + ':' + b.snapshot.root_post_id)!);
       let sequence = Number((this.db.prepare('SELECT COALESCE(MAX(accepted_sequence),0) AS n FROM result_admissions WHERE context_key=?').get(key) as Row).n);
       const insert = this.db.prepare('INSERT OR IGNORE INTO result_admissions VALUES(?,?,?,?)');
       for (const { snapshot: s } of candidates) { if (insert.run(key, s.platform, s.root_post_id, sequence + 1).changes) sequence++; }

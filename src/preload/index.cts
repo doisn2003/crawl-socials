@@ -1,6 +1,13 @@
 import type { ProductionApi, UserConfig, Platform } from '../shared/production-api.js';
 const { contextBridge, ipcRenderer } = require('electron') as typeof import('electron');
 const api: ProductionApi = Object.freeze({
+  discoveryWatch: Object.freeze({
+    list: () => ipcRenderer.invoke('csd:discovery:list'),
+    create: (input: Parameters<ProductionApi['discoveryWatch']['create']>[0]) => ipcRenderer.invoke('csd:discovery:create', input),
+    setEnabled: (input: Parameters<ProductionApi['discoveryWatch']['setEnabled']>[0]) => ipcRenderer.invoke('csd:discovery:enabled', input),
+    attachRecipe: (input: Parameters<ProductionApi['discoveryWatch']['attachRecipe']>[0]) => ipcRenderer.invoke('csd:discovery:attach', input),
+    runNow: (input: { id: string }) => ipcRenderer.invoke('csd:discovery:run', input),
+  }),
   geminiKey: Object.freeze({
     status: () => ipcRenderer.invoke('csd:gemini-key:status'),
     save: (input: { key: string }) => ipcRenderer.invoke('csd:gemini-key:save', input),

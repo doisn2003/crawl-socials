@@ -96,44 +96,50 @@
           <p class="helper">Mỗi từ khóa trên mỗi mạng có tác vụ và checkpoint riêng. Tự động tăng số cửa sổ theo RAM/CPU; mở mọi từ khóa vẫn tạm nhường khi máy thiếu tài nguyên. Số cửa sổ độc lập với tốc độ gọi AI.</p>
         </div>
         <input id="opportunity-enabled" type="checkbox" checked hidden>
-        <div class="filter-heading"><label for="filter-mode">Mức lọc</label><output id="filter-percent" for="filter-mode">0%</output></div>
-        <div id="filter-slider" class="filter-slider"><div class="filter-rail" aria-hidden="true"><div class="filter-fill"></div></div><input id="filter-mode" type="range" min="0" max="100" step="1" value="0" aria-describedby="filter-mode-help" disabled></div>
-        <p id="filter-mode-help" class="helper">Không lọc — lấy tất cả bài tìm được, không tốn tiền lọc.</p>
+        <div class="field"><label for="filter-mode">Mức lọc</label>
+          <select id="filter-mode" aria-describedby="filter-mode-help" disabled>
+            <option value="OFF">Không lọc — dữ liệu chưa đánh giá</option>
+            <option value="CONSISTENT" selected>Consistent — mở rộng cơ hội</option>
+            <option value="STANDARD">Standard — nhu cầu, tâm sự và thảo luận</option>
+            <option value="QUALITY">Quality — sát mục tiêu</option>
+          </select>
+          <p id="filter-mode-help" class="helper">Giữ cơ hội rộng có liên hệ với lĩnh vực; loại quảng cáo và bài lạc đề.</p>
+        </div>
         <div id="opportunity-config" hidden>
           <div class="field" hidden><label for="content-language">Ngôn ngữ nội dung khi lọc</label>
             <select id="content-language" disabled>
               <option value="VIETNAMESE" selected>Tiếng Việt — kể cả người Việt ở nước ngoài</option>
               <option value="PROMPT">Theo yêu cầu trong prompt — không giới hạn nếu chưa nêu</option>
             </select>
-            <p class="helper">Áp dụng cho Tiêu chuẩn và Chất lượng. Không suy địa điểm hay quốc tịch từ tên người đăng. Chế độ Không lọc giữ dữ liệu thô.</p>
+            <p class="helper">Áp dụng cho các mức lọc AI. Không suy địa điểm hay quốc tịch từ tên người đăng. Chế độ Không lọc giữ dữ liệu thô.</p>
           </div>
           <div class="config-grid">
             <div class="field"><label for="campaign-prompt">Bạn muốn tìm điều gì?</label><textarea id="campaign-prompt"
                 rows="4" maxlength="10000"
-                placeholder="Ví dụ: Tìm người đang hỏi quán cafe để làm việc, hẹn hò hoặc trao đổi trải nghiệm. Ưu tiên câu hỏi của người dùng trong bài và bình luận."
+                placeholder="Ví dụ: Tìm người đang hỏi quán cafe để làm việc, hẹn hò hoặc trao đổi trải nghiệm. Ưu tiên câu hỏi của người dùng trong bài viết, gồm cả tâm sự và trải nghiệm."
                 disabled></textarea></div>
             <div class="field"><label for="brand-context">Thông tin thương hiệu <span class="field-meta">Không bắt
                   buộc</span></label><textarea id="brand-context" rows="4" maxlength="10000"
-                placeholder="Sản phẩm/dịch vụ, khu vực phục vụ, điểm mạnh có thể đóng góp vào cuộc trao đổi"
+                placeholder="Sản phẩm/dịch vụ, vấn đề bạn giải quyết, khu vực ưu tiên (vẫn nhận nơi khác), mục đích tiếp cận hoặc nghiên cứu"
                 disabled></textarea></div>
           </div>
           <div class="opportunity-limits">
-            <label>Số bài muốn nhận<input id="suitable-target" type="number" min="1" max="3000" step="1" value="1000"
+            <label>Số bài muốn nhận<input id="suitable-target" type="number" min="1" max="5000" step="1" value="1000"
                 disabled></label>
-            <label>Số bài tìm tối đa<input id="raw-cap" type="number" min="1" max="10000" step="1" value="3000"
+            <label>Số bài tìm tối đa<input id="raw-cap" type="number" min="1" max="50000" step="1" value="20000"
                 disabled></label>
-            <label hidden>Ngân sách AI (USD)<input id="model-budget" type="number" min="0.01" max="30" step="0.01" value="3"
+            <label>Ngân sách AI (USD)<input id="model-budget" type="number" min="0.01" max="30" step="0.01" value="3"
                 disabled></label>
           </div>
-          <details id="spending-controls" hidden><summary>Giới hạn tiền AI trên máy này</summary>
+          <details id="spending-controls"><summary>Giới hạn tiền AI trên máy này</summary>
             <p class="helper">Gemini 3.1 Flash-Lite. CSD kiểm soát theo số tiền, không giới hạn tổng số lần gọi AI. Trần tiền cộng dồn/ngày áp dụng chung cho các lượt; tạo lượt mới không xóa tiền đã dùng. Để trần tiền bằng 0 thì không gọi AI.</p>
             <div class="opportunity-limits">
               <label>Trần cộng dồn (USD)<input id="spend-total" type="number" min="0" max="10000" step="0.01" value="0"></label>
               <label>Trần mỗi ngày (USD)<input id="spend-daily" type="number" min="0" max="10000" step="0.01" value="0"></label>
             </div><p id="spend-status" class="helper"></p>
           </details>
-          <p class="helper">Số bài muốn nhận tính chung cho cả hai mạng. Kết quả được lưu trong lúc tìm kiếm.</p>
-          <div class="comments-setting">
+          <p class="helper">Số bài muốn nhận tính chung các nguồn. Có thể chạy nhiều giờ; kết quả được lưu để tiếp tục. Chỉ phân tích bài gốc.</p>
+          <div class="comments-setting" hidden>
             <label class="comments-toggle" for="collect-comments"><span>Thu thập bình luận</span><input id="collect-comments" type="checkbox" role="switch" aria-describedby="comments-warning comments-mode-note" disabled><span class="comments-switch" aria-hidden="true"></span></label>
             <p id="comments-warning" class="comments-warning" hidden>Thời gian thu thập có thể lâu hơn vì AI cần phân tích các bình luận phù hợp</p>
             <p id="comments-mode-note" class="helper"></p>
@@ -259,7 +265,7 @@
             <select id="off-saved-queries" disabled><option value="">Chọn kế hoạch hoặc lượt trước</option></select></div>
           </div>
           <div class="field target-field"><label for="minimum-posts">Mục tiêu tối thiểu</label>
-            <div class="number-input"><input id="minimum-posts" type="number" min="1" max="3000" step="1"
+            <div class="number-input"><input id="minimum-posts" type="number" min="1" max="5000" step="1"
                 inputmode="numeric" disabled aria-describedby="target-help config-error"><span>bài / mạng</span></div>
             <p id="target-help" class="helper">Áp dụng riêng cho mỗi mạng được chọn.</p>
             <div class="target-detail"><span aria-hidden="true">↳</span> Bài viết không trùng trong từng lượt thu</div>
@@ -346,6 +352,8 @@
             <button type="button" data-result-group="SUITABLE" class="secondary-button">Phù hợp</button>
             <button type="button" data-result-group="NOT_SUITABLE" class="secondary-button">Không phù hợp</button>
           </div>
+          <label class="helper" for="opportunity-type">Xem loại cơ hội trong phần xem trước</label>
+          <select id="opportunity-type" aria-label="Loại cơ hội"><option value="">Tất cả loại cơ hội</option><option value="DIRECT_NEED">Nhu cầu trực tiếp</option><option value="LATENT_PROBLEM">Vấn đề tiềm ẩn</option><option value="PERSONAL_DESIRE">Mong muốn / tâm sự</option><option value="EXPERIENCE">Trải nghiệm</option><option value="DISCUSSION">Thảo luận</option><option value="INTEREST">Sở thích</option><option value="CONTEXT">Bối cảnh liên quan</option></select>
           <div id="opportunity-cards" class="opportunity-cards"></div>
         </div>
         <div class="result-console">

@@ -189,9 +189,9 @@ test('resume after the retired call cap processes saved pending posts at the raw
   const gateway: ModelGateway = { ...unassessedGateway, async generateJson(request) {
     calls++;
     if (blocked) throw new ModelGatewayError('MODEL_CALL_LIMIT_REACHED');
-    assert.equal(request.purpose, 'coverage-standard-v1');
-    const rows = (request.input as { conversations: { i: number }[] }).conversations;
-    return { value: rows.map(row => ({ i: row.i, candidate: 'p', role: 'TARGET', fit: 'DIRECT', hard: 'PASS', ev: [0], why: 'Tìm lớp tiếng Anh', flags: [] })),
+    assert.equal(request.purpose, 'opportunity-post-evidence-v1');
+    const rows = (request.input as { posts: { i: number }[] }).posts;
+    return { value: rows.map(row => ({ i: row.i, topic: 'RELATED', promotion: 'NO', actor: 'CONSUMER', opportunities: ['DIRECT_NEED'], usefulness: 'CONCRETE', goal_fit: 'EXACT', hard: 'PASS', time: 'UNBOUNDED', ev: [0], why: 'Tìm lớp tiếng Anh', flags: [] })),
       invocation_id: 'fixture', request_hash: 'fixture', model: 'fixture', model_version: null, usage: null, cost_usd: 0,
       unmetered_cost_upper_usd: 0, cache_hit: false, elapsed_ms: 0,
       price: { input_per_million: 0, output_per_million: 0, cached_input_per_million: 0, observed_at: 'fixture', source: 'fixture' } };
