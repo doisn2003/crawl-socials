@@ -24,6 +24,7 @@ import { listRegisteredRetainedSourceRoots, registerRetainedSourceRoot, resolveR
 import { importRetainedData, prepareRetainedImport, readRetainedImport } from './retained-data-service.js';
 import type { RetainedImportState } from './retained-data-service.js';
 import { campaignVersion, validateCampaignPlan, type CampaignPlan } from '../domain/campaign-plan.js';
+import type { CoverageExpansionRequest } from './coverage-queries.js';
 
 export interface ProductionHost {
   list(): Promise<(BrowserProfile & { open: boolean; persistenceError: string | null })[]>;
@@ -37,10 +38,12 @@ export interface CollectorInput {
   collectionLimitReason?(): string | null;
   onProgress(value: { total?: number; event?: string; query?: string; replaying?: boolean; workers?: import('../shared/production-api.js').PlatformRun['workers'] }): void;
   resume?: boolean;
+  /** Only deliberate recovery after a cooldown may reset a stalled native search. */
+  recoverStalled?: boolean;
   onRecords?(rows: Record<string, unknown>[], provenance: Record<string, unknown>): Promise<void>;
   onQueryEnd?(value: { window: WebContents; platform: Platform; query?: string; shouldStop(): boolean }): Promise<void>;
   beforeNextPage?(): Promise<void>;
-  expandQueries?(): Promise<string[]>;
+  expandQueries?(request?: CoverageExpansionRequest): Promise<string[]>;
   queryPriority?(query: string): number;
   /** Extend the current loaded query only while admission/fairness permits it. */
   continueQuerySlice?(): boolean;
@@ -418,7 +421,7 @@ export function createProductionService(input: {
               onRecords: (records: Row[], provenance: Row) => ingest(item.platform, item.profileId!, records, provenance),
               ...(commentsEnabled ? { onQueryEnd: (value: { window: WebContents; query?: string; shouldStop(): boolean }) => pipeline!.enrich(item.platform, value.window, () => stopped || value.shouldStop(), 3, undefined, value.query) } : {}),
               beforeNextPage: () => pipeline!.backpressure(),
-              expandQueries: () => pipeline!.expandQueries(),
+              expandQueries: request => pipeline!.expandQueries(request),
               queryPriority: query => pipeline!.queryPriority(item.platform, query),
             } : {}),
             onProgress: value => {

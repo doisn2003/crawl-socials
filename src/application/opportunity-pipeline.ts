@@ -29,7 +29,8 @@ import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
 import { vietnameseOnly } from '../domain/content-language.js';
 import { manualCollectionPlan, unassessedGateway, withFilterPolicy } from './filter-policy.js';
 import { postOnlyEvidenceView } from '../domain/post-only-evidence.js';
-import { createCoverageExpansion, initialDiscoveryQueries } from './coverage-queries.js';
+import { createCoverageExpansion, initialDiscoveryQueries, type CoverageExpansionRequest } from './coverage-queries.js';
+import { recoverPostAssessmentJobs } from './post-assessment-recovery.js';
 
 export interface ConversationCollectInput {
   window: WebContents; platform: Platform; root: { id: string; url: string }; runId: string;
@@ -176,7 +177,11 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     const eligible = [...selected.target, ...selected.extra].filter(r => !excludedRoots.has(r.platform + ':' + r.rootId));
     return { target: eligible.slice(0, campaign.suitable_target), extra: eligible.slice(campaign.suitable_target) };
   }
-  const expandCoverage = createCoverageExpansion(directory, campaign, gateway, controller.signal);
+  const expandCoverage = createCoverageExpansion(directory, campaign, gateway, controller.signal, () => ({
+    allowModel: !off && !modelHalted && !stopped,
+    accepted: progress.targetCount ?? progress.counts.suitable,
+    raw: progress.counts.raw, pending: progress.counts.pending, queryYield: queryScores,
+  }));
   let queryScores: Awaited<ReturnType<AsyncConversationStore['queryYield']>> = [];
   let stopped = false, closed = false, modelHalted = false, pumpWork: Promise<void> | null = null, publishWork: Promise<void> | null = null;
   let pendingTimer: ReturnType<typeof setTimeout> | null = null, lastError: string | null = null, discoveryEnded = false, publishDirty = false;
@@ -615,6 +620,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     return storageWork;
   }
   await store.resume({ context });
+  if (campaignExisted && postOnly && !off && !retained) await recoverPostAssessmentJobs(store, context, excludedRoots);
   if (!retained) await store.resume({ types: ['ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'REVISIT'] });
   if (!retained && input.resolveThreadsReplyRoot && commentsEnabled) for (const candidate of await store.rootCandidates()) await enqueueRootResolution(candidate);
   await requestDueAssessments(); await armAssessments(); await publish(); schedule();
@@ -623,9 +629,9 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     progress: (): OpportunityProgress => structuredClone({ ...progress, modelScheduling: gateway.summary().scheduling }), refreshProgress: publish,
     queries: (platform: Platform) => initialDiscoveryQueries(campaign, platform),
     queryPriority: (platform: Platform, query: string) => { const score = queryScores.find(s => s.platform === platform && s.query === query); return score ? score.accepted / Math.max(1, score.observed) : 0; },
-    async expandQueries() {
+    async expandQueries(request?: CoverageExpansionRequest) {
       if (!rebuild || (off && !campaign.discovery_plan) || stopped || (modelHalted && !campaign.discovery_plan) || targetReached()) return [];
-      try { return await expandCoverage(); }
+      try { return await expandCoverage(request); }
       catch (error) { lastError = safeCode(error); if (fatalModelCode(lastError)) haltModel(lastError); await publish(); return []; }
     },
     targetReached, discoveryStopReason,
