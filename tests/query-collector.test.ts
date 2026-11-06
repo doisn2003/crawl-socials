@@ -120,3 +120,19 @@ test('CPU yield waits until resumed replay reaches a fresh durable page, while c
     }
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+
+test('a fully stalled native frontier is not endlessly requeued or called exhausted', async () => {
+  const root=mkdtempSync(join(tmpdir(),'csd-stalled-native-'));let calls=0;
+  const windows=createWindowScheduler({sample:()=>({freeBytes:12e9,totalBytes:16e9,cpuBusy:0}),staggerMs:0});
+  try {
+    const result=await runQueryCollectors({platform:'threads',profileId:'fixture',shouldStop:()=>false,onProgress(){},
+      config:{runId:'stalled-native',output:root,queries:['cafe chill'],maxMinutes:10}},async()=>{
+        calls++;return {stop_reason:calls===1?'QUERY_BUDGET_COMPLETE':'SOURCE_EXHAUSTED',summary:{unique:0},
+          checkpoint:{discovery_frontier:{jobs:[{state:'STALLED',reason:'NO_PROGRESS'},{state:'EXHAUSTED',reason:'NATIVE_END_OBSERVED'}]}}};
+      },windows);
+    assert.equal(calls,1);assert.equal(result.stop_reason,'QUERY_BUDGET_COMPLETE');
+    const saved=JSON.parse(readFileSync(join(root,'runs/stalled-native/query-tasks.json'),'utf8'));
+    assert.equal(saved.tasks[0].reason,'NO_PROGRESS');assert.equal(saved.tasks[0].state,'STOPPED');
+  } finally {rmSync(root,{recursive:true,force:true});}
+});

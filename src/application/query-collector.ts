@@ -75,8 +75,13 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
           },
         }, input.platform + '-' + task.id);
         task.reason = receipt.stop_reason;
+        const frontier = (receipt as CollectorReceipt & { checkpoint?: { discovery_frontier?: { jobs?: { state: string; reason: string | null }[] } } }).checkpoint?.discovery_frontier?.jobs;
+        const stalled = Array.isArray(frontier) && frontier.length > 0
+          && frontier.every(job => (job.state === 'STALLED' && job.reason === 'NO_PROGRESS') || (job.state === 'EXHAUSTED' && job.reason === 'NATIVE_END_OBSERVED'))
+          && frontier.some(job => job.state === 'STALLED');
         if (receipt.session_flush && receipt.session_flush !== 'OK') { task.state = 'FAILED'; task.reason = 'SESSION_SAVE_FAILED'; barrier = task.reason; }
         else if (receipt.stop_reason === 'ACCOUNT_BARRIER') { barrier = receipt.stop_reason; task.state = 'STOPPED'; }
+        else if (stalled) { task.state = 'STOPPED'; task.reason = 'NO_PROGRESS'; }
         else if (['QUERY_BUDGET_COMPLETE', 'RESOURCE_YIELD'].includes(receipt.stop_reason)) {
           const maxSlices = Math.ceil(Number(input.config.maxReplayPages ?? 100) / 3) + 2;
           task.slices++; task.state = task.slices < maxSlices ? 'QUEUED' : 'STOPPED';
