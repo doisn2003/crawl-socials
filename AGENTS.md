@@ -1,5 +1,13 @@
 # CSD — current development instructions
 
+## Authorized discovery recovery and A retest — 2026-11-06
+
+- User authorized fixes on `production-v2`: many diverse grounded keyword variants (synonyms, social wording and slang), target-driven search expansion, bounded NO_PROGRESS recovery, less replay, and pending assessment recovery. Multi-hour collection is explicitly accepted.
+- User explicitly authorized **USD 10 total** for the new A–CONSISTENT retest targeting 1,000 accepted unique roots, including planning, expansions, classification, repairs and retries. Model stays Gemini 3.1 Flash-Lite; conservative operational cap **4,000 new calls**. Preserve the cumulative DEVELOPMENT ledger; baseline before opening this envelope is 1,468 calls / USD 1.942324035 measured / zero held. Never reset totals across retries.
+- Artifacts belong in `artifacts/cafe-consistent-recovery-20261106`; separate test data outside the repository. Use one BrowserHost writer and existing authorized sessions. No production promotion implied.
+- Old five-case E2E remains closed and unchanged. Its paused email heartbeat must not restart automatically. Offline development/regression checks still use zero paid calls; only the explicitly scoped live retest uses this envelope.
+- The target counts model-accepted roots, not independently verified useful precision. Keep POST_ONLY, Vietnamese content, no age cap, no mandatory geography, no ads/off-topic filler, and truthful partial results if a genuine limit blocks completion.
+
 ## Authorized live E2E — 2026-11-06
 
 - Final summary email sent to the authorized recipient; progress heartbeat `email-ti-n-e2e-csd` is PAUSED. Do not send further progress or restart this task automatically.
