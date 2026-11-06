@@ -151,7 +151,7 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
   await ingestion;
   for (const task of tasks) if (task.state === 'QUEUED' || task.state === 'COOLDOWN') { task.state = 'STOPPED'; task.reason = stopReason() ?? 'QUERY_NOT_RUN'; }
   publish();
-  const reason = stopReason() ?? (tasks.every(t => t.reason === 'SOURCE_EXHAUSTED') ? 'SOURCE_EXHAUSTED'
+  const reason = stopReason() ?? (!expansionError && !expansionDeferred && tasks.every(t => t.reason === 'SOURCE_EXHAUSTED') ? 'SOURCE_EXHAUSTED'
     : tasks.some(t => t.state === 'FAILED') ? 'QUERY_WORKER_FAILED' : 'QUERY_BUDGET_COMPLETE');
   const receipt = { stop_reason: reason, summary: store.export(), workers: tasks, expansion_error: expansionError, session_flush: barrier === 'SESSION_SAVE_FAILED' ? 'FAILED' : 'OK' };
   atomicJson(join(directory, 'receipt.json'), receipt); return receipt;

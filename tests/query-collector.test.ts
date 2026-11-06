@@ -218,11 +218,11 @@ test('invalid expansion remains visibly incomplete with bounded retries while ex
   const root=mkdtempSync(join(tmpdir(),'csd-incomplete-wave-'));let expands=0,collects=0;
   const windows=createWindowScheduler({sample:()=>({freeBytes:12e9,totalBytes:16e9,cpuBusy:0}),staggerMs:0});
   try {
-    await runQueryCollectors({platform:'facebook',profileId:'fixture',shouldStop:()=>false,onProgress(){},
+    const result=await runQueryCollectors({platform:'facebook',profileId:'fixture',shouldStop:()=>false,onProgress(){},
       config:{runId:'incomplete-wave',output:root,queries:['initial'],maxMinutes:10},
       expandQueries:async()=>{expands++;throw Error('QUERY_COVERAGE_INCOMPLETE');}},
       async()=>({stop_reason:++collects<4?'QUERY_BUDGET_COMPLETE':'SOURCE_EXHAUSTED',summary:{unique:0}}),windows);
     const saved=JSON.parse(readFileSync(join(root,'runs/incomplete-wave/query-tasks.json'),'utf8'));
-    assert.equal(expands,3);assert.equal(collects,4);assert.equal(saved.expansionExhausted,false);assert.equal(saved.expansionDeferred,true);assert.equal(saved.expansionError,'QUERY_COVERAGE_INCOMPLETE');
+    assert.equal(expands,3);assert.equal(collects,4);assert.equal(result.stop_reason,'QUERY_BUDGET_COMPLETE');assert.equal(saved.expansionExhausted,false);assert.equal(saved.expansionDeferred,true);assert.equal(saved.expansionError,'QUERY_COVERAGE_INCOMPLETE');
   } finally {rmSync(root,{recursive:true,force:true});}
 });
