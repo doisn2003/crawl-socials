@@ -5,7 +5,7 @@ export type IntentSource = 'PROMPT' | 'CONTEXT' | 'ANSWER' | 'EDIT' | 'SEED';
 export interface IntentQuestion { id: string; target_field: IntentField; type: 'single_select' | 'multi_select' | 'free_text'; prompt: string; options: { id: string; label: string }[]; required: boolean; reason: string }
 export interface IntentAnswer { answer_id: string; question_id: string; target_field: IntentField; type: IntentQuestion['type']; question: string; question_snapshot: IntentQuestion; selected_option_ids: string[]; raw_text: string; answer: string; source: 'ANSWER'; source_run_id: string; source_revision: number; revision: number }
 export interface IntentEdit { field: IntentField; value: string; source: 'EDIT'; revision: number; source_revision: number; source_run_id: string }
-export interface IntentInput { stage: 'S2'; prompt: string; context: string; seeds: string[]; revision: number; answers: IntentAnswer[]; edits: IntentEdit[]; previous_candidate?: IntentPlan; previous_run_id?: string; validation_repair?: unknown }
+export interface IntentInput { stage: 'S2'; prompt: string; context: string; seeds: string[]; revision: number; answers: IntentAnswer[]; edits: IntentEdit[]; previous_candidate?: IntentPlan; previous_run_id?: string; validation_repair?: unknown; discovery_target?: number }
 export interface IntentPlan {
   original_facets?: import('./discovery-plan.js').RequestFacet[];
   coverage?: import('./discovery-plan.js').FacetCoverage[];

@@ -7,6 +7,13 @@ export type { RequestFacet, FacetCoverage, DiscoveryFamily, DiscoveryQuery, Disc
 export const OPPORTUNITY_PLANNER_POLICY = 'opportunity-coverage-v2' as const;
 export const DISCOVERY_VERSION = '2.0.0' as const;
 export const MAX_DISCOVERY_QUERIES = MAX_SEARCH_QUERIES;
+/** Search effort follows the output target; this never changes who qualifies. */
+export function discoveryPortfolioBudget(target = 1000) {
+  const acceptedTarget = Number.isFinite(target) && target > 0 ? Math.floor(target) : 1000;
+  return { accepted_target: acceptedTarget, preferred_queries: acceptedTarget >= 3000 ? 192 : acceptedTarget >= 1000 ? 96 : 64,
+    initial_wave_size: 48, reserve_wave_size: 24, maximum_queries: MAX_DISCOVERY_QUERIES,
+    minimum_useful_queries: acceptedTarget >= 1000 ? 48 : 32 };
+}
 export const DISCOVERY_FAMILIES = [
   ['TOPIC', 'Chủ đề nền', 'BROAD'], ['PROVIDER_SEARCH', 'Tìm nơi hoặc người cung cấp', 'REQUEST'],
   ['RECOMMENDATION', 'Xin giới thiệu', 'REQUEST'], ['PROBLEM', 'Vấn đề đang gặp', 'PROBLEM'],
@@ -49,7 +56,10 @@ export function originalRequestFacets(input: IntentInput): RequestFacet[] {
       const kind = source.source === 'SEED' ? 'SEARCH' : exclusion ? 'EXCLUSION' : constraint ? 'CONSTRAINT' : business ? 'BUSINESS_CONTEXT' : 'SEARCH';
       let literal = quote.replace(/^(?:hãy\s+)?(?:tìm|thu thập|lấy)\s+(?:(?:những|các)\s+)?(?:người(?:\s+dùng)?|khách hàng)\s+(?:đang\s+)?(?:có nhu cầu\s+|muốn\s+)?/iu, '')
         .replace(/^(?:find|collect|search for)\s+(?:people|users|customers)\s+(?:who\s+)?(?:want to\s+|looking for\s+)?/iu, '')
-        .replace(/^(?:tìm|thu thập|lấy)\s+(?:các\s+)?bài\s+(?:viết|đăng)\s+(?:liên quan (?:đến|tới|về)\s+|về\s+)?/iu, '').trim();
+        .replace(/^(?:tìm|thu thập|lấy)\s+(?:các\s+)?bài\s+(?:viết|đăng)\s+(?:liên quan (?:đến|tới|về)\s+|về\s+)?/iu, '')
+        .replace(/^(?:tìm|thu thập|lấy)\s+(?:(?:các|những)\s+)?nhu cầu\s+/iu, '')
+        .replace(/^chia sẻ\s+(?=trải nghiệm)/iu, '')
+        .replace(/^(?:tìm\s+(?:các\s+)?cuộc\s+)?thảo luận\s+về\s+/iu, '').trim();
       if (kind !== 'SEARCH' || !literal || literal.length > 100 || literal.split(/\s/u).length > 12 || /[<>:#]|https?:/iu.test(literal)) literal = '';
       inheritedExclusion = kind === 'EXCLUSION';
       facets.push({ id: 'facet-' + contentHash({ source: source.source, source_index, start, quote }).slice(0, 12), source: source.source,
@@ -80,7 +90,7 @@ export function discoveryWaves(queries: Omit<DiscoveryQuery, 'wave' | 'query_id'
       first.push(q); seenFamilies.add(q.family_id); q.facet_ids.forEach(id => seenFacets.add(id));
     } else remaining.push(q);
   }
-  const initialSize = Math.min(48, Math.max(24, first.length));
+  const initialSize = Math.min(96, Math.max(48, first.length));
   first.push(...remaining.splice(0, Math.max(0, initialSize - first.length)));
   return [...first, ...remaining].map((q, index) => ({ ...q,
     query_id: 'query-' + contentHash({ text: q.text.normalize('NFC').toLowerCase(), family: q.family_id, facets: q.facet_ids }).slice(0, 16),

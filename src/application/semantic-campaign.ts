@@ -85,7 +85,8 @@ export async function compileSemanticTurn(input: CampaignPlanInput, intent: Inte
   }
   let repair: unknown;
   for (let round = 0; round < 2; round++) {
-    const request = (discovery ? discoveryRequest : modelRequest)('B', { ...intent, ...(repair ? { validation_repair: repair } : {}) }, {});
+    const request = (discovery ? discoveryRequest : modelRequest)('B', { ...intent,
+      ...(discovery ? { discovery_target: input.suitable_target ?? 1000 } : {}), ...(repair ? { validation_repair: repair } : {}) }, {});
     // Transport/auth/budget failures are not semantic retries.
     const result = await gateway.generateJson({ purpose: discovery ? 'campaign-planner-v3.0.0-opportunity-coverage' : 'campaign-planner-v2.0.0-semantic-dialogue', system: request.system,
       schema: request.schema, input: request.input, max_output_tokens: request.maxOutputTokens,

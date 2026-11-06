@@ -135,7 +135,7 @@ test('all 24 families have distinct IDs and a 216-query portfolio survives seria
     text: `piano nhóm ${family} cách ${variant}`, family_id, kind: 'PARAPHRASE' })));
   const value = campaign(i, raw); assert.equal(value.queries.length, 217);
   validateCampaignPlan(JSON.parse(JSON.stringify(value)));
-  const initial = initialDiscoveryQueries(value, 'facebook'); assert.equal(initial.length, 24);
+  const initial = initialDiscoveryQueries(value, 'facebook'); assert.equal(initial.length, 48);
   assert.equal(new Set(value.discovery_plan!.queries.filter(q => q.wave === 0).map(q => q.family_id)).size, 24);
   const directory = mkdtempSync(join(tmpdir(), 'csd-discovery-v2-'));
   let calls = 0;
