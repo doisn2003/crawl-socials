@@ -207,6 +207,35 @@ test('a coverage failure receives bounded repair using the same original invento
   assert.equal((requests[1]!.input as any).VALIDATION_REPAIR.details.code, 'ORIGINAL_FACET_COVERAGE');
 });
 
+test('policy-as-user evidence is rejected and repair preserves explicitly requested travelers without fabricating context', async () => {
+  const i = input('Tìm người đang muốn đi du lịch Hà Giang'), requests: JsonModelRequest[] = [];
+  const valid = response(i);
+  valid.target_roles = ['Người muốn đi du lịch Hà Giang'];
+  Object.assign(valid.intent.find((f: any) => f.field === 'target_roles'), { value: valid.target_roles[0], status: 'CONFIRMED',
+    evidence: [{ source: 'PROMPT', quote: i.prompt }] });
+  const invalid = structuredClone(valid);
+  Object.assign(invalid.intent.find((f: any) => f.field === 'purpose'), { value: 'Market research', status: 'CONFIRMED',
+    evidence: [{ source: 'CONTEXT', quote: 'broad Vietnamese social-post discovery portfolio for market research and helpful business participation' }] });
+  Object.assign(invalid.intent.find((f: any) => f.field === 'exclude'), { value: 'Supplier advertisements', status: 'CONFIRMED',
+    evidence: [{ source: 'CONTEXT', quote: 'Exclude supplier advertisements' }] });
+  assert.throws(() => validateResult(invalid, 'B', i, {}), (e: any) => e.details?.code === 'INTENT_FIELD_EVIDENCE');
+  const gateway = { generateJson: async (request: JsonModelRequest) => {
+    requests.push(request);
+    return { value: requests.length === 1 ? invalid : valid, invocation_id: 'fixture-' + requests.length,
+      request_hash: 'a'.repeat(64), model: 'fixture', cache_hit: false };
+  }, summary: () => ({}) } as unknown as ModelGateway;
+  const result = await compileSemanticTurn({ prompt: i.prompt, planner_policy: OPPORTUNITY_PLANNER_POLICY }, i, gateway);
+  assert.equal(requests.length, 2); assert.ok(result.campaign);
+  const repair = (requests[1]!.input as any).VALIDATION_REPAIR;
+  assert.equal(repair.details.code, 'INTENT_FIELD_EVIDENCE');
+  assert.match(repair.instruction, /NO evidence may cite CONTEXT/);
+  assert.match(repair.instruction, /Do not erase a role the user explicitly requested/);
+  assert.equal((requests[1]!.input as any).CONTEXT, null);
+  assert.equal((requests[1]!.input as any).PROMPT, i.prompt);
+  assert.deepEqual(result.campaign.audience, valid.target_roles);
+  assert.deepEqual(result.campaign.exclusions, []);
+});
+
 test('default v2 desktop plan starts through the real pipeline with frozen queries, 720 minutes and no comment jobs', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'csd-discovery-start-')), i = input('piano cafe, mượn đàn piano');
   const profileId = 'csd-00000000-0000-4000-8000-000000000002';
