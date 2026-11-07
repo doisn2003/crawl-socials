@@ -71,7 +71,7 @@ export function parseThreadsConversation(objects: unknown[], context: Conversati
     const observation: ConversationObservation = {
       platform: 'threads', entity_type: isRoot ? 'POST' : 'COMMENT', entity_id: id,
       root_post_id: context.rootId, parent_id: parentId,
-      text: typeof value.caption?.text === 'string' ? value.caption.text : '', observed_at: context.observedAt,
+      text: typeof value.caption?.text === 'string' ? value.caption.text : '', like_count: count(value.like_count), observed_at: context.observedAt,
       published_at: date(value.taken_at), permalink,
       author: { id: native(value.user.pk ?? value.user.id), name: str(value.user.full_name) ?? username, role: 'UNKNOWN' },
       source: { kind: 'PROFILE' }, media: media(value), provenance: {
@@ -202,7 +202,10 @@ export function parseFacebookConversation(objects: unknown[], context: Conversat
       if ('body' in v || 'attachments' in v) {
         const observation: ConversationObservation = {
           platform: 'facebook', entity_type: 'COMMENT', entity_id: id, root_post_id: context.rootId, parent_id: parentId,
-          text: typeof v.body?.text === 'string' ? v.body.text : '', observed_at: context.observedAt,
+          text: typeof v.body?.text === 'string' ? v.body.text : '',
+          like_count: count(v.feedback?.like_count?.count ?? v.feedback?.like_count) ?? count(list(v.feedback?.top_reactions?.edges)
+            .find(edge => /^(like|thích)$/iu.test(String(edge?.node?.localized_name ?? '')))?.reaction_count),
+          observed_at: context.observedAt,
           published_at: date(v.created_time), permalink: link.url,
           author: { id: str(v.author?.id), name: str(v.author?.name), role: 'UNKNOWN' },
           provenance: provenance(context, path),

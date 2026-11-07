@@ -9,13 +9,14 @@ const post = (id: string, text: string, reply = false) => ({ pk: id, id: `${id}_
 const connection = (posts: unknown[], hasMore = false) => ({ edges: [{ node: { posts: { edges: posts.map(node => ({ node })), page_info: { has_next_page: hasMore } } } }], page_info: { has_next_page: hasMore, end_cursor: hasMore ? 'opaque' : null } });
 
 test('Threads binds root/direct replies and preserves unresolved nested parent without fabricating a relationship', () => {
-  const root = { ...post('100', 'Check-in'), text_post_app_info: { direct_reply_count: 3, direct_replies: connection([post('101', 'Is it quiet?', true), post('102', 'Yes.', true)], true) } };
+  const root = { ...post('100', 'Check-in'), text_post_app_info: { direct_reply_count: 3, direct_replies: connection([{ ...post('101', 'Is it quiet?', true), like_count: 8 }, post('102', 'Yes.', true)], true) } };
   const result = parseThreadsConversation([{ require: [[{ __bbox: { result: { data: { media: root } } } }]] }], ctx);
   assert.equal(result.recognized, true); assert.equal(result.root_found, true); assert.equal(result.has_more, true);
   assert.equal(result.observations.length, 3);
   assert.equal(result.observations.find(o => o.entity_id === '101')?.parent_id, '100');
   assert.equal(result.observations.find(o => o.entity_id === '102')?.parent_id, null);
   assert.equal(result.unresolved_parents, 1);
+  assert.equal(result.observations.find(o => o.entity_id === '101')?.like_count, 8);
 });
 
 test('Threads rejects unrelated media/recommendations and supports a known comment inline expansion', () => {
@@ -51,13 +52,18 @@ const fbContext = { ...ctx, url: 'https://www.facebook.com/groups/synthetic/post
 const commentId = (root: string, id: string) => Buffer.from(`comment:${root}_${id}`).toString('base64');
 const comment = (id: string, text: string, root = '100') => ({ __typename: 'Comment', id: commentId(root, id), legacy_fbid: id, depth: 0, body: { text }, author: { id: '99', name: 'Synthetic' }, created_time: 1793340000, feedback: { url: `https://www.facebook.com/groups/synthetic/posts/${root}/?comment_id=${id}` } });
 test('Facebook uses root-bound comment identity, preserves text and explicit parent relationships', () => {
-  const child = { ...comment('102', 'Reply'), depth: 1, comment_direct_parent: { id: commentId('100', '101') } };
+  const reply = comment('102', 'Reply');
+  const child = { ...reply, depth: 1, comment_direct_parent: { id: commentId('100', '101') },
+    feedback: { ...reply.feedback, top_reactions: { edges: [
+      { node: { localized_name: 'Yêu thích' }, reaction_count: 50 }, { node: { localized_name: 'Thích' }, reaction_count: 9 },
+    ] } } };
   const p = { data: { node_v2: { __typename: 'Story', post_id: '100', id: 'story100', message: { text: 'Root' }, comments: { edges: [{ node: comment('101', 'Question') }, { node: child }], total_count: 2, page_info: { has_next_page: false } } } } };
   const result = parseFacebookConversation([p, { other: comment('999', 'Wrong root', '900') }], fbContext);
   assert.equal(result.recognized, true); assert.equal(result.observations.length, 3);
   assert.equal(result.observations.find(o => o.entity_id === '102')?.parent_id, '101');
   assert.equal(result.observations.find(o => o.entity_id === '101')?.parent_id, '100');
   assert.equal(result.has_more, false); assert.equal(result.advertised_count, 2);
+  assert.equal(result.observations.find(o => o.entity_id === '102')?.like_count, 9);
 });
 
 test('Facebook partial parent objects never overwrite full comment text or borrow attached story text', () => {

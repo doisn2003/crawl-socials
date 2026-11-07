@@ -13,7 +13,7 @@ export function createWindowScheduler(options: { sample?: () => ResourceSample; 
   let limit = 2, lastSample = 0, nextStart = 0, lastPlatform = '', lastOwner = '', sequence = 0, pressureSince: number | null = null;
   let metrics = sample(), timer: ReturnType<typeof setTimeout> | undefined;
   const active = new Set<number>(), owners = new Map<number, string>();
-  type Waiter = { platform: string; owner: string; all: boolean; stopped: () => boolean; resolve: (lease: { release(): void; shouldYield(): boolean }) => void; reject: (e: Error) => void };
+  type Waiter = { platform: string; owner: string; all: boolean; background: boolean; stopped: () => boolean; resolve: (lease: { release(): void; shouldYield(): boolean }) => void; reject: (e: Error) => void };
   const queue: Waiter[] = [];
   function refresh() {
     if (now() - lastSample < 1000) return;
@@ -37,8 +37,11 @@ export function createWindowScheduler(options: { sample?: () => ResourceSample; 
     if (timer) clearTimeout(timer); timer = undefined;
     for (let i = queue.length - 1; i >= 0; i--) if (queue[i]!.stopped()) queue.splice(i, 1)[0]!.reject(Error('USER_STOP'));
     while (queue.length) {
-      const otherOwner = queue.findIndex(w => w.owner !== lastOwner);
-      const index = otherOwner >= 0 ? otherOwner : Math.max(0, queue.findIndex(w => w.platform !== lastPlatform)), w = queue[index]!;
+      const background = queue.every(waiter => waiter.background);
+      const otherOwner = queue.findIndex(w => w.background === background && w.owner !== lastOwner);
+      const otherPlatform = queue.findIndex(w => w.background === background && w.platform !== lastPlatform);
+      const index = otherOwner >= 0 ? otherOwner : otherPlatform >= 0 ? otherPlatform : queue.findIndex(w => w.background === background);
+      const w = queue[index]!;
       if (active.size >= capacity(w.all) || now() < nextStart) break;
       queue.splice(index, 1); const id = ++sequence; active.add(id); owners.set(id, w.owner); lastPlatform = w.platform; lastOwner = w.owner;
       nextStart = now() + (options.staggerMs ?? 600);
@@ -57,8 +60,8 @@ export function createWindowScheduler(options: { sample?: () => ResourceSample; 
     if (queue.length) timer = setTimeout(drain, 100);
   }
   return {
-    acquire(platform: string, all: boolean, stopped: () => boolean, profileId?: string) {
-      return new Promise<{ release(): void; shouldYield(): boolean }>((resolve, reject) => { queue.push({ platform, owner: profileId ?? platform, all, stopped, resolve, reject }); drain(); });
+    acquire(platform: string, all: boolean, stopped: () => boolean, profileId?: string, background = false) {
+      return new Promise<{ release(): void; shouldYield(): boolean }>((resolve, reject) => { queue.push({ platform, owner: profileId ?? platform, all, background, stopped, resolve, reject }); drain(); });
     },
     status: () => ({ active: active.size, queued: queue.length, automaticLimit: limit,
       activeProfiles: new Set(owners.values()).size, pressureSince, ...metrics }),

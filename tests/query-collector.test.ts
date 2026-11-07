@@ -18,6 +18,23 @@ test('ALL keeps existing keyword windows through CPU bursts and yields only at c
 });
 import type { CollectorInput } from '../src/application/production-service.js';
 
+test('a waiting search gets the next Electron slot before the comment worker', async () => {
+  const windows = createWindowScheduler({ staggerMs: 0, sample: () => ({ freeBytes: 8e9, totalBytes: 16e9, cpuBusy: .75 }) });
+  const stop = () => false;
+  const first = await windows.acquire('facebook', false, stop), second = await windows.acquire('threads', false, stop);
+  const order: string[] = [];
+  const comments = windows.acquire('facebook', false, stop, 'fixture', true).then(lease => { order.push('comments'); return lease; });
+  const search = windows.acquire('facebook', false, stop, 'fixture').then(lease => { order.push('search'); return lease; });
+  first.release();
+  await Promise.resolve();
+  second.release();
+  const leases = await Promise.all([comments, search]);
+  leases.forEach(lease => lease.release());
+  assert.deepEqual(order, ['search', 'comments']);
+  assert.equal(windows.status().active, 0);
+});
+
+
 test('8 keywords x 2 platforms own 16 independent windows/checkpoints; failed window does not cancel siblings', async () => {
   const root = mkdtempSync(join(tmpdir(), 'csd-query-'));
   const windows = createWindowScheduler({ sample: () => ({ freeBytes: 12e9, totalBytes: 16e9, cpuBusy: 0.1 }), staggerMs: 0 });

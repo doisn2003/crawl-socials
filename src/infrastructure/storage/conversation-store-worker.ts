@@ -3,7 +3,7 @@ import { createConversationStore, type ConversationStore } from './conversation-
 
 export interface StoreWorkerRequest { id: number; method: string; args: unknown[] }
 export interface StoreWorkerResponse { id?: number; ready?: boolean; value?: unknown; error?: string }
-export const STORE_METHOD_NAMES = ['queryYield', 'selectTarget', 'ingest', 'ingestImported', 'snapshot', 'getSnapshot', 'snapshots', 'observations', 'rootCandidates', 'requestAssessment', 'assessmentsDue', 'assessmentSummary', 'recordDecision', 'results', 'decisionHistory', 'exportSnapshot', 'stats', 'enqueue', 'getJob', 'getJobByKey', 'jobs', 'backlogBytes', 'watchSummary', 'coalesceRevisits', 'enrichmentQueries', 'claim', 'complete', 'heartbeat', 'retry', 'pause', 'resume', 'reserveInvocation', 'finishInvocation', 'cached', 'costSummary', 'invocationHistory', 'close'] as const;
+export const STORE_METHOD_NAMES = ['queryYield', 'selectTarget', 'ingest', 'ingestImported', 'snapshot', 'getSnapshot', 'snapshots', 'observations', 'rootCandidates', 'keywordCommentTarget', 'keywordCommentSummary', 'requestAssessment', 'assessmentsDue', 'assessmentSummary', 'recordDecision', 'results', 'decisionHistory', 'exportSnapshot', 'stats', 'enqueue', 'getJob', 'getJobByKey', 'jobs', 'backlogBytes', 'watchSummary', 'coalesceRevisits', 'enrichmentQueries', 'claim', 'complete', 'heartbeat', 'retry', 'pause', 'resume', 'reserveInvocation', 'finishInvocation', 'cached', 'costSummary', 'invocationHistory', 'close'] as const;
 export type StoreMethodName = typeof STORE_METHOD_NAMES[number];
 
 if (parentPort) {

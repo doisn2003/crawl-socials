@@ -75,7 +75,7 @@ contextBridge.exposeInMainWorld('csd',api);`);
     window.webContents.session.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] }, (_details, done) => { networkAttempts++; done({ cancel: true }); });
     window.webContents.on('console-message', event => { if (event.level === 'error') errors.push(event.message); });
     window.webContents.on('render-process-gone', (_event, details) => { errors.push('RENDERER_GONE:' + details.reason); });
-    const run = code => window.webContents.executeJavaScript(code);
+    const run = code => window.webContents.executeJavaScript(code).catch(error => { throw new Error('UI_EVAL_FAILED: ' + code, { cause: error }); });
     const until = async condition => { for (let i = 0; i < 150; i++) { if (typeof condition === 'string' ? await run(condition) : await condition()) return; await new Promise(resolve => setTimeout(resolve, 40)); } throw Error('UI_WAIT_FAILED: ' + condition); };
     const reload = async (running = false) => { const loaded = once(window.webContents, 'did-finish-load'); window.reload(); await loaded;
       await until(running ? "!document.getElementById('stop').hidden" : "!document.getElementById('filter-mode').disabled"); };
@@ -83,14 +83,18 @@ contextBridge.exposeInMainWorld('csd',api);`);
     await window.loadFile(page); await until("!document.getElementById('filter-mode').disabled");
     assert.deepEqual(await run("Array.from(document.querySelector('#filter-mode').options,o=>o.value)"), ['OFF', 'CONSISTENT', 'STANDARD', 'QUALITY']);
     assert.equal(await run("document.querySelector('#filter-mode').tagName"), 'SELECT');
-    assert.equal(await run("document.querySelector('.comments-setting').hidden && !document.querySelector('#collect-comments').checked"), true);
+    assert.equal(await run("!document.querySelector('.comments-setting').hidden && !document.querySelector('#collect-comments').checked"), true);
     for (const mode of ['OFF', 'CONSISTENT', 'STANDARD', 'QUALITY', 'CONSISTENT']) {
       await run(`(() => {const select=document.getElementById('filter-mode');select.value=${JSON.stringify(mode)};select.dispatchEvent(new Event('input',{bubbles:true}));select.dispatchEvent(new Event('change',{bubbles:true}));select.dispatchEvent(new Event('blur'));})()`);
       await until(() => state.config.opportunity.filterMode === mode);
       assert.equal(state.config.opportunity.budgetUsd, mode === 'OFF' ? 0 : 3);
       assert.equal(state.config.opportunity.commentsEnabled, false);
+      assert.equal(await run("document.querySelector('#collect-comments').disabled"), mode === 'OFF');
     }
+    await run("document.getElementById('collect-comments').click()"); await until(() => state.config.opportunity.commentsEnabled);
     await reload(); assert.equal(await run("document.getElementById('filter-mode').value"), 'CONSISTENT');
+    assert.equal(await run("document.getElementById('collect-comments').checked && !document.getElementById('comments-warning').hidden"), true);
+    await run("document.getElementById('collect-comments').click()"); await until(() => !state.config.opportunity.commentsEnabled);
     await run("const target=document.getElementById('suitable-target');target.value='5000';target.dispatchEvent(new Event('input',{bubbles:true}));target.dispatchEvent(new Event('blur'))");
     await until(() => state.config.opportunity.totalTarget === 5000);
     assert.equal(await run("document.getElementById('suitable-target').max"), '5000');
@@ -104,7 +108,9 @@ contextBridge.exposeInMainWorld('csd',api);`);
     await run("document.getElementById('filter-mode').scrollIntoView({block:'start',behavior:'instant'})"); await screenshot('four-modes-and-target.png');
     await run("document.getElementById('accounts-list-facebook').scrollIntoView({block:'center',behavior:'instant'})"); await screenshot('multiple-accounts.png');
     await run("document.getElementById('start').click();document.getElementById('start').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
-    await until(() => !!prepareResolve); assert.equal(prepares, 1); assert.equal(starts, 0);
+    await until(() => !!prepareResolve);
+    assert.equal(await run("document.querySelector('#collect-comments').disabled"), true);
+    assert.equal(prepares, 1); assert.equal(starts, 0);
     assert.equal(await run("document.getElementById('start').getAttribute('aria-busy')"), 'true');
     finishPreparation(); await until(() => !!startResolve); assert.equal(starts, 1); assert.equal(lastStart.profiles.length, 3);
     assert.equal(new Set(lastStart.profiles.map(p => p.profileId)).size, 3); finishStart();
@@ -115,12 +121,12 @@ contextBridge.exposeInMainWorld('csd',api);`);
     state.run.opportunity = { campaignId: state.run.id, totalTarget: 5000, targetCount: 5000, extraCount: 0, filterMode: 'CONSISTENT', resultPolicy: 'GLOBAL_FIRST_QUALIFIED',
       threadsShare: .5, counts: { ...empty, raw: 7500, suitable: 5000 }, byPlatform: { facebook: { ...empty, raw: 5000, suitable: 3500 }, threads: { ...empty, raw: 2500, suitable: 1500 } },
       costUsd: .8, costUpperUsd: .8, usageUnknown: 0, budgetUsd: 3, phase: 'SETTLED', lastError: null, preview: [] };
-    delete state.campaignDraft; await reload(); await until("!document.querySelector('.discovery-panel > button').disabled");
+    delete state.campaignDraft; await reload(); await until("!document.querySelector('.discovery-panel > button, .discovery-panel .discovery-create-btn').disabled");
     assert.equal(await run("document.querySelectorAll('#run-progress .progress-card').length"), 2);
     assert.deepEqual(await run("Array.from(document.querySelectorAll('#run-progress .progress-bar'), bar=>bar.value)"), [3500, 1500]);
     assert.equal(await run("Array.from(document.querySelectorAll('#run-progress .progress-bar'), bar=>bar.value).reduce((sum,count)=>sum+count,0)"), 5000);
-    await run("document.querySelector('.discovery-panel > input').value='Khách hàng spa A'");
-    await run("document.querySelector('.discovery-panel > button').click()"); await until(() => watchCreates === 1);
+    await run("document.querySelector('.discovery-panel input[aria-label]').value='Khách hàng spa A'");
+    await run("document.querySelector('.discovery-panel > button, .discovery-panel .discovery-create-btn').click()"); await until(() => watchCreates === 1);
     await until("document.querySelector('.discovery-panel article')!==null");
     assert.equal(subscriptions[0].sourceRunId, state.run.id); assert.equal(subscriptions[0].monthlyTarget, 100);
     assert.equal(subscriptions[0].label, 'Khách hàng spa A');
@@ -151,10 +157,10 @@ contextBridge.exposeInMainWorld('csd',api);`);
     await until("document.querySelector('.discovery-panel article')?.innerText.includes('Có kết quả chờ xuất')");
     assert.equal(await run("document.querySelector('.discovery-panel article .secondary-button').disabled"), true);
     await run("document.querySelector('.discovery-panel').scrollIntoView({block:'center',behavior:'instant'})"); await screenshot('monthly-discovery.png');
-    assert.equal(await run("document.querySelector('#collect-comments').disabled"), true, 'reserved comment controls stay disabled');
+    assert.equal(await run("document.querySelector('#collect-comments').disabled"), state.config.opportunity.filterMode === 'OFF');
     assert.deepEqual(errors, []); assert.equal(networkAttempts, 0);
     const report = { passed: true, actualRenderer: page, isolatedData: isolated, fourNamedModes: true, modePersistence: true, offBudgetZero: true,
-      target5000: true, rawCap20000: true, postOnly: true, multipleAccounts: lastStart.profiles.length, explicitAddAccount: true,
+      target5000: true, rawCap20000: true, commentToggle: true, multipleAccounts: lastStart.profiles.length, explicitAddAccount: true,
       oneClickPlanning: true, duplicateStartBlocked: true, groupedPlatformCounts: true, watchCreateToggleRun: true, watchLabel: true,
       recipeAttachmentPreservesCustomer: true, watchToggleDuringActiveRun: true, awaitingExportBlocksNextRun: true,
       oldNewlyFoundMonthlyDefinition: true, hiddenWindow: !window.isVisible(), blockedNetworkAttempts: networkAttempts, liveModelCalls: 0, rendererErrors: errors };

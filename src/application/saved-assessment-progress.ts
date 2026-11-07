@@ -31,6 +31,10 @@ export function restoreAssessmentProgress(run: RunState): void {
       // Do not replace an older snapshot with counts from a different collection state.
       if (counts.raw !== progress.counts.raw || counts.suitable !== progress.counts.suitable
         || platforms.some(p => byPlatform[p].raw !== progress.byPlatform[p].raw || byPlatform[p].suitable !== progress.byPlatform[p].suitable)) return;
+      if (progress.commentsPending !== undefined) {
+        counts.comments = progress.counts.comments;
+        for (const platform of platforms) byPlatform[platform].comments = progress.byPlatform[platform].comments;
+      }
       run.opportunity = { ...progress, counts, byPlatform,
         ...(total.assessmentDetails ? { assessmentDetails: total.assessmentDetails } : {}),
         phase: progress.phase === 'PARTIAL' && !counts.pending ? 'SETTLED' : progress.phase };

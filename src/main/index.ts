@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { runtimePaths } from '../infrastructure/config/runtime-paths.js';
 import { createBrowserProfiles } from '../infrastructure/browser/profile-repository.js';
+import { sharedWindows } from '../application/window-scheduler.js';
 import { createBrowserHost } from '../infrastructure/browser/browser-host.js';
 import { createElectronSecretStore } from '../infrastructure/secrets/electron-secret-store.js';
 import { createProductionService } from '../application/production-service.js';
@@ -86,6 +87,18 @@ async function bootstrap() {
       const moduleUrl = new URL('../collectors/conversation-collector.mjs', import.meta.url).href;
       const runner = await import(moduleUrl) as { resolveThreadsReplyRoot(input: object): Promise<import('../application/opportunity-pipeline.js').ReplyRootResolveReceipt> };
       return runner.resolveThreadsReplyRoot(value);
+    },
+    async withKeywordCommentWindow(profileId, platform, shouldStop, work) {
+      const lease = await sharedWindows.acquire(platform, false, shouldStop, profileId, true);
+      const worker = browserHost.forWorker('keyword-comments');
+      try {
+        if (shouldStop()) throw Error('USER_STOP');
+        if (!(await browserHost.sessionStatus(profileId))) throw Error('LOGIN_REQUIRED');
+        if (shouldStop()) throw Error('USER_STOP');
+        await worker.open(profileId);
+        const target = worker.observerTarget(profileId); if (!target) throw Error('PROFILE_UNAVAILABLE');
+        await work(target.contents);
+      } finally { try { await worker.close(profileId); } finally { lease.release(); } }
     },
     async withConversationWindow(profileId, work) {
       if (!(await browserHost.sessionStatus(profileId))) throw Error('LOGIN_REQUIRED');

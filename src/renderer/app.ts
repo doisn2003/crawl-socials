@@ -94,7 +94,7 @@ function readConfig(): UserConfig {
         enabled: true, filterMode: currentFilter(), prompt: campaignPrompt.value, brandContext: brandContext.value,
         languageScope: 'VIETNAMESE',
         totalTarget: Number(suitableTarget.value),
-        rawCap: Number(rawCap.value), budgetUsd: currentFilter() === 'OFF' ? 0 : Number(modelBudget.value), commentsEnabled: false,
+        rawCap: Number(rawCap.value), budgetUsd: currentFilter() === 'OFF' ? 0 : Number(modelBudget.value), commentsEnabled: collectComments.checked,
       }
     } : {})
   };
@@ -185,8 +185,9 @@ function updateControls() {
   geminiKeyUi.refresh();
   const running = active();
   const mode = currentFilter();
-  setText('comments-mode-note', 'Chỉ thu thập và phân tích bài viết gốc.');
-  element('comments-warning').hidden = true;
+  setText('comments-mode-note', mode === 'OFF' ? 'Cần chế độ lọc bài để tìm bình luận ở các bài không phù hợp.'
+    : collectComments.checked ? 'Chỉ lưu bình luận khớp từ khóa, tối đa 20 mỗi bài.' : 'Chỉ thu thập bài viết.');
+  element('comments-warning').hidden = !collectComments.checked || mode === 'OFF';
   startButton.setAttribute('aria-busy', String(startPhase !== 'IDLE'));
   setText('start-label', { IDLE: pendingStart ? 'Chờ bạn làm rõ yêu cầu' : 'Bắt đầu thu thập', SAVING: 'Đang lưu yêu cầu…', PLANNING: 'Đang phân tích yêu cầu…', STARTING: 'Đang bắt đầu thu thập…' }[startPhase]);
   keywords.disabled = !connected || running || commandPending;
@@ -205,7 +206,7 @@ function updateControls() {
   reuse.disabled = !connected || running || commandPending || !plans.length;
   minimumPosts.closest<HTMLElement>('.field')!.hidden = true;
   modelBudget.disabled ||= currentFilter() === 'OFF';
-  collectComments.disabled = true;
+  collectComments.disabled ||= mode === 'OFF';
   setText('filter-mode-help', { OFF: 'Lấy bài đã tìm được, chưa đánh giá; không gọi AI.', CONSISTENT: 'Tìm rộng cả bối cảnh, sở thích và cơ hội gián tiếp; loại quảng cáo và bài lạc đề.', STANDARD: 'Giữ nhu cầu, vấn đề, tâm sự, mong muốn, trải nghiệm và thảo luận liên quan.', QUALITY: 'AI kiểm tra lần hai những bài cần đọc kỹ. Bài vẫn không đạt sau lượt hai được xếp Không phù hợp. Chi phí bao gồm cả hai lượt.' }[mode]);
   const money = state?.spending;
   setText('spend-status', money ? 'Đã dùng $' + money.measuredUsd.toFixed(4) + ' · Đang dự phòng/chưa rõ $' + money.heldUsd.toFixed(4) + ' · Còn $' + money.remainingUsd.toFixed(4) + ' · ' + money.calls + ' lượt gọi. Chi phí ước tính CSD, không phải hóa đơn Google.' : '');
@@ -423,6 +424,7 @@ function renderOpportunities() {
   const all = opportunity?.filterMode === 'OFF' || element<HTMLSelectElement>('export-scope').value === 'ALL';
   const groupNames = { SUITABLE: 'Phù hợp', NOT_SUITABLE: 'Không phù hợp' };
   setText('export-description', opportunity ? (all ? (opportunity.filterMode === 'OFF' ? 'Tất cả bài đã thu ở chế độ không lọc.' : 'Tất cả bài đã thu, gồm cả bài chưa có kết luận.') : 'Nhóm ' + groupNames[resultGroup] + ' đang xem.')
+    + (opportunity.commentsPending !== undefined ? ' Bình luận khớp từ khóa nằm trong trang Matched Comments.' : '')
     + ' Bản tải về ghi loại cơ hội và ngày đăng khi có dữ liệu.' : 'Tải bài viết từ Facebook và Threads về một file Excel.');
   if (!opportunity) return;
   element('preview-wrapper').hidden = true; element('empty-result').hidden = true;
@@ -432,6 +434,8 @@ function renderOpportunities() {
     + (counts.pending ? ' · ' + number(counts.pending) + (opportunity.filterMode === 'OFF' ? ' bài chưa đánh giá' : ' bài chưa có kết luận') : '')
     + ' · Chi phí $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2)
     + (opportunity.resultPolicy === 'GLOBAL_FIRST_QUALIFIED' || opportunity.evaluationPolicy === 'GOAL_EVIDENCE' ? '' : ' · Kết quả cũ: cần lọc lại để áp dụng cách đánh giá mới.'));
+  if (opportunity.commentsPending) element('opportunity-summary').textContent += ' · ' + number(opportunity.commentsPending) + ' bài chờ đọc bình luận';
+  if (opportunity.commentsFailed) element('opportunity-summary').textContent += ' · ' + number(opportunity.commentsFailed) + ' bài lỗi khi đọc bình luận';
   if (opportunity.previouslyDelivered) element('opportunity-summary').textContent += ' · ' + number(opportunity.previouslyDelivered) + ' bài đã giao trước đây (không tính lại)';
   if (opportunity.shortfallWarning) element('opportunity-summary').textContent += ' · Có thể chưa tìm đủ số bài phù hợp bạn muốn nhận.';
   if (opportunity.extraCount) element('opportunity-summary').textContent += ' · ' + number(opportunity.extraCount) + ' bài dư ngoài chỉ tiêu (xem trong bản xuất tất cả)';
@@ -517,7 +521,7 @@ function applyState(next: ProductionState, replaceConfig = false) {
     languageScope.value = 'VIETNAMESE';
     intentEnabled.checked = true; spendTotal.value = String(next.config.spendLimits?.totalUsd ?? 3); spendDaily.value = String(next.config.spendLimits?.dailyUsd ?? 3);
     rawCap.value = String(o?.rawCap || DEFAULT_RAW_CAP); modelBudget.value = String(o?.budgetUsd || 3);
-    collectComments.checked = false;
+    collectComments.checked = o?.commentsEnabled ?? false;
     savedConfig = key(next.config); initialized = true; configDirty = false; setSaveStatus('Đã lưu trên máy', 'saved');
     if (active() && next.run) for (const platform of next.run.platforms) {
       if (platform.profileId) { selectedProfiles.set(platform.platform, platform.profileId); selectedProfileIds.add(platform.profileId); selectedSources.add(platform.platform); }

@@ -67,6 +67,7 @@ export function createProductionService(input: {
   continueCampaignDraft?: typeof continueSemanticDraft;
   importRetainedData?: typeof importRetainedData;
   withConversationWindow?(profileId: string, work: (window: WebContents) => Promise<void>): Promise<void>;
+  withKeywordCommentWindow?(profileId: string, platform: Platform, shouldStop: () => boolean, work: (window: WebContents) => Promise<void>): Promise<void>;
   watchAfterDiscovery?: boolean;
 }) {
   const configStore = createUserConfigStore(input.directory), latestFile = join(input.directory, 'latest-run.json');
@@ -361,6 +362,19 @@ export function createProductionService(input: {
       throw error;
     } finally { starting = false; }
   }
+  function keywordCommentWindow(current: RunState) {
+    if (!input.withKeywordCommentWindow) return {};
+    return { withKeywordCommentWindow: async (platform: Platform, shouldStop: () => boolean, job: (window: WebContents) => Promise<void>) => {
+      for (const account of current.platforms) {
+        if (account.platform !== platform || !account.profileId || blockedProfiles.has(account.profileId)
+          || account.state === 'FAILED' || ['ACCOUNT_BARRIER', 'WINDOW_CLOSED', 'USER_STOP', 'RUN_DEADLINE'].includes(account.reason ?? '')) continue;
+        if (shouldStop()) throw Error('USER_STOP');
+        try { await input.withKeywordCommentWindow!(account.profileId, platform, shouldStop, job); return; }
+        catch (error) { if (code(error) !== 'LOGIN_REQUIRED') throw error; }
+      }
+      throw Error('COMMENTS_ACCOUNT_UNAVAILABLE');
+    } };
+  }
   async function execute(resume = false) {
     if (!run) return;
     executing = true;
@@ -376,7 +390,11 @@ export function createProductionService(input: {
     };
     try {
       const commentConfig = join(currentRun.outputDirectory, 'opportunity-config.json');
-      const commentsEnabled = !pipeline || !existsSync(commentConfig) || (JSON.parse(readFileSync(commentConfig, 'utf8')) as OpportunityConfig).commentsEnabled;
+      const enabled = !pipeline || !existsSync(commentConfig) || (JSON.parse(readFileSync(commentConfig, 'utf8')) as OpportunityConfig).commentsEnabled;
+      const postOnly = pipeline?.campaign.filter_version?.startsWith('opportunity-posts-') ?? false;
+      const commentsEnabled = enabled && !postOnly;
+      const keywordCommentsEnabled = enabled && postOnly && !!input.withKeywordCommentWindow;
+      if (keywordCommentsEnabled) pipeline!.startKeywordComments();
       // Start every selected source before awaiting completion. A source failure must
       // never release the run lock while another collector is still using its profile.
       const outcomes = await Promise.allSettled(currentRun.platforms.map(async item => {
@@ -471,9 +489,10 @@ export function createProductionService(input: {
           }));
         }
         await pipeline.drain();
+        if (keywordCommentsEnabled) await pipeline.drainKeywordComments();
         currentRun.opportunity = pipeline.progress();
         await exportPipeline(pipeline, currentRun.outputDirectory);
-        const complete = !storageLimited && !storageStopped(pipeline.progress().lastError) && pipeline.targetReached();
+        const complete = !storageLimited && !storageStopped(pipeline.progress().lastError) && pipeline.targetReached() && !currentRun.opportunity.commentsPending;
         for (const item of currentRun.platforms) if (item.state !== 'FAILED') item.state = complete ? 'COMPLETED' : 'STOPPED';
         run.state = complete ? 'COMPLETED' : run.platforms.some(p => p.state === 'FAILED') ? 'FAILED' : 'STOPPED';
       } else run.state = run.platforms.some(p => p.state === 'FAILED') ? 'FAILED' :
@@ -543,7 +562,9 @@ export function createProductionService(input: {
       const originalCampaign = JSON.parse(readFileSync(campaignFile, 'utf8')) as CampaignPlan;
       validateCampaignPlan(originalCampaign);
       if (originalCampaign.campaign_id !== sourceRunId) throw Error('DISCOVERY_RECIPE_MISMATCH');
-      const config = { ...JSON.parse(readFileSync(configFile, 'utf8')) as OpportunityConfig, totalTarget, commentsEnabled: false };
+      const sourceConfig = JSON.parse(readFileSync(configFile, 'utf8')) as OpportunityConfig;
+      const config = { ...sourceConfig, totalTarget, commentsEnabled: originalCampaign.filter_version.startsWith('opportunity-posts-')
+        && sourceConfig.filterMode !== 'OFF' && sourceConfig.commentsEnabled };
       if (!config.enabled || config.filterMode !== originalCampaign.filter_mode || config.budgetUsd !== originalCampaign.budget.model_usd) throw Error('DISCOVERY_RECIPE_MISMATCH');
       config.rawCap = Math.max(totalTarget, config.rawCap);
       const previousRun = run; starting = true; let launched = false;
@@ -566,7 +587,7 @@ export function createProductionService(input: {
           excludedRootKeys: [...new Set(excludedRootKeys)], createdAt: campaign.created_at });
         pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ directory: outputDirectory, runId: id, config, campaign,
           platforms: [...new Set(current.platforms.map(p => p.platform))], collectConversation: input.collectConversation,
-          excludedRootKeys: [...new Set(excludedRootKeys)], onProgress: value => { current.opportunity = value; saveRun(); } });
+          ...keywordCommentWindow(current), excludedRootKeys: [...new Set(excludedRootKeys)], onProgress: value => { current.opportunity = value; saveRun(); } });
         saveRun(); work = execute(); launched = true; void work.catch(() => {});
         return await getState();
       } catch (error) {
@@ -779,11 +800,11 @@ export function createProductionService(input: {
         if (config.opportunity?.enabled) {
           if (!input.collectConversation) throw Error('CONVERSATION_COLLECTOR_UNAVAILABLE');
           const current = run;
-          const runtimeConfig = selectedDraft?.campaign.filter_version.startsWith('opportunity-posts-') || config.opportunity.filterMode === 'OFF'
+          const runtimeConfig = config.opportunity.filterMode === 'OFF'
             ? { ...config.opportunity, commentsEnabled: false } : config.opportunity;
           atomicJson(join(run.outputDirectory, 'opportunity-config.json'), runtimeConfig);
           pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ directory: run.outputDirectory, runId: id, config: runtimeConfig, seedQueries: config.keywords,
-            ...(selectedDraft ? { campaign: selectedDraft.campaign } : {}),
+            ...keywordCommentWindow(current), ...(selectedDraft ? { campaign: selectedDraft.campaign } : {}),
             platforms: [...new Set(run.platforms.map(p => p.platform))], collectConversation: input.collectConversation,
             ...(input.resolveThreadsReplyRoot ? { resolveThreadsReplyRoot: input.resolveThreadsReplyRoot } : {}),
             ...(input.withConversationWindow ? { withRevisitWindow: (platform: Platform, job: (window: WebContents) => Promise<void>) => {
@@ -842,7 +863,7 @@ export function createProductionService(input: {
         const config = JSON.parse(readFileSync(file, 'utf8')) as OpportunityConfig;
         pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ directory: current.outputDirectory, runId: current.id, config,
           platforms: [...new Set(current.platforms.map(p => p.platform))], collectConversation: input.collectConversation,
-          ...readDiscoveryExclusions(current.outputDirectory),
+          ...keywordCommentWindow(current), ...readDiscoveryExclusions(current.outputDirectory),
           ...(input.resolveThreadsReplyRoot ? { resolveThreadsReplyRoot: input.resolveThreadsReplyRoot } : {}),
           ...(input.withConversationWindow ? { withRevisitWindow: (platform: Platform, job: (window: WebContents) => Promise<void>) => {
             const account = current.platforms.find(p => p.platform === platform && p.profileId && !blockedProfiles.has(p.profileId)); if (!account?.profileId) throw Error('PROFILE_NOT_FOUND');

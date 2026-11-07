@@ -45,6 +45,7 @@ export interface OpportunityProgress {
   evaluationPolicy?: 'GOAL_EVIDENCE' | 'LEGACY';
   modelScheduling?: import('./throughput.js').RequestScheduleStatus | undefined;
   classificationWorkers?: number;
+  commentsPending?: number; commentsFailed?: number;
   watchPending?: number; watchNextAt?: string | null; watchActive?: boolean;
   assessmentPending?: number; assessmentNextAt?: string | null; assessmentActive?: boolean;
 }

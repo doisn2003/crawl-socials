@@ -36,6 +36,7 @@ export interface ConversationObservation {
   root_post_id: string | null;
   parent_id: string | null;
   text: string;
+  like_count?: number | null;
   observed_at: string;
   published_at?: string | null;
   permalink?: string | null;

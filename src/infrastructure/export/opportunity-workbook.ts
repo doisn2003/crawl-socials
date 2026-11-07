@@ -2,12 +2,14 @@ import ExcelJS from 'exceljs';
 import { randomUUID } from 'node:crypto';
 import { mkdir, rename, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import type { KeywordCommentCapture } from '../../domain/keyword-comments.js';
 import type { ConversationSnapshot } from '../../domain/conversation.js';
 import type { ConversationClassification, ConversationDecision } from '../../domain/conversation-decision.js';
 
 export interface OpportunityExportData {
   campaign: unknown; progress: unknown; cost: unknown;
   snapshots: ConversationSnapshot[]; decisions: ConversationDecision[];
+  keyword_comments?: KeywordCommentCapture[];
   decision_snapshots?: ConversationSnapshot[]; watermark?: unknown; cost_captured_at?: string;
   runtime_limits?: unknown; root_resolution?: unknown; retained_input?: unknown; ranking?: unknown; storage?: unknown;
   selection?: { target: { platform: string; rootId: string; acceptedSequence: number }[]; extra: { platform: string; rootId: string; acceptedSequence: number }[] };
@@ -19,6 +21,7 @@ function retainExportRoots(input: OpportunityExportData, keys: Set<string>): Opp
     snapshots: input.snapshots.filter(s => keep(s.platform, s.root_post_id)),
     decisions: input.decisions.filter(d => keep(d.platform, d.root_post_id)),
     ...(input.selection ? { selection: { target: input.selection.target.filter(r => keep(r.platform, r.rootId)), extra: input.selection.extra.filter(r => keep(r.platform, r.rootId)) } } : {}),
+    ...(input.keyword_comments ? { keyword_comments: input.keyword_comments.filter(row => keep(row.platform, row.root_post_id)) } : {}),
     ...(input.decision_snapshots ? { decision_snapshots: input.decision_snapshots.filter(s => keep(s.platform, s.root_post_id)) } : {}) };
 }
 function isUnassessedExport(input: OpportunityExportData): boolean {
@@ -41,7 +44,9 @@ export function selectOpportunityExport(value: unknown, classification?: Convers
     && (classification !== 'SUITABLE' || !targetKeys || targetKeys.has(item.snapshot.platform + ':' + item.snapshot.root_post_id))
     && (classification === 'NOT_SUITABLE' ? ['NOT_SUITABLE', 'NOT_YET', 'UNRELATED'].includes(item.decision.classification ?? '') : item.decision.classification === classification));
   const keys = new Set(conversations.map(item => item.snapshot.platform + ':' + item.snapshot.root_post_id));
-  return { ...retainExportRoots(input, keys), conversations };
+  return { ...retainExportRoots(input, keys), conversations,
+    // Keyword matches are a separate deliverable, including when the caller asks for suitable posts.
+    ...(classification === 'SUITABLE' && input.keyword_comments ? { keyword_comments: input.keyword_comments } : {}) };
 }
 /** Count only roots present in the actual delivered file; OFF rows remain explicitly unassessed. */
 export function deliveredOpportunityRoots(input: OpportunityExportData): string[] {
@@ -84,6 +89,10 @@ export async function exportOpportunityWorkbook(path: string, value: unknown, cl
       d?.evaluated_at, d?.valid_until, d?.temporal_evidence, d?.id, membership.get(s.platform + ':' + s.root_post_id)?.group, membership.get(s.platform + ':' + s.root_post_id)?.sequence, d?.attributes?.opportunity_types, s.post?.published_at]; }));
   sheet(workbook, 'Comments', ['platform', 'root_post_id', 'comment_id', 'parent_id', 'text', 'author_name', 'published_at', 'observed_at', 'permalink', 'snapshot_id'],
     data.snapshots.flatMap(s => s.comments.map(c => [s.platform, s.root_post_id, c.entity_id, c.parent_id, c.text, c.author.name, c.published_at, c.observed_at, c.permalink, s.id])));
+  if (data.keyword_comments) sheet(workbook, 'Matched Comments',
+    ['platform', 'root_post_id', 'post_url', 'comment_id', 'parent_id', 'text', 'likes', 'keyword', 'language', 'author_name', 'permalink', 'observed_at'],
+    data.keyword_comments.flatMap(root => root.comments.map(c => [root.platform, root.root_post_id, root.post_url,
+      c.comment_id, c.parent_id, c.text, c.likes, c.keyword, c.language, c.author_name, c.permalink, c.observed_at])));
   if(goalRows.length)sheet(workbook,'GoalEvidence',['platform','root_post_id','snapshot_id','classification','assessment_status','candidate_entity_id','candidate_text','candidate_url','criterion_id','criterion','strength','branches','status','evidence','contract_hash'],
     goalRows.flatMap(({snapshot:s,decision:d})=>{
       const a=d.goal_assessment!,target=[s.post,...s.comments].find(e=>e?.entity_id===a.candidate_entity_id);
@@ -107,8 +116,9 @@ export async function exportOpportunityWorkbook(path: string, value: unknown, cl
   const capturedAt = data.watermark && typeof data.watermark === 'object' && 'captured_at' in data.watermark ? data.watermark.captured_at : null;
   sheet(workbook, 'Manifest', ['key', 'value'], [['schema_version', 'opportunity-v1'], ['classification_filter', classification ?? 'ALL'], ['exported_at', new Date().toISOString()], ['campaign', data.campaign], ['progress', progress], ['cost', data.cost], ['watermark', data.watermark], ['cost_captured_at', data.cost_captured_at], ['runtime_limits', data.runtime_limits], ['root_resolution', data.root_resolution],
     ['retained_input', data.retained_input], ['ranking', data.ranking], ['storage', data.storage],
-    ['export_counts', { conversations: ordered.size, comments: data.snapshots.reduce((count, snapshot) => count + snapshot.comments.length, 0), decision_history: data.decisions.length }],
+    ['export_counts', { conversations: ordered.size, comments: data.snapshots.reduce((count, snapshot) => count + snapshot.comments.length, 0), decision_history: data.decisions.length, ...(data.keyword_comments ? { keyword_comments: data.keyword_comments.reduce((count, root) => count + root.comments.length, 0) } : {}) }],
     ['comment_scope', 'Captured comments and nested replies of exported roots only; coverage does not imply all comments were collected.'],
+    ...(data.keyword_comments ? [['keyword_comment_scope', 'Local keyword matches from rejected posts, up to 20 per root. Likes rank the observed matches. These rows do not change post verdicts.']] : []),
     ['temporal_columns_version', 1], ['assessment_snapshot_as_of', capturedAt], ['temporal_semantics', {
       evaluated_at: 'Model request as-of time, independent of response completion (created_at) and observation time.',
       valid_until: 'Current validity ends at this instant; current rows reflect the frozen watermark captured_at, not the later workbook write time.',

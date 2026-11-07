@@ -21,6 +21,7 @@ import type { ModelGateway } from './ports/model-gateway.js';
 import type { CampaignPlan } from '../domain/campaign-plan.js';
 import { GROUNDED_CONSTRAINT_PLANNER_POLICY, TEMPORAL_OPPORTUNITY_FILTER_VERSION, validateCampaignPlan } from '../domain/campaign-plan.js';
 import type { ConversationObservation, ConversationSnapshot, EvaluationContext, SourceKind } from '../domain/conversation.js';
+import { commentMatcher, KEYWORD_COMMENT_LIMIT, type KeywordComment, type KeywordCommentCapture } from '../domain/keyword-comments.js';
 import { contentHash } from '../domain/conversation.js';
 import type { OpportunityConfig, OpportunityCounts, OpportunityProgress, Platform } from '../shared/production-api.js';
 import { allocatePlatformTargets } from '../shared/platform-targets.js';
@@ -55,6 +56,7 @@ export interface OpportunityPipelineInput {
   onProgress?(progress: OpportunityProgress): void;
   collectConversation(input: ConversationCollectInput): Promise<unknown>;
   resolveThreadsReplyRoot?(input: ReplyRootResolveInput): Promise<ReplyRootResolveReceipt>;
+  withKeywordCommentWindow?(platform: Platform, shouldStop: () => boolean, work: (window: WebContents) => Promise<void>): Promise<void>;
   withRevisitWindow?(platform: Platform, work: (window: WebContents) => Promise<void>): Promise<void>;
   now?: () => Date;
   /** Rebuild the bound retained input before inference; this mode never opens a browser. */
@@ -160,16 +162,29 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   const excludedRoots = new Set(input.excludedRootKeys ?? []);
   const postOnly = campaign.filter_version.startsWith('opportunity-posts-');
   const commentsEnabled = !postOnly && input.config.commentsEnabled;
+  const keywordCommentsEnabled = postOnly && !off && !retained && input.config.commentsEnabled && !!input.withKeywordCommentWindow;
+  const matchComment = keywordCommentsEnabled ? commentMatcher(campaign) : null;
+  const keywordDeadline = Date.now() + campaign.budget.max_run_minutes * 60_000;
+  let keywordWork: Promise<void> | null = null, keywordDirty = false;
+  const keywordBlocked = new Set<Platform>();
   const previouslyDelivered = new Set<string>();
   function noteDelivered(platform: Platform, rootId: string | null) {
     const key = platform + ':' + rootId;
     if (rootId && excludedRoots.has(key)) previouslyDelivered.add(key);
   }
   if (excludedRoots.size) for (const snapshot of await store.snapshots()) noteDelivered(snapshot.platform, snapshot.root_post_id);
-  function visibleCounts(stats: ConversationStats, platform?: Platform): OpportunityCounts {
+  type CommentSummary = Awaited<ReturnType<AsyncConversationStore['keywordCommentSummary']>>;
+  function commentProgress(summary: CommentSummary) {
+    return keywordCommentsEnabled ? {
+      commentsPending: summary.reduce((sum, row) => sum + row.pending, 0),
+      commentsFailed: summary.reduce((sum, row) => sum + row.failed, 0),
+    } : {};
+  }
+  function visibleCounts(stats: ConversationStats, platform?: Platform, summary: CommentSummary = []): OpportunityCounts {
     const value = opportunityCounts(stats);
     const excluded = [...previouslyDelivered].filter(key => !platform || key.startsWith(platform + ':')).length;
-    return { ...value, pending: Math.max(0, value.pending - excluded) };
+    const matched = summary.filter(row => !platform || row.platform === platform).reduce((sum, row) => sum + row.comments, 0);
+    return { ...value, comments: value.comments + matched, pending: Math.max(0, value.pending - excluded) };
   }
   async function selectTarget() {
     const selected = await store.selectTarget(context, campaign.suitable_target, off);
@@ -205,6 +220,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       do {
       publishDirty = false;
       const [total, facebook, threads] = await Promise.all([store.stats(context), store.stats(context, 'facebook'), store.stats(context, 'threads')]);
+      const commentSummary = keywordCommentsEnabled ? await store.keywordCommentSummary(context) : [];
       const preview: OpportunityProgress['preview'] = [];
       for (const classification of ['SUITABLE', 'NOT_SUITABLE'] as const) {
         const results = await store.results(context, { classification, ranked: true, ...rankingOptions, limit: 20 });
@@ -238,7 +254,9 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       const assessed = total.raw_unique_posts - total.pending;
       const projected = assessed > 0 ? Math.floor(total.suitable / assessed * runtimeLimits.effective_raw_cap) : 0;
       const { assessmentDetails: _priorDetails, ...priorProgress } = progress;
-      progress = { ...priorProgress, counts: visibleCounts(total), byPlatform: { facebook: visibleCounts(facebook, 'facebook'), threads: visibleCounts(threads, 'threads') }, previouslyDelivered: previouslyDelivered.size,
+      progress = { ...priorProgress, counts: visibleCounts(total, undefined, commentSummary),
+        byPlatform: { facebook: visibleCounts(facebook, 'facebook', commentSummary), threads: visibleCounts(threads, 'threads', commentSummary) },
+        ...commentProgress(commentSummary), previouslyDelivered: previouslyDelivered.size,
         ...(!off && !previouslyDelivered.size && total.assessmentDetails ? { assessmentDetails: total.assessmentDetails } : {}),
         ...(selected ? { targetCount: selected.target.length, extraCount: selected.extra.length } : {}),
         ...(rebuild ? { shortfallWarning: !off && assessed >= 20 && projected < campaign.suitable_target
@@ -259,7 +277,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
     pendingTimer = setTimeout(() => { pendingTimer = null; void pump().catch(error => { haltModel(safeCode(error)); void publish(); }); }, delayMs);
   }
   async function classificationBacklog() {
-    return (await store.jobs(['PENDING', 'RETRY', 'RUNNING'], context)).filter(job => job.type === 'CLASSIFY' || (focusedEnabled && job.type === 'VERIFY'));
+    return store.jobs(['PENDING', 'RETRY', 'RUNNING'], context, focusedEnabled ? ['CLASSIFY', 'VERIFY'] : ['CLASSIFY']);
   }
   async function scheduleRemaining() {
     if (stopped || closed || modelHalted) return;
@@ -329,9 +347,10 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
             await enqueueFocusedVerification(store, campaign, snapshot, decision);
             continue;
           }
-          await store.recordDecision(decision);
+          await store.recordDecision(decision, keywordCommentsEnabled);
           if (decision.classification === 'NOT_YET' || decision.assessment_status === 'PENDING') await markWatch(snapshot, String(decision.attributes?.case_code ?? decision.reason_code));
         }
+        if (result.decisions.some(decision => decision.classification === 'NOT_SUITABLE')) startKeywordComments();
         const fatal = result.failures.find(f => fatalModelCode(f.code));
         for (const job of jobs) {
           const decision = result.decisions.find(item => item.snapshot_id === job.payload.snapshot_id);
@@ -352,6 +371,78 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       if (failed?.status === 'rejected') throw failed.reason;
     })().finally(async () => { pumpWork = null; await scheduleRemaining(); await armAssessments(); if (temporalEnabled) await publish(); });
     return pumpWork;
+  }
+  function keywordShouldStop() {
+    return stopped || closed || !!storageStopReason || controller.signal.aborted || Date.now() >= keywordDeadline;
+  }
+  function startKeywordComments() {
+    if (!keywordCommentsEnabled || keywordShouldStop()) return;
+    keywordDirty = true;
+    if (keywordWork) return;
+    keywordWork = (async () => {
+      while (keywordDirty && !keywordShouldStop()) {
+        keywordDirty = false;
+        for (const platform of input.platforms) {
+          if (keywordBlocked.has(platform) || keywordShouldStop()) continue;
+          const job = await store.claim('keyword-comments', { types: ['MATCH_COMMENTS'], context, platform, lease_ms: 180_000 });
+          if (!job) continue;
+          await captureKeywordComments(platform, job);
+          keywordDirty = true;
+        }
+      }
+    })().catch(error => { lastError = safeCode(error); keywordDirty = false; }).finally(() => {
+      keywordWork = null;
+      if (keywordDirty) startKeywordComments();
+    });
+  }
+  async function captureKeywordComments(platform: Platform, job: ConversationJob) {
+    const rootId = String(job.payload.root_post_id), snapshotId = String(job.payload.snapshot_id), token = job.lease_token!;
+    const target = () => store.keywordCommentTarget(context, platform, rootId, snapshotId);
+    try {
+      await backpressure();
+      if (keywordShouldStop()) return;
+      const url = await target();
+      if (!url || excludedRoots.has(platform + ':' + rootId)) { await store.complete(job.id, token); return; }
+      const capture: KeywordCommentCapture = { platform, root_post_id: rootId, post_url: url, comments: [] };
+      const matches = new Map<string, KeywordComment>();
+      await input.withKeywordCommentWindow!(platform, keywordShouldStop, async window => {
+        const receipt = await input.collectConversation({ window, platform, root: { id: rootId, url }, runId: input.runId,
+          shouldStop: keywordShouldStop, maxComments: KEYWORD_COMMENT_LIMIT, maxSteps: 2, maxMs: 15_000,
+          beforeNextPage: async () => {
+            await backpressure();
+            if (keywordShouldStop()) throw Error('USER_STOP');
+            if (await target() !== url) throw Error('COMMENT_TARGET_CHANGED');
+          },
+          onObservations: async observations => {
+            for (const observation of observations) {
+              if (observation.platform !== platform || observation.root_post_id !== rootId) continue;
+              const match = matchComment!(observation);
+              if (!match) continue;
+              const prior = matches.get(match.comment_id);
+              matches.set(match.comment_id, { ...match, parent_id: match.parent_id ?? prior?.parent_id ?? null, likes: match.likes ?? prior?.likes ?? null });
+            }
+          },
+        }) as { coverage?: { status?: string; stop_reason?: string } } | undefined;
+        if (receipt?.coverage?.stop_reason === 'ACCOUNT_BARRIER') throw Error('COMMENTS_ACCOUNT_BARRIER');
+        if (receipt?.coverage?.stop_reason === 'COMMENT_TARGET_CHANGED') return;
+        if (receipt?.coverage?.status === 'RETRYABLE_ERROR' && !matches.size) throw Error('COMMENT_CAPTURE_RETRY');
+      });
+      if (keywordShouldStop()) return;
+      if (await target() !== url) { await store.complete(job.id, token); return; }
+      capture.comments = [...matches.values()].sort((a, b) => (b.likes ?? -1) - (a.likes ?? -1)).slice(0, KEYWORD_COMMENT_LIMIT);
+      if (!(await store.complete(job.id, token, capture))) throw Error('COMMENT_LEASE_LOST');
+    } catch (error) {
+      if (keywordShouldStop()) return;
+      const reason = safeCode(error);
+      if (reason === 'COMMENTS_ACCOUNT_BARRIER' || reason === 'COMMENTS_ACCOUNT_UNAVAILABLE' || reason === 'LOGIN_REQUIRED') {
+        keywordBlocked.add(platform);
+        await store.pause({ types: ['MATCH_COMMENTS'], platform, context });
+        return;
+      }
+      await store.retry(job.id, token, reason, 0);
+    } finally {
+      await publish();
+    }
   }
   async function ingest(observations: ConversationObservation[]) {
     for (const observation of observations) {
@@ -395,7 +486,8 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
           ...(row.source_name !== undefined ? { name: nullableText(row.source_name) } : {}), ...(row.source_url !== undefined ? { url: nullableText(row.source_url) } : {}) } } : {}),
         ...(Array.isArray(row.media_refs) ? { media: row.media_refs as NonNullable<ConversationObservation['media']> } : {}),
         provenance: { run_id: input.runId, method: String(provenance.method ?? 'SEARCH'), query: String(row.query ?? ''), ...(url ? { url } : {}) },
-        ...(!existing ? { coverage: { status: 'NOT_ATTEMPTED' as const, advertised_count: advertised } } : {}) };
+        ...(!existing || (keywordCommentsEnabled && !isReply && advertised !== null && (advertised === 0) !== (existing.coverage.advertised_count === 0))
+          ? { coverage: { status: 'NOT_ATTEMPTED' as const, advertised_count: advertised } } : {}) };
       const saved = await store.ingest(observation, context);
       if (saved.snapshot?.post) noteDelivered(platform, saved.snapshot.root_post_id);
       if (isReply && (!saved.snapshot?.post || !rootId)) await enqueueRootResolution(observation);
@@ -626,7 +718,12 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   if (!retained && input.resolveThreadsReplyRoot && commentsEnabled) for (const candidate of await store.rootCandidates()) await enqueueRootResolution(candidate);
   await requestDueAssessments(); await armAssessments(); await publish(); schedule();
   return {
-    campaign, baselineCampaign, context, store, gateway, runtimeLimits, ingest, ingestRows, enrich, startWatching, isWatching: () => watchEnabled || assessmentActive,
+    campaign, baselineCampaign, context, store, gateway, runtimeLimits, ingest, ingestRows, enrich, startWatching, startKeywordComments,
+    async drainKeywordComments() {
+      startKeywordComments();
+      while (keywordWork) await keywordWork;
+      await publish();
+    }, isWatching: () => watchEnabled || assessmentActive,
     progress: (): OpportunityProgress => structuredClone({ ...progress, modelScheduling: gateway.summary().scheduling }), refreshProgress: publish,
     queries: (platform: Platform) => initialDiscoveryQueries(campaign, platform),
     queryPriority: (platform: Platform, query: string) => { const score = queryScores.find(s => s.platform === platform && s.query === query); return score ? score.accepted / Math.max(1, score.observed) : 0; },
@@ -662,7 +759,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       }
       await armAssessments(); await publish();
     },
-    async stop() { stopped = true; watchEnabled = false; assessmentActive = false; clearWatchTimer(); clearAssessmentTimer(); controller.abort(); if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; } try { await Promise.allSettled([pumpWork, watchWork, assessmentWork]); } finally {
+    async stop() { stopped = true; watchEnabled = false; assessmentActive = false; clearWatchTimer(); clearAssessmentTimer(); controller.abort(); if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; } try { await Promise.allSettled([pumpWork, watchWork, assessmentWork, keywordWork]); } finally {
       await leases.close(); await store.pause({ context }); await store.pause({ types: ['ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'REVISIT'] }); await publish(); } },
     async results() {
       await publish();
@@ -679,11 +776,14 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
             observedAt: snapshot.observed_at, coverage: snapshot.coverage.status });
         }
       }
+      const commentSummary = keywordCommentsEnabled ? exported.keyword_comment_summary : [];
       const { assessmentDetails: _liveDetails, ...liveProgress } = structuredClone(progress);
-      const exportedProgress: OpportunityProgress = { ...liveProgress, counts: visibleCounts(exported.stats), byPlatform: { facebook: visibleCounts(exported.by_platform.facebook, 'facebook'), threads: visibleCounts(exported.by_platform.threads, 'threads') }, previouslyDelivered: previouslyDelivered.size,
+      const exportedProgress: OpportunityProgress = { ...liveProgress, counts: visibleCounts(exported.stats, undefined, commentSummary), byPlatform: {
+        facebook: visibleCounts(exported.by_platform.facebook, 'facebook', commentSummary), threads: visibleCounts(exported.by_platform.threads, 'threads', commentSummary) },
+        ...commentProgress(commentSummary), previouslyDelivered: previouslyDelivered.size,
         ...(!off && !previouslyDelivered.size && exported.stats.assessmentDetails ? { assessmentDetails: exported.stats.assessmentDetails } : {}),
         watchPending: exported.watch.pending, watchNextAt: exported.watch.next_at, preview };
-      const resolutionJobs = (await store.jobs()).filter(job => job.type === 'ROOT_RESOLVE');
+      const resolutionJobs = await store.jobs(undefined, undefined, ['ROOT_RESOLVE']);
       return { campaign, evaluation: activeEvaluation ? { source_context: activeEvaluation.manifest.source_context,
         context, recipe_sha256: activeEvaluation.manifest.recipe_sha256, policy: 'PRIMARY_PLUS_FOCUSED_VERIFIER' } : null,
         ranking: structuredClone(rankingPin), runtime_limits: runtimeLimits, storage: { policy: structuredClone(storagePolicy), usage: storageUsage ? { ...storageUsage } : null, stop_reason: storageStopReason },
@@ -692,11 +792,12 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
         remaining_jobs: resolutionJobs.filter(job => ['PENDING', 'RETRY', 'PAUSED', 'RUNNING'].includes(job.state)).length },
         ...(rebuild ? { selection: await selectTarget() } : {}),
         progress: exportedProgress, conversations: exported.conversations, snapshots: exported.snapshots, decisions: exported.decisions,
+        ...(keywordCommentsEnabled ? { keyword_comments: exported.keyword_comments } : {}),
         decision_snapshots: exported.decision_snapshots, watermark: exported.watermark, cost: modelCost(), cost_captured_at: new Date().toISOString() };
     },
     async close() {
       if (closed) return; stopped = true; watchEnabled = false; assessmentActive = false; clearWatchTimer(); clearAssessmentTimer(); controller.abort(); if (pendingTimer) clearTimeout(pendingTimer);
-      try { await Promise.allSettled([pumpWork, watchWork, assessmentWork, storageWork]); await publishWork; }
+      try { await Promise.allSettled([pumpWork, watchWork, assessmentWork, storageWork, keywordWork]); await publishWork; }
       finally { try { await store.pause({ context }); await store.pause({ types: ['ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'REVISIT'] }); }
         finally { try { await leases.close(); await store.close(); } finally { closed = true; } } }
     },

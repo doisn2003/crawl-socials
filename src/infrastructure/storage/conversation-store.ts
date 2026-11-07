@@ -7,10 +7,11 @@ import { isAssessmentTime, validateConversationDecision, type ConversationDecisi
 import type { SourceKind } from '../../domain/conversation.js';
 import { sourcePriorityScores } from '../../domain/source-priority.js';
 import { GOAL_FILTER_VERSION } from '../../domain/goal-filter.js';
+import { KEYWORD_COMMENT_LIMIT, type KeywordCommentCapture } from '../../domain/keyword-comments.js';
 import { presentCompletedQualityReview } from '../../domain/post-review-resolution.js';
 import { conversationAssessmentCounts, historicalQualityRejectionSql, type ConversationAssessmentCounts } from './conversation-assessment.js';
 
-export type ConversationJobType = 'DISCOVER' | 'ENRICH_CONVERSATION' | 'ROOT_RESOLVE' | 'CLASSIFY' | 'VERIFY' | 'REVISIT';
+export type ConversationJobType = 'DISCOVER' | 'ENRICH_CONVERSATION' | 'ROOT_RESOLVE' | 'CLASSIFY' | 'VERIFY' | 'REVISIT' | 'MATCH_COMMENTS';
 export type ConversationJobState = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'RETRY' | 'PAUSED' | 'FAILED' | 'SUPERSEDED';
 export interface ConversationJobInput {
   type: ConversationJobType;
@@ -66,6 +67,8 @@ export interface ConversationExportSnapshot {
   stats: ConversationStats;
   by_platform: Record<SocialPlatform, ConversationStats>;
   watch: { pending: number; next_at: string | null };
+  keyword_comments: KeywordCommentCapture[];
+  keyword_comment_summary: ReturnType<ConversationStore['keywordCommentSummary']>;
   watermark: { journal_sequence: number; journal_event_id: string | null; captured_at: string };
 }
 export interface ConversationAssessmentDue {
@@ -80,7 +83,7 @@ export interface ImportedObservationLineage {
   source_event_id: string;
   source_sequence: number;
 }
-type JournalEvent = { id: string; seq: number; type: 'OBSERVATION' | 'DECISION' | 'JOB_ENQUEUED' | 'INVOCATION_RESERVED' | 'INVOCATION_FINISHED'; at: string; payload: unknown };
+type JournalEvent = { id: string; seq: number; type: 'OBSERVATION' | 'DECISION' | 'JOB_ENQUEUED' | 'KEYWORD_COMMENT_CAPTURE' | 'INVOCATION_RESERVED' | 'INVOCATION_FINISHED'; at: string; payload: unknown };
 type Row = Record<string, string | number | bigint | Uint8Array | null>;
 const decode = <T>(value: unknown): T => JSON.parse(String(value)) as T;
 const asNumber = (value: unknown): number => Number(value ?? 0);
@@ -156,6 +159,7 @@ export class ConversationStore {
       CREATE TABLE IF NOT EXISTS assessment_requests(context_key TEXT NOT NULL, snapshot_id TEXT NOT NULL, evaluated_at TEXT NOT NULL, PRIMARY KEY(context_key,snapshot_id));
       CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, idempotency_key TEXT UNIQUE NOT NULL, type TEXT NOT NULL, state TEXT NOT NULL, payload TEXT NOT NULL, priority INTEGER NOT NULL, not_before TEXT NOT NULL, attempts INTEGER NOT NULL, max_attempts INTEGER NOT NULL, lease_owner TEXT, lease_token TEXT, lease_until TEXT, error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS jobs_ready ON jobs(state,not_before,priority);
+      CREATE INDEX IF NOT EXISTS jobs_keyword_scope ON jobs(json_extract(payload,'$.campaign_id'),json_extract(payload,'$.campaign_version'),json_extract(payload,'$.filter_version')) WHERE type='MATCH_COMMENTS';
       CREATE TABLE IF NOT EXISTS invocations(id TEXT PRIMARY KEY, campaign_id TEXT NOT NULL, campaign_version TEXT NOT NULL, platform TEXT, model TEXT NOT NULL, cache_key TEXT, reserved_usd REAL NOT NULL, status TEXT NOT NULL, cost_usd REAL, usage TEXT, response TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS invocations_budget ON invocations(campaign_id,campaign_version);
       CREATE TABLE IF NOT EXISTS model_cache(cache_key TEXT PRIMARY KEY, response TEXT NOT NULL, invocation_id TEXT NOT NULL, created_at TEXT NOT NULL);
@@ -197,7 +201,7 @@ export class ConversationStore {
         const fd = openSync(this.journalPath, 'r+'); try { fsyncSync(fd); } finally { closeSync(fd); }
         break;
       }
-      if (!event.id || !Number.isInteger(event.seq) || event.seq <= previousSequence || !['OBSERVATION', 'DECISION', 'JOB_ENQUEUED', 'INVOCATION_RESERVED', 'INVOCATION_FINISHED'].includes(event.type)) throw Error('CONVERSATION_JOURNAL_INVALID_EVENT');
+      if (!event.id || !Number.isInteger(event.seq) || event.seq <= previousSequence || !['OBSERVATION', 'DECISION', 'JOB_ENQUEUED', 'KEYWORD_COMMENT_CAPTURE', 'INVOCATION_RESERVED', 'INVOCATION_FINISHED'].includes(event.type)) throw Error('CONVERSATION_JOURNAL_INVALID_EVENT');
       previousSequence = event.seq; this.nextSequence = Math.max(this.nextSequence, event.seq + 1);
       this.apply(event);
       byteOffset += Buffer.byteLength(line) + (index < lines.length - 1 ? 1 : 0);
@@ -212,7 +216,16 @@ export class ConversationStore {
     this.transaction(() => {
       switch (event.type) {
         case 'OBSERVATION': this.applyObservation(event); break;
-        case 'DECISION': this.applyDecision(event.payload as ConversationDecision); break;
+        case 'DECISION': {
+          const { queue_keyword_comments, ...decision } = event.payload as ConversationDecision & { queue_keyword_comments?: boolean };
+          this.applyDecision(decision, queue_keyword_comments === true, event.at);
+          break;
+        }
+        case 'KEYWORD_COMMENT_CAPTURE': {
+          const { job_id, capture } = event.payload as { job_id: string; capture: KeywordCommentCapture };
+          this.db.prepare("UPDATE jobs SET state='SUCCEEDED',payload=json_set(payload,'$.capture',json(?)),lease_owner=NULL,lease_token=NULL,lease_until=NULL,error=NULL,updated_at=? WHERE id=? AND type='MATCH_COMMENTS'").run(JSON.stringify(capture), event.at, job_id);
+          break;
+        }
         case 'JOB_ENQUEUED': this.insertJob(event.payload as ConversationJob); break;
         case 'INVOCATION_RESERVED': {
           const invocation = event.payload as ModelInvocationReservation & { id: string };
@@ -397,15 +410,15 @@ export class ConversationStore {
       return prior && usableLocator(prior.permalink) ? { ...candidate, permalink: prior.permalink } : candidate;
     });
   }
-  recordDecision(input: ConversationDecisionInput): { decision: ConversationDecision; current: boolean } {
+  recordDecision(input: ConversationDecisionInput, queueKeywordComments = false): { decision: ConversationDecision; current: boolean } {
     assertEvaluationContext(input); const snapshot = this.getSnapshot(input.snapshot_id); if (!snapshot) throw Error('DECISION_SNAPSHOT_NOT_FOUND');
     validateConversationDecision(input, snapshot);
     const decision: ConversationDecision = { ...structuredClone(input), id: randomUUID(), platform: snapshot.platform, root_post_id: snapshot.root_post_id, snapshot_revision: snapshot.revision, created_at: input.created_at ?? this.iso() };
-    this.append('DECISION', decision);
+    this.append('DECISION', queueKeywordComments ? { ...decision, queue_keyword_comments: true } : decision);
     const current = this.db.prepare('SELECT decision_id FROM current_decisions WHERE context_key=? AND platform=? AND root_post_id=?').get(contextKey(input), snapshot.platform, snapshot.root_post_id) as Row | undefined;
     return { decision, current: current?.decision_id === decision.id };
   }
-  private applyDecision(decision: ConversationDecision): void {
+  private applyDecision(decision: ConversationDecision, queueKeywordComments: boolean, eventAt: string): void {
     const snapshot = this.getSnapshot(decision.snapshot_id); if (!snapshot) throw Error('JOURNAL_DECISION_SNAPSHOT_NOT_FOUND');
     validateConversationDecision(decision, snapshot);
     const key = contextKey(decision);
@@ -424,6 +437,40 @@ export class ConversationStore {
       if (evaluatedAt === priorTime && current.assessment_status === 'ASSESSED' && decision.assessment_status !== 'ASSESSED') return;
     }
     this.db.prepare('INSERT INTO current_decisions(context_key,platform,root_post_id,decision_id,snapshot_revision) VALUES(?,?,?,?,?) ON CONFLICT(context_key,platform,root_post_id) DO UPDATE SET decision_id=excluded.decision_id,snapshot_revision=excluded.snapshot_revision').run(key, decision.platform, decision.root_post_id, decision.id, decision.snapshot_revision);
+    if (queueKeywordComments && decision.classification === 'NOT_SUITABLE' && decision.assessment_status === 'ASSESSED'
+      && snapshot.post?.permalink && snapshot.coverage.advertised_count !== 0) {
+      const jobKey = 'keyword-comments:' + contentHash([key, snapshot.id]);
+      this.insertJob(this.makeJob({ type: 'MATCH_COMMENTS', idempotency_key: jobKey, max_attempts: 2,
+        payload: { campaign_id: decision.campaign_id, campaign_version: decision.campaign_version, filter_version: decision.filter_version,
+          platform: decision.platform, root_post_id: decision.root_post_id, snapshot_id: snapshot.id } }, eventAt, jobKey));
+    }
+  }
+  keywordCommentTarget(context: EvaluationContext, platform: SocialPlatform, rootId: string, snapshotId: string) {
+    const row = this.db.prepare(`SELECT s.payload FROM current_decisions cd JOIN decisions d ON d.id=cd.decision_id
+      JOIN conversations c ON c.platform=cd.platform AND c.root_post_id=cd.root_post_id JOIN snapshots s ON s.id=c.snapshot_id
+      WHERE cd.context_key=? AND cd.platform=? AND cd.root_post_id=? AND d.snapshot_id=s.id AND s.id=?
+      AND d.classification='NOT_SUITABLE' AND d.assessment_status='ASSESSED'`).get(contextKey(context), platform, rootId, snapshotId) as Row | undefined;
+    const snapshot = row && decode<ConversationSnapshot>(row.payload);
+    return snapshot?.coverage.advertised_count !== 0 ? snapshot?.post?.permalink ?? null : null;
+  }
+  private keywordCommentJobs(context: EvaluationContext, fields: string, group = '') {
+    return this.db.prepare(`SELECT ${fields} FROM jobs j
+      JOIN conversations c ON c.platform=json_extract(j.payload,'$.platform') AND c.root_post_id=json_extract(j.payload,'$.root_post_id')
+        AND c.snapshot_id=json_extract(j.payload,'$.snapshot_id')
+      JOIN current_decisions cd ON cd.platform=c.platform AND cd.root_post_id=c.root_post_id AND cd.snapshot_revision=c.revision
+      JOIN decisions d ON d.id=cd.decision_id
+      WHERE j.type='MATCH_COMMENTS' AND cd.context_key=?
+      AND json_extract(j.payload,'$.campaign_id')=? AND json_extract(j.payload,'$.campaign_version')=? AND json_extract(j.payload,'$.filter_version')=?
+      AND d.classification='NOT_SUITABLE' AND d.assessment_status='ASSESSED' ${group}`)
+      .all(contextKey(context), context.campaign_id, context.campaign_version, context.filter_version) as Row[];
+  }
+  keywordCommentSummary(context: EvaluationContext) {
+    return this.keywordCommentJobs(context, `c.platform,
+      SUM(CASE WHEN j.state IN ('PENDING','RETRY','RUNNING','PAUSED') THEN 1 ELSE 0 END) AS pending,
+      SUM(CASE WHEN j.state='FAILED' THEN 1 ELSE 0 END) AS failed,
+      COALESCE(SUM(json_array_length(j.payload,'$.capture.comments')),0) AS comments`, 'GROUP BY c.platform')
+      .map(row => ({ platform: String(row.platform) as SocialPlatform, pending: asNumber(row.pending),
+        failed: asNumber(row.failed), comments: asNumber(row.comments) }));
   }
   results(context: EvaluationContext, options: { platform?: SocialPlatform; classification?: ConversationClassification; include_stale?: boolean; ranked?: boolean; source_priority?: readonly SourceKind[]; limit?: number; offset?: number } = {}, asOf = this.iso()): Array<{ snapshot: ConversationSnapshot; decision: ConversationDecision; stale: boolean }> {
     this.assertOpen(); assertEvaluationContext(context);
@@ -473,6 +520,8 @@ export class ConversationStore {
       const resolutions = conversations.map(row => row.decision).filter(d => d.attributes?.resolved_from_decision_id);
       return { context: structuredClone(context), conversations, snapshots, decisions: [...this.decisionHistory(context), ...resolutions], decision_snapshots: decisionSnapshots,
         stats: this.stats(context, undefined, capturedAt), by_platform: { facebook: this.stats(context, 'facebook', capturedAt), threads: this.stats(context, 'threads', capturedAt) }, watch: this.watchSummary(undefined, context),
+        keyword_comment_summary: this.keywordCommentSummary(context),
+        keyword_comments: this.keywordCommentJobs(context, "json_extract(j.payload,'$.capture') AS capture", "AND j.state='SUCCEEDED' AND json_array_length(j.payload,'$.capture.comments')>0 ORDER BY c.platform,c.root_post_id").map(row => decode<KeywordCommentCapture>(row.capture)),
         watermark: { journal_sequence: asNumber(watermark?.sequence), journal_event_id: watermark?.event_id ? String(watermark.event_id) : null, captured_at: capturedAt } };
     });
   }
@@ -511,7 +560,7 @@ export class ConversationStore {
     return { ...conversationAssessmentCounts(this.db, context, asOf, platform), ...this.costSummary(context.campaign_id, context.campaign_version, platform) };
   }
   private makeJob(input: ConversationJobInput, now = this.iso(), id: string = randomUUID()): ConversationJob {
-    if (!['DISCOVER', 'ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'CLASSIFY', 'VERIFY', 'REVISIT'].includes(input.type) || !input.idempotency_key?.trim()) throw Error('INVALID_JOB');
+    if (!['DISCOVER', 'ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'CLASSIFY', 'VERIFY', 'REVISIT', 'MATCH_COMMENTS'].includes(input.type) || !input.idempotency_key?.trim()) throw Error('INVALID_JOB');
     const maxAttempts = input.max_attempts ?? 3, priority = input.priority ?? 0;
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || !Number.isInteger(priority)) throw Error('INVALID_JOB_LIMIT');
     if (input.type === 'CLASSIFY' && input.payload.evaluated_at !== undefined) {
@@ -549,11 +598,12 @@ export class ConversationStore {
   }
   getJob(id: string): ConversationJob | null { this.assertOpen(); return this.readJob(this.db.prepare('SELECT * FROM jobs WHERE id=?').get(id) as Row | undefined); }
   getJobByKey(key: string): ConversationJob | null { this.assertOpen(); return this.readJob(this.db.prepare('SELECT * FROM jobs WHERE idempotency_key=?').get(key) as Row | undefined); }
-  jobs(states?: ConversationJobState[], context?: EvaluationContext): ConversationJob[] {
+  jobs(states?: ConversationJobState[], context?: EvaluationContext, types?: ConversationJobType[]): ConversationJob[] {
     this.assertOpen();
     const params: string[] = [], clauses: string[] = [];
     if (states?.length) { clauses.push(`state IN (${states.map(() => '?').join(',')})`); params.push(...states); }
     if (context) { assertEvaluationContext(context); clauses.push("json_extract(payload,'$.campaign_id')=? AND json_extract(payload,'$.campaign_version')=? AND json_extract(payload,'$.filter_version')=?"); params.push(context.campaign_id, context.campaign_version, context.filter_version); }
+    if (types?.length) { clauses.push(`type IN (${types.map(() => '?').join(',')})`); params.push(...types); }
     const rows = this.db.prepare(`SELECT * FROM jobs${clauses.length ? ' WHERE ' + clauses.join(' AND ') : ''} ORDER BY priority DESC,created_at`).all(...params);
     return (rows as Row[]).map(row => this.readJob(row)!);
   }
@@ -631,8 +681,18 @@ export class ConversationStore {
       return this.getJob(String(row.id));
     });
   }
-  complete(id: string, leaseToken: string): boolean {
-    this.assertOpen(); const result = this.db.prepare("UPDATE jobs SET state='SUCCEEDED',lease_owner=NULL,lease_token=NULL,lease_until=NULL,error=NULL,updated_at=? WHERE id=? AND state='RUNNING' AND lease_token=? AND lease_until>?").run(this.iso(), id, leaseToken, this.iso()); return asNumber(result.changes) === 1;
+  complete(id: string, leaseToken: string, capture?: KeywordCommentCapture): boolean {
+    this.assertOpen();
+    if (capture) {
+      const job = this.getJob(id);
+      if (!job || job.state !== 'RUNNING' || job.lease_token !== leaseToken || !job.lease_until || job.lease_until <= this.iso()) return false;
+      if (job.type !== 'MATCH_COMMENTS' || job.payload.platform !== capture.platform || job.payload.root_post_id !== capture.root_post_id
+        || capture.comments.length > KEYWORD_COMMENT_LIMIT || new Set(capture.comments.map(comment => comment.comment_id)).size !== capture.comments.length)
+        throw Error('KEYWORD_COMMENT_CAPTURE_INVALID');
+      this.append('KEYWORD_COMMENT_CAPTURE', { job_id: id, capture });
+      return true;
+    }
+    const result = this.db.prepare("UPDATE jobs SET state='SUCCEEDED',lease_owner=NULL,lease_token=NULL,lease_until=NULL,error=NULL,updated_at=? WHERE id=? AND state='RUNNING' AND lease_token=? AND lease_until>?").run(this.iso(), id, leaseToken, this.iso()); return asNumber(result.changes) === 1;
   }
   heartbeat(id: string, leaseToken: string, leaseMs = 60000): boolean {
     this.assertOpen(); if (!Number.isFinite(leaseMs) || leaseMs < 1) throw Error('INVALID_LEASE'); const now = this.iso();

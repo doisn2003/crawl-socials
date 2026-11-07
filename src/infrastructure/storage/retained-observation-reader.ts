@@ -9,7 +9,7 @@ const RELATIVE_JOURNAL = 'opportunity/store/conversation-events.jsonl';
 const LEGACY_PATHS = ['facebook/posts.jsonl', 'threads/posts.jsonl'] as const;
 const LEGACY_MAPPING = 'COLLECTOR_POST_OBSERVATION_V1' as const;
 const LIMITS = { sourceBytes: 512 * 1024 * 1024, lineBytes: 8 * 1024 * 1024, events: 1_000_000, roots: 100_000 } as const;
-const TYPES = new Set(['OBSERVATION', 'DECISION', 'JOB_ENQUEUED', 'INVOCATION_RESERVED', 'INVOCATION_FINISHED']);
+const TYPES = new Set(['OBSERVATION', 'DECISION', 'JOB_ENQUEUED', 'KEYWORD_COMMENT_CAPTURE', 'INVOCATION_RESERVED', 'INVOCATION_FINISHED']);
 type JournalEvent = { id: string; seq: number; type: string; payload?: { observation?: ConversationObservation } };
 export interface RetainedPlatformAllocation {
   policy: 'PLATFORM_WEIGHTED_PREFIX_V1';
