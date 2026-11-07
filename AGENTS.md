@@ -1,5 +1,13 @@
 # CSD — current development instructions
 
+## Completed Hà Giang keyword probe — 2026-11-07
+
+- User authorized current-module prompt planning/expansion only: Gemini 3.1 Flash-Lite, maximum 10 calls / USD 0.20 including repairs. No social crawl was performed.
+- **Completed and closed**: exported 69 unique keywords (21 initial + 48 expansion), used 10 calls / **USD 0.076236125**, zero held. Cumulative DEVELOPMENT closed at **1,781 calls / USD 2.621538167**. Unused money is not another grant. Preserve all failed responses and accounting.
+- Minimum structural breadth passed; preferred 96 queries was not reached. Expansion yields were 33, 8, 6, 1, 0. Some literal fragments and broad contextual queries lack topic/destination grounding; structural COMPLETE does not establish useful keyword quality or source coverage. Do not silently present this inventory as a polished recommendation.
+- Narrow production-v2 fixes `4cb65bc` / `973694e` separate product policy from user source evidence during planning/repair and constrain intent revision at the request boundary. Preserve explicit traveler roles, strict validation, existing recipe readability and raw responses. All 1,100 regression tests passed.
+- See [.brain/reports/csd-ha-giang-keyword-probe-20261107.md](.brain/reports/csd-ha-giang-keyword-probe-20261107.md). Exact raw keyword output and logs remain in ignored `artifacts/ha-giang-keywords-20261107`.
+
 ## Authorized discovery recovery and A retest — 2026-11-06
 
 - **Completed and closed**: A–CONSISTENT exported 1,000 unique roots (273 Facebook, 727 Threads), with no comments, duplicate roots/permalinks or missing links. Raw total 2,143 = 470 retained + 1,673 newly collected; accepted total 1,113. Export includes 295 retained roots + 705 newly collected roots. Task 303 calls / **USD 0.602978007** measured / zero held; cumulative DEVELOPMENT closed at **1,771 calls / USD 2.545302042**. Unused USD 10 allowance is not authorization for another experiment. See [.brain/reports/csd-cafe-discovery-recovery-20261106.md](.brain/reports/csd-cafe-discovery-recovery-20261106.md).
