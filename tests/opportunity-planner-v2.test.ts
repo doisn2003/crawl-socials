@@ -84,6 +84,29 @@ test('geographic preference and seller context do not narrow post-only, unlimite
   assert.deepEqual(campaign(strict, hard).required_geographies, ['Hà Nội']);
 });
 
+test('a repeated business-area preference keeps the confirmed geography without rejecting the plan', () => {
+  const i = input('Tìm người mua thịt gà ta, rau củ sạch.', 'Tôi là chủ trang trại đang tìm kiếm khách hàng tiềm năng tại thành phố Hà Nội.');
+  const raw = response(i);
+  Object.assign(raw.intent.find((f: any) => f.field === 'geography'), {
+    value: 'Hà Nội', status: 'CONFIRMED', evidence: [{ source: 'CONTEXT', quote: 'tại thành phố Hà Nội' }],
+  });
+  const preference = { text: 'Khách hàng tiềm năng tại Hà Nội', strength: 'PREFERRED', source: 'CONTEXT',
+    quote: 'tìm kiếm khách hàng tiềm năng tại thành phố Hà Nội' };
+  raw.constraints = [{ ...preference }];
+
+  const value = campaign(i, raw);
+  assert.deepEqual(value.preferred_geographies, ['Hà Nội']);
+  assert.deepEqual(value.required_geographies, []);
+  assert.deepEqual(value.intent_resolution!.plan.constraints, []);
+  assert.deepEqual(raw.constraints, [preference]);
+
+  for (const unrelated of [{ strength: 'REQUIRED' }, { text: 'Khách hàng tiềm năng tại Đà Nẵng' },
+    { quote: 'Tôi là chủ trang trại', text: 'Khách hàng phải nhắc đến trang trại' }]) {
+    assert.throws(() => campaign(i, { ...raw, constraints: [{ ...preference, ...unrelated }] }), /thông tin doanh nghiệp/);
+  }
+  assert.throws(() => campaign(i, { ...raw, constraints: [{ ...preference, quote: 'ưu tiên người mua ở Hà Nội' }] }), /không có trích dẫn thật/);
+});
+
 test('consumer timing and not-only geography never become unintended collection restrictions', () => {
   const i = input('Tìm người muốn đi spa trong 7 ngày tới. Không chỉ tại Hà Nội'), raw = response(i);
   Object.assign(raw.intent.find((f: any) => f.field === 'time'), { value: 'Có dự định đi spa trong tuần tới', status: 'CONFIRMED',

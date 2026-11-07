@@ -208,14 +208,21 @@ export function validateResult(raw, variant, input, baseline) {
     if (new Set(raw.unresolved_fields).size !== raw.unresolved_fields.length || unresolved.length !== raw.unresolved_fields.length || unresolved.some(f => !raw.unresolved_fields.includes(f))) fail('unresolved_fields không khớp mục tiêu');
     if ((raw.state === 'NEEDS_CLARIFICATION') !== !!unresolved.length) fail('trạng thái không khớp các điểm chưa rõ');
   }
-  for (const c of raw.constraints) {
+  const geography = dialogue ? raw.intent.find(f => f.field === 'geography' && f.status === 'CONFIRMED') : undefined;
+  const softCue = /ưu tiên|nếu được|càng tốt|\bprefer(?:red|ably)?\b|ideally/iu;
+  const hardCue = /(?:^|\s)chỉ\s|bắt buộc|\bonly\b|\bmust\b/iu;
+  raw.constraints = raw.constraints.filter(c => {
     if (!grounded(c)) fail('điều kiện không có trích dẫn thật');
-    const soft = /ưu tiên|nếu được|càng tốt|\bprefer(?:red|ably)?\b|ideally/iu.test(c.quote);
-    const hard = /(?:^|\s)chỉ\s|bắt buộc|\bonly\b|\bmust\b/iu.test(c.quote) && !/không chỉ|not only/iu.test(c.quote);
-    if (soft && !hard) c.strength = 'PREFERRED';
-    if (!hard && facets.some(f => f.source === c.source && f.kind === 'BUSINESS_CONTEXT' && f.quote.includes(c.quote)))
-      fail('thông tin doanh nghiệp không phải điều kiện bài của khách', { code: 'BUSINESS_CONTEXT_NOT_CONSTRAINT', constraint: c });
-  }
+    const hard = hardCue.test(c.quote) && !/không chỉ|not only/iu.test(c.quote);
+    if (softCue.test(c.quote) && !hard) c.strength = 'PREFERRED';
+    const business = facets.find(f => f.source === c.source && f.kind === 'BUSINESS_CONTEXT' && f.quote.includes(c.quote));
+    if (hard || !business) return true;
+    // Keep the grounded geography field and discard only a redundant inferred preference.
+    if (c.source === 'CONTEXT' && c.strength === 'PREFERRED' && !softCue.test(business.quote) && !hardCue.test(business.quote)
+      && geography && canonicalIntentQuote(c.text, geography.value)
+      && geography.evidence.some(e => e.source === c.source && c.quote.includes(e.quote) && canonicalIntentQuote(e.quote, geography.value))) return false;
+    fail('thông tin doanh nghiệp không phải điều kiện bài của khách', { code: 'BUSINESS_CONTEXT_NOT_CONSTRAINT', constraint: c });
+  });
   const ids = new Set(), qs = new Set();
   const invalidBranches = [];
   for (const b of raw.branches) {
