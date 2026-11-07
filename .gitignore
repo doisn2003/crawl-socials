@@ -29,6 +29,7 @@ credentials*/
 *.local.log
 .env
 .env.*
+*.env
 !.env.example
 *.sqlite
 *.sqlite-shm

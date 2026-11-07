@@ -65,19 +65,76 @@ function revealNotice(node: HTMLElement) {
   requestAnimationFrame(() => {
     if (node.hidden || !node.isConnected || !node.textContent?.trim()) return;
     node.tabIndex = -1; node.focus({ preventScroll: true });
-    node.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    if (!node.classList.contains('floating-toast')) {
+      node.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }
   });
 }
+const toastTitles: Record<string, string> = {
+  'config-error': 'Lưu ý cấu hình tìm kiếm',
+  'account-error': 'Lưu ý tài khoản mạng xã hội',
+  'run-error': 'Thông báo lượt thu thập',
+  'operation-status': 'Thông báo hệ thống',
+};
+function renderFloatingToast(node: HTMLElement, text: string, failed: boolean, titleText: string) {
+  if (!text) {
+    delete node.dataset.dismissedMessage;
+    node.dataset.rawMessage = '';
+    node.hidden = true;
+    node.replaceChildren();
+    return false;
+  }
+  if (node.dataset.dismissedMessage === text) return false;
+  const changed = node.dataset.rawMessage !== text || node.dataset.state !== (failed ? 'error' : 'success') || node.hidden;
+  node.dataset.rawMessage = text;
+  node.dataset.state = failed ? 'error' : 'success';
+  node.dataset.toastKind = failed ? 'error' : 'success';
+  node.hidden = false;
+
+  const iconWrap = document.createElement('span');
+  iconWrap.className = 'toast-icon';
+  iconWrap.setAttribute('aria-hidden', 'true');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('icon');
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  use.setAttribute('href', failed ? '#icon-alert' : '#icon-check');
+  svg.append(use);
+  iconWrap.append(svg);
+
+  const body = document.createElement('div');
+  body.className = 'toast-body';
+  const title = document.createElement('strong');
+  title.className = 'toast-title';
+  title.textContent = titleText;
+  const message = document.createElement('span');
+  message.className = 'toast-message';
+  message.textContent = text;
+  body.append(title, message);
+
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'toast-close';
+  close.setAttribute('aria-label', 'Đóng thông báo');
+  close.title = 'Đóng thông báo';
+  close.textContent = '×';
+  close.addEventListener('click', () => {
+    node.dataset.dismissedMessage = text;
+    node.hidden = true;
+  });
+
+  node.replaceChildren(iconWrap, body, close);
+  return changed;
+}
 function setError(id: string, text: string) {
-  const node = element(id), changed = node.textContent !== text || node.hidden;
-  node.textContent = text; node.hidden = !text;
+  const node = element(id);
+  const changed = renderFloatingToast(node, text, true, toastTitles[id] ?? 'Cần kiểm tra');
   if (text && changed) revealNotice(node);
 }
 function operation(message: string, failed = false) {
   const node = element('operation-status');
-  const changed = node.textContent !== message || node.dataset.state !== (failed ? 'error' : 'success');
-  node.textContent = message; node.dataset.state = failed ? 'error' : 'success';
-  node.setAttribute('role', failed ? 'alert' : 'status'); node.setAttribute('aria-live', failed ? 'assertive' : 'polite');
+  node.setAttribute('role', failed ? 'alert' : 'status');
+  node.setAttribute('aria-live', failed ? 'assertive' : 'polite');
+  const changed = renderFloatingToast(node, message, failed, failed ? 'Cần lưu ý' : 'Thông báo');
   if (failed && message && changed) revealNotice(node);
 }
 function setSaveStatus(message: string, kind: string) {
@@ -193,6 +250,10 @@ function updateControls() {
   keywords.disabled = !connected || running || commandPending;
   performanceMode.disabled = minimumPosts.disabled = !connected || running || commandPending;
   for (const input of intentInputs) input.disabled = !connected || running || commandPending;
+  for (const pill of document.querySelectorAll<HTMLButtonElement>('[data-filter-pill]')) {
+    pill.disabled = filterMode.disabled;
+    pill.setAttribute('aria-pressed', String(pill.dataset.filterPill === mode));
+  }
   element('opportunity-config').hidden = !intentEnabled.checked;
   element('legacy-config').hidden = currentFilter() !== 'OFF';
   const reuse = element<HTMLSelectElement>('off-saved-queries');
@@ -509,7 +570,7 @@ function renderOpportunities() {
   else element('opportunity-cards').replaceChildren(...cards);
 }
 function applyState(next: ProductionState, replaceConfig = false) {
-  state = next; connected = true; element('connection-error').hidden = true;
+  state = next; connected = true; const connNotice = element('connection-error'); connNotice.hidden = true; delete connNotice.dataset.dismissed;
   setText('version', 'v' + next.version);
   if (!initialized || replaceConfig) {
     performanceMode.value = 'BALANCED';
@@ -536,7 +597,7 @@ async function refresh() {
   const epoch = ++stateEpoch;
   try { const next = await window.csd.getState(); if (epoch === stateEpoch) applyState(next); }
   catch {
-    if (epoch === stateEpoch) { connected = false; const notice = element('connection-error'), wasHidden = notice.hidden; notice.hidden = false; if (wasHidden) revealNotice(notice); updateControls(); }
+    if (epoch === stateEpoch) { connected = false; const notice = element('connection-error'), wasHidden = notice.hidden; if (notice.dataset.dismissed !== 'true') { notice.hidden = false; if (wasHidden) revealNotice(notice); } updateControls(); }
   } finally { refreshPending = false; }
 }
 
@@ -703,7 +764,22 @@ element<HTMLSelectElement>('export-scope').addEventListener('change', renderOppo
 element<HTMLButtonElement>('open-output').addEventListener('click', () => {
   void window.csd.openOutput().catch(error => operation(friendlyError(error, 'Không mở được thư mục kết quả.'), true));
 });
-element<HTMLButtonElement>('reload-state').addEventListener('click', () => { void refresh(); });
+element<HTMLButtonElement>('reload-state').addEventListener('click', () => { delete element('connection-error').dataset.dismissed; void refresh(); });
+for (const closeBtn of document.querySelectorAll<HTMLButtonElement>('[data-dismiss-toast]')) {
+  closeBtn.addEventListener('click', () => {
+    const target = element(closeBtn.dataset.dismissToast!);
+    target.dataset.dismissed = 'true';
+    target.hidden = true;
+  });
+}
+for (const pill of document.querySelectorAll<HTMLButtonElement>('[data-filter-pill]')) {
+  pill.addEventListener('click', () => {
+    if (filterMode.disabled || !pill.dataset.filterPill) return;
+    filterMode.value = pill.dataset.filterPill;
+    configChanged();
+    void saveConfiguration();
+  });
+}
 window.addEventListener('focus', () => { void refresh(); });
 void refresh();
 window.setInterval(() => { void refresh(); }, 2000);

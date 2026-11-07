@@ -16,7 +16,8 @@
 <body>
   <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <symbol id="icon-terminal" viewBox="0 0 24 24">
-      <path d="m5 6 6 6-6 6m8 0h6" />
+      <path d="M12 2.5 14.4 8.6 20.5 11 14.4 13.4 12 19.5 9.6 13.4 3.5 11 9.6 8.6 12 2.5Z" />
+      <path d="M19 16.5 20 19 22.5 20 20 21 19 23.5 18 21 15.5 20 18 19 19 16.5Z" />
     </symbol>
     <symbol id="icon-arrow" viewBox="0 0 24 24">
       <path d="M5 12h14m-6-6 6 6-6 6" />
@@ -27,6 +28,14 @@
     <symbol id="icon-key" viewBox="0 0 24 24">
       <circle cx="8" cy="8" r="5" />
       <path d="m12 12 9 9m-3-3 3-3m-6 0 3-3" />
+    </symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8.5 12.5 2.5 2.5 4.8-5" />
+    </symbol>
+    <symbol id="icon-alert" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v5m0 3h.01" />
     </symbol>
     <symbol id="icon-facebook" viewBox="0 0 24 24">
       <path fill="currentColor" stroke="none"
@@ -56,173 +65,302 @@
       <path d="M4 10a2 2 0 1 0-2 4m18-4a2 2 0 1 1 2 4" />
     </symbol>
   </svg>
+
+  <div class="ambient-bg" aria-hidden="true">
+    <div class="ambient-bloom ambient-bloom-rose"></div>
+    <div class="ambient-bloom ambient-bloom-lavender"></div>
+    <div class="ambient-bloom ambient-bloom-blush"></div>
+  </div>
+
+  <!-- FLOATING NOTIFICATION STACK (Thẻ nổi có nút × để tắt) -->
+  <aside id="toast-container" class="toast-stack" aria-label="Thông báo hệ thống">
+    <div id="connection-error" class="floating-toast notice error" data-toast-kind="error" role="alert" hidden>
+      <span class="toast-icon" aria-hidden="true"><svg class="icon">
+          <use href="#icon-alert" />
+        </svg></span>
+      <div class="toast-body">
+        <strong class="toast-title">Mất kết nối ứng dụng</strong>
+        <span class="toast-message">Không kết nối được với ứng dụng. <button id="reload-state" type="button"
+            class="text-button toast-inline-action">Kết nối lại</button></span>
+      </div>
+      <button type="button" class="toast-close" data-dismiss-toast="connection-error" aria-label="Đóng thông báo"
+        title="Đóng thông báo">×</button>
+    </div>
+    <div id="config-error" class="floating-toast inline-error" data-toast-kind="error" role="alert" hidden></div>
+    <div id="account-error" class="floating-toast inline-error" data-toast-kind="error" role="alert" hidden></div>
+    <div id="run-error" class="floating-toast inline-error" data-toast-kind="error" role="alert" hidden></div>
+    <div id="operation-status" class="floating-toast operation-status" role="status" aria-live="polite" hidden></div>
+  </aside>
+
   <div class="shell">
     <header class="topbar">
-      <div class="brand"><span class="brand-mark"><svg class="icon">
+      <div class="brand">
+        <span class="brand-mark"><svg class="icon">
             <use href="#icon-terminal" />
-          </svg></span><span class="brand-name">CSD<span class="brand-subtitle">CRAWL SOCIALS DATA</span></span></div>
-      <div class="header-meta"><span class="local-label"><span class="status-dot"></span> LƯU TRÊN MÁY</span><span
-          id="version" class="version"></span></div>
+          </svg></span>
+        <span class="brand-name">CSD<span class="brand-subtitle">TRỢ LÝ THU THẬP DỮ LIỆU MẠNG XÃ HỘI</span></span>
+      </div>
+      <div class="header-meta">
+        <span class="local-label"><span class="status-dot"></span> ĐANG HOẠT ĐỘNG</span>
+        <span id="version" class="version"></span>
+      </div>
     </header>
+
     <main>
       <section class="intro" aria-labelledby="page-title">
-        <div>
-          <p class="eyebrow">FACEBOOK · THREADS</p>
-          <h1 id="page-title">Thu thập dữ liệu.<br><span>Mạng xã hội.</span><span class="cursor"
-              aria-hidden="true">_</span>
+        <div class="intro-main">
+          <p class="eyebrow">✨ TRỢ LÝ AI THÔNG MINH · FACEBOOK &amp; THREADS</p>
+          <h1 id="page-title">Thu thập dữ liệu.<br><span>Mạng xã hội thật dễ dàng.</span><span class="cursor"
+              aria-hidden="true">✿</span>
           </h1>
-          <p class="intro-copy">Tìm bài viết theo nhu cầu của bạn.<br>Lọc kết quả và tải về máy.</p>
+          <p class="intro-copy">Chỉ cần mô tả điều bạn muốn tìm bằng lời tự nhiên.<br>AI sẽ tự lọc bài viết phù hợp và
+            xuất ra file Excel gọn đẹp cho bạn.</p>
         </div>
-        <div class="intro-aside"><span class="crosshair" aria-hidden="true">⌖</span><span>FACEBOOK × THREADS</span><span
-            class="accent-rule"></span><small>LƯU VÀO EXCEL</small></div>
+        <div class="intro-aside">
+          <div class="intro-stat-card">
+            <span class="crosshair" aria-hidden="true">✨</span>
+            <div>
+              <strong>FACEBOOK × THREADS</strong>
+              <small>Tự động phân tích &amp; lọc bài viết</small>
+            </div>
+          </div>
+          <div class="intro-stat-card intro-stat-mint">
+            <span class="crosshair" aria-hidden="true">📊</span>
+            <div>
+              <strong>XUẤT BÁO CÁO EXCEL</strong>
+              <small>Sẵn sàng xem và chia sẻ ngay</small>
+            </div>
+          </div>
+        </div>
       </section>
-      <div id="connection-error" class="notice error" role="alert" hidden>Không kết nối được với ứng dụng. <button
-          id="reload-state" class="text-button">Kết nối lại</button></div>
+
+      <!-- KHỐI 01: YÊU CẦU CỦA BẠN -->
       <section class="panel config-panel" aria-labelledby="config-heading">
         <div class="section-heading">
-          <div class="section-title"><span class="section-number">01</span>
+          <div class="section-title">
+            <span class="section-number">01</span>
             <div>
-              <p class="section-kicker">YÊU CẦU CỦA BẠN</p>
+              <p class="section-kicker">BƯỚC 1 · YÊU CẦU CỦA BẠN</p>
               <h2 id="config-heading">Bạn muốn tìm gì?</h2>
             </div>
-          </div><span id="save-status" class="save-status" role="status" aria-live="polite">Đang tải…</span>
+          </div>
+          <span id="save-status" class="save-status" role="status" aria-live="polite">Đang tải…</span>
         </div>
+
         <div class="field" hidden><label for="performance-mode">Tốc độ thu thập &amp; xử lý AI</label>
           <select id="performance-mode" disabled>
             <option value="STANDARD">Tự động — điều chỉnh theo tài nguyên</option>
             <option value="BALANCED" selected>Tự động — RAM/CPU và hàng đợi công bằng</option>
             <option value="FAST">Mở mọi từ khóa — khi tài nguyên cho phép</option>
           </select>
-          <p class="helper">Mỗi từ khóa trên mỗi mạng có tác vụ và checkpoint riêng. Tự động tăng số cửa sổ theo RAM/CPU; mở mọi từ khóa vẫn tạm nhường khi máy thiếu tài nguyên. Số cửa sổ độc lập với tốc độ gọi AI.</p>
+          <p class="helper">Mỗi từ khóa trên mỗi mạng có tác vụ và checkpoint riêng. Tự động tăng số cửa sổ theo
+            RAM/CPU; mở mọi từ khóa vẫn tạm nhường khi máy thiếu tài nguyên. Số cửa sổ độc lập với tốc độ gọi AI.</p>
         </div>
+
         <input id="opportunity-enabled" type="checkbox" checked hidden>
-        <div class="field"><label for="filter-mode">Mức lọc</label>
+
+        <!-- Sub-block 1A: Chế độ lọc AI -->
+        <div class="sub-block filter-mode-block">
+          <div class="filter-mode-header">
+            <div>
+              <label for="filter-mode" class="sub-block-title">Chế độ lọc thông minh (AI Filter)</label>
+              <p id="filter-mode-help" class="helper">Giữ cơ hội rộng có liên hệ với lĩnh vực; loại quảng cáo và bài lạc
+                đề.</p>
+            </div>
+            <div class="filter-pills" role="group" aria-label="Chọn nhanh mức lọc">
+              <button type="button" class="filter-pill" data-filter-pill="OFF">Không lọc</button>
+              <button type="button" class="filter-pill" data-filter-pill="CONSISTENT">✨ Consistent</button>
+              <button type="button" class="filter-pill" data-filter-pill="STANDARD">💖 Standard</button>
+              <button type="button" class="filter-pill" data-filter-pill="QUALITY">💎 Quality</button>
+            </div>
+          </div>
           <select id="filter-mode" aria-describedby="filter-mode-help" disabled>
             <option value="OFF">Không lọc — dữ liệu chưa đánh giá</option>
             <option value="CONSISTENT" selected>Consistent — mở rộng cơ hội</option>
             <option value="STANDARD">Standard — nhu cầu, tâm sự và thảo luận</option>
             <option value="QUALITY">Quality — sát mục tiêu</option>
           </select>
-          <p id="filter-mode-help" class="helper">Giữ cơ hội rộng có liên hệ với lĩnh vực; loại quảng cáo và bài lạc đề.</p>
         </div>
+
         <div id="opportunity-config" hidden>
           <div class="field" hidden><label for="content-language">Ngôn ngữ nội dung khi lọc</label>
             <select id="content-language" disabled>
               <option value="VIETNAMESE" selected>Tiếng Việt — kể cả người Việt ở nước ngoài</option>
               <option value="PROMPT">Theo yêu cầu trong prompt — không giới hạn nếu chưa nêu</option>
             </select>
-            <p class="helper">Áp dụng cho các mức lọc AI. Không suy địa điểm hay quốc tịch từ tên người đăng. Chế độ Không lọc giữ dữ liệu thô.</p>
+            <p class="helper">Áp dụng cho các mức lọc AI. Không suy địa điểm hay quốc tịch từ tên người đăng. Chế độ
+              Không lọc giữ dữ liệu thô.</p>
           </div>
+
+          <!-- Sub-block 1B: Ô nhập nội dung cần tìm & thương hiệu -->
           <div class="config-grid">
-            <div class="field"><label for="campaign-prompt">Bạn muốn tìm điều gì?</label><textarea id="campaign-prompt"
-                rows="4" maxlength="10000"
-                placeholder="Ví dụ: Tìm người đang hỏi quán cafe để làm việc, hẹn hò hoặc trao đổi trải nghiệm. Ưu tiên câu hỏi của người dùng trong bài viết, gồm cả tâm sự và trải nghiệm."
-                disabled></textarea></div>
-            <div class="field"><label for="brand-context">Thông tin thương hiệu <span class="field-meta">Không bắt
-                  buộc</span></label><textarea id="brand-context" rows="4" maxlength="10000"
-                placeholder="Sản phẩm/dịch vụ, vấn đề bạn giải quyết, khu vực ưu tiên (vẫn nhận nơi khác), mục đích tiếp cận hoặc nghiên cứu"
-                disabled></textarea></div>
+            <div class="field input-card input-card-rose">
+              <label for="campaign-prompt">
+                <span>💬 Bạn muốn tìm điều gì?</span>
+                <span class="field-meta badge-rose">Mô tả tự nhiên</span>
+              </label>
+              <textarea id="campaign-prompt" rows="4" maxlength="10000"
+                placeholder="Ví dụ: Tìm người đang hỏi quán cafe đẹp để làm việc, hẹn hò hoặc chụp ảnh cuối tuần. Ưu tiên câu hỏi thật của người dùng, gồm cả tâm sự và chia sẻ trải nghiệm..."
+                disabled></textarea>
+            </div>
+            <div class="field input-card input-card-lavender">
+              <label for="brand-context">
+                <span>🌸 Thông tin thương hiệu</span>
+                <span class="field-meta badge-lavender">Không bắt buộc</span>
+              </label>
+              <textarea id="brand-context" rows="4" maxlength="10000"
+                placeholder="Sản phẩm/dịch vụ của bạn, vấn đề bạn giải quyết, khu vực ưu tiên (vẫn nhận nơi khác), mục đích tiếp cận hoặc nghiên cứu thị trường..."
+                disabled></textarea>
+            </div>
           </div>
+
+          <!-- Sub-block 1C: 3 Ô chỉ tiêu số lượng & ngân sách -->
           <div class="opportunity-limits">
-            <label>Số bài muốn nhận<input id="suitable-target" type="number" min="1" max="5000" step="1" value="1000"
-                disabled></label>
-            <label>Số bài tìm tối đa<input id="raw-cap" type="number" min="1" max="50000" step="1" value="20000"
-                disabled></label>
-            <label>Ngân sách AI (USD)<input id="model-budget" type="number" min="0.01" max="30" step="0.01" value="3"
-                disabled></label>
+            <label class="metric-box metric-box-rose">
+              <span class="metric-tag">🎯 MỤC TIÊU NHẬN</span>
+              <span class="metric-label">Số bài muốn nhận</span>
+              <input id="suitable-target" type="number" min="1" max="5000" step="1" value="1000" disabled>
+            </label>
+            <label class="metric-box metric-box-lavender">
+              <span class="metric-tag">🔍 QUÉT MỞ RỘNG</span>
+              <span class="metric-label">Số bài tìm tối đa</span>
+              <input id="raw-cap" type="number" min="1" max="50000" step="1" value="20000" disabled>
+            </label>
+            <label class="metric-box metric-box-mint">
+              <span class="metric-tag">💳 HẠN MỨC CHI TIÊU</span>
+              <span class="metric-label">Ngân sách AI (USD)</span>
+              <input id="model-budget" type="number" min="0.01" max="30" step="0.01" value="3" disabled>
+            </label>
           </div>
-          <details id="spending-controls"><summary>Giới hạn tiền AI trên máy này</summary>
-            <p class="helper">Gemini 3.1 Flash-Lite. CSD kiểm soát theo số tiền, không giới hạn tổng số lần gọi AI. Trần tiền cộng dồn/ngày áp dụng chung cho các lượt; tạo lượt mới không xóa tiền đã dùng. Để trần tiền bằng 0 thì không gọi AI.</p>
-            <div class="opportunity-limits">
-              <label>Trần cộng dồn (USD)<input id="spend-total" type="number" min="0" max="10000" step="0.01" value="0"></label>
-              <label>Trần mỗi ngày (USD)<input id="spend-daily" type="number" min="0" max="10000" step="0.01" value="0"></label>
-            </div><p id="spend-status" class="helper"></p>
-          </details>
-          <p class="helper">Số bài muốn nhận tính chung các nguồn. Có thể chạy nhiều giờ; kết quả được lưu để tiếp tục. Chỉ phân tích bài gốc.</p>
+
+          <p class="helper section-hint">💡 Số bài muốn nhận tính chung các nguồn. Có thể chạy nhiều giờ; kết quả được
+            lưu tự động để tiếp tục bất cứ lúc nào. Chỉ phân tích bài gốc.</p>
+
+          <!-- Sub-block 1D: Giới hạn tiền AI & Lập kế hoạch -->
+          <div class="advanced-accordions">
+            <details id="spending-controls" class="soft-accordion">
+              <summary>🛡️ Giới hạn tiền AI trên máy này</summary>
+              <div class="accordion-body">
+                <p class="helper">Gemini 3.1 Flash-Lite. CSD kiểm soát theo số tiền, không giới hạn tổng số lần gọi AI.
+                  Trần tiền cộng dồn/ngày áp dụng chung cho các lượt; tạo lượt mới không xóa tiền đã dùng. Để trần tiền
+                  bằng 0 thì không gọi AI.</p>
+                <div class="opportunity-limits limits-compact">
+                  <label class="metric-box">
+                    <span class="metric-label">Trần cộng dồn (USD)</span>
+                    <input id="spend-total" type="number" min="0" max="10000" step="0.01" value="0">
+                  </label>
+                  <label class="metric-box">
+                    <span class="metric-label">Trần mỗi ngày (USD)</span>
+                    <input id="spend-daily" type="number" min="0" max="10000" step="0.01" value="0">
+                  </label>
+                </div>
+                <p id="spend-status" class="helper spend-status-pill"></p>
+              </div>
+            </details>
+          </div>
+
           <div class="comments-setting">
-            <label class="comments-toggle" for="collect-comments"><span>Thu thập bình luận</span><input id="collect-comments" type="checkbox" role="switch" aria-describedby="comments-warning comments-mode-note" disabled><span class="comments-switch" aria-hidden="true"></span></label>
+            <label class="comments-toggle" for="collect-comments"><span>Thu thập bình luận</span><input
+                id="collect-comments" type="checkbox" role="switch"
+                aria-describedby="comments-warning comments-mode-note" disabled><span class="comments-switch"
+                aria-hidden="true"></span></label>
             <p id="comments-warning" class="comments-warning" hidden>CSD đọc bình luận ở các bài không phù hợp trong hàng chờ riêng. Khâu này có thể kéo dài lượt thu và không dùng AI.</p>
             <p id="comments-mode-note" class="helper"></p>
           </div>
+
           <div class="campaign-planning" hidden>
             <div class="field"><label for="gemini-api-key">Gemini API Key</label>
-              <input id="gemini-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API key tại đây để lưu trên máy này" disabled>
+              <input id="gemini-api-key" type="password" autocomplete="off" spellcheck="false"
+                placeholder="Dán API key tại đây để lưu trên máy này" disabled>
             </div>
             <div class="planner-actions">
               <button id="save-gemini-key" type="button" class="secondary-button" disabled>Lưu key</button>
               <button id="remove-gemini-key" type="button" class="secondary-button" disabled>Xóa key đã lưu</button>
             </div>
             <p id="gemini-key-status" class="helper" role="status">Đang đọc trạng thái key…</p>
-            <p class="helper">Key được mã hóa trên máy này. Sang máy khác, nhập và lưu lại trong CSD. Không cần cấu hình biến môi trường.</p>
+            <p class="helper">Key được mã hóa trên máy này. Sang máy khác, nhập và lưu lại trong CSD. Không cần cấu hình
+              biến môi trường.</p>
           </div>
+
           <div id="campaign-planning" class="campaign-planning" hidden>
-            <div class="planner-actions">
-              <button id="prepare-campaign" type="button" class="secondary-button" disabled>Chỉ xem kế hoạch</button>
-              <span class="helper">Tùy chọn. Nút Bắt đầu sẽ tự lập kế hoạch rồi thu thập.</span>
-            </div>
-            <p id="campaign-plan-cost" class="helper"></p>
-            <p id="campaign-plan-status" class="helper" role="status" aria-live="polite"></p>
-            <section id="campaign-dialogue" class="campaign-plan-editor" aria-label="Làm rõ nhu cầu" hidden></section>
-            <details id="campaign-plan-editor" class="campaign-plan-editor" hidden>
-              <summary>Xem và sửa cách tìm</summary>
-              <p class="helper">Mỗi dòng là một ý hoặc một từ khóa. Sửa tại đây không tốn thêm phí.</p>
-              <div class="criteria-grid">
-                <div class="field criteria-wide"><label for="criteria-topic">Chủ đề</label><input id="criteria-topic"
-                    type="text" maxlength="300" disabled></div>
-                <div class="field"><label for="criteria-needs">Nhu cầu cần tìm</label><textarea id="criteria-needs"
-                    rows="3" disabled></textarea></div>
-                <div class="field"><label for="criteria-participation-intents">Cuộc trao đổi thương hiệu có thể tham
-                    gia</label><textarea id="criteria-participation-intents" rows="3" disabled></textarea></div>
-                <div class="field"><label for="criteria-inclusions">Điều kiện giữ lại</label><textarea
-                    id="criteria-inclusions" rows="3" disabled></textarea></div>
-                <div class="field"><label for="criteria-exclusions">Điều kiện loại trừ</label><textarea
-                    id="criteria-exclusions" rows="3" disabled></textarea></div>
-                <div class="field criteria-wide"><label for="criteria-queries">Từ khóa tìm kiếm</label><textarea
-                    id="criteria-queries" rows="5" disabled></textarea></div>
-              </div>
-              <details class="criteria-advanced" hidden>
-                <summary>Đối tượng, khu vực và theo dõi bình luận</summary>
-                <p id="criteria-context-note" class="helper" hidden>Đối tượng, ngôn ngữ và nội dung nghiên cứu dưới đây
-                  là ghi chú của kế hoạch. Bộ lọc này chưa áp dụng riêng ba trường đó; để đặt điều kiện, thêm vào Điều
-                  kiện giữ lại hoặc Điều kiện loại trừ.</p>
-                <div class="criteria-grid">
-                  <div class="field"><label for="criteria-audience">Đối tượng</label><textarea id="criteria-audience"
-                      rows="2" disabled></textarea></div>
-                  <div class="field"><label for="criteria-research-intents">Nội dung giữ để nghiên cứu thị
-                      trường</label><textarea id="criteria-research-intents" rows="2" disabled></textarea></div>
-                  <div class="field"><label for="criteria-required-geographies">Khu vực bắt buộc</label><textarea
-                      id="criteria-required-geographies" rows="2" placeholder="Để trống nếu không giới hạn"
-                      disabled></textarea></div>
-                  <div class="field"><label for="criteria-preferred-geographies">Khu vực ưu tiên</label><textarea
-                      id="criteria-preferred-geographies" rows="2" disabled></textarea></div>
-                  <div class="field"><label for="criteria-languages">Ngôn ngữ</label><textarea id="criteria-languages"
-                      rows="2" disabled></textarea></div>
-                  <div class="field"><label for="criteria-max-age-days">Tuổi bài tối đa (ngày)</label><input
-                      id="criteria-max-age-days" type="number" min="1" step="1" placeholder="Không giới hạn" disabled>
-                  </div>
-                </div>
-                <label class="criteria-watch"><input id="criteria-watch-enabled" type="checkbox" disabled> Theo dõi bình
-                  luận mới khi ứng dụng đang mở</label>
-                <div class="criteria-grid">
-                  <div class="field"><label for="criteria-watch-hours">Kiểm tra lại sau (giờ)</label><input
-                      id="criteria-watch-hours" type="text" placeholder="2, 8, 24" disabled>
-                    <p class="helper">Các mốc tính từ lúc bắt đầu theo dõi, cách nhau bằng dấu phẩy.</p>
-                  </div>
-                  <div class="field"><label for="criteria-watch-ttl">Kết thúc theo dõi sau (giờ)</label><input
-                      id="criteria-watch-ttl" type="number" min="1" max="720" step="1" disabled></div>
-                  <div class="field"><label for="criteria-watch-attempts">Số lần kiểm tra lại tối đa mỗi
-                      bài</label><input id="criteria-watch-attempts" type="number" min="0" max="12" step="1" disabled>
-                  </div>
-                </div>
-              </details>
-              <p class="helper">Cách hiểu hiện tại: <span id="criteria-assumptions"></span></p>
+            <div class="planner-bar">
               <div class="planner-actions">
-                <button id="save-campaign-criteria" type="button" class="secondary-button" disabled>Lưu tiêu
-                  chí</button>
-                <button id="reset-campaign-criteria" type="button" class="text-button" disabled>Hoàn tác thay
-                  đổi</button>
+                <button id="prepare-campaign" type="button" class="secondary-button" disabled>✨ Chỉ xem kế
+                  hoạch</button>
+                <span class="helper">Tùy chọn. Nút <strong>Bắt đầu thu thập</strong> ở Bước 3 sẽ tự lập kế hoạch rồi thu
+                  thập luôn.</span>
+              </div>
+              <p id="campaign-plan-cost" class="helper"></p>
+              <p id="campaign-plan-status" class="helper" role="status" aria-live="polite"></p>
+            </div>
+
+            <section id="campaign-dialogue" class="campaign-plan-editor" aria-label="Làm rõ nhu cầu" hidden></section>
+
+            <details id="campaign-plan-editor" class="campaign-plan-editor soft-accordion" hidden>
+              <summary>📝 Xem và sửa cách tìm (Từ khóa &amp; Tiêu chí)</summary>
+              <div class="accordion-body">
+                <p class="helper">Mỗi dòng là một ý hoặc một từ khóa. Sửa tại đây hoàn toàn miễn phí.</p>
+                <div class="criteria-grid">
+                  <div class="field criteria-wide"><label for="criteria-topic">Chủ đề</label><input id="criteria-topic"
+                      type="text" maxlength="300" disabled></div>
+                  <div class="field"><label for="criteria-needs">Nhu cầu cần tìm</label><textarea id="criteria-needs"
+                      rows="3" disabled></textarea></div>
+                  <div class="field"><label for="criteria-participation-intents">Cuộc trao đổi thương hiệu có thể tham
+                      gia</label><textarea id="criteria-participation-intents" rows="3" disabled></textarea></div>
+                  <div class="field"><label for="criteria-inclusions">Điều kiện giữ lại</label><textarea
+                      id="criteria-inclusions" rows="3" disabled></textarea></div>
+                  <div class="field"><label for="criteria-exclusions">Điều kiện loại trừ</label><textarea
+                      id="criteria-exclusions" rows="3" disabled></textarea></div>
+                  <div class="field criteria-wide"><label for="criteria-queries">Từ khóa tìm kiếm</label><textarea
+                      id="criteria-queries" rows="5" disabled></textarea></div>
+                </div>
+                <details class="criteria-advanced" hidden>
+                  <summary>Đối tượng, khu vực và theo dõi bình luận</summary>
+                  <p id="criteria-context-note" class="helper" hidden>Đối tượng, ngôn ngữ và nội dung nghiên cứu dưới
+                    đây
+                    là ghi chú của kế hoạch. Bộ lọc này chưa áp dụng riêng ba trường đó; để đặt điều kiện, thêm vào Điều
+                    kiện giữ lại hoặc Điều kiện loại trừ.</p>
+                  <div class="criteria-grid">
+                    <div class="field"><label for="criteria-audience">Đối tượng</label><textarea id="criteria-audience"
+                        rows="2" disabled></textarea></div>
+                    <div class="field"><label for="criteria-research-intents">Nội dung giữ để nghiên cứu thị
+                        trường</label><textarea id="criteria-research-intents" rows="2" disabled></textarea></div>
+                    <div class="field"><label for="criteria-required-geographies">Khu vực bắt buộc</label><textarea
+                        id="criteria-required-geographies" rows="2" placeholder="Để trống nếu không giới hạn"
+                        disabled></textarea></div>
+                    <div class="field"><label for="criteria-preferred-geographies">Khu vực ưu tiên</label><textarea
+                        id="criteria-preferred-geographies" rows="2" disabled></textarea></div>
+                    <div class="field"><label for="criteria-languages">Ngôn ngữ</label><textarea id="criteria-languages"
+                        rows="2" disabled></textarea></div>
+                    <div class="field"><label for="criteria-max-age-days">Tuổi bài tối đa (ngày)</label><input
+                        id="criteria-max-age-days" type="number" min="1" step="1" placeholder="Không giới hạn" disabled>
+                    </div>
+                  </div>
+                  <label class="criteria-watch"><input id="criteria-watch-enabled" type="checkbox" disabled> Theo dõi
+                    bình
+                    luận mới khi ứng dụng đang mở</label>
+                  <div class="criteria-grid">
+                    <div class="field"><label for="criteria-watch-hours">Kiểm tra lại sau (giờ)</label><input
+                        id="criteria-watch-hours" type="text" placeholder="2, 8, 24" disabled>
+                      <p class="helper">Các mốc tính từ lúc bắt đầu theo dõi, cách nhau bằng dấu phẩy.</p>
+                    </div>
+                    <div class="field"><label for="criteria-watch-ttl">Kết thúc theo dõi sau (giờ)</label><input
+                        id="criteria-watch-ttl" type="number" min="1" max="720" step="1" disabled></div>
+                    <div class="field"><label for="criteria-watch-attempts">Số lần kiểm tra lại tối đa mỗi
+                        bài</label><input id="criteria-watch-attempts" type="number" min="0" max="12" step="1" disabled>
+                    </div>
+                  </div>
+                </details>
+                <p class="helper">Cách hiểu hiện tại: <span id="criteria-assumptions"></span></p>
+                <div class="planner-actions">
+                  <button id="save-campaign-criteria" type="button" class="secondary-button" disabled>Lưu tiêu
+                    chí</button>
+                  <button id="reset-campaign-criteria" type="button" class="text-button" disabled>Hoàn tác thay
+                    đổi</button>
+                </div>
               </div>
             </details>
+
             <div class="preset-grid" hidden>
               <div class="field"><label for="campaign-preset">Dùng lại bộ lọc</label>
                 <div class="preset-action"><select id="campaign-preset" disabled>
@@ -236,72 +374,110 @@
                     class="secondary-button" disabled>Lưu bộ lọc</button></div>
               </div>
             </div>
-            <details class="criteria-advanced">
-              <summary>Lọc lại bài đã lưu</summary>
-              <p class="helper">Xem và lưu tiêu chí trước, sau đó chọn một lượt dữ liệu cũ. Giữ bình luận đã thu được và
-                đánh giá lại theo nhu cầu hiện tại; không cần đăng nhập mạng xã hội.</p>
-              <div class="planner-actions"><button id="refresh-retained-sources" type="button" class="secondary-button"
-                  disabled>Tải danh sách dữ liệu</button>
-                <button id="choose-retained-source-root" type="button" class="secondary-button" disabled>Thêm thư mục dữ
-                  liệu</button>
+
+            <details class="criteria-advanced soft-accordion">
+              <summary>📂 Lọc lại bài đã lưu trên máy (Không cần đăng nhập lại)</summary>
+              <div class="accordion-body">
+                <p class="helper">Xem và lưu tiêu chí trước, sau đó chọn một lượt dữ liệu cũ. Giữ bình luận đã thu được
+                  và
+                  đánh giá lại theo nhu cầu hiện tại; không cần đăng nhập mạng xã hội.</p>
+                <div class="planner-actions"><button id="refresh-retained-sources" type="button"
+                    class="secondary-button" disabled>Tải danh sách dữ liệu</button>
+                  <button id="choose-retained-source-root" type="button" class="secondary-button" disabled>Thêm thư mục
+                    dữ
+                    liệu</button>
+                </div>
+                <div class="field retained-selection"><label for="retained-source">Dữ liệu nguồn</label><select
+                    id="retained-source" disabled>
+                    <option value="">Chọn lượt dữ liệu đã lưu</option>
+                  </select></div>
+                <p id="retained-source-note" class="helper" role="status"></p>
+                <div class="planner-actions"><button id="start-retained" type="button" class="secondary-button"
+                    disabled>Lọc lại theo yêu cầu này</button></div>
               </div>
-              <div class="field retained-selection"><label for="retained-source">Dữ liệu nguồn</label><select
-                  id="retained-source" disabled>
-                  <option value="">Chọn lượt dữ liệu đã lưu</option>
-                </select></div>
-              <p id="retained-source-note" class="helper" role="status"></p>
-              <div class="planner-actions"><button id="start-retained" type="button" class="secondary-button"
-                  disabled>Lọc lại theo yêu cầu này</button></div>
             </details>
           </div>
         </div>
+
         <div id="legacy-config" class="config-grid">
-          <div class="field keyword-field"><label for="keywords">Từ khóa tìm kiếm <span id="keyword-count"
-                class="field-meta"></span></label><textarea id="keywords" rows="4" maxlength="20100"
-              placeholder="Nhập từ khóa — mỗi dòng một từ khóa" spellcheck="false" disabled
-              aria-describedby="keyword-help config-error"></textarea>
+          <div class="field keyword-field input-card input-card-rose">
+            <label for="keywords"><span>🔑 Từ khóa tìm kiếm</span> <span id="keyword-count"
+                class="field-meta badge-rose"></span></label>
+            <textarea id="keywords" rows="4" maxlength="20100" placeholder="Nhập từ khóa — mỗi dòng một từ khóa"
+              spellcheck="false" disabled aria-describedby="keyword-help config-error"></textarea>
             <p id="keyword-help" class="helper">Mỗi dòng một từ khóa · Tự lưu khi rời ô nhập</p>
             <div hidden><label for="off-saved-queries">Dùng từ khóa đã lưu — không gọi AI</label>
-            <select id="off-saved-queries" disabled><option value="">Chọn kế hoạch hoặc lượt trước</option></select></div>
+              <select id="off-saved-queries" disabled>
+                <option value="">Chọn kế hoạch hoặc lượt trước</option>
+              </select>
+            </div>
           </div>
-          <div class="field target-field"><label for="minimum-posts">Mục tiêu tối thiểu</label>
+          <div class="field target-field input-card input-card-lavender"><label for="minimum-posts">Mục tiêu tối
+              thiểu</label>
             <div class="number-input"><input id="minimum-posts" type="number" min="1" max="5000" step="1"
                 inputmode="numeric" disabled aria-describedby="target-help config-error"><span>bài / mạng</span></div>
             <p id="target-help" class="helper">Áp dụng riêng cho mỗi mạng được chọn.</p>
             <div class="target-detail"><span aria-hidden="true">↳</span> Bài viết không trùng trong từng lượt thu</div>
           </div>
         </div>
-        <div id="config-error" class="inline-error" role="alert" hidden></div>
       </section>
+
+      <!-- KHỐI 02: NƠI TÌM KIẾM -->
       <section class="panel account-panel" aria-labelledby="accounts-heading">
         <div class="section-heading">
-          <div class="section-title"><span class="section-number">02</span>
+          <div class="section-title">
+            <span class="section-number">02</span>
             <div>
-              <p class="section-kicker">NƠI TÌM KIẾM</p>
-              <h2 id="accounts-heading">Chọn mạng xã hội</h2>
+              <p class="section-kicker">BƯỚC 2 · NƠI TÌM KIẾM</p>
+              <h2 id="accounts-heading">Chọn mạng xã hội &amp; Tài khoản</h2>
             </div>
-          </div><span id="selected-count" class="section-meta">Chưa chọn nguồn</span>
+          </div>
+          <span id="selected-count" class="section-meta">Chưa chọn nguồn</span>
         </div>
-        <p class="section-description">Đăng nhập, rồi chọn mạng bạn muốn tìm kiếm.</p>
+        <p class="section-description">Đăng nhập tài khoản, sau đó tích chọn mạng xã hội bạn muốn thu thập dữ liệu.</p>
+
         <div class="accounts-grid">
-          <article class="account-card" data-platform="facebook">
-            <div class="account-card-top"><label class="platform-toggle"><input id="select-facebook" type="checkbox"
-                  disabled><span class="toggle-check" aria-hidden="true"></span><svg
-                  class="platform-logo facebook-logo">
-                  <use href="#icon-facebook" />
-                </svg><span>Facebook</span></label><span id="status-facebook" class="account-status">Chưa đăng
-                nhập</span></div>
-            <label class="profile-field" id="profile-field-facebook" hidden for="profile-facebook">Tài khoản<select id="profile-facebook" aria-label="Tài khoản Facebook"></select></label>
+          <article class="account-card account-card-facebook" data-platform="facebook">
+            <div class="account-card-top">
+              <label class="platform-toggle">
+                <input id="select-facebook" type="checkbox" disabled>
+                <span class="toggle-check" aria-hidden="true"></span>
+                <span class="platform-icon-wrap platform-icon-facebook">
+                  <svg class="platform-logo facebook-logo">
+                    <use href="#icon-facebook" />
+                  </svg>
+                </span>
+                <span class="platform-title-wrap">
+                  <span class="platform-name">Facebook</span>
+                  <small class="platform-sub">Bài viết công khai, Hội nhóm &amp; Fanpage</small>
+                </span>
+              </label>
+              <span id="status-facebook" class="account-status">Chưa đăng nhập</span>
+            </div>
+            <label class="profile-field" id="profile-field-facebook" hidden for="profile-facebook">Tài khoản<select
+                id="profile-facebook" aria-label="Tài khoản Facebook"></select></label>
             <p id="account-detail-facebook" class="account-detail">Đăng nhập để chọn mạng này.</p>
             <button id="login-facebook" class="login-button" disabled><svg class="icon">
                 <use href="#icon-key" />
               </svg><span>Đăng nhập Facebook</span><span class="button-arrow" aria-hidden="true">↗</span></button>
           </article>
-          <article class="account-card" data-platform="threads">
-            <div class="account-card-top"><label class="platform-toggle"><input id="select-threads" type="checkbox"
-                  disabled><span class="toggle-check" aria-hidden="true"></span><svg class="platform-logo">
-                  <use href="#icon-threads" />
-                </svg><span>Threads</span></label><span id="status-threads" class="account-status">Chưa đăng nhập</span>
+
+          <article class="account-card account-card-threads" data-platform="threads">
+            <div class="account-card-top">
+              <label class="platform-toggle">
+                <input id="select-threads" type="checkbox" disabled>
+                <span class="toggle-check" aria-hidden="true"></span>
+                <span class="platform-icon-wrap platform-icon-threads">
+                  <svg class="platform-logo">
+                    <use href="#icon-threads" />
+                  </svg>
+                </span>
+                <span class="platform-title-wrap">
+                  <span class="platform-name">Threads</span>
+                  <small class="platform-sub">Thảo luận xu hướng, Review &amp; Tâm sự</small>
+                </span>
+              </label>
+              <span id="status-threads" class="account-status">Chưa đăng nhập</span>
             </div>
             <label class="profile-field" id="profile-field-threads" hidden for="profile-threads">Tài khoản<select
                 id="profile-threads" aria-label="Tài khoản Threads"></select></label>
@@ -311,6 +487,7 @@
               </svg><span>Đăng nhập Threads</span><span class="button-arrow" aria-hidden="true">↗</span></button>
           </article>
         </div>
+
         <div class="future-platforms" hidden><span class="future-label">PHIÊN BẢN SAU</span><span class="future-badge"
             aria-disabled="true"><svg class="platform-logo">
               <use href="#icon-tiktok" />
@@ -321,80 +498,129 @@
             </svg>X</span><span class="future-badge" aria-disabled="true"><svg class="platform-logo">
               <use href="#icon-reddit" />
             </svg>Reddit</span></div>
-        <p class="session-note"><span class="status-dot"></span>CSD ghi nhớ đăng nhập trên máy này. Khi tìm bài, các cửa sổ mạng xã hội chạy ẩn.</p>
-        <p id="account-error" class="inline-error" role="alert" hidden></p>
+
+        <p class="session-note"><span class="status-dot"></span>CSD tự động ghi nhớ đăng nhập trên máy này. Khi tìm bài,
+          các cửa sổ mạng xã hội sẽ chạy ẩn nhẹ nhàng.</p>
       </section>
+
+      <!-- KHỐI 03: KẾT QUẢ CỦA BẠN -->
       <section class="panel run-panel" aria-labelledby="run-heading">
         <div class="section-heading">
-          <div class="section-title"><span class="section-number">03</span>
+          <div class="section-title">
+            <span class="section-number">03</span>
             <div>
-              <p class="section-kicker">KẾT QUẢ CỦA BẠN</p>
+              <p class="section-kicker">BƯỚC 3 · KẾT QUẢ CỦA BẠN</p>
               <h2 id="run-heading">Thu thập và tải kết quả</h2>
             </div>
-          </div><span id="run-badge" class="run-badge">SẴN SÀNG</span>
+          </div>
+          <span id="run-badge" class="run-badge">SẴN SÀNG</span>
         </div>
+
         <div class="run-command">
-          <div>
+          <div class="run-command-info">
             <p id="start-help" class="start-help">Thêm từ khóa và chọn ít nhất một nguồn đã đăng nhập.</p>
             <p id="run-time" class="helper"></p>
           </div>
-          <div class="run-actions"><button id="resume" class="secondary-button" hidden disabled>Tiếp tục lượt
-              này</button><button id="stop" class="stop-button" hidden disabled><span class="stop-square"
-                aria-hidden="true"></span>Dừng thu thập</button><button id="start" class="primary-button" aria-busy="false" disabled><span class="button-spinner" aria-hidden="true"></span><span id="start-label">Bắt đầu thu thập</span><svg class="icon" aria-hidden="true">
+          <div class="run-actions">
+            <button id="resume" class="secondary-button" hidden disabled>Tiếp tục lượt này</button>
+            <button id="stop" class="stop-button" hidden disabled><span class="stop-square"
+                aria-hidden="true"></span>Dừng thu thập</button>
+            <button id="start" class="primary-button" aria-busy="false" disabled>
+              <span class="button-spinner" aria-hidden="true"></span>
+              <span id="start-label">Bắt đầu thu thập</span>
+              <svg class="icon" aria-hidden="true">
                 <use href="#icon-arrow" />
-              </svg></button></div>
-        </div>
-        <p id="run-error" class="inline-error" role="alert" hidden></p>
-        <div id="run-progress" class="run-progress" hidden></div>
-        <div id="opportunity-results" hidden>
-          <p id="opportunity-summary" class="helper" aria-live="polite"></p>
-          <p id="opportunity-pending-reasons" class="helper" hidden></p>
-          <p id="opportunity-quality-rejections" class="helper" hidden></p>
-          <div class="opportunity-tabs" role="group" aria-label="Nhóm kết quả">
-            <button type="button" data-result-group="SUITABLE" class="secondary-button">Phù hợp</button>
-            <button type="button" data-result-group="NOT_SUITABLE" class="secondary-button">Không phù hợp</button>
+              </svg>
+            </button>
           </div>
-          <label class="helper" for="opportunity-type">Xem loại cơ hội trong phần xem trước</label>
-          <select id="opportunity-type" aria-label="Loại cơ hội"><option value="">Tất cả loại cơ hội</option><option value="DIRECT_NEED">Nhu cầu trực tiếp</option><option value="LATENT_PROBLEM">Vấn đề tiềm ẩn</option><option value="PERSONAL_DESIRE">Mong muốn / tâm sự</option><option value="EXPERIENCE">Trải nghiệm</option><option value="DISCUSSION">Thảo luận</option><option value="INTEREST">Sở thích</option><option value="CONTEXT">Bối cảnh liên quan</option></select>
+        </div>
+
+        <div id="run-progress" class="run-progress" hidden></div>
+
+        <div id="opportunity-results" class="opportunity-results-block" hidden>
+          <div class="opportunity-summary-bar">
+            <p id="opportunity-summary" class="helper" aria-live="polite"></p>
+            <p id="opportunity-pending-reasons" class="helper" hidden></p>
+            <p id="opportunity-quality-rejections" class="helper" hidden></p>
+          </div>
+
+          <div class="opportunity-filter-bar">
+            <div class="opportunity-tabs" role="group" aria-label="Nhóm kết quả">
+              <button type="button" data-result-group="SUITABLE" class="secondary-button">Phù hợp</button>
+              <button type="button" data-result-group="NOT_SUITABLE" class="secondary-button">Không phù hợp</button>
+            </div>
+            <div class="opportunity-type-filter">
+              <label class="helper" for="opportunity-type">Loại cơ hội:</label>
+              <select id="opportunity-type" aria-label="Loại cơ hội">
+                <option value="">Tất cả loại cơ hội</option>
+                <option value="DIRECT_NEED">Nhu cầu trực tiếp</option>
+                <option value="LATENT_PROBLEM">Vấn đề tiềm ẩn</option>
+                <option value="PERSONAL_DESIRE">Mong muốn / tâm sự</option>
+                <option value="EXPERIENCE">Trải nghiệm</option>
+                <option value="DISCUSSION">Thảo luận</option>
+                <option value="INTEREST">Sở thích</option>
+                <option value="CONTEXT">Bối cảnh liên quan</option>
+              </select>
+            </div>
+          </div>
+
           <div id="opportunity-cards" class="opportunity-cards"></div>
         </div>
+
         <div class="result-console">
           <div class="console-header">
             <div class="console-title"><svg class="icon">
                 <use href="#icon-terminal" />
-              </svg><span>KẾT QUẢ</span><span id="result-count" class="console-count">CHƯA CÓ DỮ LIỆU</span></div><span
-              id="json-label" class="json-label" hidden>.json</span>
+              </svg><span>BẢNG KẾT QUẢ THU THẬP</span><span id="result-count" class="console-count">CHƯA CÓ DỮ
+                LIỆU</span></div>
+            <span id="json-label" class="json-label" hidden>.json</span>
           </div>
-          <div id="empty-result" class="empty-result"><span class="empty-brackets" aria-hidden="true">{ }</span>
-            <p>Dữ liệu sẽ xuất hiện tại đây.</p><small>Bài viết được lưu liên tục trong lúc thu thập.</small>
+          <div id="empty-result" class="empty-result">
+            <span class="empty-brackets" aria-hidden="true">🌸</span>
+            <p>Dữ liệu thu thập sẽ xuất hiện tại đây.</p>
+            <small>Bài viết được lưu tự động và liên tục trong suốt quá trình thu thập.</small>
           </div>
           <div id="preview-wrapper" class="preview-wrapper" hidden>
             <pre id="json-preview" tabindex="0" aria-label="Xem trước bài viết"></pre>
             <p id="preview-note" class="preview-note"></p>
           </div>
-          <div class="console-footer"><button id="open-output" class="text-button" disabled>Mở thư mục kết quả <span
-                aria-hidden="true">↗</span></button><span id="output-name" class="output-name" hidden></span></div>
+          <div class="console-footer">
+            <button id="open-output" class="text-button" disabled>📂 Mở thư mục chứa kết quả <span
+                aria-hidden="true">↗</span></button>
+            <span id="output-name" class="output-name" hidden></span>
+          </div>
         </div>
+
         <div class="export-row">
-          <p id="export-description">Một file Excel. <strong>Hai trang tính.</strong><br><span>Facebook Posts + Thread
-              Posts</span></p>
-          <label id="export-scope-field" hidden>Bài muốn tải về
+          <div class="export-info">
+            <p id="export-description">Một file Excel. <strong>Hai trang tính.</strong><br><span>Facebook Posts + Thread
+                Posts</span></p>
+          </div>
+          <label id="export-scope-field" class="export-scope-box" hidden>
+            <span>Bài muốn tải về</span>
             <select id="export-scope" aria-label="Bài muốn tải về" disabled>
               <option value="CURRENT">Nhóm kết quả đang xem</option>
               <option value="ALL">Tất cả bài đã thu</option>
             </select>
           </label>
-          <div class="export-actions"><button id="export-json" class="secondary-button" disabled><span class="braces"
-                aria-hidden="true">{ }</span>Lưu dữ liệu gốc</button><button id="export-xlsx" class="export-button"
-              disabled><svg class="icon">
+          <div class="export-actions">
+            <button id="export-json" class="secondary-button export-json-btn" disabled>
+              <span class="braces" aria-hidden="true">{ }</span>Lưu dữ liệu gốc (.json)
+            </button>
+            <button id="export-xlsx" class="export-button" disabled>
+              <svg class="icon">
                 <use href="#icon-download" />
-              </svg>Tải Excel</button></div>
+              </svg>Tải file Excel (.xlsx)
+            </button>
+          </div>
         </div>
-        <p id="operation-status" class="operation-status" role="status" aria-live="polite"></p>
       </section>
     </main>
-    <footer><span><span class="footer-mark">&gt;_</span> CSD / CRAWL SOCIALS DATA</span><span>DỮ LIỆU CỦA BẠN. TRÊN MÁY
-        CỦA BẠN.</span></footer>
+
+    <footer>
+      <span><span class="footer-mark">✿</span> CSD — CRAWL SOCIALS DATA</span>
+      <span>DỮ LIỆU CỦA BẠN · AN TOÀN TRÊN MÁY CỦA BẠN</span>
+    </footer>
   </div>
 </body>
 
