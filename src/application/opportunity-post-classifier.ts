@@ -11,6 +11,7 @@ import { OPPORTUNITY_TYPES, validateOpportunityEvidence, opportunityEvidenceDeci
 import { FILTER_VERSIONS, POST_FILTER_VERSIONS } from '../shared/filter-policy.js';
 import type { ClassifyOptions, ClassificationBatchResult } from './classification-service.js';
 import { ModelGatewayError, type ModelGateway } from './ports/model-gateway.js';
+import { POST_REVIEW_FACT_CONFLICT, resolveCompletedQualityReview } from '../domain/post-review-resolution.js';
 
 export const POST_EVIDENCE_VERSION = 'opportunity-post-evidence-v1';
 const enumeration = (...values: string[]) => ({ type: 'string', enum: values });
@@ -231,8 +232,15 @@ export async function classifyOpportunityPosts(plan: CampaignPlan, snapshots: Co
   await assess(queue, false, (e, evidence) => { e.evidence = evidence; });
   const reviewQueue: typeof entries = [];
   function useReview(e: typeof entries[number], review: OpportunityEvidence) {
-    if (evidenceConflict(e.evidence!, review)) { pending(e.snapshot, Error('POST_REVIEW_FACT_CONFLICT'), e.evidence!); return; }
-    decisions.set(e.snapshot.id, opportunityEvidenceDecision(plan, e.snapshot, review, model, 'COMPLETE'));
+    const primary = e.evidence!;
+    const conflict = evidenceConflict(primary, review);
+    if (conflict && plan.filter_mode !== 'QUALITY') { pending(e.snapshot, Error(POST_REVIEW_FACT_CONFLICT), primary); return; }
+    const decision = opportunityEvidenceDecision(plan, e.snapshot, review, model, 'COMPLETE');
+    if (conflict) {
+      decisions.set(e.snapshot.id, resolveCompletedQualityReview({ ...decision, classification: null, assessment_status: 'PENDING',
+        reason_code: POST_REVIEW_FACT_CONFLICT, action_target: null,
+        attributes: { ...decision.attributes, primary_evidence_json: JSON.stringify(primary) } }));
+    } else decisions.set(e.snapshot.id, resolveCompletedQualityReview(decision));
   }
   for (const e of entries) {
     if (!e.evidence || decisions.has(e.snapshot.id)) continue;

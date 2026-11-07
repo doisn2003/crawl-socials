@@ -31,6 +31,7 @@ import { manualCollectionPlan, unassessedGateway, withFilterPolicy } from './fil
 import { postOnlyEvidenceView } from '../domain/post-only-evidence.js';
 import { createCoverageExpansion, initialDiscoveryQueries, type CoverageExpansionRequest } from './coverage-queries.js';
 import { recoverPostAssessmentJobs } from './post-assessment-recovery.js';
+import { opportunityCounts } from '../infrastructure/storage/conversation-assessment.js';
 
 export interface ConversationCollectInput {
   window: WebContents; platform: Platform; root: { id: string; url: string }; runId: string;
@@ -69,8 +70,6 @@ export interface OpportunityPipelineInput {
 }
 type Row = Record<string, unknown>;
 const safeCode = (error: unknown) => error instanceof Error && /^[A-Z][A-Z0-9_]{1,100}$/.test(error.message) ? error.message : 'PIPELINE_FAILED';
-const counts = (s: ConversationStats): OpportunityCounts => ({ raw: s.raw_unique_posts, comments: s.observed_comments, suitable: s.suitable,
-  notSuitable: s.not_yet + s.unrelated, notYet: s.not_yet, unrelated: s.unrelated, pending: s.pending, failed: s.failed });
 const emptyCounts = (): OpportunityCounts => ({ raw: 0, comments: 0, suitable: 0, notYet: 0, unrelated: 0, pending: 0, failed: 0 });
 const nullableText = (v: unknown): string | null => typeof v === 'string' && v ? v : null;
 const fatalModelCode = (code: string) => code === 'GEMINI_API_KEY_MISSING' || /^MODEL_(?:BUDGET|GLOBAL_BUDGET|SPEND|CALL_LIMIT|NOT_AUTHORIZED|AUTHENTICATION|BILLING|PERMISSION|NOT_AVAILABLE|KEY|QUOTA|DAILY_QUOTA|REQUEST_INVALID)/.test(code);
@@ -168,7 +167,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   }
   if (excludedRoots.size) for (const snapshot of await store.snapshots()) noteDelivered(snapshot.platform, snapshot.root_post_id);
   function visibleCounts(stats: ConversationStats, platform?: Platform): OpportunityCounts {
-    const value = counts(stats);
+    const value = opportunityCounts(stats);
     const excluded = [...previouslyDelivered].filter(key => !platform || key.startsWith(platform + ':')).length;
     return { ...value, pending: Math.max(0, value.pending - excluded) };
   }
@@ -215,7 +214,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
           if (excludedRoots.has(snapshot.platform + ':' + snapshot.root_post_id)) continue;
           preview.push({ platform: snapshot.platform, rootId: snapshot.root_post_id,
           classification, text: (target?.text ?? '').slice(0, 900), link: target?.permalink ?? snapshot.post?.permalink ?? '',
-          reason: String(decision.attributes?.need_summary ?? decision.reason_code),
+          reason: String(decision.attributes?.need_summary ?? decision.reason_code), reasonCode: decision.reason_code,
           opportunityTypes: String(decision.attributes?.opportunity_types ?? '').split(',').filter(Boolean), publishedAt: snapshot.post?.published_at ?? null,
           ...(decision.goal_assessment ? { conditions: goalConditions(decision) } : {}),
           evidence: snapshot.spans.filter(s => decision.evidence_ids.includes(s.id)).map(s => s.text.slice(0, 600)),
@@ -238,7 +237,9 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       const hasClassificationWork = discoveryEnded && !stopped && !modelHalted && (await classificationBacklog()).length > 0;
       const assessed = total.raw_unique_posts - total.pending;
       const projected = assessed > 0 ? Math.floor(total.suitable / assessed * runtimeLimits.effective_raw_cap) : 0;
-      progress = { ...progress, counts: visibleCounts(total), byPlatform: { facebook: visibleCounts(facebook, 'facebook'), threads: visibleCounts(threads, 'threads') }, previouslyDelivered: previouslyDelivered.size,
+      const { assessmentDetails: _priorDetails, ...priorProgress } = progress;
+      progress = { ...priorProgress, counts: visibleCounts(total), byPlatform: { facebook: visibleCounts(facebook, 'facebook'), threads: visibleCounts(threads, 'threads') }, previouslyDelivered: previouslyDelivered.size,
+        ...(!off && !previouslyDelivered.size && total.assessmentDetails ? { assessmentDetails: total.assessmentDetails } : {}),
         ...(selected ? { targetCount: selected.target.length, extraCount: selected.extra.length } : {}),
         ...(rebuild ? { shortfallWarning: !off && assessed >= 20 && projected < campaign.suitable_target
           ? `Theo tỷ lệ được model nhận hiện tại, trần bài thô có thể chỉ cho khoảng ${projected}/${campaign.suitable_target} bài. Đây chưa phải độ chính xác đã đo. Xem query chưa chạy, bài đang chờ hoặc mở rộng phạm vi trước khi tăng tiền.` : null } : {}),
@@ -672,13 +673,15 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
           const target = [snapshot.post, ...snapshot.comments].find(e => e?.entity_id === (decision.action_target?.entity_id ?? decision.goal_assessment?.candidate_entity_id)) ?? snapshot.post;
           if (excludedRoots.has(snapshot.platform + ':' + snapshot.root_post_id)) continue;
           preview.push({ platform: snapshot.platform, rootId: snapshot.root_post_id, classification, text: (target?.text ?? '').slice(0, 900), link: target?.permalink ?? snapshot.post?.permalink ?? '',
-            reason: String(decision.attributes?.need_summary ?? decision.reason_code),
+            reason: String(decision.attributes?.need_summary ?? decision.reason_code), reasonCode: decision.reason_code,
           opportunityTypes: String(decision.attributes?.opportunity_types ?? '').split(',').filter(Boolean), publishedAt: snapshot.post?.published_at ?? null, evidence: snapshot.spans.filter(span => decision.evidence_ids.includes(span.id)).map(span => span.text.slice(0, 600)),
             ...(decision.goal_assessment ? { conditions: goalConditions(decision) } : {}),
             observedAt: snapshot.observed_at, coverage: snapshot.coverage.status });
         }
       }
-      const exportedProgress: OpportunityProgress = { ...structuredClone(progress), counts: visibleCounts(exported.stats), byPlatform: { facebook: visibleCounts(exported.by_platform.facebook, 'facebook'), threads: visibleCounts(exported.by_platform.threads, 'threads') }, previouslyDelivered: previouslyDelivered.size,
+      const { assessmentDetails: _liveDetails, ...liveProgress } = structuredClone(progress);
+      const exportedProgress: OpportunityProgress = { ...liveProgress, counts: visibleCounts(exported.stats), byPlatform: { facebook: visibleCounts(exported.by_platform.facebook, 'facebook'), threads: visibleCounts(exported.by_platform.threads, 'threads') }, previouslyDelivered: previouslyDelivered.size,
+        ...(!off && !previouslyDelivered.size && exported.stats.assessmentDetails ? { assessmentDetails: exported.stats.assessmentDetails } : {}),
         watchPending: exported.watch.pending, watchNextAt: exported.watch.next_at, preview };
       const resolutionJobs = (await store.jobs()).filter(job => job.type === 'ROOT_RESOLVE');
       return { campaign, evaluation: activeEvaluation ? { source_context: activeEvaluation.manifest.source_context,

@@ -7,6 +7,8 @@ import { isAssessmentTime, validateConversationDecision, type ConversationDecisi
 import type { SourceKind } from '../../domain/conversation.js';
 import { sourcePriorityScores } from '../../domain/source-priority.js';
 import { GOAL_FILTER_VERSION } from '../../domain/goal-filter.js';
+import { presentCompletedQualityReview } from '../../domain/post-review-resolution.js';
+import { conversationAssessmentCounts, historicalQualityRejectionSql, type ConversationAssessmentCounts } from './conversation-assessment.js';
 
 export type ConversationJobType = 'DISCOVER' | 'ENRICH_CONVERSATION' | 'ROOT_RESOLVE' | 'CLASSIFY' | 'VERIFY' | 'REVISIT';
 export type ConversationJobState = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'RETRY' | 'PAUSED' | 'FAILED' | 'SUPERSEDED';
@@ -50,15 +52,7 @@ export interface ConversationStoreOptions {
   /** Test-only crash injection. A thrown callback leaves a durable event to replay on reopen. */
   afterJournalAppend?: (eventType: string) => void;
 }
-export interface ConversationStats {
-  raw_unique_posts: number;
-  observed_comments: number;
-  suitable: number;
-  not_yet: number;
-  unrelated: number;
-  pending: number;
-  failed: number;
-  stale_decisions: number;
+export interface ConversationStats extends ConversationAssessmentCounts {
   cost_usd: number;
   reserved_usd: number;
   usage_unknown: number;
@@ -436,7 +430,7 @@ export class ConversationStore {
     const params: Array<string | number> = [contextKey(context)];
     let where = ' WHERE c.context_key=?';
     if (options.platform) { where += ' AND c.platform=?'; params.push(options.platform); }
-    if (options.classification === 'NOT_SUITABLE') where += " AND d.classification IN ('NOT_SUITABLE','NOT_YET','UNRELATED')";
+    if (options.classification === 'NOT_SUITABLE') where += ` AND (d.classification IN ('NOT_SUITABLE','NOT_YET','UNRELATED') OR ${historicalQualityRejectionSql(context)})`;
     else if (options.classification) { where += ' AND d.classification=?'; params.push(options.classification); }
     if (!options.include_stale) {
       where += " AND c.snapshot_revision=roots.revision AND (json_extract(d.payload,'$.valid_until') IS NULL OR julianday(json_extract(d.payload,'$.valid_until'))>julianday(?)) AND (ar.evaluated_at IS NULL OR julianday(COALESCE(json_extract(d.payload,'$.evaluated_at'),s.observed_at))>=julianday(ar.evaluated_at))";
@@ -460,9 +454,10 @@ export class ConversationStore {
     if (!Number.isInteger(limit) || limit < 0 || !Number.isInteger(offset) || offset < 0) throw Error('INVALID_PAGINATION');
     return (this.db.prepare(sql).all(...params, limit, offset) as Row[]).map(row => {
       const snapshot = decode<ConversationSnapshot>(row.snapshot), decision = decode<ConversationDecision>(row.decision);
-      return { snapshot, decision, stale: snapshot.revision !== asNumber(row.latest_revision)
+      const stale = snapshot.revision !== asNumber(row.latest_revision)
         || Boolean(decision.valid_until && Date.parse(decision.valid_until) <= Date.parse(asOf))
-        || Boolean(row.requested_at && Date.parse(decision.evaluated_at ?? snapshot.observed_at) < Date.parse(String(row.requested_at))) };
+        || Boolean(row.requested_at && Date.parse(decision.evaluated_at ?? snapshot.observed_at) < Date.parse(String(row.requested_at)));
+      return { snapshot, decision: stale ? decision : presentCompletedQualityReview(decision), stale };
     });
   }
   decisionHistory(context: EvaluationContext): ConversationDecision[] { this.assertOpen(); return (this.db.prepare('SELECT payload FROM decisions WHERE context_key=? ORDER BY rowid').all(contextKey(context)) as Row[]).map(row => decode<ConversationDecision>(row.payload)); }
@@ -474,7 +469,9 @@ export class ConversationStore {
       const snapshots = (this.db.prepare('SELECT s.payload FROM campaign_roots cr JOIN conversations c ON c.platform=cr.platform AND c.root_post_id=cr.root_post_id JOIN snapshots s ON s.id=c.snapshot_id WHERE cr.context_key=? ORDER BY c.platform,c.root_post_id').all(key) as Row[]).map(row => decode<ConversationSnapshot>(row.payload));
       const decisionSnapshots = (this.db.prepare('SELECT DISTINCT s.id,s.payload FROM decisions d JOIN snapshots s ON s.id=d.snapshot_id WHERE d.context_key=? ORDER BY s.platform,s.root_post_id,s.revision').all(key) as Row[]).map(row => decode<ConversationSnapshot>(row.payload));
       const watermark = this.db.prepare('SELECT event_id,sequence FROM applied_events ORDER BY sequence DESC LIMIT 1').get() as Row | undefined;
-      return { context: structuredClone(context), conversations: this.results(context, { ranked: true, ...options }, capturedAt), snapshots, decisions: this.decisionHistory(context), decision_snapshots: decisionSnapshots,
+      const conversations = this.results(context, { ranked: true, ...options }, capturedAt);
+      const resolutions = conversations.map(row => row.decision).filter(d => d.attributes?.resolved_from_decision_id);
+      return { context: structuredClone(context), conversations, snapshots, decisions: [...this.decisionHistory(context), ...resolutions], decision_snapshots: decisionSnapshots,
         stats: this.stats(context, undefined, capturedAt), by_platform: { facebook: this.stats(context, 'facebook', capturedAt), threads: this.stats(context, 'threads', capturedAt) }, watch: this.watchSummary(undefined, context),
         watermark: { journal_sequence: asNumber(watermark?.sequence), journal_event_id: watermark?.event_id ? String(watermark.event_id) : null, captured_at: capturedAt } };
     });
@@ -510,23 +507,8 @@ export class ConversationStore {
     });
   }
   stats(context: EvaluationContext, platform?: SocialPlatform, asOf = this.iso()): ConversationStats {
-    this.assertOpen(); assertEvaluationContext(context);
-    const params: string[] = [asOf, contextKey(context)]; let where = 'cr.context_key=?'; if (platform) { where += ' AND cr.platform=?'; params.push(platform); }
-    const valid = "cd.snapshot_revision=r.revision AND (json_extract(d.payload,'$.valid_until') IS NULL OR julianday(json_extract(d.payload,'$.valid_until'))>julianday(clock.as_of)) AND (ar.evaluated_at IS NULL OR julianday(COALESCE(json_extract(d.payload,'$.evaluated_at'),s.observed_at))>=julianday(ar.evaluated_at))";
-    const row = this.db.prepare(`WITH clock(as_of) AS (VALUES (?)) SELECT COUNT(*) AS raw,
-      COALESCE(SUM(json_array_length(s.payload,'$.comments')),0) AS comments,
-      COALESCE(SUM(CASE WHEN d.assessment_status='ASSESSED' AND ${valid} THEN 1 ELSE 0 END),0) AS assessed,
-      COALESCE(SUM(CASE WHEN d.classification='SUITABLE' AND d.assessment_status='ASSESSED' AND ${valid} THEN 1 ELSE 0 END),0) AS suitable,
-      COALESCE(SUM(CASE WHEN d.classification='NOT_YET' AND d.assessment_status='ASSESSED' AND ${valid} THEN 1 ELSE 0 END),0) AS not_yet,
-      COALESCE(SUM(CASE WHEN d.classification IN ('UNRELATED','NOT_SUITABLE') AND d.assessment_status='ASSESSED' AND ${valid} THEN 1 ELSE 0 END),0) AS unrelated,
-      COALESCE(SUM(CASE WHEN d.assessment_status='FAILED' AND ${valid} THEN 1 ELSE 0 END),0) AS failed,
-      COALESCE(SUM(CASE WHEN cd.snapshot_revision<>r.revision OR julianday(json_extract(d.payload,'$.valid_until'))<=julianday(clock.as_of)
-        OR julianday(COALESCE(json_extract(d.payload,'$.evaluated_at'),s.observed_at))<julianday(ar.evaluated_at) THEN 1 ELSE 0 END),0) AS stale
-      FROM campaign_roots cr JOIN conversations r ON r.platform=cr.platform AND r.root_post_id=cr.root_post_id
-      JOIN snapshots s ON s.id=r.snapshot_id LEFT JOIN current_decisions cd ON cd.context_key=cr.context_key AND cd.platform=cr.platform AND cd.root_post_id=cr.root_post_id
-      LEFT JOIN decisions d ON d.id=cd.decision_id LEFT JOIN assessment_requests ar ON ar.context_key=cd.context_key AND ar.snapshot_id=d.snapshot_id CROSS JOIN clock WHERE ${where}`).get(...params) as Row;
-    const money = this.costSummary(context.campaign_id, context.campaign_version, platform);
-    return { raw_unique_posts: asNumber(row.raw), observed_comments: asNumber(row.comments), suitable: asNumber(row.suitable), not_yet: asNumber(row.not_yet), unrelated: asNumber(row.unrelated), pending: asNumber(row.raw) - asNumber(row.assessed), failed: asNumber(row.failed), stale_decisions: asNumber(row.stale), ...money };
+    this.assertOpen();
+    return { ...conversationAssessmentCounts(this.db, context, asOf, platform), ...this.costSummary(context.campaign_id, context.campaign_version, platform) };
   }
   private makeJob(input: ConversationJobInput, now = this.iso(), id: string = randomUUID()): ConversationJob {
     if (!['DISCOVER', 'ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'CLASSIFY', 'VERIFY', 'REVISIT'].includes(input.type) || !input.idempotency_key?.trim()) throw Error('INVALID_JOB');

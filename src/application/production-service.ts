@@ -25,6 +25,7 @@ import { importRetainedData, prepareRetainedImport, readRetainedImport } from '.
 import type { RetainedImportState } from './retained-data-service.js';
 import { campaignVersion, validateCampaignPlan, type CampaignPlan } from '../domain/campaign-plan.js';
 import type { CoverageExpansionRequest } from './coverage-queries.js';
+import { presentSavedAssessmentExport, restoreAssessmentProgress } from './saved-assessment-progress.js';
 
 export interface ProductionHost {
   list(): Promise<(BrowserProfile & { open: boolean; persistenceError: string | null })[]>;
@@ -109,7 +110,7 @@ export function createProductionService(input: {
     const file = join(current.outputDirectory, 'opportunity-results.json');
     const exported: unknown = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : undefined;
     assertActiveExport(current.outputDirectory, exported);
-    return exported;
+    return presentSavedAssessmentExport(exported, current.opportunity);
   }
   function pendingEvaluationProgress(current: RunState, error: string): OpportunityProgress {
     const previous = current.opportunity;
@@ -202,6 +203,7 @@ export function createProductionService(input: {
       for (const item of run.platforms) if (item.state === 'RUNNING' || item.state === 'QUEUED') { item.state = 'STOPPED'; item.reason = 'APP_INTERRUPTED'; }
       rebuildResults(); saveRun();
     }
+    restoreAssessmentProgress(run);
   }
   function accountDirectory(current: RunState, item: RunState['platforms'][number]): string {
     return current.collectionLayout === 'PROFILE_QUERY_V2' && item.profileId

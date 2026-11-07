@@ -173,16 +173,38 @@ test('Quality review is blind, corrects policy interpretation, and shares final 
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('contradictory advertising facts keep Quality and subsequent mode views pending with no paid vote', async () => {
+test('two valid conflicting readings close Quality as not suitable without a paid vote', async () => {
   const root = mkdtempSync(join(tmpdir(), 'csd-post-conflict-'));
   try {
     const mock = model((_r, call) => [fact(0, { promotion: call === 1 ? 'NO' : 'YES', flags: ['PROMOTION'] })]);
     const source = snapshot('Chia sẻ cảm nhận về cơ sở chăm sóc da'), options = { assessmentCacheDirectory: root };
     const quality = await classifyConversations(plan('QUALITY'), [source], mock.gateway, options);
-    assert.equal(quality.decisions[0]!.reason_code, 'POST_REVIEW_FACT_CONFLICT');
+    assert.equal(quality.decisions[0]!.reason_code, 'POST_QUALITY_REVIEW_CONFLICT');
+    assert.equal(quality.decisions[0]!.classification, 'NOT_SUITABLE');
+    assert.equal(quality.decisions[0]!.assessment_status, 'ASSESSED');
+    assert.equal(quality.failures.length, 0);
     const standard = await classifyConversations(plan('STANDARD'), [source], mock.gateway, options);
     assert.equal(standard.decisions[0]!.classification, null); assert.equal(mock.requests.length, 2);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('Quality closes inconclusive evidence only when a valid second reading was returned', async () => {
+  const source = snapshot('Mình muốn tìm spa chăm sóc da');
+  const first = fact(0, { topic: 'UNKNOWN', flags: ['CONTEXT'] });
+  const valid = model(() => [first]);
+  const completed = await classifyConversations(plan('QUALITY'), [source], valid.gateway);
+  assert.equal(completed.decisions[0]!.reason_code, 'POST_QUALITY_REVIEW_UNCONFIRMED');
+  assert.equal(completed.decisions[0]!.classification, 'NOT_SUITABLE');
+  assert.equal(valid.requests.length, 2);
+
+  const stopped = model((_request, call) => {
+    if (call === 2) throw new ModelGatewayError('MODEL_BUDGET_EXHAUSTED', false, null);
+    return [first];
+  });
+  const pending = await classifyConversations(plan('QUALITY'), [source], stopped.gateway);
+  assert.equal(pending.decisions[0]!.assessment_status, 'PENDING');
+  assert.equal(pending.decisions[0]!.reason_code, 'MODEL_BUDGET_EXHAUSTED');
+  assert.equal(pending.decisions[0]!.classification, null);
 });
 
 test('new recipes and historical recipes are independently pinned; OFF never invokes the classifier', async () => {

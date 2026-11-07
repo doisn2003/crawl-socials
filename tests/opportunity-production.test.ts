@@ -10,9 +10,12 @@ import { createOpportunityPipeline, type OpportunityPipeline, type OpportunityPi
 import { literalCampaign } from '../src/application/compile-campaign.js';
 import type { ModelGateway } from '../src/application/ports/model-gateway.js';
 import { ModelGatewayError } from '../src/application/ports/model-gateway.js';
-import { unassessedGateway } from '../src/application/filter-policy.js';
-import type { OpportunityProgress } from '../src/shared/production-api.js';
+import { unassessedGateway, withFilterPolicy } from '../src/application/filter-policy.js';
+import type { OpportunityProgress, RunState } from '../src/shared/production-api.js';
 import { DEFAULT_STORAGE_LIMITS } from '../src/application/storage-backpressure.js';
+import { evaluationContext } from '../src/application/evaluation-upgrade.js';
+import { createConversationStore } from '../src/infrastructure/storage/conversation-store.js';
+import { selectOpportunityExport } from '../src/infrastructure/export/opportunity-workbook.js';
 
 // Lifecycle tests start with a reviewed historical plan. Dialogue behavior is covered separately.
 function createProductionService(input: Parameters<typeof productionService>[0]) {
@@ -98,6 +101,66 @@ const lifecycleConfig = { keywords: [], minimumPosts: 1000, schemaVersion: 2, op
 function lifecycleHost(): ProductionHost {
   return { async list() { return [lifecycleProfile]; }, async sessionStatus() { return true; }, async create() { throw Error('NOT_EXPECTED'); }, async openLogin() {} };
 }
+
+test('reopening a saved Quality run closes prior completed reviews in the view and export without resuming work', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'csd-saved-quality-'));
+  const id = 'crawl-00000000-0000-4000-8000-000000000051';
+  const outputDirectory = join(directory, 'collections', id), opportunityDirectory = join(outputDirectory, 'opportunity');
+  const campaign = withFilterPolicy(literalCampaign({ campaign_id: id, prompt: 'Tìm quán cafe' }), 'QUALITY');
+  const context = evaluationContext(campaign), observedAt = '2026-11-07T12:00:00Z';
+  const store = createConversationStore(join(opportunityDirectory, 'store'));
+  let service: ReturnType<typeof productionService> | undefined;
+  try {
+    for (const [root, reason, reviewed] of [
+      ['conflict', 'POST_REVIEW_FACT_CONFLICT', false], ['reviewed', 'POST_EVIDENCE_INCOMPLETE', true],
+      ['language', 'CONTENT_LANGUAGE_UNVERIFIED', false], ['primary', 'POST_EVIDENCE_INCOMPLETE', false],
+      ['queued', null, false],
+    ] as const) {
+      const { snapshot } = store.ingest({ platform: 'threads', entity_type: 'POST', entity_id: root, root_post_id: root, parent_id: null,
+        text: 'Có quán cafe yên tĩnh không?', observed_at: observedAt, provenance: { run_id: id, method: 'TEST' } }, context);
+      if (!reason) continue;
+      store.recordDecision({ ...context, snapshot_id: snapshot!.id, assessment_status: 'PENDING', classification: null,
+        reason_code: reason, evidence_ids: [], model: 'fixture', ...(reviewed ? { attributes: { review_state: 'COMPLETE' } } : {}) });
+      const job = store.claim('fixture', { context })!;
+      assert.equal(job.payload.snapshot_id, snapshot!.id);
+      store.complete(job.id, job.lease_token!);
+    }
+    const exported = store.exportSnapshot(context);
+    const history = store.decisionHistory(context);
+    const currentRejected = store.results(context, { classification: 'NOT_SUITABLE' });
+    assert.equal(currentRejected.length, 2);
+    assert.equal(history.filter(d => d.assessment_status === 'PENDING').length, 4);
+    const pending = { raw: 5, comments: 0, suitable: 0, notYet: 0, unrelated: 0, pending: 5, failed: 0 };
+    const progress: OpportunityProgress = { campaignId: id, totalTarget: 5, threadsShare: 0.5, filterMode: 'QUALITY', counts: pending,
+      byPlatform: { threads: pending, facebook: { ...pending, raw: 0, pending: 0 } }, costUsd: 0.4, costUpperUsd: 0.4,
+      usageUnknown: 0, budgetUsd: 3, phase: 'PARTIAL', lastError: null, preview: [] };
+    const saved: RunState = { id, outputDirectory, minimumPosts: 1, keywords: ['cafe'], state: 'STOPPED', startedAt: observedAt,
+      finishedAt: '2026-11-07T12:10:00Z', preview: [], opportunity: progress,
+      platforms: [{ platform: 'threads', profileId: lifecycleProfile.id, count: 5, state: 'STOPPED', reason: 'RAW_BUDGET_REACHED' }] };
+    const archive = JSON.stringify({ ...exported, campaign, progress, decisions: history, conversations: exported.conversations.map(row => ({ ...row,
+      decision: history.find(d => d.snapshot_id === row.snapshot.id)! })) });
+    writeFileSync(join(opportunityDirectory, 'campaign.json'), JSON.stringify(campaign));
+    writeFileSync(join(outputDirectory, 'opportunity-results.json'), archive);
+    writeFileSync(join(directory, 'latest-run.json'), JSON.stringify(saved));
+    store.close();
+    const originalJournal = readFileSync(store.journalPath);
+    service = productionService({ directory, version: 'test', host: lifecycleHost(), async collect() { throw Error('UNEXPECTED_COLLECTION'); },
+      async createOpportunity() { throw Error('UNEXPECTED_FILTER'); } });
+    const restored = (await service.getState()).run!.opportunity!;
+    assert.equal(restored.counts.notSuitable, 2); assert.equal(restored.counts.pending, 3);
+    assert.equal(restored.costUsd, 0.4); assert.equal(restored.byPlatform.threads.pending, 3);
+    assert.deepEqual(restored.assessmentDetails, { queued: 1, language: 1, incomplete: 1, conflict: 0, stale: 0, failed: 0, unrecorded: 0,
+      qualityConflict: 1, qualityUnconfirmed: 1 });
+    const result = (await service.snapshotResults()).opportunity;
+    const rejected = selectOpportunityExport(result, 'NOT_SUITABLE');
+    assert.equal(rejected.conversations.length, 2);
+    assert.equal(rejected.decisions.length, 4);
+    assert.deepEqual(rejected.progress, restored);
+    assert.equal(readFileSync(join(outputDirectory, 'opportunity-results.json'), 'utf8'), archive);
+    assert.deepEqual(readFileSync(store.journalPath), originalJournal);
+  } finally { await service?.shutdown(); store.close(); rmSync(directory, { recursive: true, force: true }); }
+});
+
 function controlledPipeline(options: OpportunityPipelineInput, watch: 'off' | 'active' | 'throw' = 'off') {
   const plan = literalCampaign({ prompt: options.config.prompt, campaign_id: options.runId, suitable_target: 10, raw_cap: 30 });
   const empty = () => ({ raw: 0, comments: 0, suitable: 0, notYet: 0, unrelated: 0, pending: 0, failed: 0 });

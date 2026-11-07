@@ -206,7 +206,7 @@ function updateControls() {
   minimumPosts.closest<HTMLElement>('.field')!.hidden = true;
   modelBudget.disabled ||= currentFilter() === 'OFF';
   collectComments.disabled = true;
-  setText('filter-mode-help', { OFF: 'Lấy bài đã tìm được, chưa đánh giá; không gọi AI.', CONSISTENT: 'Tìm rộng cả bối cảnh, sở thích và cơ hội gián tiếp; loại quảng cáo và bài lạc đề.', STANDARD: 'Giữ nhu cầu, vấn đề, tâm sự, mong muốn, trải nghiệm và thảo luận liên quan.', QUALITY: 'Ưu tiên bằng chứng rõ đáp ứng mục tiêu; kiểm tra kỹ các ca dễ hiểu sai.' }[mode]);
+  setText('filter-mode-help', { OFF: 'Lấy bài đã tìm được, chưa đánh giá; không gọi AI.', CONSISTENT: 'Tìm rộng cả bối cảnh, sở thích và cơ hội gián tiếp; loại quảng cáo và bài lạc đề.', STANDARD: 'Giữ nhu cầu, vấn đề, tâm sự, mong muốn, trải nghiệm và thảo luận liên quan.', QUALITY: 'AI kiểm tra lần hai những bài cần đọc kỹ. Bài vẫn không đạt sau lượt hai được xếp Không phù hợp. Chi phí bao gồm cả hai lượt.' }[mode]);
   const money = state?.spending;
   setText('spend-status', money ? 'Đã dùng $' + money.measuredUsd.toFixed(4) + ' · Đang dự phòng/chưa rõ $' + money.heldUsd.toFixed(4) + ' · Còn $' + money.remainingUsd.toFixed(4) + ' · ' + money.calls + ' lượt gọi. Chi phí ước tính CSD, không phải hóa đơn Google.' : '');
   const config = readConfig();
@@ -347,6 +347,10 @@ const coverageLabels: Record<string, string> = {
   EXHAUSTED_VISIBLE: 'Đã đọc hết phần bình luận hiển thị', OBSERVED_EMPTY: 'Chưa thấy bình luận trong lượt đọc',
   INACCESSIBLE: 'Chưa truy cập được bình luận', RETRYABLE_ERROR: 'Chờ đọc lại bình luận'
 };
+const reviewedRejectionLabels: Record<string, string> = {
+  POST_QUALITY_REVIEW_CONFLICT: 'Không phù hợp vì hai lượt AI đưa ra đánh giá mâu thuẫn.',
+  POST_QUALITY_REVIEW_UNCONFIRMED: 'Không phù hợp vì lượt kiểm tra lại chưa đủ căn cứ xác nhận.',
+};
 function createProgress(platform: PlatformRun, target: number, refined = false, global = false): HTMLElement {
   const card = document.createElement('div'); card.className = 'progress-card';
   const top = document.createElement('div'); top.className = 'progress-top';
@@ -418,18 +422,37 @@ function renderOpportunities() {
   element('export-scope-field').hidden = !opportunity || opportunity.filterMode === 'OFF';
   const all = opportunity?.filterMode === 'OFF' || element<HTMLSelectElement>('export-scope').value === 'ALL';
   const groupNames = { SUITABLE: 'Phù hợp', NOT_SUITABLE: 'Không phù hợp' };
-  setText('export-description', opportunity ? (all ? 'Tất cả bài đã thu, gồm cả bài đang chờ lọc.' : 'Nhóm ' + groupNames[resultGroup] + ' đang xem.')
+  setText('export-description', opportunity ? (all ? (opportunity.filterMode === 'OFF' ? 'Tất cả bài đã thu ở chế độ không lọc.' : 'Tất cả bài đã thu, gồm cả bài chưa có kết luận.') : 'Nhóm ' + groupNames[resultGroup] + ' đang xem.')
     + ' Bản tải về ghi loại cơ hội và ngày đăng khi có dữ liệu.' : 'Tải bài viết từ Facebook và Threads về một file Excel.');
   if (!opportunity) return;
   element('preview-wrapper').hidden = true; element('empty-result').hidden = true;
   const counts = opportunity.counts;
   setText('result-count', number(opportunity.targetCount ?? counts.suitable) + ' / ' + number(opportunity.totalTarget) + (opportunity.filterMode === 'OFF' ? ' BÀI CHƯA ĐÁNH GIÁ' : ' BÀI ĐƯỢC NHẬN'));
-  setText('opportunity-summary', number(counts.raw) + ' bài đã tìm · ' + number(counts.comments) + ' bình luận · ' + number(counts.pending) + (opportunity.filterMode === 'OFF' ? ' bài chưa đánh giá' : ' bài chưa kiểm tra') + ' · Chi phí $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2)
+  setText('opportunity-summary', number(counts.raw) + ' bài đã tìm · ' + number(counts.comments) + ' bình luận'
+    + (counts.pending ? ' · ' + number(counts.pending) + (opportunity.filterMode === 'OFF' ? ' bài chưa đánh giá' : ' bài chưa có kết luận') : '')
+    + ' · Chi phí $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2)
     + (opportunity.resultPolicy === 'GLOBAL_FIRST_QUALIFIED' || opportunity.evaluationPolicy === 'GOAL_EVIDENCE' ? '' : ' · Kết quả cũ: cần lọc lại để áp dụng cách đánh giá mới.'));
   if (opportunity.previouslyDelivered) element('opportunity-summary').textContent += ' · ' + number(opportunity.previouslyDelivered) + ' bài đã giao trước đây (không tính lại)';
   if (opportunity.shortfallWarning) element('opportunity-summary').textContent += ' · Có thể chưa tìm đủ số bài phù hợp bạn muốn nhận.';
   if (opportunity.extraCount) element('opportunity-summary').textContent += ' · ' + number(opportunity.extraCount) + ' bài dư ngoài chỉ tiêu (xem trong bản xuất tất cả)';
   if (opportunity.phase === 'MODEL_PAUSED') element('opportunity-summary').append(document.createTextNode(' · Đã tạm dừng lọc. ' + reasonText(opportunity.lastError)));
+  const detail = opportunity.assessmentDetails;
+  const pendingReasons: Array<[number, string]> = detail ? [
+    [detail.queued, active() && opportunity.phase !== 'MODEL_PAUSED' ? 'bài đang lọc hoặc chờ lượt lọc' : 'bài còn trong hàng chờ lọc'],
+    [detail.language, 'bài chưa xác nhận được tiếng Việt'],
+    [detail.incomplete, 'bài AI đã đọc nhưng thiếu căn cứ'],
+    [detail.conflict, 'bài AI đã đọc nhưng các lượt chưa thống nhất'],
+    [detail.stale, 'bài có kết quả cũ cần đánh giá lại'],
+    [detail.failed, 'bài chưa có kết quả do lỗi lọc'],
+    [detail.unrecorded, 'bài chưa có kết quả lọc hợp lệ'],
+  ] : [];
+  const pendingNote = pendingReasons.filter(([count]) => count > 0).map(([count, label]) => number(count) + ' ' + label).join(' · ');
+  const qualityNote = [detail?.qualityConflict ? number(detail.qualityConflict) + ' bài vì hai lượt đánh giá mâu thuẫn' : '',
+    detail?.qualityUnconfirmed ? number(detail.qualityUnconfirmed) + ' bài vì lượt hai chưa đủ căn cứ nhận' : ''].filter(Boolean).join(' · ');
+  element('opportunity-pending-reasons').hidden = !pendingNote;
+  setText('opportunity-pending-reasons', pendingNote);
+  element('opportunity-quality-rejections').hidden = !qualityNote;
+  setText('opportunity-quality-rejections', qualityNote ? 'Đã loại sau hai lượt QUALITY · ' + qualityNote : '');
   const retained = state?.run?.mode === 'RETAINED' ? state.run.retained : undefined;
   const importProgress = retained && retained.status !== 'IMPORTED'
     ? 'Đã đọc ' + number(retained.importedObservations) + '/' + number(retained.totalObservations) + ' nội dung. ' : '';
@@ -463,7 +486,8 @@ function renderOpportunities() {
   const cards = opportunity.preview.filter(result => !typeFilter || result.opportunityTypes?.includes(typeFilter)).filter(result => opportunity.filterMode === 'OFF' ? result.classification === 'UNASSESSED'
     : result.classification !== 'UNASSESSED' && (result.classification === 'SUITABLE' ? 'SUITABLE' : 'NOT_SUITABLE') === resultGroup).slice(0, 20).map(result => {
     const card = document.createElement('article'); card.className = 'opportunity-card';
-    const meta = document.createElement('small'); meta.textContent = [platformNames[result.platform], ...(result.opportunityTypes ?? []).map(t => opportunityNames[t] ?? t), result.reason, result.publishedAt ? 'Đăng ' + new Date(result.publishedAt).toLocaleDateString('vi-VN') : '', coverageLabels[result.coverage]].filter(Boolean).join(' · ');
+    const meta = document.createElement('small'); meta.textContent = [platformNames[result.platform], ...(result.opportunityTypes ?? []).map(t => opportunityNames[t] ?? t),
+      reviewedRejectionLabels[result.reasonCode ?? ''] ?? result.reason, result.publishedAt ? 'Đăng ' + new Date(result.publishedAt).toLocaleDateString('vi-VN') : '', coverageLabels[result.coverage]].filter(Boolean).join(' · ');
     const text = document.createElement('p'); text.textContent = result.text;
     card.append(meta, text);
     if (result.conditions?.length) {

@@ -20,10 +20,15 @@ export interface PlatformRun {
 }
 export interface PostPreview { platform: Platform; post_id: string; text: string; query: string; link: string; }
 export interface OpportunityCounts { raw: number; comments: number; suitable: number; notSuitable?: number; /** Legacy count fields retained for historical runs. */ notYet: number; unrelated: number; pending: number; failed: number; }
+export interface OpportunityAssessmentDetails {
+  queued: number; language: number; incomplete: number; conflict: number; stale: number; failed: number; unrecorded: number;
+  qualityConflict: number; qualityUnconfirmed: number;
+}
 export interface OpportunityPreview {
   platform: Platform; rootId: string; /** UNASSESSED is an operational status, never a filter verdict. */
   classification: 'SUITABLE' | 'NOT_SUITABLE' | 'NOT_YET' | 'UNRELATED' | 'UNASSESSED';
   text: string; link: string; reason: string; evidence: string[]; observedAt: string; coverage: string;
+  reasonCode?: string;
   opportunityTypes?: string[]; publishedAt?: string | null;
   conditions?: { label: string; status: 'PASS' | 'FAIL' | 'UNKNOWN'; evidence: string[] }[];
 }
@@ -34,6 +39,7 @@ export interface OpportunityProgress {
   shortfallWarning?: string | null;
   campaignId: string; totalTarget: number; threadsShare: number;
   counts: OpportunityCounts; byPlatform: Record<Platform, OpportunityCounts>;
+  assessmentDetails?: OpportunityAssessmentDetails;
   costUsd: number; costUpperUsd: number; usageUnknown: number; budgetUsd: number;
   phase: string; lastError: string | null; preview: OpportunityPreview[];
   evaluationPolicy?: 'GOAL_EVIDENCE' | 'LEGACY';
