@@ -1,5 +1,10 @@
 # CSD — current development instructions
 
+## Official development baseline — 2026-11-07
+
+- The user approved `production-v2` at `7527f17` as the official CSD baseline and requested its merge into `main`. Base future upgrades on `main` and integrate them there. This supersedes earlier branch guidance.
+- Use the [production v2 plan](.brain/master-plans_restructor_version2.0.0.md) and [implementation report](.brain/reports/csd-production-v2-20261106.md) as the baseline references. Prior experiment branches and spending envelopes remain historical.
+
 ## Completed Hà Giang keyword probe — 2026-11-07
 
 - User authorized current-module prompt planning/expansion only: Gemini 3.1 Flash-Lite, maximum 10 calls / USD 0.20 including repairs. No social crawl was performed.
@@ -38,10 +43,8 @@
 - Expand search across many families; multi-hour runs are accepted. Initial posts have no age limit; geography is a preference. Monthly new means never previously delivered to the customer, including older newly discovered posts.
 - New work is POST_ONLY. Keep historical evidence and recipes readable. The abandoned Quality v2 candidate is excluded from implementation and comparison.
 - Coding and tests use mocks/local data and **zero paid calls**. The completed 2026-11-06 planner probe closed DEVELOPMENT at 1,150 calls / USD 1.458132801 measured / zero held. Preserve this ledger; implementation authorization does not reopen it.
-- Preserve production's newer fixes. Work in isolated data; no live crawl or production AppData writers during regression tests. Commit reviewable changes on production-v2; no production promotion implied.
+- Preserve production's newer fixes. Run regressions with isolated local data and mocked collection.
 
-For production-v2, the master plan above and its implementation report
-[production-v2 report](.brain/reports/csd-production-v2-20261106.md) take precedence.
 The sections below preserve historical baseline context from
 [ADR-025](.brain/decisions/ADR-025-cost-controlled-csd-rebuild.md), agreed on 2026-11-03. Older dispatch, autonomous-run and spending instructions
 inside historical `.brain` sections are not current authorization.
@@ -151,8 +154,7 @@ inside historical `.brain` sections are not current authorization.
   results to `codex/csd-production`. Its release baseline is rebuild.5.3 from
   `16f61c2`, including prior rebuild dependencies; R11 QUALITY v2 is excluded.
   This is explicit release authorization, not promotion based solely on tests.
-- `codex/csd-rebuild` is the new integration branch, based on the fixed RC7 tag.
-  Create short-lived `codex/csd-rN-*` branches per milestone when work starts.
+- `codex/csd-rebuild` was the integration branch based on the fixed RC7 tag.
 - Existing `codex/csd-next`, `codex/ai-foundation`, `codex/crawl-throughput` and
   production branches retain their checkpoints. Do not merge their old behavior
   into the rebuild automatically.

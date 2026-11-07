@@ -1,5 +1,9 @@
 # Bộ nhớ làm việc của CSD
 
+**Nền phát triển chính thức từ 07/11/2026.** Người dùng đã chốt `production-v2` tại `7527f17` và chọn `main` làm gốc cho các nâng cấp tiếp theo. Xem [kế hoạch v2](master-plans_restructor_version2.0.0.md), [báo cáo triển khai](reports/csd-production-v2-20261106.md) và [hướng dẫn phát triển](../AGENTS.md).
+
+## Các mốc lịch sử
+
 **Checkpoint baseline, 01/11/2026:** người dùng đã yêu cầu commit/push để chuyển chat. Runtime/tests/benchmark RC4 được giữ tại cee0e8b, tiện ích Excel tại 0689653; tài liệu hiện hành được checkpoint riêng. Check kiểu và 889/889 tests PASS. Remote origin: https://github.com/doisn2003/crawl-socials.git. Các ghi nhận chưa commit trong tài liệu nghiên cứu là trạng thái lịch sử trước checkpoint. Chưa merge main hoặc triển khai kiến trúc mới; tiếp tục đọc tài liệu bàn giao để thảo luận.
 
 **Bổ sung yêu cầu, 01/11/2026:** [tài liệu bàn giao](../some-problems-in-this-branch.md) đã bổ sung vòng LLM hỏi–đáp làm rõ nhu cầu (4.4), thư viện cấu hình/version và vòng đời dữ liệu, gộp chống trùng/tái lọc (10), cùng điều khiển/quyền API theo gói, backup/download từ xa và phương án SQLite + Supabase/PostgreSQL + object storage (11). Đây là yêu cầu và đề xuất để bàn ở chat mới; chưa chọn cloud, triển khai hoặc tải dữ liệu lên mạng. Nội dung bàn giao cập nhật ở mục 13.
@@ -8,7 +12,7 @@
 
 **Tạm dừng theo yêu cầu người dùng 31/10/2026.** Đã hoàn tất kiểm tra offline và [báo cáo tiến độ sau lượt tai nghe](reports/csd-progress-review-2026-10-31.md); chờ quyết định tiếp tục/chuyển hướng. Lượt thu đã dừng, không còn process/watch. Không tự mở chiến dịch mới, khởi động jobs cũ hoặc phát triển thêm tính năng.
 
-**Hiện hành từ 29/10/2026: người dùng đã chọn `codex/csd-production` để phát triển CSD tiếp.** Đây là luồng dùng thật cho Facebook và Threads, không còn UI offline/bootstrap/probe hoặc dữ liệu mẫu trong gói phát hành.
+**Mốc 29/10/2026.** Người dùng đã chọn `codex/csd-production` để phát triển luồng sử dụng thật cho Facebook và Threads.
 
 Đọc theo thứ tự:
 
@@ -23,11 +27,11 @@ Nâng cấp được chốt ngày 30/10/2026: vừa thu thập vừa lưu raw v�
 
 Chế độ thu thô legacy giữ mục tiêu riêng mỗi mạng. **Mục tiêu nâng cấp được người dùng sửa ngày 30/10/2026: 1.000 bài tinh TỔNG Facebook + Threads, ưu tiên Threads:Facebook 8:2 hoặc 7:3; thử nghiệm tìm quán cafe.** Không tiếp tục yêu cầu 1.000 mỗi mạng. Cấu hình tự lưu khi blur. Chỉ tài khoản đăng nhập mới được chọn. Phiên giữ trên máy qua restart nhưng vẫn phụ thuộc thời hạn/thu hồi của nền tảng. Không hỏi lại các lựa chọn này.
 
-Các tài liệu 1.x, `branch_plan.md`, `agent_handoff_prompt.md`, `collector-continuation-prompt.md`, handoff/dispatch và các gate thử nghiệm cũ là **lịch sử**, không là lệnh chạy hiện hành. Khi mâu thuẫn, ADR-021 và phần hiện hành của master plan được ưu tiên. Không khởi động lại automation/worker cũ. Không quay về main/nhánh thử để làm nền phát triển.
+Các tài liệu 1.x, `branch_plan.md`, `agent_handoff_prompt.md`, `collector-continuation-prompt.md`, handoff/dispatch và các gate thử nghiệm cũ là tài liệu lịch sử. Chỉ dẫn hiện hành về nhánh và chạy thử nằm trong [AGENTS.md](../AGENTS.md).
 
 Bộ thu hiện tại kế thừa [Facebook collector ADR-019](decisions/ADR-019-automatic-facebook-collector.md) và [Threads ADR-020](decisions/ADR-020-threads-collector.md). Kết quả lịch sử: Facebook 1.156 link mới; Threads 1.004 post. Đây là bằng chứng thu thô, không tự chứng minh mọi bài đạt tiêu chí nội dung.
 
-`master_plan.md` giữ trạng thái hiện hành duy nhất. `decisions/` giữ quyết định; `evidence/` giữ kiểm chứng; tài liệu cũ giữ nguồn gốc kỹ thuật. Không lưu dữ liệu bài thô, cookie, token, mật khẩu hoặc profile vào `.brain`. Kiểm thử developer vẫn được giữ ngoài gói sản phẩm, không phải chế độ người dùng.
+`master_plan.md` ghi các mốc triển khai trước v2. Thư mục `decisions/` lưu quyết định và `evidence/` lưu bằng chứng kiểm chứng. Dữ liệu bài thô, cookie, token, mật khẩu và profile nằm ngoài `.brain`. Kiểm thử dành cho lập trình viên nằm ngoài gói sản phẩm.
 
 Tính năng 0.2.1: [Make it cooler](evidence/make-it-cooler-2026-10-29.md) — toggle terminal trang trí, hai tiến độ thật Facebook + Threads theo xác nhận của người dùng.
 

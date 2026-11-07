@@ -14,7 +14,7 @@ CSD nhận chủ đề từ prompt, chẳng hạn tìm dịch vụ sửa đàn, 
 
 ## Nhánh phát triển được chọn
 
-Từ ngày **29/10/2026**, người dùng chọn **`codex/csd-production`** làm nền phát triển tiếp theo. Bản này kế thừa bộ thu Facebook/Threads hiện có và thay màn hình PoC bằng luồng sử dụng thật. Xem [.brain/decisions/ADR-021-production-branch.md](.brain/decisions/ADR-021-production-branch.md). Các kế hoạch thử nghiệm cũ được giữ làm lịch sử, không còn điều khiển ứng dụng.
+Từ ngày **07/11/2026**, **`main`** là nhánh phát triển chính thức của CSD. Các nâng cấp tiếp theo bắt đầu từ `main`, với nền là phiên bản người dùng đã chốt trên `production-v2` tại `7527f17`. Xem [kế hoạch v2](.brain/master-plans_restructor_version2.0.0.md) và [báo cáo triển khai](.brain/reports/csd-production-v2-20261106.md).
 
 ## Chạy ứng dụng
 
