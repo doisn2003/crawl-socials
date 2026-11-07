@@ -10,6 +10,10 @@ import { OPPORTUNITY_PLANNER_POLICY, DISCOVERY_FAMILIES, DISCOVERY_VERSION, MAX_
 import { modelRequest as discoveryRequest, validateResult as validateDiscoveryResult } from '../domain/opportunity-keywords.mjs';
 import { MAX_RESULT_TARGET, MAX_RAW_POSTS } from '../shared/collection-limits.js';
 
+// A wire-level reminder enforces the existing source/revision contract without
+// changing pinned semantic recipes or rewriting recorded model responses.
+const DISCOVERY_WIRE_EVIDENCE = '\nSource boundary: PROMPT and nonempty CONTEXT are literal user data fields in the input JSON, not names for these system instructions. If CONTEXT is null, never cite CONTEXT. Product-policy defaults (market research, participation, advertisement exclusions) are not user quotations: leave unsupported intent fields UNSPECIFIED with evidence [] and a neutral Vietnamese value. Preserve roles and subjects actually requested in PROMPT. intent_revision must equal the input revision exactly, including during validation repair; a formatting retry never increments it. Return all labels, explanations and query text in Vietnamese.';
+
 /** Project a validated intent into the CSD campaign/storage contract. */
 export function semanticCampaign(input: CampaignPlanInput, intent: IntentInput, plan: IntentPlan): CampaignPlan {
   if (plan.state !== 'READY' || plan.unresolved_fields.length || plan.uncovered.length) throw Error('CAMPAIGN_INTENT_UNRESOLVED');
@@ -88,8 +92,11 @@ export async function compileSemanticTurn(input: CampaignPlanInput, intent: Inte
     const request = (discovery ? discoveryRequest : modelRequest)('B', { ...intent,
       ...(discovery ? { discovery_target: input.suitable_target ?? 1000 } : {}), ...(repair ? { validation_repair: repair } : {}) }, {});
     // Transport/auth/budget failures are not semantic retries.
-    const result = await gateway.generateJson({ purpose: discovery ? 'campaign-planner-v3.0.0-opportunity-coverage' : 'campaign-planner-v2.0.0-semantic-dialogue', system: request.system,
-      schema: request.schema, input: request.input, max_output_tokens: request.maxOutputTokens,
+    const result = await gateway.generateJson({ purpose: discovery ? 'campaign-planner-v3.0.0-opportunity-coverage' : 'campaign-planner-v2.0.0-semantic-dialogue',
+      system: request.system + (discovery ? DISCOVERY_WIRE_EVIDENCE : ''),
+      schema: discovery ? { ...request.schema, properties: { ...(request.schema.properties as Record<string, unknown>),
+        intent_revision: { type: 'integer', enum: [intent.revision] } } } : request.schema,
+      input: request.input, max_output_tokens: request.maxOutputTokens,
       ...(options.cacheNamespace ? { cache_namespace: options.cacheNamespace } : {}),
       ...(options.signal ? { signal: options.signal } : {}) });
     let plan: IntentPlan, campaign: CampaignPlan | null;

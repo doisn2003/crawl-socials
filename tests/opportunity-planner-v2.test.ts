@@ -232,6 +232,10 @@ test('policy-as-user evidence is rejected and repair preserves explicitly reques
   assert.match(repair.instruction, /Do not erase a role the user explicitly requested/);
   assert.equal((requests[1]!.input as any).CONTEXT, null);
   assert.equal((requests[1]!.input as any).PROMPT, i.prompt);
+  for (const request of requests) {
+    assert.deepEqual((request.schema as any).properties.intent_revision, { type: 'integer', enum: [i.revision] });
+    assert.match(request.system, /If CONTEXT is null, never cite CONTEXT/);
+  }
   assert.deepEqual(result.campaign.audience, valid.target_roles);
   assert.deepEqual(result.campaign.exclusions, []);
 });
