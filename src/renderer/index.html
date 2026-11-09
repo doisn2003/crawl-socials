@@ -108,13 +108,22 @@
 
     <main>
       <section class="intro" aria-labelledby="page-title">
-        <div class="intro-main">
-          <p class="eyebrow">✨ TRỢ LÝ AI THÔNG MINH · FACEBOOK &amp; THREADS</p>
-          <h1 id="page-title">Thu thập dữ liệu.<br><span>Mạng xã hội thật dễ dàng.</span><span class="cursor"
-              aria-hidden="true">✿</span>
-          </h1>
-          <p class="intro-copy">Chỉ cần mô tả điều bạn muốn tìm bằng lời tự nhiên.<br>AI sẽ tự lọc bài viết phù hợp và
-            xuất ra file Excel gọn đẹp cho bạn.</p>
+        <div class="intro-main project-manager">
+          <div class="project-heading">
+            <div><p class="eyebrow">KHÔNG GIAN LÀM VIỆC CỦA BẠN</p><h1 id="page-title">Projects</h1></div>
+            <button id="project-create" class="secondary-button" type="button" disabled>+ Tạo project</button>
+          </div>
+          <p class="helper">Mỗi project lưu riêng yêu cầu, cấu hình và kết quả thu thập.</p>
+          <div id="project-list" class="project-list" aria-label="Danh sách project"><p class="helper">Đang tải projects…</p></div>
+          <div class="project-account">
+            <div><strong id="project-account-name">Làm việc trên máy này</strong><p id="project-backup-status" class="helper" role="status" aria-live="polite"></p></div>
+            <div class="project-actions">
+              <button id="project-sync" class="text-button" type="button" hidden>Sao lưu ngay</button>
+              <button id="project-auth-open" class="secondary-button" type="button" disabled>Đăng nhập / Đăng ký</button>
+              <button id="project-logout" class="text-button" type="button" hidden>Đăng xuất</button>
+            </div>
+          </div>
+          <p id="project-message" class="helper" role="status" aria-live="polite" hidden></p>
         </div>
         <div class="intro-aside">
           <div class="intro-stat-card">
@@ -133,6 +142,36 @@
           </div>
         </div>
       </section>
+
+      <dialog id="project-editor" class="project-dialog" aria-labelledby="project-editor-title">
+        <form id="project-editor-form">
+          <h2 id="project-editor-title">Tạo project</h2>
+          <label for="project-name">Tên project</label>
+          <input id="project-name" type="text" maxlength="200" required autocomplete="off">
+          <label for="project-avatar-file">Ảnh đại diện</label>
+          <div class="project-avatar-editor"><img id="project-avatar-preview" class="project-avatar" alt="Ảnh đại diện project" hidden><input id="project-avatar-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></div>
+          <button id="project-avatar-remove" class="text-button" type="button">Bỏ ảnh</button>
+          <p class="helper">PNG, JPEG, WebP hoặc GIF, tối đa 2 MB.</p>
+          <div class="project-dialog-actions"><button id="project-editor-cancel" class="text-button" type="button">Hủy</button><button id="project-editor-save" class="primary-button" type="submit">Lưu project</button></div>
+          <p id="project-editor-error" class="project-form-error" role="alert" hidden></p>
+        </form>
+      </dialog>
+      <dialog id="project-delete-dialog" class="project-dialog" aria-labelledby="project-delete-title">
+        <h2 id="project-delete-title">Xóa project</h2>
+        <p id="project-delete-description"></p>
+        <div class="project-dialog-actions"><button id="project-delete-cancel" class="text-button" type="button">Hủy</button><button id="project-delete-confirm" class="secondary-button" type="button">Xóa project</button></div>
+        <p id="project-delete-error" class="project-form-error" role="alert" hidden></p>
+      </dialog>
+      <dialog id="project-auth-dialog" class="project-dialog" aria-labelledby="project-auth-title">
+        <form id="project-auth-form">
+          <h2 id="project-auth-title">Tài khoản CSD</h2>
+          <p class="helper">Đăng nhập để lấy projects đã sao lưu về máy này và tiếp tục làm việc.</p>
+          <label for="project-username">Tên đăng nhập</label><input id="project-username" type="text" required autocomplete="username">
+          <label for="project-password">Mật khẩu</label><input id="project-password" type="password" required autocomplete="current-password">
+          <div class="project-dialog-actions"><button id="project-auth-cancel" class="text-button" type="button">Hủy</button><button id="project-register" class="secondary-button" type="submit" value="register">Đăng ký</button><button id="project-login" class="primary-button" type="submit" value="login">Đăng nhập</button></div>
+          <p id="project-auth-error" class="project-form-error" role="alert" hidden></p>
+        </form>
+      </dialog>
 
       <!-- KHỐI 01: YÊU CẦU CỦA BẠN -->
       <section class="panel config-panel" aria-labelledby="config-heading">

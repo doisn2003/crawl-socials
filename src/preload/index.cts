@@ -1,6 +1,17 @@
 import type { ProductionApi, UserConfig, Platform } from '../shared/production-api.js';
 const { contextBridge, ipcRenderer } = require('electron') as typeof import('electron');
 const api: ProductionApi = Object.freeze({
+  projects: Object.freeze({
+    state: () => ipcRenderer.invoke('csd:projects:state'),
+    create: (input: Parameters<ProductionApi['projects']['create']>[0]) => ipcRenderer.invoke('csd:projects:create', input),
+    update: (input: Parameters<ProductionApi['projects']['update']>[0]) => ipcRenderer.invoke('csd:projects:update', input),
+    remove: (input: { id: string }) => ipcRenderer.invoke('csd:projects:remove', input),
+    select: (input: { id: string }) => ipcRenderer.invoke('csd:projects:select', input),
+    register: (input: { username: string; password: string }) => ipcRenderer.invoke('csd:projects:register', input),
+    login: (input: { username: string; password: string }) => ipcRenderer.invoke('csd:projects:login', input),
+    logout: () => ipcRenderer.invoke('csd:projects:logout'),
+    sync: () => ipcRenderer.invoke('csd:projects:sync'),
+  }),
   discoveryWatch: Object.freeze({
     list: () => ipcRenderer.invoke('csd:discovery:list'),
     create: (input: Parameters<ProductionApi['discoveryWatch']['create']>[0]) => ipcRenderer.invoke('csd:discovery:create', input),

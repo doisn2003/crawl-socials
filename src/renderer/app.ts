@@ -7,6 +7,7 @@ import { FILTER_MODES, filterModeAtPercent, type FilterMode } from '../shared/fi
 import { MAX_RESULT_TARGET, MAX_RAW_POSTS, MAX_SEARCH_QUERIES, DEFAULT_RAW_CAP } from '../shared/collection-limits.js';
 import { bindDiscoveryWatch } from './discovery-watch.js';
 import { planAndStart } from './start-workflow.js';
+import { bindProjectManager } from './project-manager.js';
 
 declare global { interface Window { readonly csd: ProductionApi; } }
 
@@ -54,6 +55,7 @@ let stateEpoch = 0;
 let lastRunKey = '';
 let startPhase: 'IDLE' | 'SAVING' | 'PLANNING' | 'STARTING' = 'IDLE';
 let pendingStart: string | null = null;
+let projectUi: ReturnType<typeof bindProjectManager> | undefined;
 
 const opportunityNames: Record<string, string> = { DIRECT_NEED: 'Nhu cầu trực tiếp', LATENT_PROBLEM: 'Vấn đề tiềm ẩn', PERSONAL_DESIRE: 'Mong muốn / tâm sự', EXPERIENCE: 'Trải nghiệm', DISCUSSION: 'Thảo luận', INTEREST: 'Sở thích', CONTEXT: 'Bối cảnh liên quan' };
 const number = (value: number) => value.toLocaleString('vi-VN');
@@ -305,6 +307,7 @@ function updateControls() {
     : !selected.length ? 'Đăng nhập rồi tick chọn nguồn để bắt đầu thu thập.'
       : 'Sẵn sàng thu tối thiểu ' + number(config.minimumPosts) + ' bài cho mỗi mạng được chọn.');
   planner.render();
+  projectUi?.render();
 }
 
 function savedQueryPlans() {
@@ -555,6 +558,12 @@ function renderOpportunities() {
       reviewedRejectionLabels[result.reasonCode ?? ''] ?? result.reason, result.publishedAt ? 'Đăng ' + new Date(result.publishedAt).toLocaleDateString('vi-VN') : '', coverageLabels[result.coverage]].filter(Boolean).join(' · ');
     const text = document.createElement('p'); text.textContent = result.text;
     card.append(meta, text);
+    if (result.previouslyCollected) {
+      const badge = document.createElement('span'); badge.className = 'previously-collected';
+      badge.textContent = 'Đã thu thập trước đó';
+      if (result.assessmentReused) badge.textContent += ' · Dùng kết quả đã lưu' + (result.assessmentSourceMode ? ' (' + result.assessmentSourceMode + ')' : '');
+      card.append(badge);
+    }
     if (result.conditions?.length) {
       const details = document.createElement('details'), summary = document.createElement('summary'); summary.textContent = 'Vì sao có kết quả này?'; details.append(summary);
       const statusNames = { PASS: 'Đạt', FAIL: 'Không đạt', UNKNOWN: 'Chưa rõ' };
@@ -588,7 +597,7 @@ function applyState(next: ProductionState, replaceConfig = false) {
       if (platform.profileId) { selectedProfiles.set(platform.platform, platform.profileId); selectedProfileIds.add(platform.profileId); selectedSources.add(platform.platform); }
     }
   }
-  renderAccounts(); renderRun(); updateControls(); void discoveryUi.refresh();
+  renderAccounts(); renderRun(); updateControls(); void discoveryUi.refresh(); void projectUi?.refresh();
   if (next.campaignDraftError && !commandPending) operation(friendlyError(next.campaignDraftError.code, 'Chưa lập được kế hoạch. Hãy thử lại.'), true);
 }
 async function refresh() {
@@ -672,6 +681,42 @@ const planner = createCampaignPlanner({
       try { applyState(await window.csd.getState()); } catch { /* Keep edits and the original operation error. */ }
     } finally { startPhase = 'IDLE'; commandPending = false; updateControls(); }
   },
+});
+projectUi = bindProjectManager(window.csd.projects, {
+  busy: () => !connected || active() || commandPending || savePending > 0 || exportPending || loginPending.size > 0 || !!state?.campaignDraftPreparing,
+  execute: async work => {
+    if (planner.hasUnsavedEdits()) throw Error('PROJECT_UNSAVED_PLAN');
+    commandPending = true; stateEpoch++; updateControls();
+    let workStarted = false;
+    const reloadProject = async (projectId: string) => {
+      if (projectId !== projectUi?.activeProjectId()) {
+        initialized = false; lastRunKey = ''; pendingStart = null;
+        selectedProfiles.clear(); selectedProfileIds.clear(); selectedSources.clear();
+        discoveryUi.reset();
+        resultGroup = 'SUITABLE'; element<HTMLSelectElement>('opportunity-type').value = '';
+      }
+      applyState(await window.csd.getState(), true);
+    };
+    try {
+      if (configDirty && !await saveConfiguration()) throw Error('PROJECT_UNSAVED_CONFIG');
+      workStarted = true;
+      const next = await work();
+      await reloadProject(next.activeProjectId);
+      return next;
+    } catch (error) {
+      if (workStarted) {
+        try {
+          const current = await window.csd.projects.state();
+          if (current.activeProjectId !== projectUi?.activeProjectId()) await reloadProject(current.activeProjectId);
+        } catch { /* The next state refresh retries after a transport failure. */ }
+      }
+      throw error;
+    } finally { commandPending = false; updateControls(); }
+  },
+});
+document.querySelector('.project-manager')!.addEventListener('mousedown', event => {
+  if ((event as MouseEvent).button === 0 && (event.target as Element).closest('button')
+    && [keywords, minimumPosts, performanceMode, ...intentInputs].some(input => document.activeElement === input)) event.preventDefault();
 });
 for (const input of [keywords, minimumPosts, performanceMode, ...intentInputs]) {
   input.addEventListener('input', configChanged);

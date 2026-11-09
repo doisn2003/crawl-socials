@@ -1,10 +1,11 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, powerMonitor, session, shell } from 'electron';
-import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { createDiscoveryStore, exportDigest } from '../infrastructure/storage/discovery-store.js';
 import { createDiscoveryWatch } from '../application/discovery-watch.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { createProjectWorkspace } from '../infrastructure/projects/workspace.js';
 import { runtimePaths } from '../infrastructure/config/runtime-paths.js';
 import { createBrowserProfiles } from '../infrastructure/browser/profile-repository.js';
 import { sharedWindows } from '../application/window-scheduler.js';
@@ -41,6 +42,11 @@ async function bootstrap() {
   let window: BrowserWindow | null = null;
   app.on('second-instance', () => { window?.restore(); window?.show(); window?.focus(); });
   await app.whenReady(); nativeTheme.themeSource = 'light';
+  const environmentFile = process.env.CSD_ENV_FILE || join(process.env.PORTABLE_EXECUTABLE_DIR || (app.isPackaged ? dirname(app.getPath('exe')) : process.cwd()), '.env');
+  if (existsSync(environmentFile)) process.loadEnvFile(environmentFile);
+  const projects = await createProjectWorkspace({ directory: join(paths.userData, 'data'),
+    secretStore: createElectronSecretStore(join(paths.userData, 'secrets')),
+    ...(process.env.DATABASE_URL ? { databaseUrl: process.env.DATABASE_URL } : {}) });
   const environmentKey = resolveGeminiApiKey();
   const geminiKey = await createGeminiKeySettings(createElectronSecretStore(join(paths.userData, 'secrets')), () => environmentKey, { preferEnvironment: true });
   const appConfig = createUserConfigStore(join(paths.userData, 'data'));
@@ -62,8 +68,8 @@ async function bootstrap() {
   const profiles = createBrowserProfiles(join(paths.userData, 'data'));
   const browserHost = createBrowserHost({ profiles, secrets: createElectronSecretStore(join(paths.userData, 'secrets')),
     journalDirectory: join(paths.userData, 'data', 'session-snapshots'), manualLoginEnabled: true, backgroundThrottling: false });
-  const service = createProductionService({ directory: join(paths.userData, 'data'), version: app.getVersion(), host: browserHost, spendingStatus: () => spending.status(),
-    createOpportunity: value => createOpportunityPipeline({ ...value, classificationWorkers: 2, assessmentCacheDirectory: join(paths.userData, 'data', 'assessment-cache'), gateway: value.config.filterMode === 'OFF' ? unassessedGateway : createCampaignModelGateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd, apiKey: geminiKey.current, schedulerForModel, spending }) }),
+  const createService = () => createProductionService({ directory: projects.activeDirectory(), version: app.getVersion(), host: browserHost, spendingStatus: () => spending.status(),
+    createOpportunity: value => createOpportunityPipeline({ ...value, classificationWorkers: 2, assessmentCacheDirectory: join(projects.activeDirectory(), 'assessment-cache'), gateway: value.config.filterMode === 'OFF' ? unassessedGateway : createCampaignModelGateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd, apiKey: geminiKey.current, schedulerForModel, spending }) }),
     // Retry a failed 2.5 draft with the currently selected model while retaining
     // its original directory and spending history. Historical crawl recipes stay pinned.
     prepareCampaignDraft: value => prepareSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, primaryModel: REBUILD_MODEL,
@@ -108,25 +114,32 @@ async function bootstrap() {
         await work(target.contents);
       } finally { await browserHost.close(profileId); }
     } });
-  const discoveryStore = createDiscoveryStore(join(paths.userData, 'data', 'discovery.sqlite'));
-  const discoveryWatch = createDiscoveryWatch({ store: discoveryStore, getState: () => service.getState(),
-    readRunState: id => service.readRunState(id), start: (id, target, excluded) => service.startDiscoveryFromRecipe(id, target, excluded),
+  let service = createService();
+  let discoveryStore = createDiscoveryStore(join(projects.activeDirectory(), 'discovery.sqlite'));
+  const createWatch = () => createDiscoveryWatch({ store: discoveryStore, getState: () => service.getState(),
+    readRunState: id => service.readRunState(id), start: (id, target) => service.startDiscoveryFromRecipe(id, target, []),
     expectedResultCount: (run, fallback) => {
       const frozen = service.results();
       if (frozen.run.id !== run.id || !frozen.opportunity) return fallback;
       const data = frozen.opportunity as import('../infrastructure/export/opportunity-workbook.js').OpportunityExportData;
       if (!data.selection) return fallback;
-      const earlier = new Set(discoveryStore.previouslyDeliveredForRun(run.id));
-      return data.selection.target.filter(row => !earlier.has(row.platform + ':' + row.rootId)).length;
+      return data.selection.target.length;
     } });
+  let discoveryWatch = createWatch();
   let discoveryTimer: ReturnType<typeof setInterval> | null = null;
+  let backupTimer: ReturnType<typeof setInterval> | null = null;
+  let projectChanging = false, backupRunning = false;
+  let projectWork: Promise<unknown> | null = null;
   let closing = false, shutdownComplete = false;
   app.on('before-quit', event => {
     if (shutdownComplete) return;
     event.preventDefault(); if (closing) return; closing = true;
     if (discoveryTimer) clearInterval(discoveryTimer);
-    void discoveryWatch.stop().then(() => service.shutdown()).then(() => browserHost.shutdown()).then(() => {
+    if (backupTimer) clearInterval(backupTimer);
+    void Promise.resolve(projectWork).catch(() => {}).then(() => discoveryWatch.stop()).then(() => service.shutdown()).then(() => browserHost.shutdown()).then(async () => {
       discoveryStore.close();
+      await projects.sync().catch(() => {});
+      await projects.close();
       shutdownComplete = true; app.quit();
     }).catch(() => { console.error('CSD_SESSION_SAVE_FAILED'); app.exit(1); });
   });
@@ -168,7 +181,37 @@ async function bootstrap() {
     keyChanging = true;
     try { await requireIdleForKey(); return await work(); } finally { keyChanging = false; }
   }
+  function projectCommand(work: () => Promise<unknown>) {
+    if (projectChanging || backupRunning || modelCommands || exporting || choosingRetainedRoot || keyChanging || discoveryWatch.busy) throw Error('PROJECT_BUSY');
+    projectChanging = true;
+    const task = (async () => {
+      try {
+        const state = await service.getState();
+        if (state.run && (['RUNNING', 'STOPPING'].includes(state.run.state) || state.run.opportunity?.watchActive || state.run.opportunity?.assessmentActive) || state.campaignDraftPreparing) throw Error('PROJECT_RUN_ACTIVE');
+        await discoveryWatch.stop();
+        await service.shutdown();
+        discoveryStore.close();
+        try { return await work(); }
+        finally {
+          service = createService();
+          discoveryStore = createDiscoveryStore(join(projects.activeDirectory(), 'discovery.sqlite'));
+          discoveryWatch = createWatch();
+        }
+      } finally { projectChanging = false; }
+    })();
+    projectWork = task;
+    return task;
+  }
   const handlers: Record<string, (value?: unknown) => unknown> = {
+    'csd:projects:state': () => projects.state(),
+    'csd:projects:create': value => projectCommand(() => projects.create(value as never)),
+    'csd:projects:update': value => projectCommand(() => projects.update(value as never)),
+    'csd:projects:remove': value => projectCommand(() => projects.remove(value as never)),
+    'csd:projects:select': value => projectCommand(() => projects.select(value as never)),
+    'csd:projects:register': value => projectCommand(() => projects.register(value as never)),
+    'csd:projects:login': value => projectCommand(() => projects.login(value as never)),
+    'csd:projects:logout': () => projectCommand(() => projects.logout()),
+    'csd:projects:sync': () => projectCommand(() => projects.sync({ pull: true })),
     'csd:gemini-key:status': () => geminiKey.status(),
     'csd:gemini-key:save': value => changeKey(() => geminiKey.save(value)),
     'csd:gemini-key:remove': () => changeKey(() => geminiKey.remove()),
@@ -241,11 +284,14 @@ async function bootstrap() {
           filters: [{ name: format === 'xlsx' ? 'Excel Workbook' : 'JSON', extensions: [format] }] });
         if (choice.canceled || !choice.filePath) return { canceled: true, path: null };
         const staged = choice.filePath + '.csd-' + randomUUID() + '.' + format;
-        const exported = result.opportunity ? selectOpportunityExport(result.opportunity, group, discoveryStore.previouslyDeliveredForRun(result.run.id)) : null;
+        const exported = result.opportunity ? selectOpportunityExport(result.opportunity, group) : null;
         if (format === 'xlsx') {
           if (exported) await exportOpportunityWorkbook(staged, exported);
           else await exportSocialWorkbook(staged, result.facebook, result.threads);
         } else writeFileSync(staged, JSON.stringify(exported ?? result, null, 2), { flush: true });
+        const savedExports = join(projects.activeDirectory(), 'exports');
+        mkdirSync(savedExports, { recursive: true });
+        copyFileSync(staged, join(savedExports, result.run.id + '-' + (group ?? 'ALL') + '-' + randomUUID() + '.' + format));
         const roots = exported ? deliveredOpportunityRoots(exported) : [];
         const receipt = roots.length ? discoveryStore.prepareExport(result.run.id, roots, choice.filePath, exportDigest(staged)) : null;
         renameSync(staged, choice.filePath);
@@ -255,15 +301,23 @@ async function bootstrap() {
     },
   };
   const noPayload = new Set(['csd:discovery:list', 'csd:gemini-key:status', 'csd:gemini-key:remove', 'csd:state', 'csd:stop', 'csd:resume', 'csd:open-output', 'csd:campaign:prepare', 'csd:retained:list', 'csd:retained:choose-root']);
+  for (const channel of ['csd:projects:state', 'csd:projects:logout', 'csd:projects:sync']) noPayload.add(channel);
   for (const [channel, handler] of Object.entries(handlers)) ipcMain.handle(channel, (event, ...args: unknown[]) => {
     if (closing || !allowDesktopRequest({ senderId: event.sender.id, expectedSenderId: mainWindow.webContents.id,
       isMainFrame: event.senderFrame === event.sender.mainFrame, frameUrl: event.senderFrame?.url || '', expectedUrl: uiUrl, args: [] }) ||
       args.length !== (noPayload.has(channel) ? 0 : 1)) throw Error('IPC_DENIED');
+    if (projectChanging && channel !== 'csd:projects:state') throw Error('PROJECT_BUSY');
     return handler(args[0]);
   });
   app.once('will-quit', () => { for (const channel of Object.keys(handlers)) ipcMain.removeHandler(channel); });
-  discoveryTimer = setInterval(() => { if (!closing && !exporting && !keyChanging && !modelCommands && !discoveryWatch.busy) void modelCommand(() => discoveryWatch.tick()).catch(() => {}); }, 60000);
+  discoveryTimer = setInterval(() => { if (!closing && !projectChanging && !exporting && !keyChanging && !modelCommands && !discoveryWatch.busy) void modelCommand(() => discoveryWatch.tick()).catch(() => {}); }, 60000);
   discoveryTimer.unref();
+  backupTimer = setInterval(() => {
+    if (closing || projectChanging || backupRunning) return;
+    backupRunning = true;
+    void projects.sync().catch(() => {}).finally(() => { backupRunning = false; });
+  }, 30000);
+  backupTimer.unref();
   await mainWindow.loadFile(uiFile);
 }
 void bootstrap().catch(() => {

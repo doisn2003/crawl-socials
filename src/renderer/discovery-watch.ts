@@ -26,7 +26,7 @@ export function bindDiscoveryWatch(api: ProductionApi, state: () => ProductionSt
 
   const list = document.createElement('div'); list.className = 'discovery-list';
   panel.append(heading, explanation, formRow, list); document.querySelector('main')!.append(panel);
-  let pending = false, refreshing = false, lastKey = '', subscriptions: DiscoverySubscription[] = [];
+  let pending = false, refreshing = false, lastKey = '', subscriptions: DiscoverySubscription[] = [], epoch = 0;
   async function action(work: () => Promise<DiscoverySubscription[]>, allowDuringRun = false) {
     if (pending || (!allowDuringRun && busy())) return; pending = true; render();
     try { subscriptions = await work(); report('Đã cập nhật lịch tìm bổ sung.'); }
@@ -66,9 +66,10 @@ export function bindDiscoveryWatch(api: ProductionApi, state: () => ProductionSt
     const run = state()?.run; if (!run) return;
     void action(() => api.discoveryWatch.create({ sourceRunId: run.id, label: label.value.trim() || run.keywords.slice(0, 3).join(' · ').slice(0, 200) || 'Lĩnh vực đang theo dõi' }));
   });
-  return { async refresh() {
+  return { reset() { epoch++; subscriptions = []; lastKey = ''; render(); }, async refresh() {
     if (refreshing || pending) { render(); return; } refreshing = true;
-    try { subscriptions = await api.discoveryWatch.list(); render(); } catch { create.disabled = true; }
+    const currentEpoch = epoch;
+    try { const next = await api.discoveryWatch.list(); if (currentEpoch === epoch) { subscriptions = next; render(); } } catch { create.disabled = true; }
     finally { refreshing = false; }
   } };
 }

@@ -5,6 +5,13 @@
 - The user approved `production-v2` at `7527f17` as the official CSD baseline and requested its merge into `main`. Base future upgrades on `main` and integrate them there. This supersedes earlier branch guidance.
 - Use the [production v2 plan](.brain/master-plans_restructor_version2.0.0.md) and [implementation report](.brain/reports/csd-production-v2-20261106.md) as the baseline references. Prior experiment branches and spending envelopes remain historical.
 
+## Project storage — 2026-11-09
+
+- The user authorized independent projects, project avatars, simple account login, PostgreSQL backup and restoration on another computer. Follow the [project database specification](.brain/specs/project-database-v1.md).
+- Keep each project's working data local and back up its generated files and canonical posts to PostgreSQL. Resolve `DATABASE_URL` through the operator's environment file.
+- Keep repeated posts in each new run with `previouslyCollected`, while maintaining one canonical identity per project. Reuse completed assessments across filter modes when the saved evidence still applies, preserving the original evaluation provenance.
+- Development checks use mocks and isolated data. Existing model-spending envelopes remain closed.
+
 ## Completed Hà Giang keyword probe — 2026-11-07
 
 - User authorized current-module prompt planning/expansion only: Gemini 3.1 Flash-Lite, maximum 10 calls / USD 0.20 including repairs. No social crawl was performed.

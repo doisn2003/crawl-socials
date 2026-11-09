@@ -18,6 +18,18 @@ Từ ngày **07/11/2026**, **`main`** là nhánh phát triển chính thức c�
 
 ## Chạy ứng dụng
 
+### Project và sao lưu PostgreSQL
+
+Khu vực đầu màn hình quản lý các project độc lập. Mỗi project lưu prompt, cấu hình, kế hoạch, kết quả và lịch sử thu thập. Có thể tạo, đổi tên, đổi ảnh đại diện, chọn và xóa project. Dừng lượt xử lý hiện tại trước khi chuyển project.
+
+Đặt `DATABASE_URL` trong `.env` cạnh ứng dụng, hoặc dùng biến `CSD_ENV_FILE` trỏ tới tệp cấu hình. CSD sao lưu dữ liệu project mỗi 30 giây và khi thoát. Nút đồng bộ cập nhật bản sao trên máy đang dùng. Tạo tài khoản bằng tên đăng nhập và mật khẩu, rồi đăng nhập trên máy khác để tải các project đã sao lưu. Kết nối PostgreSQL cần được cấu hình trên mỗi máy.
+
+Bài gặp lại được giữ trong lượt thu mới. Cột boolean `previouslyCollected` trong JSON và Excel đánh dấu bài đã xuất hiện ở lượt trước của cùng project. Kết quả đánh giá được tái sử dụng kèm thông tin chế độ và lần đánh giá gốc. Nội dung bài thay đổi sẽ được đánh giá lại.
+
+Xem [schema và bản đồ dữ liệu](.brain/specs/project-database-v1.md) để biết cách cài đặt và khôi phục.
+
+### Khởi động
+
 Cần Node.js theo `engines` trong `package.json` và Windows x64.
 
 ```powershell
