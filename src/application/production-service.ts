@@ -6,6 +6,7 @@ import { throughput } from '../shared/throughput.js';
 import { isBrowserProfileId } from '../domain/browser-profile.js';
 import type { BrowserProfile } from '../domain/browser-profile.js';
 import type { Account, OpportunityConfig, OpportunityCounts, OpportunityProgress, Platform, ProductionState, RetainedSourceCatalog, RunState, UserConfig } from '../shared/production-api.js';
+import { ProjectPostStore } from '../infrastructure/storage/project-post-store.js';
 import { createOpportunityPipeline } from './opportunity-pipeline.js';
 import type { ConversationCollectInput, OpportunityPipeline, ReplyRootResolveInput, ReplyRootResolveReceipt } from './opportunity-pipeline.js';
 import type { WebContents } from 'electron';
@@ -232,12 +233,24 @@ export function createProductionService(input: {
     if (!Array.isArray(data)) throw Error('COLLECTION_DATA_INVALID');
     return data as Row[];
   }
+  function projectRows(platform: Platform, values: Row[]): Row[] {
+    if (!run || !values.length) return values;
+    const posts = new ProjectPostStore(input.directory);
+    try {
+      return values.map(row => {
+        const id = typeof row.post_id === 'string' ? row.post_id : '';
+        if (!id || row.is_reply === true || row.entity_type === 'COMMENT') return row;
+        const previouslyCollected = posts.observe(run!.id, platform, id, row, String(row.collected_at ?? run!.startedAt));
+        return { ...row, previouslyCollected };
+      });
+    } finally { posts.close(); }
+  }
   function accountRows(item: RunState['platforms'][number]): Row[] {
-    return !run || run.mode === 'RETAINED' ? [] : readRows(accountDirectory(run, item));
+    return !run || run.mode === 'RETAINED' ? [] : projectRows(item.platform, readRows(accountDirectory(run, item)));
   }
   function rows(platform: Platform): Row[] {
     if (!run || run.mode === 'RETAINED') return [];
-    if (run.collectionLayout !== 'PROFILE_QUERY_V2') return readRows(join(run.outputDirectory, platform));
+    if (run.collectionLayout !== 'PROFILE_QUERY_V2') return projectRows(platform, readRows(join(run.outputDirectory, platform)));
     const result: Row[] = [], ids = new Set<string>(), links = new Set<string>();
     for (const item of run.platforms.filter(p => p.platform === platform)) for (const row of accountRows(item)) {
       const id = String(row.post_id ?? ''), link = String(row.observed_post_url ?? row.post_url ?? '');
@@ -265,7 +278,7 @@ export function createProductionService(input: {
       }
       for (const row of data[platform].slice(0, 3)) run.preview.push({
         platform, post_id: String(row.post_id || ''), text: String(row.text || '').slice(0, 800),
-        query: String(row.query || ''), link: String(row.observed_post_url || row.post_url || ''),
+        query: String(row.query || ''), link: String(row.observed_post_url || row.post_url || ''), previouslyCollected: row.previouslyCollected === true,
       });
     }
     atomicJson(join(run.outputDirectory, 'results.json'), { run: { id: run.id, startedAt: run.startedAt, minimumPosts: run.minimumPosts, keywords: run.keywords }, ...data });
@@ -293,7 +306,7 @@ export function createProductionService(input: {
       importedObservations: value.checkpoint.imported_observations, totalObservations: value.checkpoint.total_observations, status: value.checkpoint.status };
   }
   async function createRetainedPipeline(current: RunState, config: OpportunityConfig, imported: RetainedImportState, draft?: ResolvedCampaignDraft) {
-    return (input.createOpportunity ?? createOpportunityPipeline)({ directory: current.outputDirectory, runId: current.id, config,
+    return (input.createOpportunity ?? createOpportunityPipeline)({ projectDirectory: input.directory, directory: current.outputDirectory, runId: current.id, config,
       ...(draft ? { campaign: draft.campaign } : {}), platforms: current.platforms.map(item => item.platform),
       processingMode: 'RETAINED', assessmentTime: imported.manifest.captured_at,
       collectConversation: async () => { throw Error('RETAINED_BROWSER_DISABLED'); },
@@ -383,7 +396,7 @@ export function createProductionService(input: {
     // One owner publishes observations into the campaign store across all accounts.
     let ingestion: Promise<void> = Promise.resolve();
     const ingest = (platform: Platform, profileId: string, records: Row[], provenance: Row) => {
-      const task = ingestion.then(async () => { await pipeline?.ingestRows(platform, records, { ...provenance, profile_id: profileId }); });
+      const task = ingestion.then(async () => { const annotated = projectRows(platform, records); await pipeline?.ingestRows(platform, annotated, { ...provenance, profile_id: profileId }); });
       ingestion = task;
       void task.catch(() => {});
       return task;
@@ -464,7 +477,7 @@ export function createProductionService(input: {
         item.count = data.length;
         for (const row of data.slice(0, 3)) currentRun.preview.push({
           platform: item.platform, post_id: String(row.post_id || ''), text: String(row.text || '').slice(0, 800),
-          query: String(row.query || ''), link: String(row.observed_post_url || row.post_url || ''),
+          query: String(row.query || ''), link: String(row.observed_post_url || row.post_url || ''), previouslyCollected: row.previouslyCollected === true,
         });
         saveRun();
       }));
@@ -585,7 +598,7 @@ export function createProductionService(input: {
         atomicJson(join(outputDirectory, 'opportunity-config.json'), config);
         atomicJson(join(outputDirectory, 'discovery-parent.json'), { schemaVersion: 1, sourceRunId, sourceCampaignHash: contentHash(originalCampaign),
           excludedRootKeys: [...new Set(excludedRootKeys)], createdAt: campaign.created_at });
-        pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ directory: outputDirectory, runId: id, config, campaign,
+        pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ projectDirectory: input.directory, directory: outputDirectory, runId: id, config, campaign,
           platforms: [...new Set(current.platforms.map(p => p.platform))], collectConversation: input.collectConversation,
           ...keywordCommentWindow(current), excludedRootKeys: [...new Set(excludedRootKeys)], onProgress: value => { current.opportunity = value; saveRun(); } });
         saveRun(); work = execute(); launched = true; void work.catch(() => {});
@@ -803,7 +816,7 @@ export function createProductionService(input: {
           const runtimeConfig = config.opportunity.filterMode === 'OFF'
             ? { ...config.opportunity, commentsEnabled: false } : config.opportunity;
           atomicJson(join(run.outputDirectory, 'opportunity-config.json'), runtimeConfig);
-          pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ directory: run.outputDirectory, runId: id, config: runtimeConfig, seedQueries: config.keywords,
+          pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ projectDirectory: input.directory, directory: run.outputDirectory, runId: id, config: runtimeConfig, seedQueries: config.keywords,
             ...keywordCommentWindow(current), ...(selectedDraft ? { campaign: selectedDraft.campaign } : {}),
             platforms: [...new Set(run.platforms.map(p => p.platform))], collectConversation: input.collectConversation,
             ...(input.resolveThreadsReplyRoot ? { resolveThreadsReplyRoot: input.resolveThreadsReplyRoot } : {}),
@@ -861,7 +874,7 @@ export function createProductionService(input: {
       try {
         await closePipeline();
         const config = JSON.parse(readFileSync(file, 'utf8')) as OpportunityConfig;
-        pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ directory: current.outputDirectory, runId: current.id, config,
+        pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ projectDirectory: input.directory, directory: current.outputDirectory, runId: current.id, config,
           platforms: [...new Set(current.platforms.map(p => p.platform))], collectConversation: input.collectConversation,
           ...keywordCommentWindow(current), ...readDiscoveryExclusions(current.outputDirectory),
           ...(input.resolveThreadsReplyRoot ? { resolveThreadsReplyRoot: input.resolveThreadsReplyRoot } : {}),

@@ -4,7 +4,7 @@ import { mkdir, rename, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 type Post = Record<string, unknown>;
-type Column = { header: string; field: string; width: number; kind?: 'id' | 'number' | 'link' };
+type Column = { header: string; field: string; width: number; kind?: 'id' | 'number' | 'link' | 'boolean' };
 
 const facebookColumns: Column[] = [
   { header: 'post_id', field: 'post_id', width: 24, kind: 'id' },
@@ -22,6 +22,7 @@ const facebookColumns: Column[] = [
   { header: 'author_url', field: 'author_url', width: 44, kind: 'link' },
   { header: 'source_url', field: 'source_url', width: 44, kind: 'link' },
   { header: 'collected_at', field: 'collected_at', width: 25 },
+  { header: 'previouslyCollected', field: 'previouslyCollected', width: 24, kind: 'boolean' },
 ];
 
 const threadsColumns: Column[] = [
@@ -40,6 +41,7 @@ const threadsColumns: Column[] = [
   { header: 'collected_at', field: 'collected_at', width: 25 },
   { header: 'visibility', field: 'visibility', width: 22 },
   { header: 'search_mode', field: 'search_mode', width: 18 },
+  { header: 'previouslyCollected', field: 'previouslyCollected', width: 24, kind: 'boolean' },
 ];
 
 function cellValue(post: Post, column: Column, sheetName: string, rowNumber: number): ExcelJS.CellValue {
@@ -48,6 +50,7 @@ function cellValue(post: Post, column: Column, sheetName: string, rowNumber: num
   if (column.kind === 'id' && (typeof value !== 'string' || !value)) {
     throw new Error(`XLSX_POST_ID_MUST_BE_TEXT: ${location}`);
   }
+  if (column.kind === 'boolean') return value === true;
   if (value === undefined || value === null) return null;
   if (column.kind === 'number') {
     if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {

@@ -67,7 +67,7 @@ function sheet(workbook: ExcelJS.Workbook, name: string, headers: string[], rows
   current.columns = headers.map(header => ({ header, key: header, width: /text|evidence|reason|summary|value/.test(header) ? 65 : 24 }));
   current.getRow(1).font = { name: 'Calibri', bold: true, color: { argb: 'FFFFFFFF' } };
   current.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } };
-  for (const row of rows) { const added = current.addRow(row.map(text)); added.numFmt = '@'; }
+  for (const row of rows) { const added = current.addRow(row.map(value => typeof value === 'boolean' ? value : text(value))); added.numFmt = '@'; }
   current.autoFilter = { from: { row: 1, column: 1 }, to: { row: rows.length + 1, column: headers.length } };
 }
 export async function exportOpportunityWorkbook(path: string, value: unknown, classification?: ConversationClassification): Promise<void> {
@@ -83,10 +83,10 @@ export async function exportOpportunityWorkbook(path: string, value: unknown, cl
   const membership = new Map(['target', 'extra'].flatMap(group => (data.selection?.[group as 'target' | 'extra'] ?? [])
     .map(row => [row.platform + ':' + row.rootId, { group: group.toUpperCase(), sequence: row.acceptedSequence }] as const)));
   const off = !!data.campaign && typeof data.campaign === 'object' && 'filter_mode' in data.campaign && data.campaign.filter_mode === 'OFF';
-  sheet(workbook, 'Conversations', ['platform', 'root_post_id', 'classification', 'reason', 'need_summary', 'post_text', 'post_url', 'evidence', 'action_entity_id', 'snapshot_id', 'observed_at', 'coverage', 'assessment_status', 'evaluated_at', 'valid_until', 'temporal_evidence', 'decision_id', 'selection_group', 'accepted_sequence', 'opportunity_types', 'published_at'],
+  sheet(workbook, 'Conversations', ['platform', 'root_post_id', 'classification', 'reason', 'need_summary', 'post_text', 'post_url', 'evidence', 'action_entity_id', 'snapshot_id', 'observed_at', 'coverage', 'assessment_status', 'evaluated_at', 'valid_until', 'temporal_evidence', 'decision_id', 'selection_group', 'accepted_sequence', 'opportunity_types', 'published_at', 'previouslyCollected', 'assessmentReused', 'assessmentSourceRun', 'assessmentSourceMode'],
     [...ordered.values()].map(s => { const d = current.get(s.id); return [s.platform, s.root_post_id, d?.classification, d?.reason_code ?? 'AWAITING_CURRENT_ASSESSMENT', d?.attributes?.need_summary, s.post?.text,
       s.post?.permalink, s.spans.filter(span => d?.evidence_ids.includes(span.id)).map(span => `${span.entity_type}:${span.entity_id}: ${span.text}`).join('\n'), d?.action_target?.entity_id, s.id, s.observed_at, s.coverage.status, d?.assessment_status ?? (off ? 'UNASSESSED' : 'PENDING'),
-      d?.evaluated_at, d?.valid_until, d?.temporal_evidence, d?.id, membership.get(s.platform + ':' + s.root_post_id)?.group, membership.get(s.platform + ':' + s.root_post_id)?.sequence, d?.attributes?.opportunity_types, s.post?.published_at]; }));
+      d?.evaluated_at, d?.valid_until, d?.temporal_evidence, d?.id, membership.get(s.platform + ':' + s.root_post_id)?.group, membership.get(s.platform + ':' + s.root_post_id)?.sequence, d?.attributes?.opportunity_types, s.post?.published_at, s.previouslyCollected ?? false, d?.attributes?.project_assessment_reused === true, d?.attributes?.project_source_run_id, d?.attributes?.project_source_filter_mode]; }));
   sheet(workbook, 'Comments', ['platform', 'root_post_id', 'comment_id', 'parent_id', 'text', 'author_name', 'published_at', 'observed_at', 'permalink', 'snapshot_id'],
     data.snapshots.flatMap(s => s.comments.map(c => [s.platform, s.root_post_id, c.entity_id, c.parent_id, c.text, c.author.name, c.published_at, c.observed_at, c.permalink, s.id])));
   if (data.keyword_comments) sheet(workbook, 'Matched Comments',

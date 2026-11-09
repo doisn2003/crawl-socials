@@ -18,13 +18,14 @@ export interface PlatformRun {
   count: number; reason: string | null;
   workers?: Array<{ worker: number; query: string; state: string; reason: string | null }>;
 }
-export interface PostPreview { platform: Platform; post_id: string; text: string; query: string; link: string; }
+export interface PostPreview { previouslyCollected?: boolean; platform: Platform; post_id: string; text: string; query: string; link: string; }
 export interface OpportunityCounts { raw: number; comments: number; suitable: number; notSuitable?: number; /** Legacy count fields retained for historical runs. */ notYet: number; unrelated: number; pending: number; failed: number; }
 export interface OpportunityAssessmentDetails {
   queued: number; language: number; incomplete: number; conflict: number; stale: number; failed: number; unrecorded: number;
   qualityConflict: number; qualityUnconfirmed: number;
 }
 export interface OpportunityPreview {
+  previouslyCollected?: boolean; assessmentReused?: boolean; assessmentSourceMode?: string;
   platform: Platform; rootId: string; /** UNASSESSED is an operational status, never a filter verdict. */
   classification: 'SUITABLE' | 'NOT_SUITABLE' | 'NOT_YET' | 'UNRELATED' | 'UNASSESSED';
   text: string; link: string; reason: string; evidence: string[]; observedAt: string; coverage: string;
@@ -84,6 +85,7 @@ export interface ProductionState {
 }
 export interface GeminiKeyStatus { source: 'SAVED' | 'ENVIRONMENT' | 'NONE'; readError: boolean; }
 export interface ProductionApi {
+  projects: import('./projects.js').ProjectsApi;
   discoveryWatch: import('./discovery-watch.js').DiscoveryWatchApi;
   geminiKey: { status(): Promise<GeminiKeyStatus>; save(input: { key: string }): Promise<GeminiKeyStatus>; remove(): Promise<GeminiKeyStatus>; };
   getState(): Promise<ProductionState>;

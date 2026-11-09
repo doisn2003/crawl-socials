@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { WebContents } from 'electron';
 import { atomicJson } from '../infrastructure/config/user-config.js';
+import { ProjectPostStore } from '../infrastructure/storage/project-post-store.js';
 import { createAsyncConversationStore } from '../infrastructure/storage/async-conversation-store.js';
 import type { AsyncConversationStore } from '../infrastructure/storage/async-conversation-store.js';
 import type { ConversationJob, ConversationJobType, ConversationStats } from '../infrastructure/storage/conversation-store.js';
@@ -27,7 +28,7 @@ import type { OpportunityConfig, OpportunityCounts, OpportunityProgress, Platfor
 import { allocatePlatformTargets } from '../shared/platform-targets.js';
 import { isAssessmentTime, type ConversationDecisionInput } from '../domain/conversation-decision.js';
 import { GOAL_FILTER_VERSION } from '../domain/goal-filter.js';
-import { vietnameseOnly } from '../domain/content-language.js';
+import { enforceContentLanguage, vietnameseOnly } from '../domain/content-language.js';
 import { manualCollectionPlan, unassessedGateway, withFilterPolicy } from './filter-policy.js';
 import { postOnlyEvidenceView } from '../domain/post-only-evidence.js';
 import { createCoverageExpansion, initialDiscoveryQueries, type CoverageExpansionRequest } from './coverage-queries.js';
@@ -68,6 +69,8 @@ export interface OpportunityPipelineInput {
   maxRunMinutes?: number;
   classificationWorkers?: number;
   assessmentCacheDirectory?: string;
+  /** Project-wide identities and completed assessments shared by its runs. */
+  projectDirectory?: string;
   excludedRootKeys?: string[];
 }
 type Row = Record<string, unknown>;
@@ -159,7 +162,14 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   try { if (activeEvaluation?.state === 'MIGRATING') await resumeEvaluationMigration(directory, store); }
   catch (error) { await leases.close(); if (!input.store) await store.close(); throw error; }
   const context: EvaluationContext = evaluationContext(campaign);
-  const excludedRoots = new Set(input.excludedRootKeys ?? []);
+  const projectPosts = input.projectDirectory ? new ProjectPostStore(input.projectDirectory) : null;
+  const excludedRoots = new Set(input.projectDirectory ? [] : input.excludedRootKeys ?? []);
+  function previouslyCollected(snapshot: ConversationSnapshot): boolean {
+    return projectPosts?.previouslyCollected(input.runId, snapshot.platform, snapshot.root_post_id) ?? false;
+  }
+  function rememberSnapshot(snapshot: ConversationSnapshot) {
+    if (snapshot.post) projectPosts?.observe(input.runId, snapshot.platform, snapshot.root_post_id, snapshot, snapshot.observed_at);
+  }
   const postOnly = campaign.filter_version.startsWith('opportunity-posts-');
   const commentsEnabled = !postOnly && input.config.commentsEnabled;
   const keywordCommentsEnabled = postOnly && !off && !retained && input.config.commentsEnabled && !!input.withKeywordCommentWindow;
@@ -234,6 +244,8 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
           opportunityTypes: String(decision.attributes?.opportunity_types ?? '').split(',').filter(Boolean), publishedAt: snapshot.post?.published_at ?? null,
           ...(decision.goal_assessment ? { conditions: goalConditions(decision) } : {}),
           evidence: snapshot.spans.filter(s => decision.evidence_ids.includes(s.id)).map(s => s.text.slice(0, 600)),
+          previouslyCollected: previouslyCollected(snapshot), assessmentReused: decision.attributes?.project_assessment_reused === true,
+          ...(typeof decision.attributes?.project_source_filter_mode === 'string' ? { assessmentSourceMode: decision.attributes.project_source_filter_mode } : {}),
           observedAt: snapshot.observed_at, coverage: snapshot.coverage.status });
         }
       }
@@ -244,7 +256,8 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
         for (const snapshot of snapshots) if (snapshot?.post) preview.push({
           platform: snapshot.platform, rootId: snapshot.root_post_id, classification: 'UNASSESSED',
           text: snapshot.post.text.slice(0, 900), link: snapshot.post.permalink ?? '', reason: 'Chưa đánh giá · Không dùng AI',
-          evidence: [], publishedAt: snapshot.post.published_at, observedAt: snapshot.observed_at, coverage: snapshot.coverage.status,
+          evidence: [], publishedAt: snapshot.post.published_at, previouslyCollected: previouslyCollected(snapshot),
+          observedAt: snapshot.observed_at, coverage: snapshot.coverage.status,
         });
       }
       if (rebuild && !off) queryScores = await store.queryYield(context);
@@ -319,6 +332,15 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
           const latest = snapshot && await store.snapshot(snapshot.platform, snapshot.root_post_id);
           if (!snapshot || !latest || latest.id !== snapshot.id) { await store.complete(job.id, job.lease_token!); continue; }
           if (excludedRoots.has(snapshot.platform + ':' + snapshot.root_post_id)) { previouslyDelivered.add(snapshot.platform + ':' + snapshot.root_post_id); await store.complete(job.id, job.lease_token!); continue; }
+          rememberSnapshot(snapshot);
+          const reused = postOnly && projectPosts?.reuse(snapshot, context, now().toISOString());
+          if (reused) {
+            const acceptedReuse = enforceContentLanguage(campaign, postOnlyEvidenceView(snapshot), reused);
+            await store.recordDecision(acceptedReuse, keywordCommentsEnabled);
+            await store.complete(job.id, job.lease_token!);
+            if (acceptedReuse.classification === 'NOT_SUITABLE') startKeywordComments();
+            continue;
+          }
           if (temporalEnabled && typeof job.payload.evaluated_at !== 'string') {
             // Freeze request time durably before inference, including the first evaluation.
             await store.requestAssessment(context, snapshot.id, { evaluated_at: retained ? input.assessmentTime! : now().toISOString() });
@@ -329,6 +351,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
         if (!snapshots.length) {
           const readyVerification = focusedEnabled && (await store.jobs(['PENDING', 'RETRY'], context)).some(job => job.type === 'VERIFY' && Date.parse(job.not_before) <= Date.now());
           if (readyVerification) continue;
+          await publish();
           break;
         }
         const result = await classifyConversations(campaign, snapshots, gateway, { signal: controller.signal, maxBatchSize: 8,
@@ -347,7 +370,8 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
             await enqueueFocusedVerification(store, campaign, snapshot, decision);
             continue;
           }
-          await store.recordDecision(decision, keywordCommentsEnabled);
+          const saved = await store.recordDecision(decision, keywordCommentsEnabled);
+          if (saved.current) projectPosts?.saveAssessment(snapshot, saved.decision, input.config.filterMode ?? 'UNKNOWN');
           if (decision.classification === 'NOT_YET' || decision.assessment_status === 'PENDING') await markWatch(snapshot, String(decision.attributes?.case_code ?? decision.reason_code));
         }
         if (result.decisions.some(decision => decision.classification === 'NOT_SUITABLE')) startKeywordComments();
@@ -447,7 +471,8 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   async function ingest(observations: ConversationObservation[]) {
     for (const observation of observations) {
       if (!commentsEnabled && (observation.entity_type === 'COMMENT' || observation.entity_type === 'CANDIDATE')) continue;
-      await store.ingest(observation, context);
+      const saved = await store.ingest(observation, context);
+      if (saved.snapshot) rememberSnapshot(saved.snapshot);
       if (observation.entity_type === 'POST') noteDelivered(observation.platform, observation.root_post_id);
       if (observation.coverage?.stop_reason === 'ACCOUNT_BARRIER') await blockEnrichment(observation.platform);
     }
@@ -489,6 +514,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
         ...(!existing || (keywordCommentsEnabled && !isReply && advertised !== null && (advertised === 0) !== (existing.coverage.advertised_count === 0))
           ? { coverage: { status: 'NOT_ATTEMPTED' as const, advertised_count: advertised } } : {}) };
       const saved = await store.ingest(observation, context);
+      if (saved.snapshot) rememberSnapshot(saved.snapshot);
       if (saved.snapshot?.post) noteDelivered(platform, saved.snapshot.root_post_id);
       if (isReply && (!saved.snapshot?.post || !rootId)) await enqueueRootResolution(observation);
       if (commentsEnabled && !enrichmentBlocked.has(platform) && saved.snapshot && url && !isReply && saved.snapshot.coverage.status === 'NOT_ATTEMPTED') {
@@ -773,8 +799,18 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
             reason: String(decision.attributes?.need_summary ?? decision.reason_code), reasonCode: decision.reason_code,
           opportunityTypes: String(decision.attributes?.opportunity_types ?? '').split(',').filter(Boolean), publishedAt: snapshot.post?.published_at ?? null, evidence: snapshot.spans.filter(span => decision.evidence_ids.includes(span.id)).map(span => span.text.slice(0, 600)),
             ...(decision.goal_assessment ? { conditions: goalConditions(decision) } : {}),
-            observedAt: snapshot.observed_at, coverage: snapshot.coverage.status });
+            previouslyCollected: previouslyCollected(snapshot), assessmentReused: decision.attributes?.project_assessment_reused === true,
+          ...(typeof decision.attributes?.project_source_filter_mode === 'string' ? { assessmentSourceMode: decision.attributes.project_source_filter_mode } : {}),
+          observedAt: snapshot.observed_at, coverage: snapshot.coverage.status });
         }
+      }
+      for (const snapshot of exported.snapshots) {
+        rememberSnapshot(snapshot);
+        snapshot.previouslyCollected = previouslyCollected(snapshot);
+      }
+      for (const row of exported.conversations) {
+        row.snapshot.previouslyCollected = previouslyCollected(row.snapshot);
+        if (!row.stale) projectPosts?.saveAssessment(row.snapshot, row.decision, input.config.filterMode ?? 'UNKNOWN');
       }
       const commentSummary = keywordCommentsEnabled ? exported.keyword_comment_summary : [];
       const { assessmentDetails: _liveDetails, ...liveProgress } = structuredClone(progress);
@@ -799,7 +835,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       if (closed) return; stopped = true; watchEnabled = false; assessmentActive = false; clearWatchTimer(); clearAssessmentTimer(); controller.abort(); if (pendingTimer) clearTimeout(pendingTimer);
       try { await Promise.allSettled([pumpWork, watchWork, assessmentWork, storageWork, keywordWork]); await publishWork; }
       finally { try { await store.pause({ context }); await store.pause({ types: ['ENRICH_CONVERSATION', 'ROOT_RESOLVE', 'REVISIT'] }); }
-        finally { try { await leases.close(); await store.close(); } finally { closed = true; } } }
+        finally { try { await leases.close(); await store.close(); } finally { projectPosts?.close(); closed = true; } } }
     },
   };
 }

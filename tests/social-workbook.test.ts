@@ -62,7 +62,7 @@ test('XLSX round trip preserves raw social fields, string identifiers, missing c
   assert.equal(thread.getCell('L2').value, 5);
   for (const sheet of workbook.worksheets) {
     assert.equal(sheet.rowCount, 2);
-    assert.equal(sheet.autoFilter, 'A1:O2');
+    assert.equal(sheet.autoFilter, 'A1:P2');
     assert.equal(sheet.views[0]!.state, 'frozen');
     assert.equal((sheet.views[0] as ExcelJS.WorksheetViewFrozen).ySplit, 1);
     assert.equal(sheet.views[0]!.showGridLines, true);
@@ -84,7 +84,7 @@ test('empty exports still include both named sheets with filter and header', asy
   assert.equal(workbook.worksheets.length, 2);
   for (const sheet of workbook.worksheets) {
     assert.equal(sheet.rowCount, 1);
-    assert.equal(sheet.autoFilter, 'A1:O1');
+    assert.equal(sheet.autoFilter, 'A1:P1');
     assert.equal(sheet.getCell('A1').value, 'post_id');
   }
 }));

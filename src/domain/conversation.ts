@@ -69,6 +69,8 @@ export interface EvidenceSpan {
   text: string;
 }
 export interface ConversationSnapshot {
+  /** Frozen run membership, supplied by project storage when exporting. */
+  previouslyCollected?: boolean;
   id: string;
   platform: SocialPlatform;
   root_post_id: string;
