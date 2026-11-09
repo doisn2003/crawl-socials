@@ -9,8 +9,8 @@ export interface CampaignSummary {
   expansionAllowed: boolean;
 }
 export interface AppInfo {
-  product: 'CSD';
-  fullName: 'Crawl Socials Data';
+  product: 'TrendLink';
+  fullName: 'TrendLink';
   version: string;
   mode: 'OFFLINE_BOOTSTRAP';
   campaign: CampaignSummary;

@@ -36,6 +36,11 @@ if (!process.versions.electron) {
     window.show = () => {};
     window.webContents.once('did-finish-load', async () => {
       try {
+        assert.equal(app.getName(), 'TrendLink');
+        assert.equal(window.getTitle(), 'TrendLink');
+        assert.equal(await window.webContents.executeJavaScript(
+          "Array.from(document.querySelectorAll('.brand-mark, .footer-mark')).filter(img => img.complete && img.naturalWidth > 0).length"
+        ), 2);
         const result = await window.webContents.executeJavaScript(`(async () => {
           const initial = await window.csd.projects.state();
           const original = await window.csd.getState();

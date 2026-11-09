@@ -11,7 +11,7 @@ export function createBootstrapService(input: {
   return {
     getInfo(): AppInfo {
       return {
-        product: 'CSD', fullName: 'Crawl Socials Data', version: input.version,
+        product: 'TrendLink', fullName: 'TrendLink', version: input.version,
         mode: 'OFFLINE_BOOTSTRAP', benchmarkReady: false,
         campaign: {
           name: spec.name, keywords: [...spec.workload.keywords],

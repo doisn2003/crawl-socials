@@ -196,7 +196,7 @@ export function createBrowserHost(input: {
     }
     if (slot.window && !slot.window.isDestroyed()) slot.window.destroy();
     slot.view = null; slot.window = null;
-    const window = new BaseWindow({ title: 'CSD — ' + (entry.profile.platform === 'threads' ? 'Threads' : 'Facebook'), width: 1000, height: 760, show: visible, skipTaskbar: !visible });
+    const window = new BaseWindow({ title: 'TrendLink — ' + (entry.profile.platform === 'threads' ? 'Threads' : 'Facebook'), width: 1000, height: 760, show: visible, skipTaskbar: !visible });
     const view = new WebContentsView({ webPreferences: { session: entry.session, sandbox: true,
       contextIsolation: true, nodeIntegration: false, webviewTag: false, offscreen: !visible,
       backgroundThrottling: visible ? input.backgroundThrottling ?? true : false } });

@@ -1,6 +1,7 @@
 // Bounded source diagnostics, using only source URLs already saved by the collector.
 // This does not classify User as PROFILE and does not open individual permalinks.
 import { app } from 'electron';
+import { profilesByLabel } from '../dist/domain/browser-profile.js';
 import { readFileSync, appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve, relative, isAbsolute, sep } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -22,12 +23,12 @@ const rows=readFileSync(join(directory,'posts.jsonl'),'utf8').trim().split('\n')
 const sources=[...new Map(rows.filter(r=>r.source_type==='UNKNOWN'&&r.visibility==='PUBLIC'&&r.source_url).map(r=>[r.source_url,r])).values()].slice(0,limit);
 const output=join(directory,'source-audit-'+Date.now()+'.jsonl');
 const paths=runtimePaths(app.getPath('appData'));for(const [key,path]of Object.entries(paths)){mkdirSync(path,{recursive:true});app.setPath(key,path);}
-app.setName('CSD');if(!app.requestSingleInstanceLock())app.exit(2);
+app.setName('TrendLink');if(!app.requestSingleInstanceLock())app.exit(2);
 app.on('window-all-closed',()=>{});
 async function timed(work,ms){let t;try{return await Promise.race([work,new Promise((_,r)=>t=setTimeout(()=>r(Error('AUDIT_TIMEOUT')),ms))]);}finally{clearTimeout(t);}}
 await app.whenReady();
 const profiles=createBrowserProfiles(join(paths.userData,'data'));
-const matches=(await profiles.list()).filter(p=>p.label===(process.argv.includes('--profile')?arg('--profile'):'CSD Facebook'));
+const matches = profilesByLabel(await profiles.list(), process.argv.includes('--profile') ? arg('--profile') : 'TrendLink Facebook');
 if(matches.length!==1)throw Error('PROFILE_SELECTION_REQUIRED');
 const host=createBrowserHost({profiles,secrets:createElectronSecretStore(join(paths.userData,'secrets')),journalDirectory:join(paths.userData,'data','session-snapshots'),manualLoginEnabled:true,hidden:false});
 try{

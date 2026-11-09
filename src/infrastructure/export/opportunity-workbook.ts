@@ -72,7 +72,7 @@ function sheet(workbook: ExcelJS.Workbook, name: string, headers: string[], rows
 }
 export async function exportOpportunityWorkbook(path: string, value: unknown, classification?: ConversationClassification): Promise<void> {
   const data = selectOpportunityExport(value, classification), workbook = new ExcelJS.Workbook();
-  workbook.creator = 'CSD'; workbook.title = 'CSD — Conversation opportunities';
+  workbook.creator = 'TrendLink'; workbook.title = 'TrendLink — Conversation opportunities';
   const current = new Map(data.conversations.filter(item => !item.stale && item.decision.snapshot_id === item.snapshot.id)
     .map(item => [item.snapshot.id, item.decision]));
   // Preserve ranked rows, then include raw snapshots that have not been classified yet.

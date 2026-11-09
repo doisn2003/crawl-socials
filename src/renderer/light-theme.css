@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CSD — Stitch Bright & Feminine UI Theme
+   TrendLink — Stitch Bright & Feminine UI Theme
    Generated via Google Stitch Design System (Rose · Berry · Lavender · Mint)
    ========================================================================== */
 
@@ -264,24 +264,11 @@ body {
   box-shadow: 0 6px 24px -4px rgba(225, 29, 72, 0.06);
 }
 
-.brand-mark {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #fb7185 0%, #e11d48 50%, #9333ea 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: 16px;
-  box-shadow: 0 8px 18px -4px rgba(225, 29, 72, 0.38);
-}
-
 .brand-name {
   font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.5px;
-  background: linear-gradient(90deg, #be123c, #9333ea);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: #be123c;
+  color: #101a47;
 }
 
 .brand-subtitle {
@@ -1570,10 +1557,6 @@ footer {
   font-weight: 700;
   color: var(--muted);
   padding: 20px 8px 10px;
-}
-
-.footer-mark {
-  color: #e11d48;
 }
 
 @media (max-width: 850px) {

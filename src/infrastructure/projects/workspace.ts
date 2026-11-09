@@ -23,6 +23,8 @@ interface WorkspaceIndex {
   projects: LocalProject[];
   migrationPending?: boolean;
 }
+const defaultProjectName = 'Dữ liệu TrendLink hiện có';
+const legacyDefaultProjectName = 'Dữ liệu CSD hiện có';
 const timestamp = () => new Date().toISOString();
 const errorCode = (error: unknown) => error instanceof Error && /^PROJECT_[A-Z_]+$/.test(error.message) ? error.message : 'PROJECT_DATABASE_UNAVAILABLE';
 
@@ -73,7 +75,11 @@ export async function createProjectWorkspace(input: { directory: string; databas
     save();
   }
   function state(): ProjectWorkspaceState {
-    return { projects: index.projects.filter(project => project.ownerId === ownerId() && !project.deletedAt).map(({ id, name, avatar, createdAt, updatedAt }) => ({ id, name, avatar, createdAt, updatedAt })),
+    const projects = index.projects.filter(project => project.ownerId === ownerId() && !project.deletedAt)
+      .map(({ id, name, avatar, createdAt, updatedAt }) => ({
+        id, name: name === legacyDefaultProjectName ? defaultProjectName : name, avatar, createdAt, updatedAt,
+      }));
+    return { projects,
       activeProjectId: index.activeProjectId, user: user ? { ...user } : null, backup: { ...backup } };
   }
   function pending(): void { backup.status = remote ? 'PENDING' : 'LOCAL'; backup.error = null; }
@@ -146,7 +152,8 @@ export async function createProjectWorkspace(input: { directory: string; databas
         // Recover a previous ownership transfer interrupted before local index publication.
         for (const project of index.projects.filter(entry => entry.ownerId === index.guestId && existingRemote.some(remoteProject => remoteProject.id === entry.id))) project.ownerId = authenticated.id;
         if (existingRemote.some(project => !project.deletedAt)) {
-          for (const project of index.projects.filter(entry => entry.ownerId === index.guestId && entry.revision === 0 && entry.name === 'Dữ liệu CSD hiện có')) {
+          for (const project of index.projects.filter(entry => entry.ownerId === index.guestId && entry.revision === 0
+            && [defaultProjectName, legacyDefaultProjectName].includes(entry.name))) {
             if ((await snapshotProject(directory(project))).length === 0) index.projects.splice(index.projects.indexOf(project), 1);
           }
         }
@@ -170,7 +177,7 @@ export async function createProjectWorkspace(input: { directory: string; databas
     }
   }
   if (index.migrationPending || index.projects.length === 0) {
-    const migrated = index.projects[0] ?? createLocal({ name: 'Dữ liệu CSD hiện có' });
+    const migrated = index.projects[0] ?? createLocal({ name: defaultProjectName });
     // Only application-generated data moves into a project. Browser sessions and keys stay machine-local.
     const names = ['user-config.json', 'user-config.json.v1.backup', 'latest-run.json', 'active-campaign-draft.json', 'collections', 'filter-presets', 'assessment-cache', 'retained-source-roots.json'];
     for (const name of names) {

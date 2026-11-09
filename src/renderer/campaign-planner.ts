@@ -80,7 +80,7 @@ export function createCampaignPlanner(host: PlannerHost) {
     const cost = state?.campaignDraftPreparing?.cost ?? state?.campaignDraftError?.cost ?? draft?.cost ?? state?.campaignDialogue?.cost;
     node('campaign-plan-cost').textContent = cost ? `Chi phí lập kế hoạch: $${cost.measuredUsd.toFixed(4)}`
       + (cost.unknownUpperUsd + cost.reservedUsd > 0 ? `–$${(cost.measuredUsd + cost.unknownUpperUsd + cost.reservedUsd).toFixed(4)}` : '')
-      + ' · Được tính trong ngân sách của lượt thu.' : 'CSD sẽ làm rõ yêu cầu trước khi tìm bài. Chi phí nằm trong ngân sách đã chọn của lượt này.';
+      + ' · Được tính trong ngân sách của lượt thu.' : 'TrendLink sẽ làm rõ yêu cầu trước khi tìm bài. Chi phí nằm trong ngân sách đã chọn của lượt này.';
     const presets = state?.campaignPresets ?? [], nextKey = JSON.stringify(presets.map(p => [p.presetId, p.version, p.name, p.supported]));
     const select = node<HTMLSelectElement>('campaign-preset');
     if (nextKey !== presetKey) {
@@ -130,7 +130,7 @@ export function createCampaignPlanner(host: PlannerHost) {
       if (catalog) showSources(catalog);
     } catch {
       if (!choose) { sources = []; node<HTMLSelectElement>('retained-source').value = ''; }
-      node('retained-source-note').textContent = choose ? 'Chưa thêm được nguồn. Chọn thư mục CSD đã dùng để lưu bài viết.'
+      node('retained-source-note').textContent = choose ? 'Chưa thêm được nguồn. Chọn thư mục TrendLink đã dùng để lưu bài viết.'
         : 'Chưa đọc được danh sách dữ liệu đã lưu. Hãy thử lại.';
       host.reportError?.(node('retained-source-note').textContent ?? 'Chưa đọc được dữ liệu đã lưu.');
     }

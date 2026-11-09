@@ -23,7 +23,7 @@ async function main() {
   const options = parseOpportunityRunnerOptions(config);
   const appData = app.getPath('appData'), paths = runtimePaths(appData);
   for (const [name, directory] of Object.entries(paths)) { mkdirSync(directory, { recursive: true }); app.setPath(name, directory); }
-  app.setName('CSD');
+  app.setName('TrendLink');
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
   if (!app.requestSingleInstanceLock()) throw Error('CSD_ALREADY_RUNNING');
   app.on('window-all-closed', () => {});

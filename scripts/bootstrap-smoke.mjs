@@ -40,10 +40,10 @@ try {
     assert.equal(code, 0, 'Electron failed: ' + stderr);
     const report = JSON.parse(await readFile(join(root, 'smoke-result.json'), 'utf8'));
     assert.equal(report.appId, 'io.csd.desktop');
-    assert.equal(report.appName, 'CSD');
+    assert.equal(report.appName, 'TrendLink');
     assert.equal(report.appRoot.toLowerCase(), resolve(workspace).toLowerCase());
     assert.equal(report.electronExecutable.toLowerCase(), resolve(electron).toLowerCase());
-    assert.equal(report.initial.info.product, 'CSD');
+    assert.equal(report.initial.info.product, 'TrendLink');
     assert.equal(report.initial.info.benchmarkReady, false);
     assert.equal(report.initial.nodeAvailable, false);
     assert.equal(report.initial.processAvailable, false);

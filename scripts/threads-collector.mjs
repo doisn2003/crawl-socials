@@ -1,4 +1,5 @@
 import { app } from 'electron';
+import { profilesByLabel } from '../dist/domain/browser-profile.js';
 import { mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync, renameSync } from 'node:fs';
 import { resolve, join, relative, isAbsolute, sep } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -169,7 +170,7 @@ async function main(){
  const config=JSON.parse(readFileSync(resolve(configPath),'utf8'));
  const paths=runtimePaths(app.getPath('appData'));
  for(const [name,path]of Object.entries(paths)){mkdirSync(path,{recursive:true});app.setPath(name,path);}
- app.setName('CSD');app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+ app.setName('TrendLink');app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
  if(!app.requestSingleInstanceLock())throw Error('CSD_ALREADY_RUNNING');
  let stopping=false,finished=false;
  const onClosed=()=>{stopping=true;};
@@ -177,9 +178,10 @@ async function main(){
  app.on('window-all-closed',onClosed);app.on('before-quit',onQuit);
  await app.whenReady();
  const profiles=createBrowserProfiles(join(paths.userData,'data'));
- const matches=(await profiles.list()).filter(p=>p.platform==='threads'&&p.label===(config.profileLabel||'CSD Threads'));
+ const label = config.profileLabel || 'TrendLink Threads';
+ const matches = profilesByLabel((await profiles.list()).filter(p=>p.platform==='threads'), label);
  if(matches.length>1)throw Error('PROFILE_AMBIGUOUS');
- const profile=matches[0]||await profiles.create(config.profileLabel||'CSD Threads','threads');
+ const profile=matches[0]||await profiles.create(label,'threads');
  const host=createBrowserHost({profiles,secrets:createElectronSecretStore(join(paths.userData,'secrets')),journalDirectory:join(paths.userData,'data','session-snapshots'),manualLoginEnabled:true,backgroundThrottling:false});
  let receipt;
  try{

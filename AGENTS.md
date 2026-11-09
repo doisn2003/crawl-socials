@@ -1,4 +1,9 @@
-# CSD — current development instructions
+# TrendLink — current development instructions
+
+## Promotional branch — 2026-11-09
+
+- Work on `promo` for TrendLink branding and promotional changes. Keep runtime identifiers for existing data, sessions, spending records, and backups compatible.
+- Use the approved concept 05, Bản đồ kết nối, for the application and Windows icon. Its mark is stored at `src/renderer/trendlink-mark.png`.
 
 ## Official development baseline — 2026-11-07
 

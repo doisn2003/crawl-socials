@@ -51,10 +51,12 @@ async function temporary(work: (directory: string) => Promise<void>): Promise<vo
 const completed = async (input: CollectorInput): Promise<CollectorReceipt> => { posts(input, 1); return { stop_reason: 'TARGET_REACHED', summary: { unique: 1 } }; };
 
 test('explicit add-account creates another isolated profile while ordinary login reuses the selected account', async () => temporary(async directory => {
-  const fixture = hostWithProfiles(), service = createProductionService({ directory, version: 'test', host: fixture.host, collect: completed });
+  const fixture = hostWithProfiles([{ ...profile(fbId, 'facebook'), label: 'CSD Facebook' }, profile(threadId, 'threads')]);
+  const service = createProductionService({ directory, version: 'test', host: fixture.host, collect: completed });
+  assert.equal((await service.getState()).accounts[0]?.label, 'TrendLink Facebook');
   await service.login({ platform: 'facebook' }); assert.equal(fixture.profiles.length, 2); assert.equal(fixture.opened.at(-1), fbId);
   await service.login({ platform: 'facebook', createNew: true });
-  assert.equal(fixture.profiles.length, 3); assert.notEqual(fixture.opened.at(-1), fbId); assert.equal(fixture.profiles.at(-1)!.label, 'CSD Facebook 2');
+  assert.equal(fixture.profiles.length, 3); assert.notEqual(fixture.opened.at(-1), fbId); assert.equal(fixture.profiles.at(-1)!.label, 'TrendLink Facebook 2');
   await service.login({ platform: 'facebook', profileId: fbId }); assert.equal(fixture.opened.at(-1), fbId);
   await assert.rejects(service.login({ platform: 'facebook', profileId: fbId, createNew: true }), /LOGIN_INPUT_INVALID/);
 }));

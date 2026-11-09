@@ -14,7 +14,7 @@ try {
   await client.query(PROJECT_SCHEMA_SQL);
   await client.query('COMMIT');
   const result = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema='csd_backup' ORDER BY table_name");
-  console.log('CSD PostgreSQL schema is ready.');
+  console.log('TrendLink PostgreSQL schema is ready.');
   console.log(result.rows.map(row => row.table_name).join(', '));
 } catch {
   await client?.query('ROLLBACK').catch(() => {});

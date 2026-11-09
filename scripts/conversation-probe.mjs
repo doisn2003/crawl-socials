@@ -1,5 +1,6 @@
 // Read-only capability probe. Raw social content stays outside the repository.
 import { app } from 'electron';
+import { profilesByLabel } from '../dist/domain/browser-profile.js';
 import { mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -16,7 +17,7 @@ if (out.startsWith(resolve(process.cwd()))) throw Error('PRIVATE_OUTPUT_REQUIRED
 mkdirSync(out,{recursive:true});
 const paths=runtimePaths(app.getPath('appData'));
 for(const [name,path]of Object.entries(paths)){mkdirSync(path,{recursive:true});app.setPath(name,path);}
-app.setName('CSD');
+app.setName('TrendLink');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 if(!app.requestSingleInstanceLock()) throw Error('CSD_ALREADY_RUNNING');
 app.on('window-all-closed',()=>{});
@@ -59,7 +60,9 @@ try{
  const components=Object.fromEntries(['./conversation-probe.mjs','./conversation-collector.mjs','../dist/infrastructure/browser/conversation-parser.js'].map(path=>[path,existsSync(new URL(path,import.meta.url))?createHash('sha256').update(readFileSync(new URL(path,import.meta.url))).digest('hex'):null]));
  writeFileSync(join(out,'manifest.json'),JSON.stringify({started_at:new Date().toISOString(),jobs,components},null,2),{flush:true});
  for(const [idx,job]of jobs.entries()){
-  if(stopping||existsSync(join(out,'STOP')))break;const profile=(await host.list()).find(p=>(p.platform||'facebook')===job.platform&&p.label===(job.platform==='threads'?'CSD Threads':'CSD Facebook'));
+  if(stopping||existsSync(join(out,'STOP')))break;
+  const platformProfiles = (await host.list()).filter(p => (p.platform || 'facebook') === job.platform);
+  const [profile] = profilesByLabel(platformProfiles, job.platform === 'threads' ? 'TrendLink Threads' : 'TrendLink Facebook');
   if(!profile)throw Error('PROFILE_MISSING_'+job.platform);
   await host.open(profile.id);const wc=host.observerTarget(profile.id)?.contents;if(!wc)throw Error('PROFILE_UNAVAILABLE');
   wc.setBackgroundThrottling(false);

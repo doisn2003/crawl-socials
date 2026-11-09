@@ -14,7 +14,7 @@ export function collectionResourceNotice(run: Pick<RunState, 'state' | 'platform
   const resources = sources.flatMap(p => p.resources ? [p.resources] : []).sort((a, b) => b.sampledAt - a.sampledAt)[0];
   if (!resources) return null;
   if (resources.admission === 'WAITING_MEMORY' && resources.active === 0 && resources.queued > 0)
-    return 'Đang chờ RAM trống để tìm bài. Đóng bớt ứng dụng hoặc cửa sổ mạng xã hội; CSD sẽ tự tiếp tục khi đủ RAM, hoặc tạm dừng nếu phải chờ quá một phút.';
+    return 'Đang chờ RAM trống để tìm bài. Đóng bớt ứng dụng hoặc cửa sổ mạng xã hội; TrendLink sẽ tự tiếp tục khi đủ RAM, hoặc tạm dừng nếu phải chờ quá một phút.';
   if (resources.admission === 'SERIAL_MEMORY') return 'Đang tìm lần lượt để giảm sử dụng RAM.';
   return null;
 }

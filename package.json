@@ -1,7 +1,7 @@
 {
-  "name": "csd-desktop",
+  "name": "trendlink-desktop",
   "version": "0.4.0-rebuild.5.4",
-  "description": "CSD — Crawl Socials Data",
+  "description": "TrendLink",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -39,7 +39,7 @@
   },
   "build": {
     "appId": "io.csd.desktop",
-    "productName": "CSD",
+    "productName": "TrendLink",
     "asar": true,
     "directories": {
       "output": "release"
@@ -49,6 +49,7 @@
       "package.json"
     ],
     "win": {
+      "icon": "src/renderer/trendlink-mark.png",
       "target": [
         {
           "target": "portable",
@@ -59,7 +60,7 @@
       ]
     },
     "portable": {
-      "artifactName": "CSD-Portable-${version}.exe"
+      "artifactName": "TrendLink-Portable-${version}.exe"
     }
   },
   "overrides": {

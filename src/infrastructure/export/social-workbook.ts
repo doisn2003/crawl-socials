@@ -105,8 +105,8 @@ function addSheet(workbook: ExcelJS.Workbook, name: string, columns: Column[], p
 /** Export one combined workbook from the two collectors' posts.json arrays. */
 export async function exportSocialWorkbook(path: string, facebook: Post[], threads: Post[]): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'CSD';
-  workbook.title = 'CSD — Crawl Socials Data';
+  workbook.creator = 'TrendLink';
+  workbook.title = 'TrendLink';
   addSheet(workbook, 'Facebook Posts', facebookColumns, facebook);
   addSheet(workbook, 'Thread Posts', threadsColumns, threads);
   await mkdir(dirname(path), { recursive: true });

@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
-const args=process.argv.slice(2),queries=[];let configPath=null,output=null,profile='CSD Threads',resume=false,stop=false,exportOnly=false,target=1000,maxMinutes=90,maxScrolls=80;
+const args=process.argv.slice(2),queries=[];let configPath=null,output=null,profile='TrendLink Threads',resume=false,stop=false,exportOnly=false,target=1000,maxMinutes=90,maxScrolls=80;
 for(let i=0;i<args.length;i++){
  const a=args[i];if(a==='--resume'){resume=true;continue;}if(a==='--stop'){stop=true;continue;}if(a==='--export'){exportOnly=true;continue;}
  const value=args[++i];if(!value)throw Error('Missing value for '+a);

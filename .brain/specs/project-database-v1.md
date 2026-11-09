@@ -1,4 +1,4 @@
-# CSD project database
+# TrendLink project database
 
 Approved work on 9 November 2026 introduces independent projects and a PostgreSQL recovery copy. The desktop keeps each project's working files under `data/projects/<project-id>/data`. PostgreSQL uses the additive `csd_backup` schema. The desktop performs collection and filtering against local files and SQLite, then publishes changed files in an atomic project backup transaction.
 
@@ -19,7 +19,7 @@ Canonical posts and run membership are projected from `project-posts.sqlite` in 
 
 ## Data inventory and recovery mapping
 
-| CSD data | Local source | PostgreSQL storage |
+| TrendLink data | Local source | PostgreSQL storage |
 | --- | --- | --- |
 | Prompt, filter mode, target, language and configuration | `user-config.json`, active draft and run configuration | JSON records and exact recovery files |
 | Planning dialogue, keyword families, recipes, revisions and presets | Campaign directories and `filter-presets` | JSON records and exact recovery files |
@@ -34,7 +34,7 @@ Canonical posts and run membership are projected from `project-posts.sqlite` in 
 | Saved exports | Project `exports` and run result files | Exact recovery files, including Excel bytes |
 | Project name, avatar and ownership | Local workspace index | `projects`, `users` |
 
-Machine login cookies, browser sessions, API keys, PostgreSQL credentials, encrypted secret storage and machine-global spending authorizations remain in machine storage. Session tokens use the existing Windows encrypted secret store. New computers authenticate social-network accounts locally. The account's project data restores from PostgreSQL after CSD login.
+Machine login cookies, browser sessions, API keys, PostgreSQL credentials, encrypted secret storage and machine-global spending authorizations remain in machine storage. Session tokens use the existing Windows encrypted secret store. New computers authenticate social-network accounts locally. The account's project data restores from PostgreSQL after TrendLink login.
 
 ## Synchronization and recovery
 

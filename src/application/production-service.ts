@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { atomicJson, createUserConfigStore } from '../infrastructure/config/user-config.js';
 import { throughput } from '../shared/throughput.js';
-import { isBrowserProfileId } from '../domain/browser-profile.js';
+import { displayProfileLabel, isBrowserProfileId } from '../domain/browser-profile.js';
 import type { BrowserProfile } from '../domain/browser-profile.js';
 import type { Account, OpportunityConfig, OpportunityCounts, OpportunityProgress, Platform, ProductionState, RetainedSourceCatalog, RunState, UserConfig } from '../shared/production-api.js';
 import { ProjectPostStore } from '../infrastructure/storage/project-post-store.js';
@@ -289,7 +289,7 @@ export function createProductionService(input: {
       let authenticated = false, persistenceError = profile.persistenceError;
       try { authenticated = await input.host.sessionStatus(profile.id); }
       catch (error) { persistenceError = code(error); }
-      return { id: profile.id, label: profile.label, platform: profile.platform || 'facebook', open: profile.open,
+      return { id: profile.id, label: displayProfileLabel(profile.label), platform: profile.platform || 'facebook', open: profile.open,
         authenticated: authenticated && !persistenceError && !blockedProfiles.has(profile.id), persistenceError };
     }));
     return structuredClone(accountCache);
@@ -708,7 +708,7 @@ export function createProductionService(input: {
       if (v.profileId && (!profile || (profile.platform || 'facebook') !== v.platform)) throw Error('PROFILE_NOT_FOUND');
       if (!profile) {
         const count = list.filter(p => (p.platform || 'facebook') === v.platform).length;
-        const created = await input.host.create((v.platform === 'facebook' ? 'CSD Facebook' : 'CSD Threads') + (count ? ' ' + (count + 1) : ''), v.platform);
+        const created = await input.host.create((v.platform === 'facebook' ? 'TrendLink Facebook' : 'TrendLink Threads') + (count ? ' ' + (count + 1) : ''), v.platform);
         profile = { ...created, open: false, persistenceError: null };
       }
       blockedProfiles.delete(profile.id); await input.host.openLogin(profile.id); await accounts();
