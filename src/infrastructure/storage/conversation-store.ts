@@ -472,7 +472,7 @@ export class ConversationStore {
       .map(row => ({ platform: String(row.platform) as SocialPlatform, pending: asNumber(row.pending),
         failed: asNumber(row.failed), comments: asNumber(row.comments) }));
   }
-  results(context: EvaluationContext, options: { platform?: SocialPlatform; classification?: ConversationClassification; include_stale?: boolean; ranked?: boolean; source_priority?: readonly SourceKind[]; limit?: number; offset?: number } = {}, asOf = this.iso()): Array<{ snapshot: ConversationSnapshot; decision: ConversationDecision; stale: boolean }> {
+  results(context: EvaluationContext, options: { platform?: SocialPlatform; classification?: ConversationClassification; include_stale?: boolean; ranked?: boolean; latestObservedFirst?: boolean; source_priority?: readonly SourceKind[]; limit?: number; offset?: number } = {}, asOf = this.iso()): Array<{ snapshot: ConversationSnapshot; decision: ConversationDecision; stale: boolean }> {
     this.assertOpen(); assertEvaluationContext(context);
     const params: Array<string | number> = [contextKey(context)];
     let where = ' WHERE c.context_key=?';
@@ -496,7 +496,8 @@ export class ConversationStore {
       CASE json_extract(d.payload,'$.attributes.participation_context') WHEN 'OPEN' THEN 2 WHEN 'UNKNOWN' THEN 1 ELSE 0 END DESC,
       CASE json_extract(d.payload,'$.attributes.freshness') WHEN 'CURRENT' THEN 2 WHEN 'UNKNOWN' THEN 1 ELSE 0 END DESC,
       CASE json_extract(s.payload,'$.post.source.kind') WHEN 'PROFILE' THEN ${sources!.PROFILE} WHEN 'GROUP' THEN ${sources!.GROUP} WHEN 'PAGE' THEN ${sources!.PAGE} ELSE ${sources!.UNKNOWN} END DESC,` : '';
-    const sql = `SELECT d.payload AS decision,s.payload AS snapshot,roots.revision AS latest_revision,ar.evaluated_at AS requested_at FROM current_decisions c JOIN decisions d ON d.id=c.decision_id JOIN snapshots s ON s.id=d.snapshot_id JOIN conversations roots ON roots.platform=c.platform AND roots.root_post_id=c.root_post_id LEFT JOIN assessment_requests ar ON ar.context_key=c.context_key AND ar.snapshot_id=d.snapshot_id${where} ORDER BY ${rank} d.rowid DESC LIMIT ? OFFSET ?`;
+    const order = options.latestObservedFirst ? 'julianday(s.observed_at) DESC,' : rank;
+    const sql = `SELECT d.payload AS decision,s.payload AS snapshot,roots.revision AS latest_revision,ar.evaluated_at AS requested_at FROM current_decisions c JOIN decisions d ON d.id=c.decision_id JOIN snapshots s ON s.id=d.snapshot_id JOIN conversations roots ON roots.platform=c.platform AND roots.root_post_id=c.root_post_id LEFT JOIN assessment_requests ar ON ar.context_key=c.context_key AND ar.snapshot_id=d.snapshot_id${where} ORDER BY ${order} d.rowid DESC LIMIT ? OFFSET ?`;
     const limit = options.limit ?? 100000, offset = options.offset ?? 0;
     if (!Number.isInteger(limit) || limit < 0 || !Number.isInteger(offset) || offset < 0) throw Error('INVALID_PAGINATION');
     return (this.db.prepare(sql).all(...params, limit, offset) as Row[]).map(row => {

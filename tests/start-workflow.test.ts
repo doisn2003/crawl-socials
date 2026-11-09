@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { planAndStart } from '../src/renderer/start-workflow.js';
-import { filterModeAtPercent } from '../src/shared/filter-policy.js';
+import { filterModeAtPercent, restoreFilterPercent } from '../src/shared/filter-policy.js';
 import { parseUserConfig } from '../src/infrastructure/config/user-config.js';
 import type { ProductionState } from '../src/shared/production-api.js';
 import type { CampaignDraftReference } from '../src/shared/campaign-drafts.js';
@@ -52,9 +52,21 @@ test('planner budget errors, unavailable drafts and transport errors never start
 });
 test('all 101 percentage positions map to the agreed bands and persist with existing spending limits', () => {
   for (let percent = 0; percent <= 100; percent++) {
-    assert.equal(filterModeAtPercent(percent), percent <= 20 ? 'OFF' : percent <= 80 ? 'STANDARD' : 'QUALITY');
+    const mode = percent <= 10 ? 'OFF' : percent <= 49 ? 'CONSISTENT' : percent <= 90 ? 'STANDARD' : 'QUALITY';
+    assert.equal(filterModeAtPercent(percent), mode);
     const saved = parseUserConfig({ keywords: [], minimumPosts: 10, filterPercent: percent, spendLimits: { totalUsd: 2, dailyUsd: 1 } });
     assert.equal(saved.filterPercent, percent); assert.deepEqual(saved.spendLimits, { totalUsd: 2, dailyUsd: 1 });
+    assert.equal(restoreFilterPercent(saved.filterPercent, mode), percent);
   }
   for (const filterPercent of [-1, 101, 21.5, '21', null]) assert.throws(() => parseUserConfig({ keywords: [], minimumPosts: 10, filterPercent }), /CONFIG_INVALID/);
+});
+
+test('slider restores named modes and preserves old Portable 5.3 choices at changed boundaries', () => {
+  assert.equal(restoreFilterPercent(undefined), 25);
+  assert.equal(restoreFilterPercent(undefined, 'QUALITY'), 100);
+  assert.equal(restoreFilterPercent(17), 0);
+  assert.equal(restoreFilterPercent(32), 50);
+  assert.equal(restoreFilterPercent(88), 100);
+  assert.equal(restoreFilterPercent(88, 'STANDARD'), 88);
+  assert.equal(restoreFilterPercent(58, 'CONSISTENT'), 25);
 });

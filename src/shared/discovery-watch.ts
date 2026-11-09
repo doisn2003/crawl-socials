@@ -5,10 +5,3 @@ export interface DiscoverySubscription {
   nextRunAt: string; lastRunId: string | null; activeRunId: string | null; awaitingExport: boolean;
   lastError: string | null; deliveredThisMonth: number; deliveredTotal: number;
 }
-export interface DiscoveryWatchApi {
-  list(): Promise<DiscoverySubscription[]>;
-  create(input: { sourceRunId: string; label: string; intervalHours?: number; monthlyTarget?: number }): Promise<DiscoverySubscription[]>;
-  setEnabled(input: { id: string; enabled: boolean }): Promise<DiscoverySubscription[]>;
-  attachRecipe(input: { id: string; sourceRunId: string }): Promise<DiscoverySubscription[]>;
-  runNow(input: { id: string }): Promise<DiscoverySubscription[]>;
-}

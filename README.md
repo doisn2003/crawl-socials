@@ -22,6 +22,8 @@ Từ ngày **07/11/2026**, **`main`** là nhánh phát triển chính thức c�
 
 Khu vực đầu màn hình quản lý các project độc lập. Mỗi project lưu prompt, cấu hình, kế hoạch, kết quả và lịch sử thu thập. Có thể tạo, đổi tên, đổi ảnh đại diện, chọn và xóa project. Dừng lượt xử lý hiện tại trước khi chuyển project.
 
+Giao diện 5.4 dùng thanh trượt để chọn OFF, CONSISTENT, STANDARD hoặc QUALITY. Ba bước chính lần lượt là yêu cầu, nơi tìm kiếm và kết quả. Mở nút **Cấu hình nâng cao** để chỉnh giới hạn bài thô, ngân sách và thu bình luận. Trần chi tiêu cộng dồn và theo ngày dùng chung cho các project trên máy.
+
 Đặt `DATABASE_URL` trong `.env` cạnh ứng dụng, hoặc dùng biến `CSD_ENV_FILE` trỏ tới tệp cấu hình. CSD sao lưu dữ liệu project mỗi 30 giây và khi thoát. Nút đồng bộ cập nhật bản sao trên máy đang dùng. Tạo tài khoản bằng tên đăng nhập và mật khẩu, rồi đăng nhập trên máy khác để tải các project đã sao lưu. Kết nối PostgreSQL cần được cấu hình trên mỗi máy.
 
 Bài gặp lại được giữ trong lượt thu mới. Cột boolean `previouslyCollected` trong JSON và Excel đánh dấu bài đã xuất hiện ở lượt trước của cùng project. Kết quả đánh giá được tái sử dụng kèm thông tin chế độ và lần đánh giá gốc. Nội dung bài thay đổi sẽ được đánh giá lại.

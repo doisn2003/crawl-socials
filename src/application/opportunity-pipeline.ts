@@ -11,7 +11,7 @@ import { createCampaignModelGateway } from '../infrastructure/llm/campaign-model
 import { compileCampaign } from './compile-campaign.js';
 import { pinPlannerRecipe } from './planner-recipe-pin.js';
 import { pinRankingRecipe } from './ranking-recipe-pin.js';
-import { classifierRecipe, classifyConversations, opportunityRank } from './classification-service.js';
+import { classifierRecipe, classifyConversations } from './classification-service.js';
 import { verifyTentativeOpportunities } from './opportunity-verifier.js';
 import { readActiveEvaluation, resumeEvaluationMigration, evaluationContext } from './evaluation-upgrade.js';
 import { enqueueFocusedVerification, processFocusedVerificationBatch } from './focused-verification-backfill.js';
@@ -233,9 +233,9 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       const commentSummary = keywordCommentsEnabled ? await store.keywordCommentSummary(context) : [];
       const preview: OpportunityProgress['preview'] = [];
       for (const classification of ['SUITABLE', 'NOT_SUITABLE'] as const) {
-        const results = await store.results(context, { classification, ranked: true, ...rankingOptions, limit: 20 });
-        results.sort((a, b) => { const aa = opportunityRank(a.decision, a.snapshot, rankingOptions.source_priority), bb = opportunityRank(b.decision, b.snapshot, rankingOptions.source_priority); for (let i = 0; i < aa.length; i++) if (aa[i] !== bb[i]) return bb[i]! - aa[i]!; return 0; });
-        for (const { snapshot, decision } of results.slice(0, 20)) {
+        const results = await store.results(context, { classification, limit: 20,
+          ...(rebuild ? { latestObservedFirst: true } : { ranked: true, ...rankingOptions }) });
+        for (const { snapshot, decision } of results) {
           const target = [snapshot.post, ...snapshot.comments].find(e => e?.entity_id === (decision.action_target?.entity_id ?? decision.goal_assessment?.candidate_entity_id)) ?? snapshot.post;
           if (excludedRoots.has(snapshot.platform + ':' + snapshot.root_post_id)) continue;
           preview.push({ platform: snapshot.platform, rootId: snapshot.root_post_id,
@@ -251,8 +251,10 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       }
       const money = modelCost();
       const selected = rebuild ? await selectTarget() : null;
-      if (off && selected) {
-        const snapshots = await Promise.all(selected.target.slice(0, 20).map(row => store.snapshot(row.platform as Platform, row.rootId)));
+      if (off && selected?.target.length) {
+        const previewSize = Math.min(20, selected.target.length);
+        const latest = [...selected.target, ...selected.extra].slice(-previewSize).reverse();
+        const snapshots = await Promise.all(latest.map(row => store.snapshot(row.platform as Platform, row.rootId)));
         for (const snapshot of snapshots) if (snapshot?.post) preview.push({
           platform: snapshot.platform, rootId: snapshot.root_post_id, classification: 'UNASSESSED',
           text: snapshot.post.text.slice(0, 900), link: snapshot.post.permalink ?? '', reason: 'Chưa đánh giá · Không dùng AI',
@@ -791,8 +793,10 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
       await publish();
       const exported = await store.exportSnapshot(context, rankingOptions), preview: OpportunityProgress['preview'] = off ? structuredClone(progress.preview) : [];
       for (const classification of ['SUITABLE', 'NOT_SUITABLE'] as const) {
-        for (const { snapshot, decision } of exported.conversations.filter(result => classification === 'SUITABLE'
-          ? result.decision.classification === 'SUITABLE' : result.decision.classification !== null && result.decision.classification !== 'SUITABLE').slice(0, 20)) {
+        const matches = exported.conversations.filter(result => classification === 'SUITABLE'
+          ? result.decision.classification === 'SUITABLE' : result.decision.classification !== null && result.decision.classification !== 'SUITABLE');
+        if (rebuild) matches.sort((a, b) => Date.parse(b.snapshot.observed_at) - Date.parse(a.snapshot.observed_at));
+        for (const { snapshot, decision } of matches.slice(0, 20)) {
           const target = [snapshot.post, ...snapshot.comments].find(e => e?.entity_id === (decision.action_target?.entity_id ?? decision.goal_assessment?.candidate_entity_id)) ?? snapshot.post;
           if (excludedRoots.has(snapshot.platform + ':' + snapshot.root_post_id)) continue;
           preview.push({ platform: snapshot.platform, rootId: snapshot.root_post_id, classification, text: (target?.text ?? '').slice(0, 900), link: target?.permalink ?? snapshot.post?.permalink ?? '',

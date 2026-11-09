@@ -28,7 +28,9 @@ if (!process.versions.electron) {
   app.disableHardwareAcceleration();
   const legacyData = join(isolated, 'csd-desktop', 'data');
   mkdirSync(legacyData, { recursive: true });
-  writeFileSync(join(legacyData, 'user-config.json'), JSON.stringify({ keywords: ['piano'], minimumPosts: 20 }));
+  writeFileSync(join(legacyData, 'user-config.json'), JSON.stringify({
+    keywords: ['piano'], minimumPosts: 20, spendLimits: { totalUsd: 7, dailyUsd: 4 },
+  }));
   const timeout = setTimeout(() => { console.error('PROJECT_RUNTIME_TIMEOUT'); app.exit(1); }, 45000);
   app.on('browser-window-created', (_event, window) => {
     window.show = () => {};
@@ -40,6 +42,7 @@ if (!process.versions.electron) {
           const created = await window.csd.projects.create({name:'Second project'});
           const second = await window.csd.getState();
           second.config.keywords = ['guitar'];
+          second.config.spendLimits = { totalUsd: 5, dailyUsd: 2 };
           await window.csd.saveConfig(second.config);
           await window.csd.projects.select({id: initial.activeProjectId});
           const restored = await window.csd.getState();
@@ -52,11 +55,20 @@ if (!process.versions.electron) {
           let denied = false;
           try { await window.csd.projects.select({id:'../other'}); } catch { denied = true; }
           return {initial, original:original.config.keywords, restored:restored.config.keywords,
-            persisted:persisted.config.keywords, renamed, removed, denied};
+            persisted:persisted.config.keywords, initialLimits:original.config.spendLimits,
+            secondLimits:second.spending, restoredLimits:restored.config.spendLimits,
+            restoredSpending:restored.spending, renamed, removed, denied};
         })()`);
         assert.deepEqual(result.original, ['piano']);
         assert.deepEqual(result.restored, ['piano']);
         assert.deepEqual(result.persisted, ['guitar']);
+        assert.deepEqual(result.initialLimits, { totalUsd: 7, dailyUsd: 4 });
+        assert.equal(result.secondLimits.remainingUsd, 7);
+        assert.equal(result.secondLimits.dailyRemainingUsd, 4);
+        assert.deepEqual(result.restoredLimits, { totalUsd: 5, dailyUsd: 2 });
+        assert.equal(result.restoredSpending.remainingUsd, 5);
+        assert.equal(result.restoredSpending.dailyRemainingUsd, 2);
+        assert.equal(result.restoredSpending.calls, 0);
         assert.ok(result.renamed.projects.some(project => project.name === 'Renamed project'));
         assert.equal(result.removed.projects.length, 1);
         assert.equal(result.removed.activeProjectId, result.initial.activeProjectId);

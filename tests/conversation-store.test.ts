@@ -297,6 +297,10 @@ test('global categorical ranking is applied before LIMIT instead of ranking only
     }
     assert.equal(store.results(context, { classification: 'SUITABLE', ranked: true, limit: 1 })[0]!.snapshot.root_post_id, 'post-1');
     assert.equal(store.results(context, { classification: 'SUITABLE', limit: 1 })[0]!.snapshot.root_post_id, 'recent-44');
+    const latest = store.ingest(post({ entity_id: 'newest', root_post_id: 'newest', observed_at: '2026-10-30T12:00:00Z' }), context).snapshot!;
+    store.recordDecision(decision(latest, { attributes: { observed_need: 'EXPERIENCE' } }));
+    store.recordDecision(decision(first));
+    assert.equal(store.results(context, { classification: 'SUITABLE', latestObservedFirst: true, limit: 1 })[0]!.snapshot.root_post_id, 'newest');
   } finally { store.close(); rmSync(dir, { recursive: true, force: true }); }
 });
 

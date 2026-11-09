@@ -2,7 +2,6 @@ import { app, BrowserWindow, dialog, ipcMain, nativeTheme, powerMonitor, session
 import { existsSync, mkdirSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { createDiscoveryStore, exportDigest } from '../infrastructure/storage/discovery-store.js';
-import { createDiscoveryWatch } from '../application/discovery-watch.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createProjectWorkspace } from '../infrastructure/projects/workspace.js';
@@ -23,11 +22,12 @@ import { createCampaignModelGateway } from '../infrastructure/llm/campaign-model
 import { createOpportunityPipeline } from '../application/opportunity-pipeline.js';
 import { prepareSemanticDraft, continueSemanticDraft } from '../application/campaign-drafts.js';
 import { runParallelCollectors } from '../application/parallel-collector.js';
-import { createUserConfigStore } from '../infrastructure/config/user-config.js';
+import { createUserConfigStore, parseUserConfig } from '../infrastructure/config/user-config.js';
 import { throughput, GEMINI_35_PROJECT_LIMITS } from '../shared/throughput.js';
 import { createRequestScheduler, type RequestScheduler } from '../infrastructure/llm/request-scheduler.js';
 import { unassessedGateway } from '../application/filter-policy.js';
 import { createDurableSpend, REBUILD_MODEL } from '../infrastructure/llm/durable-spend.js';
+import { DEFAULT_USER_SPEND_LIMITS } from '../shared/collection-limits.js';
 
 async function bootstrap() {
   const paths = runtimePaths(app.getPath('appData'));
@@ -50,8 +50,9 @@ async function bootstrap() {
   const environmentKey = resolveGeminiApiKey();
   const geminiKey = await createGeminiKeySettings(createElectronSecretStore(join(paths.userData, 'secrets')), () => environmentKey, { preferEnvironment: true });
   const appConfig = createUserConfigStore(join(paths.userData, 'data'));
+  const machineSpendLimits = () => appConfig.read().spendLimits ?? DEFAULT_USER_SPEND_LIMITS;
   const spending = createDurableSpend({ envelope: () => ({ scope: 'USER', model: REBUILD_MODEL,
-    ...(appConfig.read().spendLimits ?? { totalUsd: 3, dailyUsd: 3 }) }) });
+    ...machineSpendLimits() }) });
   const schedulers = new Map<string, RequestScheduler>();
   const schedulerForModel = (model: string) => {
     const policy = throughput(appConfig.read().performance);
@@ -116,17 +117,6 @@ async function bootstrap() {
     } });
   let service = createService();
   let discoveryStore = createDiscoveryStore(join(projects.activeDirectory(), 'discovery.sqlite'));
-  const createWatch = () => createDiscoveryWatch({ store: discoveryStore, getState: () => service.getState(),
-    readRunState: id => service.readRunState(id), start: (id, target) => service.startDiscoveryFromRecipe(id, target, []),
-    expectedResultCount: (run, fallback) => {
-      const frozen = service.results();
-      if (frozen.run.id !== run.id || !frozen.opportunity) return fallback;
-      const data = frozen.opportunity as import('../infrastructure/export/opportunity-workbook.js').OpportunityExportData;
-      if (!data.selection) return fallback;
-      return data.selection.target.length;
-    } });
-  let discoveryWatch = createWatch();
-  let discoveryTimer: ReturnType<typeof setInterval> | null = null;
   let backupTimer: ReturnType<typeof setInterval> | null = null;
   let projectChanging = false, backupRunning = false;
   let projectWork: Promise<unknown> | null = null;
@@ -134,9 +124,8 @@ async function bootstrap() {
   app.on('before-quit', event => {
     if (shutdownComplete) return;
     event.preventDefault(); if (closing) return; closing = true;
-    if (discoveryTimer) clearInterval(discoveryTimer);
     if (backupTimer) clearInterval(backupTimer);
-    void Promise.resolve(projectWork).catch(() => {}).then(() => discoveryWatch.stop()).then(() => service.shutdown()).then(() => browserHost.shutdown()).then(async () => {
+    void Promise.resolve(projectWork).catch(() => {}).then(() => service.shutdown()).then(() => browserHost.shutdown()).then(async () => {
       discoveryStore.close();
       await projects.sync().catch(() => {});
       await projects.close();
@@ -169,7 +158,6 @@ async function bootstrap() {
   let keyChanging = false, modelCommands = 0;
   async function modelCommand<T>(work: () => Promise<T>): Promise<T> {
     if (keyChanging) throw Error('GEMINI_KEY_BUSY');
-    if (discoveryWatch.busy) throw Error('DISCOVERY_BUSY');
     modelCommands++; try { return await work(); } finally { modelCommands--; }
   }
   const requireIdleForKey = async () => {
@@ -182,20 +170,18 @@ async function bootstrap() {
     try { await requireIdleForKey(); return await work(); } finally { keyChanging = false; }
   }
   function projectCommand(work: () => Promise<unknown>) {
-    if (projectChanging || backupRunning || modelCommands || exporting || choosingRetainedRoot || keyChanging || discoveryWatch.busy) throw Error('PROJECT_BUSY');
+    if (projectChanging || backupRunning || modelCommands || exporting || choosingRetainedRoot || keyChanging) throw Error('PROJECT_BUSY');
     projectChanging = true;
     const task = (async () => {
       try {
         const state = await service.getState();
         if (state.run && (['RUNNING', 'STOPPING'].includes(state.run.state) || state.run.opportunity?.watchActive || state.run.opportunity?.assessmentActive) || state.campaignDraftPreparing) throw Error('PROJECT_RUN_ACTIVE');
-        await discoveryWatch.stop();
         await service.shutdown();
         discoveryStore.close();
         try { return await work(); }
         finally {
           service = createService();
           discoveryStore = createDiscoveryStore(join(projects.activeDirectory(), 'discovery.sqlite'));
-          discoveryWatch = createWatch();
         }
       } finally { projectChanging = false; }
     })();
@@ -215,31 +201,19 @@ async function bootstrap() {
     'csd:gemini-key:status': () => geminiKey.status(),
     'csd:gemini-key:save': value => changeKey(() => geminiKey.save(value)),
     'csd:gemini-key:remove': () => changeKey(() => geminiKey.remove()),
-    'csd:state': () => service.getState(),
-    'csd:discovery:list': () => discoveryStore.list(),
-    'csd:discovery:create': async value => {
-      if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('DISCOVERY_INPUT_INVALID');
-      const v = value as { sourceRunId: string; label: string; intervalHours?: number; monthlyTarget?: number };
-      if (Object.keys(v).some(k => !['sourceRunId', 'label', 'intervalHours', 'monthlyTarget'].includes(k))) throw Error('DISCOVERY_INPUT_INVALID');
-      const run = service.readRunState(v.sourceRunId);
-      if (!run?.opportunity || run.mode === 'RETAINED' || ['RUNNING', 'STOPPING'].includes(run.state)) throw Error('DISCOVERY_SOURCE_UNAVAILABLE');
-      return discoveryStore.create(v);
+    'csd:state': async () => {
+      const state = await service.getState();
+      return { ...state, config: { ...state.config, spendLimits: machineSpendLimits() } };
     },
-    'csd:discovery:attach': value => {
-      if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join() !== 'id,sourceRunId') throw Error('DISCOVERY_INPUT_INVALID');
-      const v = value as { id: string; sourceRunId: string }, run = service.readRunState(v.sourceRunId);
-      if (!run?.opportunity || run.mode === 'RETAINED' || ['RUNNING', 'STOPPING'].includes(run.state)) throw Error('DISCOVERY_SOURCE_UNAVAILABLE');
-      return discoveryStore.attachRecipe(v.id, v.sourceRunId);
+    'csd:config': value => {
+      const { spendLimits, ...projectConfig } = parseUserConfig(value);
+      const config = service.saveConfig(projectConfig);
+      const previous = machineSpendLimits();
+      if (spendLimits && (spendLimits.totalUsd !== previous.totalUsd || spendLimits.dailyUsd !== previous.dailyUsd)) {
+        appConfig.save({ ...appConfig.read(), spendLimits });
+      }
+      return { ...config, spendLimits: machineSpendLimits() };
     },
-    'csd:discovery:enabled': value => {
-      if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join() !== 'enabled,id') throw Error('DISCOVERY_INPUT_INVALID');
-      const v = value as { id: string; enabled: boolean }; return discoveryStore.setEnabled(v.id, v.enabled);
-    },
-    'csd:discovery:run': value => modelCommand(async () => {
-      if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).join() !== 'id' || typeof (value as {id: unknown}).id !== 'string') throw Error('DISCOVERY_INPUT_INVALID');
-      await discoveryWatch.tick((value as {id: string}).id); return discoveryStore.list();
-    }),
-    'csd:config': value => service.saveConfig(value),
     'csd:login': value => service.login(value),
     'csd:campaign:prepare': () => modelCommand(() => service.prepareCampaign()),
     'csd:campaign:continue': value => modelCommand(() => service.continueCampaign(value)),
@@ -300,7 +274,7 @@ async function bootstrap() {
       } finally { exporting = false; }
     },
   };
-  const noPayload = new Set(['csd:discovery:list', 'csd:gemini-key:status', 'csd:gemini-key:remove', 'csd:state', 'csd:stop', 'csd:resume', 'csd:open-output', 'csd:campaign:prepare', 'csd:retained:list', 'csd:retained:choose-root']);
+  const noPayload = new Set(['csd:gemini-key:status', 'csd:gemini-key:remove', 'csd:state', 'csd:stop', 'csd:resume', 'csd:open-output', 'csd:campaign:prepare', 'csd:retained:list', 'csd:retained:choose-root']);
   for (const channel of ['csd:projects:state', 'csd:projects:logout', 'csd:projects:sync']) noPayload.add(channel);
   for (const [channel, handler] of Object.entries(handlers)) ipcMain.handle(channel, (event, ...args: unknown[]) => {
     if (closing || !allowDesktopRequest({ senderId: event.sender.id, expectedSenderId: mainWindow.webContents.id,
@@ -310,8 +284,6 @@ async function bootstrap() {
     return handler(args[0]);
   });
   app.once('will-quit', () => { for (const channel of Object.keys(handlers)) ipcMain.removeHandler(channel); });
-  discoveryTimer = setInterval(() => { if (!closing && !projectChanging && !exporting && !keyChanging && !modelCommands && !discoveryWatch.busy) void modelCommand(() => discoveryWatch.tick()).catch(() => {}); }, 60000);
-  discoveryTimer.unref();
   backupTimer = setInterval(() => {
     if (closing || projectChanging || backupRunning) return;
     backupRunning = true;

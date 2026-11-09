@@ -1,11 +1,12 @@
-import type { Account, Platform, PlatformRun, ProductionApi, ProductionState, UserConfig } from '../shared/production-api.js';
+import type { Account, OpportunityPreview, Platform, PlatformRun, ProductionApi, ProductionState, RunState, UserConfig } from '../shared/production-api.js';
+import { bindLivePostList } from './live-post-list.js';
 import { allocatePlatformTargets } from '../shared/platform-targets.js';
 import { createCampaignPlanner } from './campaign-planner.js';
 import { bindGeminiKeySettings } from './gemini-key-settings.js';
 import { modelPauseMessage } from '../shared/model-status.js';
-import { FILTER_MODES, filterModeAtPercent, type FilterMode } from '../shared/filter-policy.js';
-import { MAX_RESULT_TARGET, MAX_RAW_POSTS, MAX_SEARCH_QUERIES, DEFAULT_RAW_CAP } from '../shared/collection-limits.js';
-import { bindDiscoveryWatch } from './discovery-watch.js';
+import { collectionResourceNotice, memoryPauseMessage } from '../shared/collection-resources.js';
+import { filterModeAtPercent, restoreFilterPercent, type FilterMode } from '../shared/filter-policy.js';
+import { MAX_RESULT_TARGET, MAX_RAW_POSTS, MAX_SEARCH_QUERIES, DEFAULT_RAW_CAP, DEFAULT_RUN_BUDGET_USD, DEFAULT_USER_SPEND_LIMITS } from '../shared/collection-limits.js';
 import { planAndStart } from './start-workflow.js';
 import { bindProjectManager } from './project-manager.js';
 
@@ -25,10 +26,13 @@ const intentEnabled = element<HTMLInputElement>('opportunity-enabled');
 const campaignPrompt = element<HTMLTextAreaElement>('campaign-prompt');
 const brandContext = element<HTMLTextAreaElement>('brand-context');
 const suitableTarget = element<HTMLInputElement>('suitable-target');
-const filterMode = element<HTMLSelectElement>('filter-mode');
+const filterMode = element<HTMLInputElement>('filter-mode');
 const languageScope = element<HTMLSelectElement>('content-language');
 const spendTotal = element<HTMLInputElement>('spend-total'), spendDaily = element<HTMLInputElement>('spend-daily');
-const currentFilter = (): FilterMode => FILTER_MODES.includes(filterMode.value as FilterMode) ? filterMode.value as FilterMode : 'CONSISTENT';
+const currentFilter = (): FilterMode => filterModeAtPercent(filterMode.valueAsNumber);
+const filterModeLabels: Record<FilterMode, string> = {
+  OFF: 'Off, Không lọc', CONSISTENT: 'Consistent, Lọc mở rộng', STANDARD: 'Standard, Lọc tiêu chuẩn', QUALITY: 'Quality, Lọc kỹ',
+};
 const rawCap = element<HTMLInputElement>('raw-cap');
 const modelBudget = element<HTMLInputElement>('model-budget');
 const collectComments = element<HTMLInputElement>('collect-comments');
@@ -144,7 +148,8 @@ function setSaveStatus(message: string, kind: string) {
 }
 function readConfig(): UserConfig {
   return {
-    spendLimits: { totalUsd: Number(spendTotal.value), dailyUsd: Number(spendDaily.value) },
+    filterPercent: filterMode.valueAsNumber,
+    spendLimits: { totalUsd: spendTotal.valueAsNumber, dailyUsd: spendDaily.valueAsNumber },
     performance: 'BALANCED',
     keywords: [...new Set(keywords.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean))],
     minimumPosts: minimumPosts.value.trim() ? Number(minimumPosts.value) : NaN,
@@ -159,6 +164,8 @@ function readConfig(): UserConfig {
   };
 }
 function validateConfig(value: UserConfig): string {
+  if (value.spendLimits && ![value.spendLimits.totalUsd, value.spendLimits.dailyUsd].every(limit => Number.isFinite(limit) && limit >= 0 && limit <= 10000))
+    return 'Nhập trần chi tiêu AI cộng dồn và mỗi ngày từ 0 đến 10.000 USD trong Cấu hình nâng cao.';
   if (value.keywords.length > MAX_SEARCH_QUERIES) return 'Tối đa 240 từ khóa cho mỗi lượt thu thập.';
   if (value.keywords.some(word => word.length > 200)) return 'Mỗi từ khóa cần có tối đa 200 ký tự.';
   if (!Number.isSafeInteger(value.minimumPosts) || value.minimumPosts < 1 || value.minimumPosts > MAX_RESULT_TARGET)
@@ -252,10 +259,11 @@ function updateControls() {
   keywords.disabled = !connected || running || commandPending;
   performanceMode.disabled = minimumPosts.disabled = !connected || running || commandPending;
   for (const input of intentInputs) input.disabled = !connected || running || commandPending;
-  for (const pill of document.querySelectorAll<HTMLButtonElement>('[data-filter-pill]')) {
-    pill.disabled = filterMode.disabled;
-    pill.setAttribute('aria-pressed', String(pill.dataset.filterPill === mode));
-  }
+  const percent = filterMode.valueAsNumber;
+  filterMode.setAttribute('aria-valuetext', filterModeLabels[mode]);
+  element('filter-slider').style.setProperty('--filter-progress', `${percent}%`);
+  element('filter-slider').style.setProperty('--filter-lightness', `${79 - percent * .35}%`);
+  element('filter-bands').dataset.mode = mode;
   element('opportunity-config').hidden = !intentEnabled.checked;
   element('legacy-config').hidden = currentFilter() !== 'OFF';
   const reuse = element<HTMLSelectElement>('off-saved-queries');
@@ -270,7 +278,7 @@ function updateControls() {
   minimumPosts.closest<HTMLElement>('.field')!.hidden = true;
   modelBudget.disabled ||= currentFilter() === 'OFF';
   collectComments.disabled ||= mode === 'OFF';
-  setText('filter-mode-help', { OFF: 'Lấy bài đã tìm được, chưa đánh giá; không gọi AI.', CONSISTENT: 'Tìm rộng cả bối cảnh, sở thích và cơ hội gián tiếp; loại quảng cáo và bài lạc đề.', STANDARD: 'Giữ nhu cầu, vấn đề, tâm sự, mong muốn, trải nghiệm và thảo luận liên quan.', QUALITY: 'AI kiểm tra lần hai những bài cần đọc kỹ. Bài vẫn không đạt sau lượt hai được xếp Không phù hợp. Chi phí bao gồm cả hai lượt.' }[mode]);
+  setText('filter-mode-help', { OFF: 'Lấy bài đã tìm được, chưa đánh giá; không gọi AI.', CONSISTENT: 'Tìm rộng cả bối cảnh, sở thích và cơ hội gián tiếp; loại quảng cáo và bài lạc đề.', STANDARD: 'Giữ nhu cầu, vấn đề, tâm sự, mong muốn, trải nghiệm và thảo luận liên quan.', QUALITY: 'Chỉ giữ bài có căn cứ rõ ràng, đáp ứng đúng yêu cầu và có giá trị cụ thể cho mục tiêu tìm kiếm.' }[mode]);
   const money = state?.spending;
   setText('spend-status', money ? 'Đã dùng $' + money.measuredUsd.toFixed(4) + ' · Đang dự phòng/chưa rõ $' + money.heldUsd.toFixed(4) + ' · Còn $' + money.remainingUsd.toFixed(4) + ' · ' + money.calls + ' lượt gọi. Chi phí ước tính CSD, không phải hóa đơn Google.' : '');
   const config = readConfig();
@@ -405,6 +413,7 @@ const reasonLabels: Record<string, string> = {
 };
 function reasonText(reason: string | null) {
   if (!reason) return '';
+  if (reason === 'RESOURCE_MEMORY_WAIT') return memoryPauseMessage;
   return modelPauseMessage(reason) || reasonLabels[reason] || (reason.startsWith('STORAGE_') ? 'Không đọc hoặc lưu được dữ liệu. Kiểm tra dung lượng còn trống trên máy.' : 'Lượt này gặp lỗi. Bài đã tìm được vẫn được lưu; bạn có thể thử tiếp tục.');
 }
 const coverageLabels: Record<string, string> = {
@@ -423,28 +432,59 @@ function createProgress(platform: PlatformRun, target: number, refined = false, 
   logo.classList.add('platform-logo');
   const use = document.createElementNS('http://www.w3.org/2000/svg', 'use'); use.setAttribute('href', '#icon-' + platform.platform); logo.append(use);
   const name = document.createElement('span'); name.className = 'progress-name'; name.textContent = platformNames[platform.platform];
-  const badge = document.createElement('span'); badge.className = 'progress-state';
+  const badge = document.createElement('span'); badge.className = 'progress-state'; badge.dataset.state = platform.state;
   badge.textContent = { QUEUED: 'ĐANG CHỜ', RUNNING: state?.run?.mode === 'RETAINED' ? 'ĐANG LỌC LẠI' : 'ĐANG THU', COMPLETED: 'KẾT THÚC', STOPPED: 'ĐÃ DỪNG', FAILED: 'CÓ LỖI' }[platform.state];
+  const waitingForMemory = platform.state === 'RUNNING' && platform.resources?.admission === 'WAITING_MEMORY' && platform.resources.active === 0 && platform.resources.queued > 0;
+  if (waitingForMemory) badge.textContent = 'ĐANG CHỜ RAM';
   top.append(logo, name, badge);
   const count = document.createElement('p'); count.className = 'progress-count'; count.append(document.createTextNode(number(platform.count) + ' '));
   const denominator = document.createElement('small'); denominator.textContent = (global ? '' : '/ ' + number(target)) + (refined ? ' bài phù hợp' : ' bài đã tìm'); count.append(denominator);
   const bar = document.createElement('progress'); bar.className = 'progress-bar'; bar.max = Math.max(1, target); bar.value = platform.count; bar.hidden = global || target === 0;
   bar.setAttribute('aria-label', 'Tiến độ ' + platformNames[platform.platform]);
   card.append(top, count, bar);
-  const reason = reasonText(platform.reason);
+  const reason = reasonText(platform.reason) || (waitingForMemory ? 'Đóng bớt ứng dụng để CSD có thể tiếp tục tìm bài.' : '');
   if (reason) { const note = document.createElement('p'); note.className = 'progress-reason'; note.textContent = reason; card.append(note); }
   return card;
+}
+function renderCollectionProgress(run: RunState) {
+  const opportunity = run.opportunity;
+  element('collection-progress').hidden = !opportunity;
+  if (!opportunity) return;
+  const { counts, phase } = opportunity;
+  const off = opportunity.filterMode === 'OFF';
+  const accepted = opportunity.targetCount ?? (off ? counts.raw : counts.suitable);
+  const searching = run.platforms.some(source => source.state === 'RUNNING' || source.state === 'QUEUED');
+  const resourceNotice = collectionResourceNotice(run);
+  const retained = run.mode === 'RETAINED';
+  const targetBar = element<HTMLProgressElement>('collection-target-bar');
+  targetBar.max = Math.max(1, opportunity.totalTarget);
+  targetBar.value = Math.min(accepted, targetBar.max);
+  setText('collection-target', number(accepted) + ' / ' + number(opportunity.totalTarget) + (off ? ' bài thu được' : ' bài phù hợp'));
+  setText('collection-search-count', number(counts.raw) + ' bài đã tìm');
+  setText('collection-search-state', retained ? (run.retained?.status === 'IMPORTING' ? 'Đang đọc dữ liệu đã lưu' : 'Nguồn bài đã lưu')
+    : run.state === 'STOPPING' ? 'Đang dừng' : resourceNotice ?? (searching ? 'Đang tìm trên mạng xã hội'
+      : run.platforms.some(source => source.state === 'FAILED') ? 'Có nguồn gặp lỗi' : 'Đã kết thúc tìm bài'));
+  const assessed = counts.suitable + (counts.notSuitable ?? counts.notYet + counts.unrelated);
+  setText('collection-filter-count', off ? 'Không lọc' : number(assessed) + ' bài có kết luận');
+  setText('collection-filter-state', off ? 'Lưu trực tiếp các bài tìm được'
+    : phase === 'MODEL_PAUSED' || run.state === 'STOPPING' ? 'Tạm dừng lọc'
+      : phase === 'EVALUATION_REFRESH_REQUIRED' ? 'Cần đánh giá lại'
+        : counts.raw === 0 && searching ? 'Chờ bài viết để lọc'
+        : phase === 'PROCESSING' || (phase === 'COLLECTING' && searching) ? 'Đang lọc'
+          : counts.pending ? number(counts.pending) + ' bài chưa có kết luận' : 'Đã xử lý xong');
 }
 function renderRun() {
   const run = state?.run;
   if (!run) { setError('run-error', ''); return; }
   const failures = run.platforms.filter(platform => platform.state === 'FAILED').map(platform => platformNames[platform.platform] + ': ' + reasonText(platform.reason));
-  const runError = run.opportunity?.lastError ? reasonText(run.opportunity.lastError)
+  const runError = run.platforms.some(platform => platform.reason === 'RESOURCE_MEMORY_WAIT') ? memoryPauseMessage
+    : run.opportunity?.lastError ? reasonText(run.opportunity.lastError)
     : failures.length ? failures.join(' · ') : run.state === 'FAILED' || run.state === 'INTERRUPTED'
       ? 'Lượt thu đã gặp lỗi hoặc bị gián đoạn. Dữ liệu đã lưu vẫn được giữ; bạn có thể tiếp tục lượt này.' : '';
   setError('run-error', runError);
   const badge = element('run-badge'); badge.dataset.state = run.state;
   badge.textContent = { RUNNING: run.mode === 'RETAINED' ? 'ĐANG LỌC LẠI' : 'ĐANG THU THẬP', STOPPING: 'ĐANG DỪNG', COMPLETED: 'ĐÃ KẾT THÚC', STOPPED: 'ĐÃ DỪNG', FAILED: 'CÓ LỖI', INTERRUPTED: 'BỊ GIÁN ĐOẠN' }[run.state];
+  if (run.state === 'RUNNING' && run.platforms.some(p => p.resources?.admission === 'WAITING_MEMORY' && p.resources.active === 0 && p.resources.queued > 0)) badge.textContent = 'ĐANG CHỜ RAM';
   const total = run.opportunity?.counts.raw ?? run.platforms.reduce((sum, platform) => sum + platform.count, 0);
   const met = run.platforms.every(platform => platform.count >= run.minimumPosts);
   const runMessages = {
@@ -458,6 +498,7 @@ function renderRun() {
   setText('start-help', runMessages[run.state]);
   const time = new Date(run.startedAt);
   setText('run-time', Number.isNaN(time.getTime()) ? '' : 'Bắt đầu ' + time.toLocaleString('vi-VN'));
+  renderCollectionProgress(run);
   const progress = element('run-progress'); progress.hidden = false;
   const runKey = JSON.stringify([run.id, run.state, run.minimumPosts, run.platforms, run.preview,
   run.opportunity?.byPlatform, run.opportunity?.totalTarget, run.opportunity?.threadsShare]);
@@ -469,8 +510,19 @@ function renderRun() {
       const status = (['RUNNING', 'QUEUED', 'FAILED', 'STOPPED', 'COMPLETED'] as const).find(value => rows.some(p => p.state === value))!;
       return { ...first, state: status, reason: rows.find(p => !!p.reason)?.reason ?? null };
     }) : run.platforms;
-    progress.replaceChildren(...grouped.map(platform => run.opportunity ? createProgress({ ...platform, count: run.opportunity.filterMode === 'OFF' ? run.opportunity.byPlatform[platform.platform].raw : run.opportunity.byPlatform[platform.platform].suitable },
-      targets![platform.platform], run.opportunity.filterMode !== 'OFF', run.opportunity.resultPolicy === 'GLOBAL_FIRST_QUALIFIED') : createProgress(platform, run.minimumPosts)));
+    progress.replaceChildren(...grouped.map(platform => {
+      const opportunity = run.opportunity;
+      if (!opportunity) return createProgress(platform, run.minimumPosts);
+      const source = opportunity.byPlatform[platform.platform], filtered = opportunity.filterMode !== 'OFF';
+      const card = createProgress({ ...platform, count: filtered ? source.suitable : source.raw }, targets![platform.platform],
+        filtered, opportunity.resultPolicy === 'GLOBAL_FIRST_QUALIFIED');
+      if (filtered) {
+        const found = document.createElement('p'); found.className = 'source-raw-count';
+        found.textContent = number(source.raw) + ' bài đã tìm';
+        card.querySelector('.progress-count')!.after(found);
+      }
+      return card;
+    }));
     setText('json-preview', run.preview.map(post => platformNames[post.platform] + '\n' + post.text).join('\n\n──────────\n\n'));
     lastRunKey = runKey;
   }
@@ -481,13 +533,52 @@ function renderRun() {
   setText('output-name', run.outputDirectory); element('output-name').title = run.outputDirectory;
   renderOpportunities();
 }
+function exportScope() {
+  const scope = element<HTMLSelectElement>('export-scope').value;
+  return scope === 'NOT_SUITABLE' || scope === 'ALL' ? scope : 'SUITABLE';
+}
+const updatePostList = bindLivePostList(element('opportunity-cards'), element<HTMLButtonElement>('jump-to-latest-post'), createOpportunityCard);
+
+function createOpportunityCard(result: OpportunityPreview) {
+  const card = document.createElement('article'); card.className = 'opportunity-card'; card.tabIndex = 0;
+  const meta = document.createElement('small'); meta.textContent = [platformNames[result.platform], ...(result.opportunityTypes ?? []).map(t => opportunityNames[t] ?? t),
+    reviewedRejectionLabels[result.reasonCode ?? ''], result.publishedAt ? 'Đăng ' + new Date(result.publishedAt).toLocaleDateString('vi-VN') : '', coverageLabels[result.coverage]].filter(Boolean).join(' · ');
+  const text = document.createElement('p'); text.className = 'opportunity-post-text'; text.textContent = result.text;
+  card.append(meta, text);
+  if (result.previouslyCollected) {
+    const badge = document.createElement('span'); badge.className = 'previously-collected';
+    badge.textContent = 'Đã thu thập trước đó';
+    if (result.assessmentReused) badge.textContent += ' · Dùng kết quả đã lưu' + (result.assessmentSourceMode ? ' (' + result.assessmentSourceMode + ')' : '');
+    card.append(badge);
+  }
+  // Older saved previews carry need_summary in reason, with reason_code as the fallback.
+  if (result.classification !== 'UNASSESSED' && result.reason && !/^[A-Z0-9_]+$/.test(result.reason)) {
+    const note = document.createElement('p'); note.className = 'opportunity-need-summary';
+    const label = document.createElement('strong'); label.textContent = 'Nhận định của AI';
+    note.append(label, document.createTextNode(result.reason));
+    card.append(note);
+  }
+  if (result.conditions?.length) {
+    const details = document.createElement('details'), summary = document.createElement('summary'); summary.textContent = 'Xem căn cứ đánh giá'; details.append(summary);
+    const statusNames = { PASS: 'Đạt', FAIL: 'Không đạt', UNKNOWN: 'Chưa rõ' };
+    for (const condition of result.conditions) {
+      const line = document.createElement('p'); line.textContent = statusNames[condition.status] + ' · ' + condition.label; details.append(line);
+      for (const evidence of condition.evidence) { const quote = document.createElement('blockquote'); quote.textContent = evidence; details.append(quote); }
+    }
+    card.append(details);
+  }
+  if (result.link) { const open = document.createElement('button'); open.type = 'button'; open.textContent = 'Mở bài viết ↗'; open.addEventListener('click', () => { void window.csd.openPost({ url: result.link }).catch(() => operation('Không mở được liên kết của bài viết.', true)); }); card.append(open); }
+  return card;
+}
+
 function renderOpportunities() {
   const opportunity = state?.run?.opportunity;
   element('opportunity-results').hidden = !opportunity;
   element('export-scope-field').hidden = !opportunity || opportunity.filterMode === 'OFF';
-  const all = opportunity?.filterMode === 'OFF' || element<HTMLSelectElement>('export-scope').value === 'ALL';
+  const scope = exportScope();
   const groupNames = { SUITABLE: 'Phù hợp', NOT_SUITABLE: 'Không phù hợp' };
-  setText('export-description', opportunity ? (all ? (opportunity.filterMode === 'OFF' ? 'Tất cả bài đã thu ở chế độ không lọc.' : 'Tất cả bài đã thu, gồm cả bài chưa có kết luận.') : 'Nhóm ' + groupNames[resultGroup] + ' đang xem.')
+  setText('export-description', opportunity ? (opportunity.filterMode === 'OFF' ? 'Tất cả bài đã thu ở chế độ không lọc.'
+    : scope === 'ALL' ? 'Tất cả bài đã thu, gồm cả bài chưa có kết luận.' : 'Tải nhóm bài ' + groupNames[scope].toLowerCase() + '.')
     + (opportunity.commentsPending !== undefined ? ' Bình luận khớp từ khóa nằm trong trang Matched Comments.' : '')
     + ' Bản tải về ghi loại cơ hội và ngày đăng khi có dữ liệu.' : 'Tải bài viết từ Facebook và Threads về một file Excel.');
   if (!opportunity) return;
@@ -524,16 +615,21 @@ function renderOpportunities() {
   const retained = state?.run?.mode === 'RETAINED' ? state.run.retained : undefined;
   const importProgress = retained && retained.status !== 'IMPORTED'
     ? 'Đã đọc ' + number(retained.importedObservations) + '/' + number(retained.totalObservations) + ' nội dung. ' : '';
-  const action = active() ? retained ? (retained.status === 'IMPORTED' ? 'Đang lọc lại · ' : 'Đang đọc bài đã lưu · ') : 'Đang thu và lọc · ' : '';
+  const resourceNotice = collectionResourceNotice(state?.run);
+  const action = state?.run?.state === 'STOPPING' ? 'Đang dừng và lưu các bài đã tìm.'
+    : resourceNotice ? resourceNotice
+    : state?.run?.platforms.some(platform => platform.reason === 'RESOURCE_MEMORY_WAIT') ? memoryPauseMessage
+    : opportunity.phase === 'MODEL_PAUSED' ? 'Bộ lọc đang tạm dừng.'
+      : active() ? retained ? (retained.status === 'IMPORTED' ? 'Đang lọc lại bài đã lưu.' : 'Đang đọc dữ liệu đã lưu.')
+        : opportunity.phase === 'PROCESSING' ? 'Đã tìm xong. Đang lọc các bài đã lưu.'
+          : opportunity.filterMode === 'OFF' ? 'Đang tìm và lưu bài viết.' : 'Đang tìm và lọc bài viết.'
+        : 'Lượt này đã kết thúc. Bạn có thể tải các bài đã lưu.';
   const completedInput = retained?.status === 'IMPORTED' && state?.run?.platforms.some(platform => platform.reason === 'RETAINED_INPUT_COMPLETE')
     ? ' ' + reasonLabels.RETAINED_INPUT_COMPLETE : '';
   const asOf = retained?.assessmentAsOf ? ' Đánh giá theo dữ liệu tại ' + new Date(retained.assessmentAsOf).toLocaleString('vi-VN')
     + '; kết quả đã hết hạn không được tính là phù hợp hiện tại.' : '';
-  setText('start-help', opportunity.phase === 'EVALUATION_REFRESH_REQUIRED' ? reasonLabels.EVALUATION_REFRESH_REQUIRED! : action + importProgress
-    + number(opportunity.targetCount ?? counts.suitable) + '/' + number(opportunity.totalTarget) + (opportunity.filterMode === 'OFF' ? ' bài chưa đánh giá. Threads ' : ' bài được nhận. Threads ')
-    + number(opportunity.filterMode === 'OFF' ? opportunity.byPlatform.threads.raw : opportunity.byPlatform.threads.suitable)
-    + ' · Facebook ' + number(opportunity.filterMode === 'OFF' ? opportunity.byPlatform.facebook.raw : opportunity.byPlatform.facebook.suitable)
-    + (opportunity.lastError ? ' · ' + reasonText(opportunity.lastError) : '') + completedInput + asOf);
+  setText('start-help', opportunity.phase === 'EVALUATION_REFRESH_REQUIRED' ? reasonLabels.EVALUATION_REFRESH_REQUIRED!
+    : action + (importProgress ? ' ' + importProgress : '') + completedInput + asOf);
   if (opportunity.watchActive || opportunity.assessmentActive) {
     const monitoring: string[] = [];
     if (opportunity.watchActive) monitoring.push(number(opportunity.watchPending ?? 0) + ' lượt kiểm tra bình luận'
@@ -549,34 +645,12 @@ function renderOpportunities() {
     const group = button.dataset.resultGroup as keyof typeof labels;
     button.textContent = labels[group] + ' · ' + number(totals[group]); button.setAttribute('aria-pressed', String(resultGroup === group));
   }
-  const typeFilter = element<HTMLSelectElement>('opportunity-type').value;
-  element('opportunity-type').hidden = opportunity.filterMode === 'OFF';
+  const typeFilter = opportunity.filterMode === 'OFF' ? '' : element<HTMLSelectElement>('opportunity-type').value;
+  element('opportunity-type-field').hidden = opportunity.filterMode === 'OFF';
   const cards = opportunity.preview.filter(result => !typeFilter || result.opportunityTypes?.includes(typeFilter)).filter(result => opportunity.filterMode === 'OFF' ? result.classification === 'UNASSESSED'
-    : result.classification !== 'UNASSESSED' && (result.classification === 'SUITABLE' ? 'SUITABLE' : 'NOT_SUITABLE') === resultGroup).slice(0, 20).map(result => {
-    const card = document.createElement('article'); card.className = 'opportunity-card';
-    const meta = document.createElement('small'); meta.textContent = [platformNames[result.platform], ...(result.opportunityTypes ?? []).map(t => opportunityNames[t] ?? t),
-      reviewedRejectionLabels[result.reasonCode ?? ''] ?? result.reason, result.publishedAt ? 'Đăng ' + new Date(result.publishedAt).toLocaleDateString('vi-VN') : '', coverageLabels[result.coverage]].filter(Boolean).join(' · ');
-    const text = document.createElement('p'); text.textContent = result.text;
-    card.append(meta, text);
-    if (result.previouslyCollected) {
-      const badge = document.createElement('span'); badge.className = 'previously-collected';
-      badge.textContent = 'Đã thu thập trước đó';
-      if (result.assessmentReused) badge.textContent += ' · Dùng kết quả đã lưu' + (result.assessmentSourceMode ? ' (' + result.assessmentSourceMode + ')' : '');
-      card.append(badge);
-    }
-    if (result.conditions?.length) {
-      const details = document.createElement('details'), summary = document.createElement('summary'); summary.textContent = 'Vì sao có kết quả này?'; details.append(summary);
-      const statusNames = { PASS: 'Đạt', FAIL: 'Không đạt', UNKNOWN: 'Chưa rõ' };
-      for (const condition of result.conditions) { const line = document.createElement('p'); line.textContent = statusNames[condition.status] + ' · ' + condition.label; details.append(line);
-        for (const evidence of condition.evidence) { const quote = document.createElement('blockquote'); quote.textContent = evidence; details.append(quote); }
-      }
-      card.append(details);
-    } else for (const evidence of result.evidence) { const quote = document.createElement('blockquote'); quote.textContent = evidence; card.append(quote); }
-    if (result.link) { const open = document.createElement('button'); open.type = 'button'; open.textContent = 'Mở bài viết ↗'; open.addEventListener('click', () => { void window.csd.openPost({ url: result.link }).catch(() => operation('Không mở được liên kết của bài viết.', true)); }); card.append(open); }
-    return card;
-  });
-  if (!cards.length) { const empty = document.createElement('p'); empty.className = 'helper'; empty.textContent = 'Chưa có kết quả trong nhóm này.'; element('opportunity-cards').replaceChildren(empty); }
-  else element('opportunity-cards').replaceChildren(...cards);
+    : result.classification !== 'UNASSESSED' && (result.classification === 'SUITABLE' ? 'SUITABLE' : 'NOT_SUITABLE') === resultGroup)
+    .sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt)).slice(0, 20);
+  updatePostList(JSON.stringify([state?.run?.id, opportunity.filterMode, resultGroup, typeFilter]), cards);
 }
 function applyState(next: ProductionState, replaceConfig = false) {
   state = next; connected = true; const connNotice = element('connection-error'); connNotice.hidden = true; delete connNotice.dataset.dismissed;
@@ -587,17 +661,19 @@ function applyState(next: ProductionState, replaceConfig = false) {
     const o = next.config.opportunity;
     intentEnabled.checked = !!o?.enabled; campaignPrompt.value = o?.prompt || ''; brandContext.value = o?.brandContext || '';
     suitableTarget.value = String(o?.totalTarget || 1000);
-    filterMode.value = o?.filterMode ?? (next.config.filterPercent !== undefined ? filterModeAtPercent(next.config.filterPercent) : 'CONSISTENT');
+    filterMode.value = String(restoreFilterPercent(next.config.filterPercent, o?.filterMode));
     languageScope.value = 'VIETNAMESE';
-    intentEnabled.checked = true; spendTotal.value = String(next.config.spendLimits?.totalUsd ?? 3); spendDaily.value = String(next.config.spendLimits?.dailyUsd ?? 3);
-    rawCap.value = String(o?.rawCap || DEFAULT_RAW_CAP); modelBudget.value = String(o?.budgetUsd || 3);
+    intentEnabled.checked = true;
+    spendTotal.value = String(next.config.spendLimits?.totalUsd ?? DEFAULT_USER_SPEND_LIMITS.totalUsd);
+    spendDaily.value = String(next.config.spendLimits?.dailyUsd ?? DEFAULT_USER_SPEND_LIMITS.dailyUsd);
+    rawCap.value = String(o?.rawCap ?? DEFAULT_RAW_CAP); modelBudget.value = String(o?.budgetUsd || DEFAULT_RUN_BUDGET_USD);
     collectComments.checked = o?.commentsEnabled ?? false;
     savedConfig = key(next.config); initialized = true; configDirty = false; setSaveStatus('Đã lưu trên máy', 'saved');
     if (active() && next.run) for (const platform of next.run.platforms) {
       if (platform.profileId) { selectedProfiles.set(platform.platform, platform.profileId); selectedProfileIds.add(platform.profileId); selectedSources.add(platform.platform); }
     }
   }
-  renderAccounts(); renderRun(); updateControls(); void discoveryUi.refresh(); void projectUi?.refresh();
+  renderAccounts(); renderRun(); updateControls(); void projectUi?.refresh();
   if (next.campaignDraftError && !commandPending) operation(friendlyError(next.campaignDraftError.code, 'Chưa lập được kế hoạch. Hãy thử lại.'), true);
 }
 async function refresh() {
@@ -643,7 +719,6 @@ function configChanged() {
   editRevision++; configDirty = true; setSaveStatus('Rời ô để lưu', 'dirty');
   setError('config-error', ''); updateControls();
 }
-const discoveryUi = bindDiscoveryWatch(window.csd, () => state, () => commandPending || active(), operation);
 const geminiKeyUi = bindGeminiKeySettings(window.csd.geminiKey, () => commandPending || active() || !!state?.campaignDraftPreparing);
 function startSignature() { return JSON.stringify([readConfig(), selectableProfiles()]); }
 async function collectFromCurrentPlan() {
@@ -692,7 +767,6 @@ projectUi = bindProjectManager(window.csd.projects, {
       if (projectId !== projectUi?.activeProjectId()) {
         initialized = false; lastRunKey = ''; pendingStart = null;
         selectedProfiles.clear(); selectedProfileIds.clear(); selectedSources.clear();
-        discoveryUi.reset();
         resultGroup = 'SUITABLE'; element<HTMLSelectElement>('opportunity-type').value = '';
       }
       applyState(await window.csd.getState(), true);
@@ -722,7 +796,7 @@ for (const input of [keywords, minimumPosts, performanceMode, ...intentInputs]) 
   input.addEventListener('input', configChanged);
   input.addEventListener('blur', () => { if (configDirty) void saveConfiguration(); });
 }
-collectComments.addEventListener('change', () => { if (configDirty) void saveConfiguration(); });
+for (const input of [filterMode, collectComments]) input.addEventListener('change', () => { if (configDirty) void saveConfiguration(); });
 element<HTMLSelectElement>('off-saved-queries').addEventListener('change', event => {
   const select = event.target as HTMLSelectElement, plan = savedQueryPlans().find(p => p.id === select.value);
   if (plan) { keywords.value = [...new Set(plan.queries)].join('\n'); configChanged(); void saveConfiguration(); }
@@ -798,7 +872,8 @@ for (const format of ['json', 'xlsx'] as const) {
       if (exportPending || (active() && !state?.run?.opportunity)) return;
       exportPending = true; operation('Đang chuẩn bị file ' + (format === 'xlsx' ? 'Excel…' : 'dữ liệu…')); updateControls();
       try {
-        const result = await window.csd.exportResults({ format, ...(state?.run?.opportunity && state.run.opportunity.filterMode !== 'OFF' && element<HTMLSelectElement>('export-scope').value !== 'ALL' ? { group: resultGroup } : {}) });
+        const scope = exportScope();
+        const result = await window.csd.exportResults({ format, ...(state?.run?.opportunity && state.run.opportunity.filterMode !== 'OFF' && scope !== 'ALL' ? { group: scope } : {}) });
         operation(result.canceled ? 'Đã hủy xuất file.' : 'Đã lưu file: ' + (result.path || ''));
       } catch (error) { operation(friendlyError(error, 'Không thể xuất file. Dữ liệu gốc vẫn được giữ; hãy thử lại.'), true); }
       finally { exportPending = false; updateControls(); }
@@ -817,14 +892,12 @@ for (const closeBtn of document.querySelectorAll<HTMLButtonElement>('[data-dismi
     target.hidden = true;
   });
 }
-for (const pill of document.querySelectorAll<HTMLButtonElement>('[data-filter-pill]')) {
-  pill.addEventListener('click', () => {
-    if (filterMode.disabled || !pill.dataset.filterPill) return;
-    filterMode.value = pill.dataset.filterPill;
-    configChanged();
-    void saveConfiguration();
-  });
-}
+const settingsToggle = element<HTMLButtonElement>('advanced-settings-toggle');
+settingsToggle.addEventListener('click', () => {
+  const settings = element('advanced-settings'), open = settings.hidden;
+  settings.hidden = !open;
+  settingsToggle.setAttribute('aria-expanded', String(open));
+});
 window.addEventListener('focus', () => { void refresh(); });
 void refresh();
 window.setInterval(() => { void refresh(); }, 2000);

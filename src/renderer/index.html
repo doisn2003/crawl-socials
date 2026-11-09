@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./opportunity.css">
   <link rel="stylesheet" href="./light-theme.css">
+  <link rel="stylesheet" href="./settings.css">
   <script type="module" src="./app.js"></script>
 </head>
 
@@ -28,6 +29,10 @@
     <symbol id="icon-key" viewBox="0 0 24 24">
       <circle cx="8" cy="8" r="5" />
       <path d="m12 12 9 9m-3-3 3-3m-6 0 3-3" />
+    </symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24">
+      <path d="M10 3h4l.7 2.5 1.5.9 2.5-.7 2 3.5-1.8 1.8v1.9l1.8 1.8-2 3.5-2.5-.7-1.5.9L14 21h-4l-.7-2.6-1.5-.9-2.5.7-2-3.5 1.8-1.8V11L3.3 9.2l2-3.5 2.5.7 1.5-.9L10 3Z" />
+      <circle cx="12" cy="12" r="3" />
     </symbol>
     <symbol id="icon-check" viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="9" />
@@ -125,22 +130,6 @@
           </div>
           <p id="project-message" class="helper" role="status" aria-live="polite" hidden></p>
         </div>
-        <div class="intro-aside">
-          <div class="intro-stat-card">
-            <span class="crosshair" aria-hidden="true">✨</span>
-            <div>
-              <strong>FACEBOOK × THREADS</strong>
-              <small>Tự động phân tích &amp; lọc bài viết</small>
-            </div>
-          </div>
-          <div class="intro-stat-card intro-stat-mint">
-            <span class="crosshair" aria-hidden="true">📊</span>
-            <div>
-              <strong>XUẤT BÁO CÁO EXCEL</strong>
-              <small>Sẵn sàng xem và chia sẻ ngay</small>
-            </div>
-          </div>
-        </div>
       </section>
 
       <dialog id="project-editor" class="project-dialog" aria-labelledby="project-editor-title">
@@ -200,25 +189,19 @@
 
         <!-- Sub-block 1A: Chế độ lọc AI -->
         <div class="sub-block filter-mode-block">
-          <div class="filter-mode-header">
-            <div>
-              <label for="filter-mode" class="sub-block-title">Chế độ lọc thông minh (AI Filter)</label>
-              <p id="filter-mode-help" class="helper">Giữ cơ hội rộng có liên hệ với lĩnh vực; loại quảng cáo và bài lạc
-                đề.</p>
-            </div>
-            <div class="filter-pills" role="group" aria-label="Chọn nhanh mức lọc">
-              <button type="button" class="filter-pill" data-filter-pill="OFF">Không lọc</button>
-              <button type="button" class="filter-pill" data-filter-pill="CONSISTENT">✨ Consistent</button>
-              <button type="button" class="filter-pill" data-filter-pill="STANDARD">💖 Standard</button>
-              <button type="button" class="filter-pill" data-filter-pill="QUALITY">💎 Quality</button>
-            </div>
+          <label for="filter-mode" class="sub-block-title">Mức lọc</label>
+          <div id="filter-slider" class="filter-slider">
+            <div class="filter-rail" aria-hidden="true"><div class="filter-fill"></div></div>
+            <input id="filter-mode" type="range" min="0" max="100" step="1" value="25"
+              aria-describedby="filter-bands filter-mode-help" disabled>
           </div>
-          <select id="filter-mode" aria-describedby="filter-mode-help" disabled>
-            <option value="OFF">Không lọc — dữ liệu chưa đánh giá</option>
-            <option value="CONSISTENT" selected>Consistent — mở rộng cơ hội</option>
-            <option value="STANDARD">Standard — nhu cầu, tâm sự và thảo luận</option>
-            <option value="QUALITY">Quality — sát mục tiêu</option>
-          </select>
+          <div id="filter-bands" class="filter-labels" data-mode="CONSISTENT">
+            <span data-filter-band="OFF">Off<small>Không lọc</small></span>
+            <span data-filter-band="CONSISTENT">Consistent<small>Lọc mở rộng</small></span>
+            <span data-filter-band="STANDARD">Standard<small>Lọc tiêu chuẩn</small></span>
+            <span data-filter-band="QUALITY">Quality<small>Lọc kỹ</small></span>
+          </div>
+          <p id="filter-mode-help" class="helper">Tìm rộng cả bối cảnh, sở thích và cơ hội gián tiếp.</p>
         </div>
 
         <div id="opportunity-config" hidden>
@@ -244,7 +227,7 @@
             </div>
             <div class="field input-card input-card-lavender">
               <label for="brand-context">
-                <span>🌸 Thông tin thương hiệu</span>
+                <span>🕳️ Thông tin thương hiệu</span>
                 <span class="field-meta badge-lavender">Không bắt buộc</span>
               </label>
               <textarea id="brand-context" rows="4" maxlength="10000"
@@ -253,58 +236,56 @@
             </div>
           </div>
 
-          <!-- Sub-block 1C: 3 Ô chỉ tiêu số lượng & ngân sách -->
-          <div class="opportunity-limits">
+          <div class="target-settings-row">
             <label class="metric-box metric-box-rose">
               <span class="metric-tag">🎯 MỤC TIÊU NHẬN</span>
               <span class="metric-label">Số bài muốn nhận</span>
               <input id="suitable-target" type="number" min="1" max="5000" step="1" value="1000" disabled>
             </label>
-            <label class="metric-box metric-box-lavender">
-              <span class="metric-tag">🔍 QUÉT MỞ RỘNG</span>
-              <span class="metric-label">Số bài tìm tối đa</span>
-              <input id="raw-cap" type="number" min="1" max="50000" step="1" value="20000" disabled>
-            </label>
-            <label class="metric-box metric-box-mint">
-              <span class="metric-tag">💳 HẠN MỨC CHI TIÊU</span>
-              <span class="metric-label">Ngân sách AI (USD)</span>
-              <input id="model-budget" type="number" min="0.01" max="30" step="0.01" value="3" disabled>
-            </label>
+            <button id="advanced-settings-toggle" type="button" class="settings-toggle secondary-button"
+              aria-expanded="false" aria-controls="advanced-settings" aria-label="Cấu hình nâng cao" title="Cấu hình nâng cao">
+              <svg class="icon" aria-hidden="true"><use href="#icon-settings" /></svg>
+            </button>
           </div>
 
           <p class="helper section-hint">💡 Số bài muốn nhận tính chung các nguồn. Có thể chạy nhiều giờ; kết quả được
             lưu tự động để tiếp tục bất cứ lúc nào. Chỉ phân tích bài gốc.</p>
 
-          <!-- Sub-block 1D: Giới hạn tiền AI & Lập kế hoạch -->
-          <div class="advanced-accordions">
-            <details id="spending-controls" class="soft-accordion">
-              <summary>🛡️ Giới hạn tiền AI trên máy này</summary>
-              <div class="accordion-body">
-                <p class="helper">Gemini 3.1 Flash-Lite. CSD kiểm soát theo số tiền, không giới hạn tổng số lần gọi AI.
-                  Trần tiền cộng dồn/ngày áp dụng chung cho các lượt; tạo lượt mới không xóa tiền đã dùng. Để trần tiền
-                  bằng 0 thì không gọi AI.</p>
-                <div class="opportunity-limits limits-compact">
-                  <label class="metric-box">
-                    <span class="metric-label">Trần cộng dồn (USD)</span>
-                    <input id="spend-total" type="number" min="0" max="10000" step="0.01" value="0">
-                  </label>
-                  <label class="metric-box">
-                    <span class="metric-label">Trần mỗi ngày (USD)</span>
-                    <input id="spend-daily" type="number" min="0" max="10000" step="0.01" value="0">
-                  </label>
-                </div>
-                <p id="spend-status" class="helper spend-status-pill"></p>
-              </div>
-            </details>
-          </div>
+          <div id="advanced-settings" class="advanced-settings" hidden>
+            <h3>Cấu hình nâng cao</h3>
+            <div class="opportunity-limits limits-compact">
+              <label class="metric-box metric-box-lavender">
+                <span class="metric-label">Số bài tìm tối đa</span>
+                <input id="raw-cap" type="number" min="1" max="50000" step="1" value="5000" disabled>
+              </label>
+              <label class="metric-box metric-box-mint">
+                <span class="metric-label">Hạn mức chi tiêu mỗi lượt (USD)</span>
+                <input id="model-budget" type="number" min="0.01" max="30" step="0.01" value="3" disabled>
+              </label>
+            </div>
+            <h4>Giới hạn tiền AI trên máy này</h4>
+            <p class="helper">Các lượt dùng chung trần cộng dồn và trần mỗi ngày. CSD ghi lại tiền đã dùng khi tạo lượt mới. Đặt một trần bằng 0 để tắt các lượt gọi AI.</p>
+            <div class="opportunity-limits limits-compact">
+              <label class="metric-box">
+                <span class="metric-label">Trần cộng dồn (USD)</span>
+                <input id="spend-total" type="number" min="0" max="10000" step="0.01" value="30" disabled>
+              </label>
+              <label class="metric-box">
+                <span class="metric-label">Trần mỗi ngày (USD)</span>
+                <input id="spend-daily" type="number" min="0" max="10000" step="0.01" value="6" disabled>
+              </label>
+            </div>
+            <p id="spend-status" class="helper spend-status-pill"></p>
 
-          <div class="comments-setting">
-            <label class="comments-toggle" for="collect-comments"><span>Thu thập bình luận</span><input
-                id="collect-comments" type="checkbox" role="switch"
-                aria-describedby="comments-warning comments-mode-note" disabled><span class="comments-switch"
-                aria-hidden="true"></span></label>
-            <p id="comments-warning" class="comments-warning" hidden>CSD đọc bình luận ở các bài không phù hợp trong hàng chờ riêng. Khâu này có thể kéo dài lượt thu và không dùng AI.</p>
-            <p id="comments-mode-note" class="helper"></p>
+            <div class="comments-setting">
+              <label class="comments-toggle" for="collect-comments"><span>Thu thập bình luận</span><input
+                  id="collect-comments" type="checkbox" role="switch"
+                  aria-describedby="comments-warning comments-mode-note" disabled><span class="comments-switch"
+                  aria-hidden="true"></span></label>
+              <p id="comments-warning" class="comments-warning" hidden>CSD đọc bình luận ở các bài không phù hợp trong
+                hàng chờ riêng. Khâu này có thể kéo dài lượt thu và không dùng AI.</p>
+              <p id="comments-mode-note" class="helper"></p>
+            </div>
           </div>
 
           <div class="campaign-planning" hidden>
@@ -538,8 +519,7 @@
               <use href="#icon-reddit" />
             </svg>Reddit</span></div>
 
-        <p class="session-note"><span class="status-dot"></span>CSD tự động ghi nhớ đăng nhập trên máy này. Khi tìm bài,
-          các cửa sổ mạng xã hội sẽ chạy ẩn nhẹ nhàng.</p>
+        <p class="session-note"><span class="status-dot"></span>CSD luôn giữ phiên đăng nhập.</p>
       </section>
 
       <!-- KHỐI 03: KẾT QUẢ CỦA BẠN -->
@@ -574,6 +554,17 @@
           </div>
         </div>
 
+        <section id="collection-progress" class="collection-progress" aria-label="Tiến độ thu thập" hidden>
+          <div class="collection-progress-title">
+            <h3>Tiến độ thu thập</h3>
+            <span id="collection-target"></span>
+          </div>
+          <progress id="collection-target-bar" class="progress-bar" aria-label="Mục tiêu nhận bài"></progress>
+          <div class="collection-progress-stages">
+            <div><span>Tìm bài</span><strong id="collection-search-count"></strong><small id="collection-search-state"></small></div>
+            <div><span>Lọc bài</span><strong id="collection-filter-count"></strong><small id="collection-filter-state"></small></div>
+          </div>
+        </section>
         <div id="run-progress" class="run-progress" hidden></div>
 
         <div id="opportunity-results" class="opportunity-results-block" hidden>
@@ -588,9 +579,9 @@
               <button type="button" data-result-group="SUITABLE" class="secondary-button">Phù hợp</button>
               <button type="button" data-result-group="NOT_SUITABLE" class="secondary-button">Không phù hợp</button>
             </div>
-            <div class="opportunity-type-filter">
-              <label class="helper" for="opportunity-type">Loại cơ hội:</label>
-              <select id="opportunity-type" aria-label="Loại cơ hội">
+            <div id="opportunity-type-field" class="opportunity-type-filter">
+              <label for="opportunity-type">Loại cơ hội</label>
+              <select id="opportunity-type" class="result-select">
                 <option value="">Tất cả loại cơ hội</option>
                 <option value="DIRECT_NEED">Nhu cầu trực tiếp</option>
                 <option value="LATENT_PROBLEM">Vấn đề tiềm ẩn</option>
@@ -601,9 +592,14 @@
                 <option value="CONTEXT">Bối cảnh liên quan</option>
               </select>
             </div>
+            <div class="latest-post-slot">
+              <button id="jump-to-latest-post" type="button" class="latest-post-button" aria-label="Về bài mới nhất" title="Về bài mới nhất" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6" /></svg>
+              </button>
+            </div>
           </div>
 
-          <div id="opportunity-cards" class="opportunity-cards"></div>
+          <div id="opportunity-cards" class="opportunity-cards" tabindex="0" role="region" aria-label="Danh sách bài viết xem trước"></div>
         </div>
 
         <div class="result-console">
@@ -636,10 +632,11 @@
                 Posts</span></p>
           </div>
           <label id="export-scope-field" class="export-scope-box" hidden>
-            <span>Bài muốn tải về</span>
-            <select id="export-scope" aria-label="Bài muốn tải về" disabled>
-              <option value="CURRENT">Nhóm kết quả đang xem</option>
-              <option value="ALL">Tất cả bài đã thu</option>
+            <span>Bạn muốn tải về?</span>
+            <select id="export-scope" class="result-select" disabled>
+              <option value="SUITABLE" selected>Phù hợp</option>
+              <option value="NOT_SUITABLE">Không phù hợp</option>
+              <option value="ALL">Tất cả bài viết đã thu</option>
             </select>
           </label>
           <div class="export-actions">

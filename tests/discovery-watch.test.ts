@@ -5,8 +5,6 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { createDiscoveryStore, deliveryMonth, exportDigest } from '../src/infrastructure/storage/discovery-store.js';
-import { createDiscoveryWatch } from '../src/application/discovery-watch.js';
-import type { ProductionState, RunState } from '../src/shared/production-api.js';
 
 function sandbox() {
   const root = mkdtempSync(join(tmpdir(), 'csd-watch-')); let current = new Date('2026-11-06T01:00:00Z');
@@ -21,14 +19,6 @@ function sandbox() {
     },
     close() { store.close(); rmSync(root, { recursive: true, force: true }); } };
 }
-function run(id: string, count = 0, state: RunState['state'] = 'COMPLETED', source?: string): RunState {
-  const counts = { raw: count, comments: 0, suitable: count, pending: 0, failed: 0, notYet: 0, unrelated: 0 };
-  return { id, state, startedAt: '2026-11-06T01:00:00Z', finishedAt: state === 'RUNNING' ? null : '2026-11-06T02:00:00Z',
-    minimumPosts: 100, keywords: ['spa'], outputDirectory: 'fixture', platforms: [], preview: [], ...(source ? { discoverySourceRunId: source } : {}),
-    opportunity: { campaignId: id, totalTarget: 100, targetCount: count, threadsShare: .5, counts, byPlatform: { facebook: counts, threads: counts },
-      costUsd: 0, costUpperUsd: 0, usageUnknown: 0, budgetUsd: 3, phase: 'SETTLED', lastError: null, preview: [], filterMode: 'STANDARD' } };
-}
-const stateFor = (r: RunState | null): ProductionState => ({ version: 'fixture', config: { keywords: [], minimumPosts: 100 }, accounts: [], run: r });
 function ready(s: ReturnType<typeof sandbox>, intervalHours = 6) {
   s.export('source', ['facebook:initial']); const [sub] = s.store.create({ sourceRunId: 'source', label: 'Spa', intervalHours });
   s.advance(intervalHours); return sub!;
@@ -142,106 +132,16 @@ test('recovering an orphan service run moves already-completed receipts into the
   } finally { s.close(); }
 });
 
-test('controller protects a manual result after partial export and supplies only remaining target and lifetime exclusions', async () => {
-  const s = sandbox();
-  try {
-    const sub = ready(s); let current = stateFor(run('manual', 2)); const starts: { source: string; target: number; excluded: string[] }[] = [];
-    s.export('manual', ['facebook:manual-a']);
-    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => current, readRunState: () => null,
-      start: async (source, target, excluded) => { starts.push({ source, target, excluded }); current = stateFor(run('next', 0, 'RUNNING', source)); return current; } });
-    await watch.tick(); assert.equal(starts.length, 0);
-    await assert.rejects(watch.tick(sub.id), /DISCOVERY_EXPORT_REQUIRED/);
-    s.export('manual', ['facebook:manual-b']); await watch.tick();
-    assert.deepEqual(starts, [{ source: 'source', target: 100, excluded: ['facebook:initial'] }]);
-    assert.equal(s.store.list()[0]!.activeRunId, 'next'); await watch.stop();
-  } finally { s.close(); }
-});
-
-test('controller finishes partial exports safely, waits for full batch, then fills remaining monthly target', async () => {
-  const s = sandbox();
-  try {
-    const sub = ready(s); s.store.beginRun(sub.id, 'followup'); s.export('followup', ['facebook:a']);
-    let current = stateFor(run('followup', 3, 'COMPLETED', 'source')); let target = 0;
-    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => current, readRunState: () => current.run,
-      start: async (source, count) => { target = count; current = stateFor(run('next', 0, 'RUNNING', source)); return current; } });
-    await watch.tick(); assert.equal(s.store.list()[0]!.awaitingExport, true); assert.equal(target, 0);
-    s.advance(24); await watch.tick(); assert.equal(target, 0);
-    s.export('followup', ['facebook:b', 'facebook:c']); await watch.tick(); assert.equal(target, 97);
-    await watch.stop();
-  } finally { s.close(); }
-});
-
-test('controller recovers sourceRunId before finishing an orphan completed run, even with the subscription disabled', async () => {
-  const s = sandbox();
-  try {
-    const sub = ready(s); s.store.setEnabled(sub.id, false);
-    const current = stateFor(run('orphan', 3, 'COMPLETED', 'source'));
-    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => current, readRunState: () => null,
-      start: async () => { throw Error('must not start'); } });
-    await watch.tick(); assert.equal(s.store.scopeForRun('orphan'), 'source');
-    assert.equal(s.store.list()[0]!.awaitingExport, true); assert.equal(s.store.list()[0]!.activeRunId, null);
-    s.export('orphan', ['facebook:a']); assert.equal(s.store.list()[0]!.awaitingExport, true);
-    s.export('orphan', ['facebook:b', 'facebook:c']); assert.equal(s.store.list()[0]!.awaitingExport, false);
-    await watch.stop();
-  } finally { s.close(); }
-});
-
-test('watch serializes starts and stop waits for in-flight bookkeeping before refusing future work', async () => {
-  const s = sandbox();
-  try {
-    const sub = ready(s); let starts = 0, release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
-    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => stateFor(run('source', 1)), readRunState: () => null,
-      start: async source => { starts++; await gate; return stateFor(run('next', 0, 'RUNNING', source)); } });
-    const first = watch.tick(); await Promise.resolve(); await Promise.resolve();
-    assert.equal(starts, 1); await watch.tick(); await assert.rejects(watch.tick(sub.id), /DISCOVERY_BUSY/);
-    let stopped = false; const stopping = watch.stop().then(() => { stopped = true; });
-    await Promise.resolve(); assert.equal(stopped, false); release(); await first; await stopping;
-    assert.equal(s.store.list()[0]!.activeRunId, 'next'); assert.equal(watch.busy, false);
-    await watch.tick(); await assert.rejects(watch.tick(sub.id), /DISCOVERY_STOPPED/); assert.equal(starts, 1);
-  } finally { s.close(); }
-});
-
-test('pause prevents starts, failed budget/login starts defer at configured cadence, and invalid request IDs do not reach service', async () => {
-  const s = sandbox();
-  try {
-    const sub = ready(s); let starts = 0;
-    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => stateFor(run('source', 1)), readRunState: () => null,
-      start: async () => { starts++; throw Error('MODEL_BUDGET_EXHAUSTED'); } });
-    s.store.setEnabled(sub.id, false); await watch.tick(); assert.equal(starts, 0);
-    await assert.rejects(watch.tick('../outside'), /DISCOVERY_INPUT_INVALID/);
-    s.store.setEnabled(sub.id, true); await watch.tick(); assert.equal(starts, 1);
-    assert.equal(s.store.list()[0]!.lastError, 'MODEL_BUDGET_EXHAUSTED'); assert.equal(s.store.list()[0]!.activeRunId, null);
-    assert.equal(Date.parse(s.store.list()[0]!.nextRunAt) - s.now().getTime(), 6 * 3600000);
-    await watch.tick(); assert.equal(starts, 1); await watch.stop();
-  } finally { s.close(); }
-});
-
-test('missing or unreadable active run state blocks replacement; an interrupted batch retains its partial results', async () => {
-  const s = sandbox();
-  try {
-    const sub = ready(s); s.store.beginRun(sub.id, 'active'); let stored: RunState | null = null, unreadable = false;
-    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => stateFor(null),
-      readRunState: () => { if (unreadable) throw Error('raw diagnostic must not leak'); return stored; },
-      start: async () => { throw Error('must not start'); } });
-    await watch.tick(); assert.equal(s.store.list()[0]!.lastError, 'DISCOVERY_RUN_STATE_MISSING'); assert.equal(s.store.list()[0]!.activeRunId, 'active');
-    unreadable = true; await watch.tick(); assert.equal(s.store.list()[0]!.lastError, 'DISCOVERY_RUN_STATE_UNREADABLE');
-    unreadable = false; stored = run('active', 2, 'INTERRUPTED', 'source'); await watch.tick();
-    assert.equal(s.store.list()[0]!.lastError, 'DISCOVERY_RUN_INTERRUPTED'); assert.equal(s.store.list()[0]!.awaitingExport, true);
-    assert.equal(s.store.list()[0]!.activeRunId, null); await watch.stop();
-  } finally { s.close(); }
-});
-
-test('migration preserves old awaiting batches and recalculates expected count before accepting a partial export', async () => {
+test('migration preserves old awaiting batches and their export scope', () => {
   const s = sandbox();
   try {
     const sub = ready(s); s.store.beginRun(sub.id, 'followup'); s.store.finishRun(sub.id, 3);
     const db = new DatabaseSync(s.file); db.exec('ALTER TABLE subscriptions DROP COLUMN expected_count'); db.exec('ALTER TABLE subscriptions DROP COLUMN recipe_run'); db.exec('ALTER TABLE delivery_exports DROP COLUMN error'); db.close();
     s.reopen(); assert.equal(s.store.list()[0]!.awaitingExport, true);
     assert.equal(s.store.list()[0]!.recipeRunId, 'source');
-    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => stateFor(run('followup', 3, 'COMPLETED', 'source')),
-      readRunState: () => null, start: async () => { throw Error('must not start'); } });
-    await watch.tick(); s.export('followup', ['facebook:a']); assert.equal(s.store.list()[0]!.awaitingExport, true);
-    s.export('followup', ['facebook:b', 'facebook:c']); assert.equal(s.store.list()[0]!.awaitingExport, false); await watch.stop();
+    s.export('followup', ['facebook:a']);
+    assert.equal(s.store.scopeForRun('followup'), 'source');
+    assert.deepEqual(s.store.deliveredKeys('source').sort(), ['facebook:a', 'facebook:initial']);
   } finally { s.close(); }
 });
 
@@ -288,54 +188,5 @@ test('previouslyDeliveredForRun removes other batches while preserving repeat ex
     s.export('followup', ['facebook:new-followup']);
     assert.deepEqual(s.store.previouslyDeliveredForRun('followup'), ['facebook:initial', 'threads:mine']);
     assert.throws(() => s.store.previouslyDeliveredForRun('../outside'), /DISCOVERY_RUN_INVALID/);
-  } finally { s.close(); }
-});
-
-test('watch starts the attached recipe using stable lifetime exclusions and recovers descendants of that recipe', async () => {
-  const s = sandbox();
-  try {
-    const sub = ready(s); s.store.attachRecipe(sub.id, 'manual'); s.export('manual', ['threads:mine']);
-    let current = stateFor(run('manual', 1)); const starts: Array<{ recipe: string; target: number; excluded: string[] }> = [];
-    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => current, readRunState: () => null,
-      start: async (recipe, target, excluded) => { starts.push({ recipe, target, excluded }); current = stateFor(run('next', 0, 'RUNNING', recipe)); return current; } });
-    await watch.tick(); assert.equal(starts[0]!.recipe, 'manual'); assert.equal(starts[0]!.target, 99);
-    assert.deepEqual(starts[0]!.excluded.sort(), ['facebook:initial', 'threads:mine']);
-    assert.equal(s.store.scopeForRun('next'), 'source'); await watch.stop();
-    s.store.finishRun(sub.id, 0); current = stateFor(run('orphan-next', 2, 'COMPLETED', 'manual'));
-    const recovered = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => current, readRunState: () => null,
-      start: async () => { throw Error('must not start'); } });
-    await recovered.tick(); assert.equal(s.store.scopeForRun('orphan-next'), 'source'); assert.equal(s.store.list()[0]!.awaitingExport, true);
-    await recovered.stop();
-  } finally { s.close(); }
-});
-
-test('attached manual results use eligible export count instead of blocking forever on roots already delivered', async () => {
-  const s = sandbox();
-  try {
-    const sub = ready(s); s.export('source', ['facebook:another-initial']); s.store.attachRecipe(sub.id, 'manual');
-    let current = stateFor(run('manual', 3)), starts = 0;
-    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => current, readRunState: () => null,
-      expectedResultCount: (r, fallback) => { assert.ok(fallback >= 0); return r.id === 'manual' ? 1 : fallback; },
-      start: async recipe => { starts++; current = stateFor(run('next', 0, 'RUNNING', recipe)); return current; } });
-    await watch.tick(); assert.equal(starts, 0);
-    await assert.rejects(watch.tick(sub.id), /DISCOVERY_EXPORT_REQUIRED/);
-    s.export('manual', ['facebook:only-new-root']); await watch.tick();
-    assert.equal(starts, 1); assert.equal(s.store.exportedCount('manual'), 1);
-    await watch.stop();
-  } finally { s.close(); }
-});
-
-test('eligible-count callback still blocks partial customer exports and cannot increase or invent a count', async () => {
-  const s = sandbox();
-  try {
-    const sub = ready(s); s.store.attachRecipe(sub.id, 'manual'); let expected = 2, starts = 0;
-    const watch = createDiscoveryWatch({ store: s.store, now: s.now, getState: async () => stateFor(run('manual', 3)), readRunState: () => null,
-      expectedResultCount: () => expected, start: async recipe => { starts++; return stateFor(run('next', 0, 'RUNNING', recipe)); } });
-    s.export('manual', ['facebook:a']); await watch.tick(); assert.equal(starts, 0);
-    for (const invalid of [-1, 4, .5, Number.NaN]) {
-      expected = invalid; await assert.rejects(watch.tick(), /DISCOVERY_RESULT_COUNT_INVALID/);
-    }
-    expected = 2; s.export('manual', ['facebook:b']); await watch.tick(); assert.equal(starts, 1);
-    await watch.stop();
   } finally { s.close(); }
 });

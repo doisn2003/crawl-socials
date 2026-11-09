@@ -1,0 +1,11 @@
+1. Tren may da gap loi, dung thu thap va dong ung dung CSD binh thuong.
+2. Giai nen CSD-Lay-Log.zip ra mot thu muc. Khong chay truc tiep ben trong ZIP.
+3. Nhan dup LAY-LOG-CSD.cmd. Khong can quyen Administrator hay cai Node.js.
+4. Cho den khi hien DA TAO. File CSD-logs-...zip nam tren Desktop.
+5. Gui file CSD-logs-...zip vao cuoc tro chuyen de phan tich.
+
+Cong cu chi doc du lieu CSD, khong xoa/sua du lieu, khong dang nhap va khong goi AI.
+Chi gom trang thai, ma loi, log thu thap, cau hinh, prompt va tu khoa cua cac luot gan day.
+Khong gom browser, secrets, cookie, bien moi truong hay toan bo bai viet.
+Neu du lieu da bi xoa, cong cu khong khoi phuc duoc log cua nhung luot da mat.
+Neu bao loi, chup lai cua so thong bao va gui vao cuoc tro chuyen.

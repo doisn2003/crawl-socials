@@ -24,7 +24,6 @@ import { listRetainedSources as catalogRetainedSources } from './retained-source
 import { listRegisteredRetainedSourceRoots, registerRetainedSourceRoot, resolveRetainedSourceRoot } from './retained-source-roots.js';
 import { importRetainedData, prepareRetainedImport, readRetainedImport } from './retained-data-service.js';
 import type { RetainedImportState } from './retained-data-service.js';
-import { campaignVersion, validateCampaignPlan, type CampaignPlan } from '../domain/campaign-plan.js';
 import type { CoverageExpansionRequest } from './coverage-queries.js';
 import { presentSavedAssessmentExport, restoreAssessmentProgress } from './saved-assessment-progress.js';
 
@@ -38,7 +37,7 @@ export interface CollectorInput {
   platform: Platform; profileId: string; config: Record<string, unknown>;
   shouldStop(): boolean;
   collectionLimitReason?(): string | null;
-  onProgress(value: { total?: number; event?: string; query?: string; replaying?: boolean; workers?: import('../shared/production-api.js').PlatformRun['workers'] }): void;
+  onProgress(value: { total?: number; event?: string; query?: string; replaying?: boolean; workers?: import('../shared/production-api.js').PlatformRun['workers']; resources?: import('../shared/collection-resources.js').CollectionResources }): void;
   resume?: boolean;
   /** Only deliberate recovery after a cooldown may reset a stalled native search. */
   recoverStalled?: boolean;
@@ -419,7 +418,7 @@ export function createProductionService(input: {
           if (existingLimit) {
             item.count = accountRows(item).length; item.state = 'STOPPED'; item.reason = existingLimit; saveRun(); return;
           }
-          item.state = 'RUNNING'; saveRun();
+          item.state = 'RUNNING'; delete item.resources; saveRun();
           const output = accountDirectory(currentRun, item);
           const queries = pipeline ? pipeline.queries(item.platform) : [...currentRun.keywords];
           // Each source may use the remaining global discovery allowance. Output mix is enforced
@@ -459,11 +458,12 @@ export function createProductionService(input: {
             } : {}),
             onProgress: value => {
               if (value.workers) item.workers = value.workers;
+              if (value.resources) item.resources = value.resources;
               if (Number.isSafeInteger(value.total) && Number(value.total) >= 0) item.count = Number(value.total);
               if (Date.now() - lastSaved > 1500) { saveRun(); lastSaved = Date.now(); }
             } });
           item.count = accountRows(item).length; item.reason = receipt.stop_reason;
-          const regular = ['TARGET_REACHED', 'INTENT_TARGET_REACHED', 'RAW_BUDGET_REACHED', 'MODEL_PAUSED', 'QUERY_BUDGET_COMPLETE', 'REPLAY_BUDGET_REACHED', 'SOURCE_EXHAUSTED', 'NO_PROGRESS', 'USER_STOP', 'RUN_DEADLINE', 'WINDOW_CLOSED'];
+          const regular = ['TARGET_REACHED', 'INTENT_TARGET_REACHED', 'RAW_BUDGET_REACHED', 'MODEL_PAUSED', 'QUERY_BUDGET_COMPLETE', 'REPLAY_BUDGET_REACHED', 'SOURCE_EXHAUSTED', 'NO_PROGRESS', 'USER_STOP', 'RUN_DEADLINE', 'WINDOW_CLOSED', 'RESOURCE_MEMORY_WAIT'];
           item.state = !regular.includes(item.reason) && !storageStopped(item.reason) ? 'FAILED' : !pipeline && !storageStopped(item.reason) && item.count >= currentRun.minimumPosts ? 'COMPLETED' : 'STOPPED';
           if (receipt.session_flush && receipt.session_flush !== 'OK') { item.state = 'FAILED'; item.reason = 'SESSION_SAVE_FAILED'; }
           if (item.profileId && /ACCOUNT_BARRIER|LOGIN_REQUIRED/.test(item.reason)) blockedProfiles.add(item.profileId);
@@ -556,57 +556,6 @@ export function createProductionService(input: {
       const saved = JSON.parse(readFileSync(file, 'utf8')) as RunState;
       if (saved.id !== runId || saved.outputDirectory !== directory || !Array.isArray(saved.platforms)) throw Error('RUN_STATE_INVALID');
       return saved;
-    },
-    /** Reuse a committed recipe without planning or mutating its source/cost history. */
-    async startDiscoveryFromRecipe(sourceRunId: string, totalTarget: number, excludedRootKeys: string[] = []): Promise<ProductionState> {
-      if (active(run) || starting || executing || preparingDraft) throw Error('COLLECTION_BUSY');
-      if (!/^crawl-[0-9a-f-]{36}$/u.test(sourceRunId) || !Number.isSafeInteger(totalTarget) || totalTarget < 1 || totalTarget > 5000
-        || !Array.isArray(excludedRootKeys) || excludedRootKeys.length > 100000
-        || excludedRootKeys.some(key => typeof key !== 'string' || !/^(facebook|threads):[^\s:]{1,200}$/u.test(key))) throw Error('DISCOVERY_INPUT_INVALID');
-      if (!input.collectConversation) throw Error('CONVERSATION_COLLECTOR_UNAVAILABLE');
-      const sourceDirectory = join(input.directory, 'collections', sourceRunId), sourceStateFile = join(sourceDirectory, 'run-state.json');
-      const source = existsSync(sourceStateFile) ? JSON.parse(readFileSync(sourceStateFile, 'utf8')) as RunState : run?.id === sourceRunId ? structuredClone(run) : null;
-      if (!source || source.id !== sourceRunId || source.outputDirectory !== sourceDirectory || source.mode === 'RETAINED'
-        || !Array.isArray(source.platforms) || !source.platforms.length || source.platforms.length > 50
-        || source.platforms.some(p => !platformValue(p.platform) || !isBrowserProfileId(p.profileId))
-        || new Set(source.platforms.map(p => p.profileId)).size !== source.platforms.length) throw Error('DISCOVERY_RECIPE_UNAVAILABLE');
-      const campaignFile = join(sourceDirectory, 'opportunity', 'campaign.json'), configFile = join(sourceDirectory, 'opportunity-config.json');
-      if (!existsSync(campaignFile) || !existsSync(configFile)) throw Error('DISCOVERY_RECIPE_UNAVAILABLE');
-      const originalCampaign = JSON.parse(readFileSync(campaignFile, 'utf8')) as CampaignPlan;
-      validateCampaignPlan(originalCampaign);
-      if (originalCampaign.campaign_id !== sourceRunId) throw Error('DISCOVERY_RECIPE_MISMATCH');
-      const sourceConfig = JSON.parse(readFileSync(configFile, 'utf8')) as OpportunityConfig;
-      const config = { ...sourceConfig, totalTarget, commentsEnabled: originalCampaign.filter_version.startsWith('opportunity-posts-')
-        && sourceConfig.filterMode !== 'OFF' && sourceConfig.commentsEnabled };
-      if (!config.enabled || config.filterMode !== originalCampaign.filter_mode || config.budgetUsd !== originalCampaign.budget.model_usd) throw Error('DISCOVERY_RECIPE_MISMATCH');
-      config.rawCap = Math.max(totalTarget, config.rawCap);
-      const previousRun = run; starting = true; let launched = false;
-      try {
-        const available = await accounts();
-        for (const selected of source.platforms) if (!available.some(p => p.id === selected.profileId && p.platform === selected.platform && p.authenticated && !p.persistenceError)) throw Error('LOGIN_REQUIRED');
-        await closePipeline();
-        const id = 'crawl-' + randomUUID(), outputDirectory = join(input.directory, 'collections', id);
-        const { version: _version, created_at: _created, ...body } = originalCampaign;
-        const next = { ...body, campaign_id: id, suitable_target: totalTarget,
-          budget: { ...body.budget, raw_cap: config.rawCap }, watch: { enabled: false, revisit_hours: [], ttl_hours: 72, max_attempts: 0 } };
-        const campaign: CampaignPlan = { ...next, version: campaignVersion(next), created_at: new Date().toISOString() };
-        validateCampaignPlan(campaign);
-        run = { id, collectionLayout: 'PROFILE_QUERY_V2', discoverySourceRunId: sourceRunId, mode: 'DISCOVERY', state: 'RUNNING', startedAt: campaign.created_at, finishedAt: null,
-          minimumPosts: totalTarget, keywords: [...new Set(campaign.queries.map(q => q.text))], outputDirectory,
-          platforms: source.platforms.map(p => ({ platform: p.platform, profileId: p.profileId, state: 'QUEUED', count: 0, reason: null })), preview: [] };
-        const current = run; stopped = false;
-        atomicJson(join(outputDirectory, 'opportunity-config.json'), config);
-        atomicJson(join(outputDirectory, 'discovery-parent.json'), { schemaVersion: 1, sourceRunId, sourceCampaignHash: contentHash(originalCampaign),
-          excludedRootKeys: [...new Set(excludedRootKeys)], createdAt: campaign.created_at });
-        pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ projectDirectory: input.directory, directory: outputDirectory, runId: id, config, campaign,
-          platforms: [...new Set(current.platforms.map(p => p.platform))], collectConversation: input.collectConversation,
-          ...keywordCommentWindow(current), excludedRootKeys: [...new Set(excludedRootKeys)], onProgress: value => { current.opportunity = value; saveRun(); } });
-        saveRun(); work = execute(); launched = true; void work.catch(() => {});
-        return await getState();
-      } catch (error) {
-        if (!launched) { await closePipeline(); run = previousRun; if (run) saveRun(); }
-        throw error;
-      } finally { starting = false; }
     },
     getState,
     listRetainedSources,

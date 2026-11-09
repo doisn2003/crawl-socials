@@ -12,6 +12,16 @@
 - Keep repeated posts in each new run with `previouslyCollected`, while maintaining one canonical identity per project. Reuse completed assessments across filter modes when the saved evidence still applies, preserving the original evaluation provenance.
 - Development checks use mocks and isolated data. Existing model-spending envelopes remain closed.
 
+## Production v2 interface and demo incident recovery — 2026-11-09
+
+- The latest 5.4 production-v2 working changes are integrated into `main` with project storage. Use the four-band slider (OFF 0–10, CONSISTENT 11–49, STANDARD 50–90, QUALITY 91–100), three visible steps and one advanced-settings button. The scheduled discovery step is retired. Preserve saved runs and export history.
+- Show and enforce the same machine spending limits across projects. Preserve explicit saved limits. The new settings default to USD 3 per AI run, USD 30 cumulative and USD 6 daily when no machine limits are saved.
+
+- Customer diagnostics reproduced an admission deadlock: the percentage RAM reserve prevented even one window on a 12 GB machine with 1.53–1.71 GB free. Keep the single-window fallback with 512 MiB OS headroom + 384 MiB loading allowance, including FAST; keep critical-memory protection and the 60-second idle-memory pause. Persist/show resource waiting and allow Resume without clearing data.
+- A separate Standard planning transport failure later succeeded on retry. Do not label unknown usage as zero cost or infer DNS/TLS cause from the old generic code. Future diagnostics use allowlisted transport codes only, never messages/URLs/headers.
+- Hotfix version `0.4.0-rebuild.5.4`: 1,110 offline tests passed, Electron renderer and packaged main/preload/renderer checked with isolated AppData/spending and zero live model calls. Portable built locally, not externally published. The first pre-reset incident remains unproven; this is not live validation on the customer machine or a new spending authorization.
+- See [.brain/reports/csd-demo-incident-20261109.md](.brain/reports/csd-demo-incident-20261109.md). Keep diagnostic ZIP/raw artifacts out of commits. Preserve the prior uncommitted UI work on production-v2.
+
 ## Completed Hà Giang keyword probe — 2026-11-07
 
 - User authorized current-module prompt planning/expansion only: Gemini 3.1 Flash-Lite, maximum 10 calls / USD 0.20 including repairs. No social crawl was performed.

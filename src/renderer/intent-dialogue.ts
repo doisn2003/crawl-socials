@@ -10,14 +10,14 @@ const element = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string) =
 export function createIntentDialogue(host: { state(): ProductionState | null; config(): UserConfig; busy(): boolean; changed(): void;
   submit(request: ContinueCampaignRequest): Promise<void> }) {
   const root = document.getElementById('campaign-dialogue');
-  let key = '', dirty = false;
+  let key = '';
   function render() {
     if (!root) return;
     const view = host.state()?.campaignDialogue, config = host.config().opportunity;
     root.hidden = !view || !config || Object.keys(view.config).some(k => config[k as keyof typeof config] !== view.config[k as keyof typeof view.config]);
-    if (root.hidden || !view) { dirty = false; return; }
+    if (root.hidden || !view) return;
     if (key !== view.revision) {
-      key = view.revision; dirty = false; root.replaceChildren();
+      key = view.revision; root.replaceChildren();
       root.append(element('h3', 'CSD hiểu yêu cầu của bạn như sau'), element('p', view.plan.understanding));
       const send = async (request: Partial<ContinueCampaignRequest>) => {
         await host.submit({ ...request, runId: view.runId, expectedRevision: view.revision });
@@ -28,11 +28,12 @@ export function createIntentDialogue(host: { state(): ProductionState | null; co
         const options = q.options.map(option => {
           const label = element('label'), input = element('input'); input.type = q.type === 'multi_select' ? 'checkbox' : 'radio';
           input.name = `${view!.revision}-${previous?.answer_id ?? 'new'}-${q.id}`; input.value = option.id;
-          input.checked = previous?.selected_option_ids.includes(option.id) ?? false;
+          input.defaultChecked = previous?.selected_option_ids.includes(option.id) ?? false;
           label.append(input, element('span', option.label)); group.append(label); return input;
         });
         const label = element('label', q.type === 'free_text' ? 'Câu trả lời' : 'Hoặc mô tả bằng lời của bạn');
-        const text = element('textarea'); text.maxLength = 1500; text.rows = 2; text.value = previous?.raw_text ?? '';
+        const text = element('textarea'); text.maxLength = 1500; text.rows = 2;
+        text.defaultValue = (previous?.raw_text ?? '').replace(/\r\n?/g, '\n');
         label.append(text); group.append(label);
         return { group, value: () => ({ question_id: q.id, selected_option_ids: options.filter(option => option.checked).map(option => option.value), raw_text: text.value.trim() }) };
       }
@@ -47,7 +48,7 @@ export function createIntentDialogue(host: { state(): ProductionState | null; co
       const edits = element('form');
       const fields = view.plan.intent.map(item => {
         const label = element('label', `${labels[item.field]} · ${statuses[item.status]}`), input = element('textarea');
-        input.rows = 2; input.maxLength = 600; input.value = item.value; label.append(input); edits.append(label);
+        input.rows = 2; input.maxLength = 600; input.defaultValue = item.value.replace(/\r\n?/g, '\n'); label.append(input); edits.append(label);
         return { item, input };
       });
       edits.append(element('p', 'Cập nhật yêu cầu có tính phí trong giới hạn của lượt này. Muốn bỏ một điều kiện, ghi “Không giới hạn”.'));
@@ -65,11 +66,14 @@ export function createIntentDialogue(host: { state(): ProductionState | null; co
         }
         root.append(history);
       }
-      const restore = element('button', 'Hoàn tác nội dung chưa gửi'); restore.type = 'button';
-      restore.addEventListener('click', () => { key = ''; dirty = false; render(); host.changed(); }); root.append(restore);
     }
     for (const control of root.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLTextAreaElement>('input, button, textarea')) control.disabled = host.busy();
   }
-  root?.addEventListener('input', () => { dirty = true; host.changed(); });
-  return { render, hasUnsavedEdits: () => dirty };
+  root?.addEventListener('input', host.changed);
+  function hasUnsavedEdits() {
+    if (!root || root.hidden) return false;
+    return Array.from(root.querySelectorAll<HTMLInputElement>('input')).some(input => input.checked !== input.defaultChecked)
+      || Array.from(root.querySelectorAll<HTMLTextAreaElement>('textarea')).some(text => text.value !== text.defaultValue);
+  }
+  return { render, hasUnsavedEdits };
 }

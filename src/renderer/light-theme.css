@@ -658,11 +658,6 @@ h1 > span:first-of-type {
   border-color: #fda4af;
 }
 
-.discovery-panel {
-  border-color: #c7d2fe;
-  margin-top: 0;
-}
-
 .section-heading {
   margin: -28px -30px 24px;
   padding: 20px 30px;
@@ -678,11 +673,6 @@ h1 > span:first-of-type {
 .run-panel .section-heading {
   background: linear-gradient(90deg, #fff1f2 0%, #fdf4ff 60%, #ecfdf5 100%);
   border-bottom-color: #fecdd3;
-}
-
-.discovery-panel .section-heading {
-  background: linear-gradient(90deg, #eef2ff 0%, #fdf4ff 100%);
-  border-bottom-color: #e0e7ff;
 }
 
 .section-number {
@@ -759,65 +749,11 @@ h1 > span:first-of-type {
   margin-bottom: 22px;
 }
 
-.filter-mode-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-
 .sub-block-title {
   display: block;
   font-size: 15px;
   font-weight: 800;
   color: #2a1829;
-}
-
-.filter-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 5px;
-  border-radius: 999px;
-  background: #ffffff;
-  border: 1px solid #fbcfe8;
-}
-
-.filter-pill {
-  padding: 7px 14px;
-  border-radius: 999px;
-  border: none;
-  background: transparent;
-  color: #6b4c63;
-  font-size: 12.5px;
-  font-weight: 700;
-  transition: all 0.18s ease;
-}
-
-.filter-pill:hover:not(:disabled) {
-  background: #fff1f2;
-  color: #be123c;
-}
-
-.filter-pill[aria-pressed="true"] {
-  background: linear-gradient(135deg, #fb7185 0%, #e11d48 55%, #9333ea 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);
-}
-
-#filter-mode {
-  width: 100%;
-  min-height: 44px;
-  margin: 0;
-  padding: 10px 14px;
-  border: 1.5px solid #fbcfe8;
-  border-radius: 14px;
-  background: #ffffff;
-  color: var(--text);
-  font-weight: 600;
-  font-size: 13.5px;
 }
 
 /* 2-Column Input Cards */
@@ -879,8 +815,7 @@ h1 > span:first-of-type {
 .profile-field select,
 .campaign-planning .field input,
 .campaign-planning .field select,
-#campaign-dialogue textarea,
-.discovery-panel input {
+#campaign-dialogue textarea {
   border: 1.5px solid #f5d0fe;
   border-radius: 14px;
   background: #ffffff;
@@ -899,9 +834,7 @@ textarea::placeholder {
 .field input:focus,
 .field select:focus,
 .opportunity-limits input:focus,
-#campaign-dialogue textarea:focus,
-#filter-mode:focus,
-.discovery-panel input:focus {
+#campaign-dialogue textarea:focus {
   background: #ffffff;
   border-color: #fb7185;
   box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.18);
@@ -1391,6 +1324,43 @@ textarea::placeholder {
 }
 
 /* Progress Cards */
+.collection-progress {
+  margin: 0 0 14px;
+  padding: 17px 19px;
+  border: 1px solid #eadcf4;
+  border-radius: 18px;
+  background: linear-gradient(105deg, #fff5f8, #f9f5ff);
+}
+.collection-progress-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+.collection-progress-title h3 { margin: 0; font-size: 15px; }
+#collection-target { color: #6b21a8; font-size: 13px; font-weight: 800; }
+.collection-progress .progress-bar { display: block; width: 100%; margin: 10px 0 14px; }
+.collection-progress-stages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 9px;
+}
+.collection-progress-stages > div {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #f2e7f4;
+}
+.collection-progress-stages span { font-size: 11px; font-weight: 700; color: #6b21a8; }
+.collection-progress-stages strong { font-size: 13px; }
+.collection-progress-stages small, .source-raw-count { font-size: 11px; color: #654f66; }
+.source-raw-count { margin: 0 0 5px; }
+.progress-state[data-state="RUNNING"] { background: #e8f7ef; color: #126443; }
+.progress-state[data-state="FAILED"] { background: #fff1f2; color: #9f1239; }
+.progress-state[data-state="STOPPED"] { background: #f3edf6; color: #654f66; }
 .progress-card {
   background: linear-gradient(180deg, #ffffff 0%, #fff9fb 100%);
   border: 1.5px solid #fce7f3;
@@ -1455,7 +1425,50 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-left: auto;
 }
+.opportunity-type-filter label { font-size: 12px; font-weight: 700; }
+.result-select {
+  max-width: 100%;
+  min-height: 38px;
+  border: 1px solid #dfc6ef;
+  border-radius: 11px;
+  background: #fff;
+  color: #4d2463;
+  padding: 7px 10px;
+  font: inherit;
+}
+.result-select:focus-visible, .latest-post-button:focus-visible,
+.opportunity-cards:focus-visible, .opportunity-card:focus-visible {
+  outline: 2px solid #9333ea;
+  outline-offset: 2px;
+}
+.latest-post-slot { flex: 0 0 38px; min-height: 38px; }
+.latest-post-button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #dfc6ef;
+  border-radius: 50%;
+  background: #fff;
+  color: #6b21a8;
+  cursor: pointer;
+}
+.latest-post-button:hover { background: #f5e9ff; }
+.latest-post-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.opportunity-cards { scrollbar-gutter: stable; }
+.opportunity-post-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.opportunity-card .opportunity-need-summary {
+  margin: 8px 0;
+  padding: 9px 13px;
+  border-left: 3px solid #fb7185;
+  border-radius: 0 10px 10px 0;
+  background: #fff1f5;
+  color: #543448;
+  overflow-wrap: anywhere;
+}
+.opportunity-need-summary strong { display: block; color: #9f1239; font-size: 11px; }
 
 .opportunity-tabs button[aria-pressed="true"] {
   background: linear-gradient(135deg, #fb7185, #e11d48);
@@ -1550,41 +1563,6 @@ textarea::placeholder {
 .export-row p strong {
   font-weight: 800;
   color: #065f46;
-}
-
-/* ==========================================================================
-   KHỐI 04: TÌM BỔ SUNG ĐỊNH KỲ (Discovery Panel)
-   ========================================================================== */
-.discovery-form-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  margin: 16px 0;
-}
-
-.discovery-form-row input {
-  flex: 1 1 320px;
-  margin: 0;
-}
-
-.discovery-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.discovery-card-title {
-  font-size: 15px;
-  color: #2a1829;
-}
-
-.discovery-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  margin-top: 10px;
 }
 
 footer {

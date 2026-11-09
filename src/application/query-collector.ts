@@ -50,7 +50,7 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
   let expansionFailures = 0, expansionDeferred = false;
   const stopReason = () => input.shouldStop() ? 'USER_STOP' : barrier ?? input.collectionLimitReason?.() ?? (now() >= deadline ? 'RUN_DEADLINE' : null);
   function publish() { atomicJson(file, { fingerprint, startedAt, tasks, resources: windows.status(), expansionError, expansionExhausted,
-    expansionDeferred, collectorRevision: COLLECTOR_REVISION, ...(renderingMigration ? { renderingMigration } : {}) }); input.onProgress({ total: store.count, workers: structuredClone(tasks) }); }
+    expansionDeferred, collectorRevision: COLLECTOR_REVISION, ...(renderingMigration ? { renderingMigration } : {}) }); input.onProgress({ total: store.count, workers: structuredClone(tasks), resources: windows.status() }); }
   async function expand(completeInitial = false) {
     if (stopReason() || !input.expandQueries || tasks.length >= MAX_SEARCH_QUERIES || (!completeInitial && (expansionExhausted || expansionDeferred))) return;
     try {
@@ -71,6 +71,13 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
   // Even a previously terminal collector must consult the versioned shared portfolio on explicit resume.
   await expand(true);
   // Every task gets a bounded first turn; productive windows may keep one extra warm slice.
+  // Keep resource waits visible/durable even when no child has ever been admitted.
+  let heartbeatError: unknown;
+  const heartbeat = setInterval(() => {
+    try { publish(); }
+    catch (error) { heartbeatError = error; barrier ??= code(error); }
+  }, 2000);
+  try {
   while (tasks.some(t => t.state === 'QUEUED' || t.state === 'COOLDOWN') && !stopReason()) {
     for (const task of tasks) if (task.state === 'COOLDOWN' && (task.retryAt ?? 0) <= now()) { task.state = 'QUEUED'; task.retryAt = null; }
     if (!tasks.some(t => t.state === 'QUEUED')) {
@@ -142,17 +149,23 @@ export async function runQueryCollectors(input: CollectorInput, collect: (input:
           task.slices++; task.state = task.slices < maxSlices ? 'QUEUED' : 'STOPPED';
           if (task.slices >= maxSlices) task.reason = 'REPLAY_BUDGET_REACHED';
         } else task.state = ['SOURCE_EXHAUSTED', 'NO_PROGRESS'].includes(receipt.stop_reason) ? 'COMPLETED' : 'STOPPED';
-      } catch (error) { task.state = 'FAILED'; task.reason = stopReason() ?? code(error); }
+      } catch (error) {
+        if (code(error) === 'RESOURCE_MEMORY_WAIT') barrier ??= 'RESOURCE_MEMORY_WAIT';
+        task.reason = stopReason() ?? code(error);
+        task.state = ['USER_STOP', 'RUN_DEADLINE', 'INTENT_TARGET_REACHED', 'RAW_BUDGET_REACHED', 'RESOURCE_MEMORY_WAIT'].includes(task.reason) ? 'STOPPED' : 'FAILED';
+      }
       finally { if (taskStarted) task.elapsedMs = (task.elapsedMs ?? 0) + now() - taskStarted; lease?.release(); publish(); }
     }));
     // Each completed round can consume or request the next shared, durably bounded query wave.
     await expand();
   }
   await ingestion;
+  if (heartbeatError) throw heartbeatError;
   for (const task of tasks) if (task.state === 'QUEUED' || task.state === 'COOLDOWN') { task.state = 'STOPPED'; task.reason = stopReason() ?? 'QUERY_NOT_RUN'; }
   publish();
   const reason = stopReason() ?? (!expansionError && !expansionDeferred && tasks.every(t => t.reason === 'SOURCE_EXHAUSTED') ? 'SOURCE_EXHAUSTED'
     : tasks.some(t => t.state === 'FAILED') ? 'QUERY_WORKER_FAILED' : 'QUERY_BUDGET_COMPLETE');
   const receipt = { stop_reason: reason, summary: store.export(), workers: tasks, expansion_error: expansionError, session_flush: barrier === 'SESSION_SAVE_FAILED' ? 'FAILED' : 'OK' };
   atomicJson(join(directory, 'receipt.json'), receipt); return receipt;
+  } finally { clearInterval(heartbeat); }
 }

@@ -38,6 +38,7 @@ test('OFF collects a global target, persists extras/resume and never invokes AI;
     assert.equal(pipeline.progress().counts.raw, 5); assert.equal(pipeline.progress().counts.suitable, 0);
     assert.equal(pipeline.progress().targetCount, 3); assert.equal(pipeline.progress().extraCount, 2);
     assert.equal(pipeline.progress().preview.length, 3);
+    assert.deepEqual(pipeline.progress().preview.map(row => row.rootId), ['5', '4', '3']);
     assert.ok(pipeline.progress().preview.every(row => row.classification === 'UNASSESSED'));
     assert.equal(pipeline.targetReached(), true); assert.equal(pipeline.discoveryStopReason('threads'), 'INTENT_TARGET_REACHED');
     const exported = await pipeline.results(); assert.equal(exported.snapshots.length, 5); assert.equal(exported.decisions.length, 0);

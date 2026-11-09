@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { runQueryCollectors } from '../src/application/query-collector.js';
 import { createWindowScheduler } from '../src/application/window-scheduler.js';
 
@@ -17,6 +17,66 @@ test('ALL keeps existing keyword windows through CPU bursts and yields only at c
   leases.forEach(lease => lease.release());
 });
 import type { CollectorInput } from '../src/application/production-service.js';
+
+test('consecutive Consistent, Standard and Quality discovery runs make progress on the demo RAM samples', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-demo-sequence-'));
+  let freeBytes = 4e9;
+  const windows = createWindowScheduler({ staggerMs: 0,
+    sample: () => ({ freeBytes, totalBytes: 12674457600, cpuBusy: .15 }) });
+  try {
+    for (const [index, mode] of ['CONSISTENT', 'STANDARD', 'QUALITY'].entries()) {
+      freeBytes = index === 0 ? 4e9 : index === 1 ? 1532497920 : 1709322240;
+      // A fresh scheduler sample is essential; production reads at one-second intervals.
+      await sleepForTest(1050);
+      const queryCount = index === 2 ? 96 : 63;
+      let calls = 0, peak = 0, active = 0;
+      const receipts = await Promise.all((['facebook', 'threads'] as const).map(platform => runQueryCollectors({
+        platform, profileId: platform + '-authenticated', shouldStop: () => false, onProgress() {},
+        config: { runId: 'demo-' + mode.toLowerCase() + '-' + platform, output: join(root, mode, platform),
+          queries: Array.from({ length: queryCount }, (_, i) => 'cafe ' + i), maxMinutes: 10 },
+      }, async () => {
+        calls++; peak = Math.max(peak, ++active);
+        try { await sleepForTest(1); return { stop_reason: 'SOURCE_EXHAUSTED', summary: { unique: 0 } }; }
+        finally { active--; }
+      }, windows)));
+      assert.equal(calls, queryCount * 2, `${mode}: every queued search must be admitted`);
+      assert.ok(receipts.every(receipt => receipt.stop_reason === 'SOURCE_EXHAUSTED'));
+      if (index > 0) assert.equal(peak, 1);
+      assert.equal(windows.status().active, 0); assert.equal(windows.status().queued, 0);
+    }
+  } finally {
+    assert.equal(dirname(resolve(root)), resolve(tmpdir())); assert.ok(basename(root).startsWith('csd-demo-sequence-'));
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+const sleepForTest = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+test('memory wait checkpoints pause truthfully and resume the same tasks when RAM returns', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'csd-memory-resume-'));
+  let clock = 10000, freeBytes = 800 * 1024 * 1024, calls = 0;
+  const windows = createWindowScheduler({ now: () => clock, staggerMs: 0, maxIdleWaitMs: 10,
+    sample: () => ({ freeBytes, totalBytes: 12674457600, cpuBusy: .15 }) });
+  const input: CollectorInput = { platform: 'facebook', profileId: 'fixture', shouldStop: () => false, onProgress() {},
+    config: { runId: 'memory-resume', output: root, queries: ['cafe'], maxMinutes: 10 } };
+  const collect = async () => { calls++; return { stop_reason: 'SOURCE_EXHAUSTED', summary: { unique: 0 } }; };
+  try {
+    const waiting = runQueryCollectors(input, collect, windows);
+    await sleepForTest(20); clock += 1000;
+    const paused = await waiting;
+    assert.equal(paused.stop_reason, 'RESOURCE_MEMORY_WAIT'); assert.equal(calls, 0);
+    const checkpoint = join(root, 'runs', 'memory-resume', 'query-tasks.json');
+    const before = JSON.parse(readFileSync(checkpoint, 'utf8'));
+    assert.equal(before.tasks[0].state, 'STOPPED'); assert.equal(before.tasks[0].attempts, 0);
+    freeBytes = 1532497920; clock += 2000;
+    assert.equal((await runQueryCollectors({ ...input, resume: true }, collect, windows)).stop_reason, 'SOURCE_EXHAUSTED');
+    const after = JSON.parse(readFileSync(checkpoint, 'utf8'));
+    assert.equal(after.fingerprint, before.fingerprint); assert.equal(after.startedAt, before.startedAt);
+    assert.equal(calls, 1); assert.equal(after.tasks[0].state, 'COMPLETED'); assert.equal(windows.status().active, 0);
+  } finally {
+    assert.equal(dirname(resolve(root)), resolve(tmpdir())); assert.ok(basename(root).startsWith('csd-memory-resume-'));
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('a waiting search gets the next Electron slot before the comment worker', async () => {
   const windows = createWindowScheduler({ staggerMs: 0, sample: () => ({ freeBytes: 8e9, totalBytes: 16e9, cpuBusy: .75 }) });

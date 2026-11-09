@@ -142,6 +142,18 @@ test('network failure remains usage-unknown instead of claiming zero actual cost
   assert.equal(text.includes('secret provider transport detail'), false);
 }));
 
+test('network diagnostics keep only known transport codes, preserving cost and omitting secrets', () => temporary(async directory => {
+  const gateway = createGeminiGateway({ mockTransport: true, directory, model: 'gemini-3.1-flash-lite', budgetUsd: 1,
+    apiKey: 'private-test-key', minRequestIntervalMs: 0, maxAttempts: 1,
+    fetch: async () => { throw new TypeError('private URL or header', { cause: Object.assign(new Error('private credential'), { code: 'UND_ERR_CONNECT_TIMEOUT' }) }); } });
+  await assert.rejects(gateway.generateJson(request), /MODEL_NETWORK_USAGE_UNKNOWN/);
+  const text = readFileSync(join(directory, 'model-ledger.jsonl'), 'utf8');
+  const events = text.trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(events.at(-1).transport_diagnostic, 'UND_ERR_CONNECT_TIMEOUT');
+  assert.equal(events.at(-1).cost_usd, null); assert.ok(gateway.summary().unmetered_cost_upper_usd > 0);
+  assert.equal(text.includes('private'), false);
+}));
+
 test('permanent daily quota stops further attempts and emits only safe status', () => temporary(async directory => {
   let calls = 0;
   const gateway = createGeminiGateway({ mockTransport: true, directory, model: 'gemini-3.1-flash-lite', budgetUsd: 1, apiKey: 'fake', minRequestIntervalMs: 0,

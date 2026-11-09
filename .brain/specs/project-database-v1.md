@@ -29,7 +29,7 @@ Canonical posts and run membership are projected from `project-posts.sqlite` in 
 | Inclusion in a new run and previous-collection flag | `project-posts.sqlite` | `project_run_posts` plus complete SQLite recovery file |
 | Comments, reply roots, conversation snapshots and coverage | Per-run opportunity databases and journals | Consistent SQLite snapshots and exact recovery files |
 | Classification decisions, evidence, review history and jobs | Per-run opportunity SQLite | Consistent SQLite snapshots |
-| Discovery schedules, delivery history and attempts | Project `discovery.sqlite` and campaign data | Consistent SQLite snapshots and JSON records |
+| Historical discovery schedules, delivery history and attempts | Project `discovery.sqlite` and campaign data | Consistent SQLite snapshots and JSON records |
 | Model responses, token usage, run spending and assessment cache | Run model journals and `assessment-cache` | Exact recovery files, JSON records when applicable |
 | Saved exports | Project `exports` and run result files | Exact recovery files, including Excel bytes |
 | Project name, avatar and ownership | Local workspace index | `projects`, `users` |

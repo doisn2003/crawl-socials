@@ -12,13 +12,6 @@ const api: ProductionApi = Object.freeze({
     logout: () => ipcRenderer.invoke('csd:projects:logout'),
     sync: () => ipcRenderer.invoke('csd:projects:sync'),
   }),
-  discoveryWatch: Object.freeze({
-    list: () => ipcRenderer.invoke('csd:discovery:list'),
-    create: (input: Parameters<ProductionApi['discoveryWatch']['create']>[0]) => ipcRenderer.invoke('csd:discovery:create', input),
-    setEnabled: (input: Parameters<ProductionApi['discoveryWatch']['setEnabled']>[0]) => ipcRenderer.invoke('csd:discovery:enabled', input),
-    attachRecipe: (input: Parameters<ProductionApi['discoveryWatch']['attachRecipe']>[0]) => ipcRenderer.invoke('csd:discovery:attach', input),
-    runNow: (input: { id: string }) => ipcRenderer.invoke('csd:discovery:run', input),
-  }),
   geminiKey: Object.freeze({
     status: () => ipcRenderer.invoke('csd:gemini-key:status'),
     save: (input: { key: string }) => ipcRenderer.invoke('csd:gemini-key:save', input),

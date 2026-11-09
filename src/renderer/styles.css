@@ -247,7 +247,5 @@ button:disabled{opacity:.45}
 ::-webkit-scrollbar-track{background:var(--panel)}
 ::-webkit-scrollbar-thumb{background:#bbb;border:2px solid var(--panel)}
 ::-webkit-scrollbar-thumb:hover{background:#888}
-#filter-mode{display:block;width:100%;margin:18px 0 8px;accent-color:var(--text)}
-.filter-labels{display:flex;justify-content:space-between;font-size:11px;margin-bottom:10px}
 .field input,.field select{background:var(--panel);color:var(--text);border:1px solid var(--line);padding:10px;font:inherit}
 .config-grid{margin-top:20px}

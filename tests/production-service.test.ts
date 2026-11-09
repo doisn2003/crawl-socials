@@ -59,6 +59,38 @@ test('explicit add-account creates another isolated profile while ordinary login
   await assert.rejects(service.login({ platform: 'facebook', profileId: fbId, createNew: true }), /LOGIN_INPUT_INVALID/);
 }));
 
+test('adding unsigned-in social profiles does not block consecutive searches on authenticated profiles', async () => temporary(async directory => {
+  const fixture = hostWithProfiles(), seen: string[] = [];
+  const service = createProductionService({ directory, version: 'test', host: fixture.host,
+    collect: async input => { seen.push(input.profileId); return completed(input); } });
+  service.saveConfig({ keywords: ['cafe'], minimumPosts: 1 });
+  await service.start({ profiles: selection }); await service.settled();
+  await service.login({ platform: 'facebook', createNew: true });
+  await service.login({ platform: 'threads', createNew: true });
+  const state = await service.getState();
+  assert.equal(state.accounts.filter(a => !a.authenticated).length, 2);
+  for (let i = 0; i < 2; i++) { await service.start({ profiles: selection }); await service.settled(); }
+  assert.deepEqual(seen, [fbId, threadId, fbId, threadId, fbId, threadId]);
+  assert.equal(service.results().run.state, 'COMPLETED');
+}));
+
+test('memory pause preserves resource evidence and reports STOPPED rather than an unexplained failure', async () => temporary(async directory => {
+  const service = createProductionService({ directory, version: 'test', host: hostWithProfiles().host,
+    collect: async input => {
+      input.onProgress({ resources: { active: 0, queued: 63, automaticLimit: 1, activeProfiles: 0,
+        freeBytes: 800e6, totalBytes: 12e9, cpuBusy: .1, pressureSince: null,
+        admission: 'WAITING_MEMORY', memoryWaitMs: 60000, sampledAt: Date.now() } });
+      return { stop_reason: 'RESOURCE_MEMORY_WAIT', summary: { unique: 0 } };
+    } });
+  service.saveConfig({ keywords: ['cafe'], minimumPosts: 100 });
+  await service.start({ profiles: selection }); await service.settled();
+  const run = service.results().run;
+  assert.equal(run.state, 'STOPPED');
+  assert.ok(run.platforms.every(p => p.reason === 'RESOURCE_MEMORY_WAIT' && p.resources?.admission === 'WAITING_MEMORY'));
+  const reopened = createProductionService({ directory, version: 'test', host: hostWithProfiles().host, collect: completed });
+  assert.equal((await reopened.getState()).run?.platforms[0]?.resources?.memoryWaitMs, 60000);
+}));
+
 test('same-network accounts have independent writers and one deduplicated durable platform export', async () => temporary(async directory => {
   const secondId = 'csd-00000000-0000-4000-8000-000000000003';
   const fixture = hostWithProfiles([profile(fbId, 'facebook'), profile(secondId, 'facebook')]), outputs: string[] = [], ids: string[] = [];

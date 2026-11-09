@@ -17,6 +17,7 @@ export interface PlatformRun {
   state: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'STOPPED' | 'FAILED';
   count: number; reason: string | null;
   workers?: Array<{ worker: number; query: string; state: string; reason: string | null }>;
+  resources?: import('./collection-resources.js').CollectionResources;
 }
 export interface PostPreview { previouslyCollected?: boolean; platform: Platform; post_id: string; text: string; query: string; link: string; }
 export interface OpportunityCounts { raw: number; comments: number; suitable: number; notSuitable?: number; /** Legacy count fields retained for historical runs. */ notYet: number; unrelated: number; pending: number; failed: number; }
@@ -86,7 +87,6 @@ export interface ProductionState {
 export interface GeminiKeyStatus { source: 'SAVED' | 'ENVIRONMENT' | 'NONE'; readError: boolean; }
 export interface ProductionApi {
   projects: import('./projects.js').ProjectsApi;
-  discoveryWatch: import('./discovery-watch.js').DiscoveryWatchApi;
   geminiKey: { status(): Promise<GeminiKeyStatus>; save(input: { key: string }): Promise<GeminiKeyStatus>; remove(): Promise<GeminiKeyStatus>; };
   getState(): Promise<ProductionState>;
   saveConfig(input: UserConfig): Promise<UserConfig>;

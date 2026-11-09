@@ -78,8 +78,25 @@ interface FinishEvent {
   result: JsonModelResult | null; cost_usd: number | null; unmetered_cost_upper_usd: number;
   error_code: string | null; http_status: number | null;
   request_diagnostic?: string;
+  transport_diagnostic?: string;
 }
 type LedgerEvent = StartEvent | FinishEvent;
+
+// Record only known transport categories, never error messages, URLs or headers.
+function transportDiagnostic(error: unknown): string {
+  const allowed = new Set(['ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENETUNREACH', 'EHOSTUNREACH',
+    'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT', 'UND_ERR_SOCKET',
+    'CERT_HAS_EXPIRED', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE']);
+  let current = error;
+  for (let depth = 0; depth < 4 && current && typeof current === 'object'; depth++) {
+    const item = current as { code?: unknown; name?: unknown; cause?: unknown };
+    if (typeof item.code === 'string' && allowed.has(item.code)) return item.code;
+    if (item.name === 'TimeoutError') return 'REQUEST_TIMEOUT';
+    if (item.name === 'AbortError') return 'REQUEST_ABORTED';
+    current = item.cause;
+  }
+  return 'NETWORK_ERROR';
+}
 
 export interface GeminiGatewayOptions {
   directory: string;
@@ -253,6 +270,7 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
       }
       let response: Response | null = null, payload: Record<string, unknown> | null = null;
       let errorCode: string | null = null, usage: ModelUsage | null = null, value: unknown;
+      let transportFailure: string | undefined;
       let valid = false;
       try {
         response = await transport(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -273,7 +291,8 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
             catch { errorCode = 'MODEL_OUTPUT_NOT_JSON'; }
           }
         }
-      } catch {
+      } catch (error) {
+        transportFailure = transportDiagnostic(error);
         errorCode = request.signal?.aborted ? 'MODEL_ABORTED_USAGE_UNKNOWN' : 'MODEL_NETWORK_USAGE_UNKNOWN';
       }
       actualInputTokens = usage?.input_tokens;
@@ -287,6 +306,7 @@ export function createGeminiGateway(options: GeminiGatewayOptions): ModelGateway
       // A failed disk write leaves START unresolved; restart reserves its full cost conservatively.
       try { append({ type: 'FINISH', invocation_id: invocation, request_hash: hash, model, finished_at: new Date().toISOString(),
         result, cost_usd: cost, unmetered_cost_upper_usd: unknown, error_code: errorCode, http_status: response?.status ?? null,
+        ...(transportFailure ? { transport_diagnostic: transportFailure } : {}),
         ...(response?.status === 400 ? { request_diagnostic: invalidRequestDiagnostic(payload) } : {}) }); }
       catch (error) { reserved = Math.max(0, reserved - upper); if (reserved < 1e-12) reserved = 0; unknownUpper += upper; accountBudget(); throw error; }
       reserved = Math.max(0, reserved - upper); if (reserved < 1e-12) reserved = 0; spent += cost ?? 0; unknownUpper += unknown;

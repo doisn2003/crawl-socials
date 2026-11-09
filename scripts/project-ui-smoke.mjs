@@ -29,7 +29,7 @@ if (!process.versions.electron) {
   const preload = join(directory, 'preload.cjs');
   writeFileSync(preload, `const {contextBridge,ipcRenderer}=require('electron');
 const api={getState:()=>ipcRenderer.invoke('mock:state'),saveConfig:arg=>ipcRenderer.invoke('mock:config',arg),
-geminiKey:{status:async()=>({source:'NONE',readError:false})},discoveryWatch:{list:async()=>[]},projects:{}};
+geminiKey:{status:async()=>({source:'NONE',readError:false})},projects:{}};
 for(const name of ['state','create','update','remove','select','register','login','logout','sync'])api.projects[name]=arg=>ipcRenderer.invoke('mock:project:'+name,arg);
 contextBridge.exposeInMainWorld('csd',api);`);
   const timestamp = '2026-11-09T00:00:00Z';
