@@ -18,7 +18,7 @@ export function createIntentDialogue(host: { state(): ProductionState | null; co
     if (root.hidden || !view) return;
     if (key !== view.revision) {
       key = view.revision; root.replaceChildren();
-      root.append(element('h3', 'TrendLink hiểu yêu cầu của bạn như sau'), element('p', view.plan.understanding));
+      root.append(element('h3', 'FindLink hiểu yêu cầu của bạn như sau'), element('p', view.plan.understanding));
       const send = async (request: Partial<ContinueCampaignRequest>) => {
         await host.submit({ ...request, runId: view.runId, expectedRevision: view.revision });
       };

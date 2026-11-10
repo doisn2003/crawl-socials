@@ -36,8 +36,8 @@ if (!process.versions.electron) {
     window.show = () => {};
     window.webContents.once('did-finish-load', async () => {
       try {
-        assert.equal(app.getName(), 'TrendLink');
-        assert.equal(window.getTitle(), 'TrendLink');
+        assert.equal(app.getName(), 'FindLink');
+        assert.equal(window.getTitle(), 'FindLink');
         assert.equal(await window.webContents.executeJavaScript(
           "Array.from(document.querySelectorAll('.brand-mark, .footer-mark')).filter(img => img.complete && img.naturalWidth > 0).length"
         ), 2);
@@ -64,6 +64,7 @@ if (!process.versions.electron) {
             secondLimits:second.spending, restoredLimits:restored.config.spendLimits,
             restoredSpending:restored.spending, renamed, removed, denied};
         })()`);
+        assert.equal(result.initial.projects[0]?.name, 'Dữ liệu FindLink hiện có');
         assert.deepEqual(result.original, ['piano']);
         assert.deepEqual(result.restored, ['piano']);
         assert.deepEqual(result.persisted, ['guitar']);

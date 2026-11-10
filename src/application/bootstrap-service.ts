@@ -11,7 +11,7 @@ export function createBootstrapService(input: {
   return {
     getInfo(): AppInfo {
       return {
-        product: 'TrendLink', fullName: 'TrendLink', version: input.version,
+        product: 'FindLink', fullName: 'FindLink', version: input.version,
         mode: 'OFFLINE_BOOTSTRAP', benchmarkReady: false,
         campaign: {
           name: spec.name, keywords: [...spec.workload.keywords],

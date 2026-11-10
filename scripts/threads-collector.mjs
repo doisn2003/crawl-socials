@@ -170,7 +170,7 @@ async function main(){
  const config=JSON.parse(readFileSync(resolve(configPath),'utf8'));
  const paths=runtimePaths(app.getPath('appData'));
  for(const [name,path]of Object.entries(paths)){mkdirSync(path,{recursive:true});app.setPath(name,path);}
- app.setName('TrendLink');app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+ app.setName('FindLink');app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
  if(!app.requestSingleInstanceLock())throw Error('CSD_ALREADY_RUNNING');
  let stopping=false,finished=false;
  const onClosed=()=>{stopping=true;};
@@ -178,7 +178,7 @@ async function main(){
  app.on('window-all-closed',onClosed);app.on('before-quit',onQuit);
  await app.whenReady();
  const profiles=createBrowserProfiles(join(paths.userData,'data'));
- const label = config.profileLabel || 'TrendLink Threads';
+ const label = config.profileLabel || 'FindLink Threads';
  const matches = profilesByLabel((await profiles.list()).filter(p=>p.platform==='threads'), label);
  if(matches.length>1)throw Error('PROFILE_AMBIGUOUS');
  const profile=matches[0]||await profiles.create(label,'threads');

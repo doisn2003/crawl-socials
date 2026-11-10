@@ -17,7 +17,7 @@ if (out.startsWith(resolve(process.cwd()))) throw Error('PRIVATE_OUTPUT_REQUIRED
 mkdirSync(out,{recursive:true});
 const paths=runtimePaths(app.getPath('appData'));
 for(const [name,path]of Object.entries(paths)){mkdirSync(path,{recursive:true});app.setPath(name,path);}
-app.setName('TrendLink');
+app.setName('FindLink');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 if(!app.requestSingleInstanceLock()) throw Error('CSD_ALREADY_RUNNING');
 app.on('window-all-closed',()=>{});
@@ -62,7 +62,7 @@ try{
  for(const [idx,job]of jobs.entries()){
   if(stopping||existsSync(join(out,'STOP')))break;
   const platformProfiles = (await host.list()).filter(p => (p.platform || 'facebook') === job.platform);
-  const [profile] = profilesByLabel(platformProfiles, job.platform === 'threads' ? 'TrendLink Threads' : 'TrendLink Facebook');
+  const [profile] = profilesByLabel(platformProfiles, job.platform === 'threads' ? 'FindLink Threads' : 'FindLink Facebook');
   if(!profile)throw Error('PROFILE_MISSING_'+job.platform);
   await host.open(profile.id);const wc=host.observerTarget(profile.id)?.contents;if(!wc)throw Error('PROFILE_UNAVAILABLE');
   wc.setBackgroundThrottling(false);

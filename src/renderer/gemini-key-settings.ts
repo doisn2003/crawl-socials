@@ -10,7 +10,7 @@ export function bindGeminiKeySettings(api: ProductionApi['geminiKey'], isBusy: (
     status = value;
     note.textContent = value.readError ? 'Chưa đọc được key đã lưu. Nhập lại key để lưu trên máy này.' : value.source === 'SAVED'
       ? 'Đã lưu key trên máy này, được Windows bảo vệ. Dùng cho lập kế hoạch và lọc AI.' : value.source === 'ENVIRONMENT'
-      ? 'Đang dùng key từ biến môi trường. Bạn có thể nhập key riêng cho TrendLink tại đây.' : 'Chưa có key. Nhập Gemini API Key rồi bấm Lưu key.';
+      ? 'Đang dùng key từ biến môi trường. Bạn có thể nhập key riêng cho FindLink tại đây.' : 'Chưa có key. Nhập Gemini API Key rồi bấm Lưu key.';
     controls();
   }
   async function change(deleting: boolean) {

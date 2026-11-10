@@ -231,7 +231,7 @@ function friendlyError(error: unknown, fallback: string): string {
   if (/XLSX_CELL_TEXT_TOO_LONG/.test(text))
     return 'Một bài viết vượt giới hạn ký tự của ô Excel. Chọn Lưu dữ liệu gốc để giữ nguyên toàn bộ nội dung.';
   if (/GEMINI_API_KEY_MISSING|MODEL_AUTHENTICATION|MODEL_PERMISSION/.test(text))
-    return 'Chưa kết nối được dịch vụ phân tích. Kiểm tra thiết lập kết nối trên máy rồi mở lại TrendLink.';
+    return 'Chưa kết nối được dịch vụ phân tích. Kiểm tra thiết lập kết nối trên máy rồi mở lại FindLink.';
   const modelPause = modelPauseMessage(text);
   if (modelPause) return modelPause;
   if (/MODEL_NOT_AUTHORIZED/.test(text))
@@ -280,7 +280,7 @@ function updateControls() {
   collectComments.disabled ||= mode === 'OFF';
   setText('filter-mode-help', { OFF: 'Lấy bài đã tìm được, chưa đánh giá; không gọi AI.', CONSISTENT: 'Tìm rộng cả bối cảnh, sở thích và cơ hội gián tiếp; loại quảng cáo và bài lạc đề.', STANDARD: 'Giữ nhu cầu, vấn đề, tâm sự, mong muốn, trải nghiệm và thảo luận liên quan.', QUALITY: 'Chỉ giữ bài có căn cứ rõ ràng, đáp ứng đúng yêu cầu và có giá trị cụ thể cho mục tiêu tìm kiếm.' }[mode]);
   const money = state?.spending;
-  setText('spend-status', money ? 'Đã dùng $' + money.measuredUsd.toFixed(4) + ' · Đang dự phòng/chưa rõ $' + money.heldUsd.toFixed(4) + ' · Còn $' + money.remainingUsd.toFixed(4) + ' · ' + money.calls + ' lượt gọi. Chi phí ước tính TrendLink, không phải hóa đơn Google.' : '');
+  setText('spend-status', money ? 'Đã dùng $' + money.measuredUsd.toFixed(4) + ' · Đang dự phòng/chưa rõ $' + money.heldUsd.toFixed(4) + ' · Còn $' + money.remainingUsd.toFixed(4) + ' · ' + money.calls + ' lượt gọi. Chi phí ước tính FindLink, không phải hóa đơn Google.' : '');
   const config = readConfig();
   const selected = selectableProfiles();
   setText('keyword-count', config.keywords.length ? number(config.keywords.length) + ' từ khóa' : '');
@@ -442,7 +442,7 @@ function createProgress(platform: PlatformRun, target: number, refined = false, 
   const bar = document.createElement('progress'); bar.className = 'progress-bar'; bar.max = Math.max(1, target); bar.value = platform.count; bar.hidden = global || target === 0;
   bar.setAttribute('aria-label', 'Tiến độ ' + platformNames[platform.platform]);
   card.append(top, count, bar);
-  const reason = reasonText(platform.reason) || (waitingForMemory ? 'Đóng bớt ứng dụng để TrendLink có thể tiếp tục tìm bài.' : '');
+  const reason = reasonText(platform.reason) || (waitingForMemory ? 'Đóng bớt ứng dụng để FindLink có thể tiếp tục tìm bài.' : '');
   if (reason) { const note = document.createElement('p'); note.className = 'progress-reason'; note.textContent = reason; card.append(note); }
   return card;
 }
@@ -730,7 +730,7 @@ async function collectFromCurrentPlan() {
     phase: phase => { startPhase = phase; updateControls(); },
   });
   if (result.kind === 'CLARIFICATION') {
-    pendingStart = startSignature(); operation('Cần làm rõ yêu cầu. Gửi câu trả lời bên dưới để TrendLink tự tiếp tục thu thập.');
+    pendingStart = startSignature(); operation('Cần làm rõ yêu cầu. Gửi câu trả lời bên dưới để FindLink tự tiếp tục thu thập.');
     revealNotice(element('campaign-dialogue'));
   } else { pendingStart = null; stateEpoch++; applyState(result.state); }
 }

@@ -6,13 +6,13 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 if (-not (Test-Path -LiteralPath $DataRoot -PathType Container)) {
-  throw 'Khong tim thay du lieu TrendLink. Hay chay tren dung tai khoan Windows da dung TrendLink.'
+  throw 'Khong tim thay du lieu FindLink. Hay chay tren dung tai khoan Windows da dung FindLink.'
 }
-if (@(Get-Process -Name 'TrendLink', 'CSD' -ErrorAction SilentlyContinue).Count -gt 0) {
-  throw 'Hay dung thu thap, dong ung dung, sau do chay lai LAY-LOG-TRENDLINK.cmd. Khong can xoa du lieu.'
+if (@(Get-Process -Name 'FindLink', 'TrendLink', 'CSD' -ErrorAction SilentlyContinue).Count -gt 0) {
+  throw 'Hay dung thu thap, dong ung dung, sau do chay lai LAY-LOG-FINDLINK.cmd. Khong can xoa du lieu.'
 }
 $source = (Resolve-Path -LiteralPath $DataRoot).Path.TrimEnd('\')
-$name = 'TrendLink-logs-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 6)
+$name = 'FindLink-logs-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 6)
 $bundle = Join-Path $OutputRoot $name
 $zip = $bundle + '.zip'
 [void](New-Item -ItemType Directory -Path $bundle)
@@ -82,7 +82,7 @@ function Read-Tree([string]$path) {
   }
 }
 
-Write-Host 'Dang gom trang thai va log TrendLink...'
+Write-Host 'Dang gom trang thai va log FindLink...'
 foreach ($item in @('latest-run.json', 'active-campaign-draft.json', 'browser-profiles.json', 'user-config.json')) {
   $path = Join-Path $source $item
   if (Test-Path -LiteralPath $path -PathType Leaf) { Save-Diagnostic (Get-Item -LiteralPath $path) }

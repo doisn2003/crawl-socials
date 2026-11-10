@@ -17,7 +17,7 @@ Source boundary: PROMPT and nonempty CONTEXT are literal user data fields in the
 When CONTEXT describes the business and an area where it seeks customers, record the grounded area in intent.geography. Do not repeat an inferred area preference in constraints or turn the business description into conditions on customer posts. Use constraints for independently stated conditions on the posts to collect.
 intent_revision must equal the input revision exactly, including during validation repair; a formatting retry never increments it. Return all labels, explanations and query text in Vietnamese.`;
 
-/** Project a validated intent into the CSD campaign/storage contract. */
+/** Project a validated intent into the campaign/storage contract. */
 export function semanticCampaign(input: CampaignPlanInput, intent: IntentInput, plan: IntentPlan): CampaignPlan {
   if (plan.state !== 'READY' || plan.unresolved_fields.length || plan.uncovered.length) throw Error('CAMPAIGN_INTENT_UNRESOLVED');
   const field = (name: string) => plan.intent.filter(item => item.field === name && item.status === 'CONFIRMED').map(item => item.value);

@@ -35,7 +35,7 @@ async function bootstrap() {
     mkdirSync(directory, { recursive: true });
     app.setPath(name as 'userData' | 'sessionData' | 'logs' | 'crashDumps', directory);
   }
-  app.setName('TrendLink'); app.setAppUserModelId('io.csd.desktop');
+  app.setName('FindLink'); app.setAppUserModelId('io.csd.desktop');
   if (!app.requestSingleInstanceLock()) { app.quit(); return; }
   app.commandLine.appendSwitch('disable-background-networking');
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
@@ -142,8 +142,8 @@ async function bootstrap() {
     current.webRequest.onBeforeRequest((details, callback) => callback({ cancel: !['file:', 'about:', 'data:'].includes(new URL(details.url).protocol) }));
   }
   const uiFile = fileURLToPath(new URL('../renderer/index.html', import.meta.url)), uiUrl = pathToFileURL(uiFile).href;
-  window = new BrowserWindow({ title: 'TrendLink', width: 1240, height: 940, minWidth: 780, minHeight: 650,
-    icon: fileURLToPath(new URL('../renderer/trendlink-mark.png', import.meta.url)),
+  window = new BrowserWindow({ title: 'FindLink', width: 1240, height: 940, minWidth: 780, minHeight: 650,
+    icon: fileURLToPath(new URL('../renderer/findlink-mark.png', import.meta.url)),
     show: false, backgroundColor: '#ffffff', autoHideMenuBar: true,
     webPreferences: { preload: fileURLToPath(new URL('../preload/index.cjs', import.meta.url)), session: uiSession,
       nodeIntegration: false, contextIsolation: true, sandbox: true, webviewTag: false } });
@@ -226,7 +226,7 @@ async function bootstrap() {
       if (choosingRetainedRoot) throw Error('RETAINED_PICKER_BUSY');
       choosingRetainedRoot = true;
       try {
-        const choice = await dialog.showOpenDialog(mainWindow, { title: 'Chọn thư mục dữ liệu TrendLink đã lưu',
+        const choice = await dialog.showOpenDialog(mainWindow, { title: 'Chọn thư mục dữ liệu FindLink đã lưu',
           properties: ['openDirectory'], buttonLabel: 'Dùng nguồn dữ liệu này' });
         if (choice.canceled || choice.filePaths.length !== 1) return null;
         return service.registerRetainedSourceRoot(choice.filePaths[0]!);
@@ -255,7 +255,7 @@ async function bootstrap() {
       try {
         const format = (value as { format: 'json' | 'xlsx' }).format, result = await service.snapshotResults();
         const choice = await dialog.showSaveDialog(mainWindow, { title: format === 'xlsx' ? 'Xuất kết quả Excel' : 'Xuất kết quả JSON',
-          defaultPath: join(app.getPath('downloads'), 'TrendLink-' + result.run.id + (result.opportunity ? '-' + (group ?? 'ALL') : '') + '.' + format),
+          defaultPath: join(app.getPath('downloads'), 'FindLink-' + result.run.id + (result.opportunity ? '-' + (group ?? 'ALL') : '') + '.' + format),
           filters: [{ name: format === 'xlsx' ? 'Excel Workbook' : 'JSON', extensions: [format] }] });
         if (choice.canceled || !choice.filePath) return { canceled: true, path: null };
         const staged = choice.filePath + '.csd-' + randomUUID() + '.' + format;
@@ -295,6 +295,6 @@ async function bootstrap() {
 }
 void bootstrap().catch(() => {
   console.error('CSD_STARTUP_FAILED');
-  dialog.showErrorBox('TrendLink không thể khởi động', 'Không thể mở dữ liệu ứng dụng hoặc cửa sổ TrendLink. Dữ liệu và phiên đăng nhập hiện có được giữ nguyên.');
+  dialog.showErrorBox('FindLink không thể khởi động', 'Không thể mở dữ liệu ứng dụng hoặc cửa sổ FindLink. Dữ liệu và phiên đăng nhập hiện có được giữ nguyên.');
   app.exit(1);
 });

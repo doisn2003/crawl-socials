@@ -29,7 +29,7 @@ async function main() {
   if (existsSync(join(output, 'manifest.json'))) throw Error('PROBE_OUTPUT_ALREADY_USED');
   const paths = runtimePaths(app.getPath('appData'));
   for (const [name, path] of Object.entries(paths)) { mkdirSync(path, { recursive: true }); app.setPath(name, path); }
-  app.setName('TrendLink');
+  app.setName('FindLink');
   if (!app.requestSingleInstanceLock()) throw Error('CSD_ALREADY_RUNNING');
   app.on('window-all-closed', () => {}); await app.whenReady();
   const profiles = createBrowserProfiles(join(paths.userData, 'data'));
@@ -40,7 +40,7 @@ async function main() {
   const components = Object.fromEntries(['./threads-reply-root-probe.mjs', './threads-reply-root-collector.mjs', '../dist/infrastructure/browser/threads-reply-root-parser.js'].map(path => [path, sha(readFileSync(new URL(path, import.meta.url)))]));
   writeFileSync(join(output, 'manifest.json'), JSON.stringify({ started_at: new Date().toISOString(), candidates, components }, null, 2), { flush: true });
   try {
-    const [profile] = profilesByLabel((await host.list()).filter(p => p.platform === 'threads'), 'TrendLink Threads');
+    const [profile] = profilesByLabel((await host.list()).filter(p => p.platform === 'threads'), 'FindLink Threads');
     if (!profile) throw Error('THREADS_PROFILE_REQUIRED');
     for (const [index, candidate] of candidates.entries()) {
       if (stopping || existsSync(join(output, 'STOP'))) break;

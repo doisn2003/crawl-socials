@@ -9,8 +9,8 @@ export interface CampaignSummary {
   expansionAllowed: boolean;
 }
 export interface AppInfo {
-  product: 'TrendLink';
-  fullName: 'TrendLink';
+  product: 'FindLink';
+  fullName: 'FindLink';
   version: string;
   mode: 'OFFLINE_BOOTSTRAP';
   campaign: CampaignSummary;

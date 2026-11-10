@@ -1,9 +1,9 @@
-# TrendLink — current development instructions
+# FindLink — current development instructions
 
-## Promotional branch — 2026-11-09
+## FindLink branding — 2026-11-10
 
-- Work on `promo` for TrendLink branding and promotional changes. Keep runtime identifiers for existing data, sessions, spending records, and backups compatible.
-- Use the approved Luồng hội thoại logo from the user's attachment for the application and Windows icon. The mark has pink and orange speech bubbles and a white rising arrow. It is stored at `src/renderer/trendlink-mark.png`.
+- Use FindLink as the product name on `main`. Keep promotional changes on `promo` and preserve the runtime identifiers for existing data, sessions, spending records, and backups.
+- Use the approved Luồng hội thoại logo from the user's attachment for the application and Windows icon. The mark has pink and orange speech bubbles and a white rising arrow. It is stored at `src/renderer/findlink-mark.png`.
 
 ## Official development baseline — 2026-11-07
 

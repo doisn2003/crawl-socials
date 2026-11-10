@@ -84,7 +84,7 @@ export async function runSessionSmoke(input: {
     await view(ids.a).executeJavaScript(`location.href = '/redirect'; void 0`); await redirected;
     assert.ok(view(ids.a).getURL().startsWith(origin));
     assert.equal(await view(ids.a).executeJavaScript(`fetch('https://csd-session.invalid/blocked').then(()=>false,()=>true)`), true);
-    pass('site has no Node/CSD bridge; permissions, popup, external redirect/request denied');
+    pass('site has no Node or desktop bridge; permissions, popup, external redirect/request denied');
     const old = view(ids.a); await host.close(ids.a); assert.equal(old.isDestroyed(), true);
     assert.equal(host.diagnostics().openViews, 1); await open(ids.a);
     assert.equal(await cookie(ids.a, 'session_cookie'), 'session-A');

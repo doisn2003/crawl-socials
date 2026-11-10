@@ -23,7 +23,7 @@ export async function recordVisibleStartup(input: { directory: string; window: B
     await document.fonts.ready;
     const profiles = await window.csd.profiles.list(), config = await window.csd.probe.config(), status = await window.csd.probe.status();
     return { ready: document.documentElement.dataset.ready === 'true', readyState: document.readyState,
-      titleMatches: document.title === 'TrendLink',
+      titleMatches: document.title === 'FindLink',
       headingMatches: document.querySelector('h1')?.textContent === 'Bắt đầu từ một chủ đề.',
       profileFormPresent: !!document.getElementById('profile-form'),
       profileLabelPresent: !!document.getElementById('profile-label'),

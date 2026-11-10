@@ -1,7 +1,7 @@
 {
-  "name": "trendlink-desktop",
+  "name": "findlink-desktop",
   "version": "0.4.0-rebuild.5.4",
-  "description": "TrendLink",
+  "description": "FindLink",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -39,7 +39,7 @@
   },
   "build": {
     "appId": "io.csd.desktop",
-    "productName": "TrendLink",
+    "productName": "FindLink",
     "asar": true,
     "directories": {
       "output": "release"
@@ -49,7 +49,7 @@
       "package.json"
     ],
     "win": {
-      "icon": "src/renderer/trendlink-mark.png",
+      "icon": "src/renderer/findlink-mark.png",
       "target": [
         {
           "target": "portable",
@@ -60,7 +60,7 @@
       ]
     },
     "portable": {
-      "artifactName": "TrendLink-Portable-${version}.exe"
+      "artifactName": "FindLink-Portable-${version}.exe"
     }
   },
   "overrides": {

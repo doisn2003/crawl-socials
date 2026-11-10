@@ -23,8 +23,8 @@ interface WorkspaceIndex {
   projects: LocalProject[];
   migrationPending?: boolean;
 }
-const defaultProjectName = 'Dữ liệu TrendLink hiện có';
-const legacyDefaultProjectName = 'Dữ liệu CSD hiện có';
+const defaultProjectName = 'Dữ liệu FindLink hiện có';
+const legacyDefaultProjectNames = ['Dữ liệu CSD hiện có', 'Dữ liệu TrendLink hiện có'];
 const timestamp = () => new Date().toISOString();
 const errorCode = (error: unknown) => error instanceof Error && /^PROJECT_[A-Z_]+$/.test(error.message) ? error.message : 'PROJECT_DATABASE_UNAVAILABLE';
 
@@ -77,7 +77,7 @@ export async function createProjectWorkspace(input: { directory: string; databas
   function state(): ProjectWorkspaceState {
     const projects = index.projects.filter(project => project.ownerId === ownerId() && !project.deletedAt)
       .map(({ id, name, avatar, createdAt, updatedAt }) => ({
-        id, name: name === legacyDefaultProjectName ? defaultProjectName : name, avatar, createdAt, updatedAt,
+        id, name: legacyDefaultProjectNames.includes(name) ? defaultProjectName : name, avatar, createdAt, updatedAt,
       }));
     return { projects,
       activeProjectId: index.activeProjectId, user: user ? { ...user } : null, backup: { ...backup } };
@@ -153,7 +153,7 @@ export async function createProjectWorkspace(input: { directory: string; databas
         for (const project of index.projects.filter(entry => entry.ownerId === index.guestId && existingRemote.some(remoteProject => remoteProject.id === entry.id))) project.ownerId = authenticated.id;
         if (existingRemote.some(project => !project.deletedAt)) {
           for (const project of index.projects.filter(entry => entry.ownerId === index.guestId && entry.revision === 0
-            && [defaultProjectName, legacyDefaultProjectName].includes(entry.name))) {
+            && [defaultProjectName, ...legacyDefaultProjectNames].includes(entry.name))) {
             if ((await snapshotProject(directory(project))).length === 0) index.projects.splice(index.projects.indexOf(project), 1);
           }
         }

@@ -35,7 +35,7 @@ if (!process.versions.electron) {
         const run = script => window.webContents.executeJavaScript(script);
         for (let i = 0; i < 100 && await run("document.getElementById('filter-mode').disabled"); i++) await new Promise(r => setTimeout(r, 50));
         assert.equal(await run("document.getElementById('filter-mode').disabled"), false);
-        assert.equal(await run("document.title"), 'TrendLink');
+        assert.equal(await run("document.title"), 'FindLink');
         assert.equal(await run("document.querySelector('.brand-mark').naturalWidth > 0"), true);
         const initial = await run('window.csd.getState()');
         assert.equal(initial.run, null); assert.equal(initial.accounts.length, 0); assert.equal(initial.spending.calls, 0);
@@ -44,7 +44,7 @@ if (!process.versions.electron) {
         assert.equal(await run("document.getElementById('raw-cap').value"), '5000');
         assert.equal(await run("document.getElementById('spend-total').value"), '30');
         assert.equal(await run("document.getElementById('spend-daily').value"), '6');
-        assert.match(await run("document.querySelector('.session-note').textContent"), /TrendLink luôn giữ phiên đăng nhập/);
+        assert.match(await run("document.querySelector('.session-note').textContent"), /FindLink luôn giữ phiên đăng nhập/);
         for (const [i, mode] of ['OFF', 'CONSISTENT', 'STANDARD', 'QUALITY'].entries()) {
           const config = { schemaVersion: 2, keywords: ['cafe'], minimumPosts: 20, performance: 'BALANCED', filterPercent: [0, 25, 60, 100][i],
             spendLimits: { totalUsd: 7, dailyUsd: 4 }, opportunity: { enabled: true, filterMode: mode, prompt: 'Tìm quán cafe yên tĩnh', brandContext: '',

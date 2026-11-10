@@ -2,7 +2,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import './copy-semantic-assets.mjs';
 const root = new URL('../', import.meta.url);
-for (const name of ['index.html', 'styles.css', 'opportunity.css', 'light-theme.css', 'settings.css', 'trendlink-mark.png']) {
+for (const name of ['index.html', 'styles.css', 'opportunity.css', 'light-theme.css', 'settings.css', 'findlink-mark.png']) {
   const target = new URL('dist/renderer/' + name, root);
   await mkdir(fileURLToPath(new URL('./', target)), { recursive: true });
   await copyFile(new URL('src/renderer/' + name, root), target);

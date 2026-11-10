@@ -708,7 +708,7 @@ export function createProductionService(input: {
       if (v.profileId && (!profile || (profile.platform || 'facebook') !== v.platform)) throw Error('PROFILE_NOT_FOUND');
       if (!profile) {
         const count = list.filter(p => (p.platform || 'facebook') === v.platform).length;
-        const created = await input.host.create((v.platform === 'facebook' ? 'TrendLink Facebook' : 'TrendLink Threads') + (count ? ' ' + (count + 1) : ''), v.platform);
+        const created = await input.host.create((v.platform === 'facebook' ? 'FindLink Facebook' : 'FindLink Threads') + (count ? ' ' + (count + 1) : ''), v.platform);
         profile = { ...created, open: false, persistenceError: null };
       }
       blockedProfiles.delete(profile.id); await input.host.openLogin(profile.id); await accounts();
