@@ -78,8 +78,9 @@ export function createCampaignPlanner(host: PlannerHost) {
         : dirty ? 'Tiêu chí đang có thay đổi chưa lưu.' : draft.status === 'STARTED' ? 'Tiêu chí của lượt đã bắt đầu; giữ nguyên để đối chiếu kết quả.'
           : 'Kế hoạch sẵn sàng. Bạn có thể sửa tiêu chí hoặc bắt đầu thu thập.';
     const cost = state?.campaignDraftPreparing?.cost ?? state?.campaignDraftError?.cost ?? draft?.cost ?? state?.campaignDialogue?.cost;
-    node('campaign-plan-cost').textContent = cost ? `Chi phí lập kế hoạch: $${cost.measuredUsd.toFixed(4)}`
-      + (cost.unknownUpperUsd + cost.reservedUsd > 0 ? `–$${(cost.measuredUsd + cost.unknownUpperUsd + cost.reservedUsd).toFixed(4)}` : '')
+    const formatCost = (usd: number) => state?.managed ? (usd * 1000).toLocaleString('vi-VN', { maximumFractionDigits: 3 }) + ' credits' : '$' + usd.toFixed(4);
+    node('campaign-plan-cost').textContent = cost ? 'Chi phí lập kế hoạch ' + formatCost(cost.measuredUsd)
+      + (cost.unknownUpperUsd + cost.reservedUsd > 0 ? '–' + formatCost(cost.measuredUsd + cost.unknownUpperUsd + cost.reservedUsd) : '')
       + ' · Được tính trong ngân sách của lượt thu.' : 'FindLink sẽ làm rõ yêu cầu trước khi tìm bài. Chi phí nằm trong ngân sách đã chọn của lượt này.';
     const presets = state?.campaignPresets ?? [], nextKey = JSON.stringify(presets.map(p => [p.presetId, p.version, p.name, p.supported]));
     const select = node<HTMLSelectElement>('campaign-preset');

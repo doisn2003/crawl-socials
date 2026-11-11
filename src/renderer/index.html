@@ -128,6 +128,17 @@
             </div>
           </div>
           <p id="project-message" class="helper" role="status" aria-live="polite" hidden></p>
+          <div id="managed-starter" class="project-account" hidden>
+            <div><strong id="managed-plan">FindLink Starter</strong><p id="managed-status" class="helper" role="status"></p></div>
+            <div class="project-actions">
+              <button id="managed-demo" class="text-button" type="button" hidden>Xem mẫu</button>
+              <button id="managed-trial" class="secondary-button" type="button" hidden>Kích hoạt trial</button>
+              <button id="managed-order" class="primary-button" type="button" hidden>Mua Starter</button>
+              <button id="managed-topup" class="secondary-button" type="button" hidden>Nạp credits</button>
+              <button id="managed-wallet" class="text-button" type="button" hidden>Lịch sử credits</button>
+              <button id="managed-update" class="secondary-button" type="button" hidden>Cài cập nhật</button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -156,8 +167,49 @@
           <p class="helper">Đăng nhập để lấy projects đã sao lưu về máy này và tiếp tục làm việc.</p>
           <label for="project-username">Tên đăng nhập</label><input id="project-username" type="text" required autocomplete="username">
           <label for="project-password">Mật khẩu</label><input id="project-password" type="password" required autocomplete="current-password">
+          <div id="project-invite-field" hidden>
+            <label for="project-invite">Mã mời</label><input id="project-invite" type="password" maxlength="64" autocomplete="off" spellcheck="false">
+            <p class="helper">Đăng ký bằng email nhận mã mời. Mật khẩu mới cần ít nhất 12 ký tự.</p>
+            <button id="managed-recover-open" class="text-button" type="button">Dùng mã đặt lại mật khẩu</button>
+          </div>
           <div class="project-dialog-actions"><button id="project-auth-cancel" class="text-button" type="button">Hủy</button><button id="project-register" class="secondary-button" type="submit" value="register">Đăng ký</button><button id="project-login" class="primary-button" type="submit" value="login">Đăng nhập</button></div>
           <p id="project-auth-error" class="project-form-error" role="alert" hidden></p>
+        </form>
+      </dialog>
+      <dialog id="managed-demo-dialog" class="project-dialog" aria-labelledby="managed-demo-title">
+        <form method="dialog">
+          <h2 id="managed-demo-title">Ví dụ kết quả FindLink</h2>
+          <p class="helper">Dữ liệu minh họa.</p>
+          <p><strong>Yêu cầu</strong> Tìm bài hỏi gợi ý quán cà phê yên tĩnh để làm việc.</p>
+          <p><strong>Bài phù hợp</strong> “Mọi người gợi ý giúp mình quán cà phê yên tĩnh có ổ cắm để làm việc buổi sáng với ạ.”</p>
+          <p><strong>Lý do</strong> Người viết đang tìm địa điểm đáp ứng nhu cầu làm việc.</p>
+          <button class="secondary-button">Đóng</button>
+        </form>
+      </dialog>
+      <dialog id="managed-order-dialog" class="project-dialog" aria-labelledby="managed-order-title">
+        <h2 id="managed-order-title">Thanh toán Starter qua SePay</h2>
+        <p id="managed-order-description">Starter có thời hạn một năm và bao gồm 50.000 credits AI.</p>
+        <dl><dt>Số tiền</dt><dd id="managed-order-amount"></dd><dt>Ngân hàng</dt><dd id="managed-order-bank"></dd>
+          <dt>Tài khoản nhận</dt><dd id="managed-order-account"></dd><dt>Nội dung chuyển khoản</dt><dd id="managed-order-code"></dd></dl>
+        <p id="managed-order-state" class="helper" role="status"></p>
+        <div class="project-dialog-actions"><button id="managed-order-close" class="text-button" type="button">Đóng</button>
+          <button id="managed-order-check" class="secondary-button" type="button">Kiểm tra giao dịch</button></div>
+      </dialog>
+      <dialog id="managed-recover-dialog" class="project-dialog" aria-labelledby="managed-recover-title">
+        <form id="managed-recover-form">
+          <h2 id="managed-recover-title">Đặt lại mật khẩu FindLink</h2>
+          <label for="managed-recover-code">Mã đặt lại</label><input id="managed-recover-code" type="password" required maxlength="64" autocomplete="off">
+          <label for="managed-recover-password">Mật khẩu mới</label><input id="managed-recover-password" type="password" required minlength="12" maxlength="256" autocomplete="new-password">
+          <div class="project-dialog-actions"><button id="managed-recover-cancel" class="text-button" type="button">Hủy</button><button class="primary-button" type="submit">Lưu mật khẩu</button></div>
+          <p id="managed-recover-error" role="alert" class="project-form-error"></p>
+        </form>
+      </dialog>
+      <dialog id="managed-wallet-dialog" class="project-dialog" aria-labelledby="managed-wallet-title">
+        <form method="dialog">
+          <h2 id="managed-wallet-title">Lịch sử credits</h2>
+          <p id="managed-wallet-balance" class="helper"></p>
+          <ul id="managed-wallet-list" class="wallet-entries"></ul>
+          <button class="secondary-button">Đóng</button>
         </form>
       </dialog>
 
@@ -287,7 +339,7 @@
             </div>
           </div>
 
-          <div class="campaign-planning" hidden>
+          <div id="local-key-settings" class="campaign-planning" hidden>
             <div class="field"><label for="gemini-api-key">Gemini API Key</label>
               <input id="gemini-api-key" type="password" autocomplete="off" spellcheck="false"
                 placeholder="Dán API key tại đây để lưu trên máy này" disabled>

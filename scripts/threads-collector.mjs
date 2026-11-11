@@ -18,7 +18,7 @@ const hash=v=>createHash('sha256').update(v).digest('hex');
 const arg=name=>{const i=process.argv.indexOf(name);return i<0?null:process.argv[i+1];};
 async function timed(work,ms,code){let timer;try{return await Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(code)),ms);})]);}finally{clearTimeout(timer);}}
 const bounded=(n,min,max)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
-export async function runThreadsCollector({config,host,profileId,onProgress=()=>{},shouldStop=()=>false,resume=false,recoverStalled=true,onRecords=null,onQueryEnd=null,beforeNextPage=null,collectionLimitReason=null,continueQuerySlice=null}){
+export async function runThreadsCollector({config,host,profileId,onProgress=()=>{},shouldStop=()=>false,resume=false,recoverStalled=true,onRecords=null,admitRecords=null,onQueryEnd=null,beforeNextPage=null,collectionLimitReason=null,continueQuerySlice=null}){
  if(!/^[a-z0-9][a-z0-9-]{2,80}$/.test(config.runId)||!Array.isArray(config.queries)||!config.queries.length||config.queries.length>240||config.queries.some(q=>typeof q!=='string'||!q.trim()||q.length>200)||!bounded(config.maxScrollsPerQuery,0,200)||!bounded(config.maxMinutes,1,1440)||!bounded(config.targetTotal,1,50000)||!bounded(config.settleMs,2000,15000)||(config.maxReplayPages!==undefined&&!bounded(config.maxReplayPages,1,2000))||(config.warmPageLimit!==undefined&&!bounded(config.warmPageLimit,1,200)))throw Error('CONFIG_INVALID');
  const directory=resolve(config.output),rel=relative(resolve(process.cwd()),directory);
  if(!isAbsolute(config.output)||(rel!=='..'&&!rel.startsWith('..'+sep)&&!isAbsolute(rel)))throw Error('OUTPUT_MUST_BE_OUTSIDE_WORKSPACE');
@@ -65,6 +65,7 @@ export async function runThreadsCollector({config,host,profileId,onProgress=()=>
   current();
   const parsed=parseThreadsSearch(objects,{query:active.query,mode:active.mode,collectedAt:new Date().toISOString(),method,includeContextCandidates:config.includeContextCandidates===true});
   if(!parsed.connections){if(info?.operation?.includes('Search')){diagnostics.add('unsupported_responses');}if(info?.operation?.includes('Search'))event({event:'SEARCH_SHAPE_UNSUPPORTED',operation:info.operation,root_keys:objects.map(o=>Object.keys(o?.data||{}))});return;}
+  if(admitRecords)parsed.records=await admitRecords(parsed.records);
   diagnostics.add('parsed_batches');diagnostics.add('parsed_records',parsed.records.length);
   if(method==='BROWSER_RESPONSE'||lastNext===null)lastNext=parsed.has_next_page;
   const batchId=`${config.runId}-${++checkpoint.batch_sequence}`;

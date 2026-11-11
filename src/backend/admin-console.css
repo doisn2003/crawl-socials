@@ -1,0 +1,17 @@
+html { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; background: #fbf7fb; color: #211c2a; }
+body { margin: 0; }
+main { max-width: 1240px; margin: auto; padding: 24px; }
+h1 { margin: 0; } h2 { margin: 0 0 12px; font-size: 1.1rem; }
+form, section { background: white; padding: 20px; border: 1px solid #e6d9ea; border-radius: 12px; }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); align-items: start; }
+label, output { display: block; margin: 8px 0; } label.check { display: flex; gap: 8px; align-items: center; }
+input:not([type=checkbox]), select { display: block; width: 100%; box-sizing: border-box; font: inherit; padding: 6px 10px; border: 1px solid #a78fb0; border-radius: 6px; }
+button { font: inherit; padding: 8px 14px; margin-top: 8px; border: 0; border-radius: 8px; background: #593773; color: white; }
+button:disabled { opacity: .6; }
+.actions { display: flex; gap: 12px; margin-bottom: 16px; }
+output { overflow-wrap: anywhere; }
+section { margin-top: 16px; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .87rem; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid #eee6f0; overflow-wrap: anywhere; }
+#message { min-height: 24px; }
+#message[data-error=true] { color: #a62438; }

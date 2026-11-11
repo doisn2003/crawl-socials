@@ -24,8 +24,8 @@ export interface ProjectsApi {
   update(input: { id: string; name: string; avatar?: string | null }): Promise<ProjectWorkspaceState>;
   remove(input: { id: string }): Promise<ProjectWorkspaceState>;
   select(input: { id: string }): Promise<ProjectWorkspaceState>;
-  register(input: { username: string; password: string }): Promise<ProjectWorkspaceState>;
-  login(input: { username: string; password: string }): Promise<ProjectWorkspaceState>;
+  register(input: { username: string; password: string; invite?: string }): Promise<ProjectWorkspaceState>;
+  login(input: { username: string; password: string; invite?: string }): Promise<ProjectWorkspaceState>;
   logout(): Promise<ProjectWorkspaceState>;
   sync(): Promise<ProjectWorkspaceState>;
 }

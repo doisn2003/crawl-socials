@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quản trị FindLink</title>
+  <link rel="stylesheet" href="/admin/console.css">
+  <script type="module" src="/admin/console.js"></script>
+</head>
+<body>
+<main>
+  <h1>Quản trị FindLink</h1>
+  <p id="message" role="status" aria-live="polite"></p>
+  <form id="login">
+    <h2>Đăng nhập vận hành</h2>
+    <label>Khóa quản trị<input name="token" type="password" required autocomplete="off"></label>
+    <label>Mã xác thực<input name="otp" inputmode="numeric" pattern="[0-9]{6}" required autocomplete="one-time-code"></label>
+    <button>Đăng nhập</button>
+  </form>
+  <div id="console" hidden>
+    <div class="actions"><button id="refresh">Làm mới</button><button id="logout">Đăng xuất</button></div>
+    <div class="grid">
+      <form id="invite">
+        <h2>Mã mời</h2>
+        <label>Email người nhận<input name="email" type="email" required></label>
+        <label>Quyền<select name="purpose"><option value="TRIAL">Tài khoản và dùng thử</option><option value="ACCOUNT">Tài khoản Starter</option><option value="RECOVERY">Đặt lại mật khẩu</option></select></label>
+        <label>ID tài khoản hiện có<input name="accountId" autocomplete="off"></label>
+        <label>Hiệu lực (giờ)<input name="hours" type="number" min="1" max="168" value="48" required></label>
+        <button>Tạo mã mời</button>
+        <output id="invite-code"></output>
+      </form>
+      <form id="policy">
+        <h2>Ngân sách và quyền dùng thử</h2>
+        <label class="check"><input name="trial_enabled" type="checkbox">Bật chương trình dùng thử</label>
+        <label class="check"><input name="pause_grants" type="checkbox">Dừng cấp trial mới</label>
+        <label class="check"><input name="pause_trial" type="checkbox">Tạm dừng trial đang chạy</label>
+        <label class="check"><input name="pause_ai" type="checkbox">Tạm dừng AI toàn hệ thống</label>
+        <label>Số trial tối đa<input name="max_trial_subjects" type="number" min="0" required></label>
+        <label>Số trial mới mỗi ngày<input name="trial_subjects_per_day" type="number" min="0" required></label>
+        <label>Credits cam kết cho trial<input name="trial_grant_cap" type="number" min="0" step="0.001" required></label>
+        <label>Ngân sách AI trial/ngày (USD)<input name="trial_daily_cost" type="number" min="0" step="0.000001" required></label>
+        <label>Ngân sách AI trial/tổng (USD)<input name="trial_total_cost" type="number" min="0" step="0.000001" required></label>
+        <label>Ngân sách AI Starter/ngày (USD)<input name="paid_daily_cost" type="number" min="0" step="0.000001" required></label>
+        <label>Ngân sách AI Starter/tổng (USD)<input name="paid_total_cost" type="number" min="0" step="0.000001" required></label>
+        <button>Lưu ngân sách</button>
+      </form>
+      <form id="account">
+        <h2>Tài khoản và thiết bị</h2>
+        <label>ID tài khoản<input name="accountId" required></label>
+        <label>Thao tác<select name="action"><option value="suspend">Tạm ngừng quyền chạy</option><option value="restore">Khôi phục quyền chạy</option><option value="revoke-device">Thu hồi thiết bị</option><option value="move-trial">Chuyển thiết bị dùng thử</option><option value="revoke-trial">Thu hồi trial</option></select></label>
+        <label>ID thiết bị<input name="deviceId"></label>
+        <label>Lý do<input name="reason" minlength="4" maxlength="1000" required></label>
+        <button>Cập nhật quyền</button>
+      </form>
+      <form id="review">
+        <h2>Xét duyệt trial</h2>
+        <label>ID hồ sơ<input name="id" required></label>
+        <label>Kết quả<select name="approved"><option value="true">Duyệt</option><option value="false">Từ chối</option></select></label>
+        <label>Lý do<input name="reason" minlength="4" maxlength="1000" required></label>
+        <button>Lưu quyết định</button>
+      </form>
+      <form id="payment">
+        <h2>Đối soát SePay</h2>
+        <label>ID giao dịch SePay<input name="id" pattern="[0-9]+" required></label>
+        <label>Thao tác<select name="action"><option value="reconcile">Áp giao dịch đã đối soát</option><option value="refund">Ghi nhận tiền đã hoàn</option></select></label>
+        <label>ID đơn hàng<input name="orderId"></label>
+        <label>Lý do và tham chiếu đối soát<input name="reason" minlength="4" maxlength="1000" required></label>
+        <button>Ghi nhận</button>
+      </form>
+      <form id="ai">
+        <h2>Đối soát phí AI</h2>
+        <label>ID tài khoản<input name="accountId" required></label>
+        <label>ID yêu cầu<input name="id" required></label>
+        <label>Chi phí đã xác nhận (USD)<input name="cost" type="number" min="0" step="0.000000001" required></label>
+        <label>Bằng chứng đối soát<input name="evidence" minlength="4" maxlength="1000" required></label>
+        <button>Ghi phí đã xác nhận</button>
+      </form>
+      <form id="credits">
+        <h2>Điều chỉnh credits Starter</h2>
+        <label>ID tài khoản<input name="accountId" required></label>
+        <label>Thao tác<select name="action"><option value="grant">Cấp credits đến hết kỳ Starter</option><option value="refund">Hoàn debit của yêu cầu AI</option></select></label>
+        <label>Credits cấp thêm<input name="amount" type="number" min="0" step="0.001"></label>
+        <label>ID yêu cầu cần hoàn<input name="operationId"></label>
+        <label>Lý do<input name="reason" minlength="4" maxlength="1000" required></label>
+        <button>Ghi điều chỉnh</button>
+      </form>
+      <form id="tariff">
+        <h2>Biểu giá Gemini 3.1 Flash-Lite</h2>
+        <label>Input (USD/triệu token)<input name="input_per_million" type="number" min="0" step="any" required></label>
+        <label>Cached input (USD/triệu token)<input name="cached_input_per_million" type="number" min="0" step="any" required></label>
+        <label>Output (USD/triệu token)<input name="output_per_million" type="number" min="0" step="any" required></label>
+        <label>Ngày xác minh giá<input name="observed_at" type="date" required></label>
+        <button>Tạo phiên bản giá</button>
+      </form>
+    </div>
+    <div id="overview"></div>
+  </div>
+</main>
+</body>
+</html>

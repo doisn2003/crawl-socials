@@ -99,3 +99,4 @@
   .advanced-settings .opportunity-limits.limits-compact { grid-template-columns: 1fr; }
   .filter-labels { gap: 2px; font-size: 11px; }
 }
+.wallet-entries { max-height: 45vh; overflow-y: auto; padding-inline-start: 24px; }

@@ -1,0 +1,15 @@
+.git
+.env*
+**/*.env
+node_modules
+dist
+release
+artifacts
+.test-build*
+.tmp*
+data
+secrets
+*.pem
+*.key
+*.pfx
+*.log

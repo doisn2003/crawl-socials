@@ -10,6 +10,7 @@ import { ProjectPostStore } from '../infrastructure/storage/project-post-store.j
 import { createOpportunityPipeline } from './opportunity-pipeline.js';
 import type { ConversationCollectInput, OpportunityPipeline, ReplyRootResolveInput, ReplyRootResolveReceipt } from './opportunity-pipeline.js';
 import type { WebContents } from 'electron';
+import type { ManagedScope } from '../shared/managed.js';
 import { prepareDiscoveryAttempt } from './discovery-attempt.js';
 import { readActiveEvaluation } from './evaluation-upgrade.js';
 import type { ActiveEvaluation } from './evaluation-upgrade.js';
@@ -42,6 +43,7 @@ export interface CollectorInput {
   /** Only deliberate recovery after a cooldown may reset a stalled native search. */
   recoverStalled?: boolean;
   onRecords?(rows: Record<string, unknown>[], provenance: Record<string, unknown>): Promise<void>;
+  admitRecords?(rows: Record<string, unknown>[]): Promise<Record<string, unknown>[]>;
   onQueryEnd?(value: { window: WebContents; platform: Platform; query?: string; shouldStop(): boolean }): Promise<void>;
   beforeNextPage?(): Promise<void>;
   expandQueries?(request?: CoverageExpansionRequest): Promise<string[]>;
@@ -59,6 +61,7 @@ const storageStopped = (reason: string | null | undefined): boolean => typeof re
 export function createProductionService(input: {
   directory: string; version: string; host: ProductionHost;
   spendingStatus?(): NonNullable<ProductionState['spending']>;
+  spendingLimits?(): NonNullable<UserConfig['spendLimits']>;
   collect(value: CollectorInput): Promise<CollectorReceipt>;
   collectConversation?(value: ConversationCollectInput): Promise<unknown>;
   resolveThreadsReplyRoot?(value: ReplyRootResolveInput): Promise<ReplyRootResolveReceipt>;
@@ -69,6 +72,12 @@ export function createProductionService(input: {
   withConversationWindow?(profileId: string, work: (window: WebContents) => Promise<void>): Promise<void>;
   withKeywordCommentWindow?(profileId: string, platform: Platform, shouldStop: () => boolean, work: (window: WebContents) => Promise<void>): Promise<void>;
   watchAfterDiscovery?: boolean;
+  access?: {
+    begin(value: { runId: string; scope: ManagedScope; budgetUsd: number }): Promise<void>;
+    reason(): string | null;
+    admit(platform: Platform, rows: Record<string, unknown>[]): Promise<Record<string, unknown>[]>;
+    end(): Promise<void>;
+  };
 }) {
   const configStore = createUserConfigStore(input.directory), latestFile = join(input.directory, 'latest-run.json');
   const activeDraftFile = join(input.directory, 'active-campaign-draft.json');
@@ -94,6 +103,14 @@ export function createProductionService(input: {
         cost: readDraftCost({ directory: input.directory, runId: pointer.runId }) } } : {}) };
   }
   let run: RunState | null = null, starting = false, preparingDraft = false, stopped = false, executing = false, work: Promise<void> | null = null;
+  const shouldStop = () => stopped || !!input.access?.reason();
+  function recordAccessStop(current: RunState) {
+    const reason = input.access?.reason();
+    if (!reason) return;
+    current.state = 'STOPPED';
+    for (const platform of current.platforms) { platform.state = 'STOPPED'; platform.reason = reason; }
+    if (current.opportunity) current.opportunity.lastError = reason;
+  }
   let pipeline: OpportunityPipeline | null = null;
   type OpportunityExport = Awaited<ReturnType<OpportunityPipeline['results']>> & { retained_input?: unknown };
   const exports = new WeakMap<OpportunityPipeline, Promise<OpportunityExport>>();
@@ -297,7 +314,10 @@ export function createProductionService(input: {
   async function getState(): Promise<ProductionState> {
     const accountState = run?.mode === 'RETAINED' ? structuredClone(accountCache) : await accounts();
     // Read the correlated config/draft/run state together after the asynchronous account lookup.
-    return { version: input.version, config: configStore.read(), accounts: accountState, run: presentedRun(), ...campaignState(), ...(input.spendingStatus ? { spending: input.spendingStatus() } : {}) };
+    const config = configStore.read();
+    if (input.spendingLimits) config.spendLimits = input.spendingLimits();
+    return { version: input.version, config, accounts: accountState, run: presentedRun(), ...campaignState(),
+      ...(input.access ? { managed: true as const } : {}), ...(input.spendingStatus ? { spending: input.spendingStatus() } : {}) };
   }
   function bindRetainedProgress(current: RunState, value: RetainedImportState) {
     current.retained = { sourceRunId: value.manifest.source.source_run_id, inputHash: value.manifest.input_sha256,
@@ -323,7 +343,7 @@ export function createProductionService(input: {
       for (const item of current.platforms) item.state = 'RUNNING'; saveRun();
       let lastPublished = 0;
       const imported = await (input.importRetainedData ?? importRetainedData)({ dataDirectory: input.directory, targetRunId: current.id,
-        targetContext: target.context, store: target.store, shouldStop: () => stopped,
+        targetContext: target.context, store: target.store, shouldStop,
         onProgress: async checkpoint => {
           if (current.retained) Object.assign(current.retained, { importedObservations: checkpoint.imported_observations,
             totalObservations: checkpoint.total_observations, status: checkpoint.status });
@@ -333,7 +353,7 @@ export function createProductionService(input: {
         } });
       bindRetainedProgress(current, imported);
       // No model request may see a partially reconstructed source conversation.
-      if (!stopped && imported.checkpoint.status === 'IMPORTED') await target.drain();
+      if (!shouldStop() && imported.checkpoint.status === 'IMPORTED') await target.drain();
       else await target.stop();
       await target.refreshProgress(); current.opportunity = target.progress();
       await exportPipeline(target, current.outputDirectory);
@@ -352,7 +372,8 @@ export function createProductionService(input: {
       await exportPipeline(target, current.outputDirectory).catch(() => {});
     } finally {
       current.finishedAt = new Date().toISOString();
-      try { saveRun(); } finally { try { await closePipeline(); } finally { executing = false; } }
+      recordAccessStop(current);
+      try { saveRun(); } finally { try { await closePipeline(); } finally { await input.access?.end(); executing = false; } }
     }
   }
   async function resumeRetained(): Promise<ProductionState> {
@@ -363,6 +384,7 @@ export function createProductionService(input: {
       await closePipeline();
       const imported = await readRetainedImport({ dataDirectory: input.directory, targetRunId: current.id });
       const config = JSON.parse(readFileSync(join(current.outputDirectory, 'opportunity-config.json'), 'utf8')) as OpportunityConfig;
+      await input.access?.begin({ runId: current.id, scope: 'ASSESS', budgetUsd: config.budgetUsd });
       pipeline = await createRetainedPipeline(current, config, imported);
       if (contentHash(pipeline.context) !== contentHash(imported.manifest.target_context)) throw Error('RETAINED_TARGET_CONTEXT_INVALID');
       bindRetainedProgress(current, imported); current.state = 'RUNNING'; current.finishedAt = null;
@@ -372,7 +394,7 @@ export function createProductionService(input: {
     } catch (error) {
       if (!launched) { await closePipeline(); run = previous; saveRun(); }
       throw error;
-    } finally { starting = false; }
+    } finally { if (!launched) await input.access?.end(); starting = false; }
   }
   function keywordCommentWindow(current: RunState) {
     if (!input.withKeywordCommentWindow) return {};
@@ -395,7 +417,10 @@ export function createProductionService(input: {
     // One owner publishes observations into the campaign store across all accounts.
     let ingestion: Promise<void> = Promise.resolve();
     const ingest = (platform: Platform, profileId: string, records: Row[], provenance: Row) => {
-      const task = ingestion.then(async () => { const annotated = projectRows(platform, records); await pipeline?.ingestRows(platform, annotated, { ...provenance, profile_id: profileId }); });
+      const task = ingestion.then(async () => {
+        const annotated = projectRows(platform, records);
+        await pipeline?.ingestRows(platform, annotated, { ...provenance, profile_id: profileId });
+      });
       ingestion = task;
       void task.catch(() => {});
       return task;
@@ -411,7 +436,7 @@ export function createProductionService(input: {
       // never release the run lock while another collector is still using its profile.
       const outcomes = await Promise.allSettled(currentRun.platforms.map(async item => {
         try {
-          if (stopped) throw Error('USER_STOP');
+          if (shouldStop()) throw Error(input.access?.reason() ?? 'USER_STOP');
           // Resume the saved AI backlog without reopening search windows when
           // discovery has already reached its global raw/accepted target.
           const existingLimit = resume ? pipeline?.discoveryStopReason(item.platform) : null;
@@ -444,10 +469,12 @@ export function createProductionService(input: {
           }
           mkdirSync(output, { recursive: true }); atomicJson(join(output, 'config.json'), config);
           if (!item.profileId || !(await input.host.sessionStatus(item.profileId))) throw Error('LOGIN_REQUIRED');
-          if (stopped) throw Error('USER_STOP');
+          if (shouldStop()) throw Error(input.access?.reason() ?? 'USER_STOP');
           let lastSaved = 0;
           const receipt = await input.collect({ platform: item.platform, profileId: item.profileId, config, resume: collectorResume,
-            shouldStop: () => stopped,
+            shouldStop,
+            ...(input.access ? { admitRecords: (records: Row[]) => input.access!.admit(item.platform, records) } : {}),
+            ...(input.access && !pipeline ? { onRecords: (records: Row[], provenance: Row) => ingest(item.platform, item.profileId!, records, provenance) } : {}),
             ...(pipeline ? {
               collectionLimitReason: () => pipeline!.discoveryStopReason(item.platform),
               onRecords: (records: Row[], provenance: Row) => ingest(item.platform, item.profileId!, records, provenance),
@@ -492,17 +519,18 @@ export function createProductionService(input: {
         const storageLimited = currentRun.platforms.some(item => storageStopped(item.reason)) || storageStopped(pipeline.progress().lastError);
         // Search may hit its limit in the middle of a query. Give queued comment work a bounded final turn.
         // User Stop, closed windows, account barriers and deadlines never reopen a profile here.
-        if (commentsEnabled && !stopped && !storageLimited && input.withConversationWindow) {
+        if (commentsEnabled && !shouldStop() && !storageLimited && input.withConversationWindow) {
           const allowed = new Set(['TARGET_REACHED', 'INTENT_TARGET_REACHED', 'RAW_BUDGET_REACHED', 'QUERY_BUDGET_COMPLETE', 'REPLAY_BUDGET_REACHED', 'SOURCE_EXHAUSTED', 'NO_PROGRESS']);
           await Promise.allSettled(currentRun.platforms.filter(item => allowed.has(item.reason ?? '')).map(async item => {
             try {
               if (!item.profileId) throw Error('PROFILE_NOT_FOUND');
-              await input.withConversationWindow!(item.profileId, window => pipeline!.enrich(item.platform, window, () => stopped, 12));
+              await input.withConversationWindow!(item.profileId, window => pipeline!.enrich(item.platform, window, shouldStop, 12));
             } catch (error) { item.reason = code(error); item.state = 'FAILED'; }
           }));
         }
-        await pipeline.drain();
-        if (keywordCommentsEnabled) await pipeline.drainKeywordComments();
+        if (input.access?.reason()) await pipeline.stop();
+        else await pipeline.drain();
+        if (keywordCommentsEnabled && !shouldStop()) await pipeline.drainKeywordComments();
         currentRun.opportunity = pipeline.progress();
         await exportPipeline(pipeline, currentRun.outputDirectory);
         const complete = !storageLimited && !storageStopped(pipeline.progress().lastError) && pipeline.targetReached() && !currentRun.opportunity.commentsPending;
@@ -519,15 +547,16 @@ export function createProductionService(input: {
       run.state = storageHalted && !run.platforms.some(item => item.state === 'FAILED') ? 'STOPPED' : 'FAILED';
     } finally {
       run.finishedAt = new Date().toISOString();
+      recordAccessStop(run);
       let watching = false;
       try {
-        if (pipeline && !stopped && !storageHalted && !run.platforms.some(item => storageStopped(item.reason)) && !storageStopped(pipeline.progress().lastError)
+        if (pipeline && !shouldStop() && !storageHalted && !run.platforms.some(item => storageStopped(item.reason)) && !storageStopped(pipeline.progress().lastError)
           && input.watchAfterDiscovery !== false) watching = await pipeline.startWatching();
       } catch (error) {
         if (run.opportunity) { run.opportunity.watchActive = false; run.opportunity.assessmentActive = false; run.opportunity.lastError = 'WATCH_' + code(error); }
       }
       try { saveRun(); }
-      finally { try { if (!watching) await closePipeline(); } finally { executing = false; } }
+      finally { try { if (!watching) await closePipeline(); } finally { if (!watching) await input.access?.end(); executing = false; } }
     }
   }
   async function listRetainedSources(): Promise<RetainedSourceCatalog> {
@@ -579,6 +608,7 @@ export function createProductionService(input: {
         if (!config.opportunity?.enabled || contentHash(config.opportunity) !== ref.configHash) throw Error('DRAFT_CONFIG_MISMATCH');
         const draft = resolveDraftForStart({ directory: input.directory, runId: ref.runId, expectedRevision: ref.revision, expectedConfigHash: ref.configHash });
         if (draft.status !== 'DRAFT') throw Error('DRAFT_ALREADY_STARTED');
+        await input.access?.begin({ runId: draft.runId, scope: 'ASSESS', budgetUsd: config.opportunity.budgetUsd });
         const sourceLocation = request.sourceRootId === undefined ? {} : { sourceRootId: request.sourceRootId,
           sourceDataDirectory: await resolveRetainedSourceRoot({ directory: input.directory, sourceRootId: request.sourceRootId }) };
         await closePipeline();
@@ -606,7 +636,7 @@ export function createProductionService(input: {
           }
         }
         throw error;
-      } finally { starting = false; }
+      } finally { if (!launched) await input.access?.end(); starting = false; }
     },
     progress() {
       const current = presentedRun();
@@ -755,6 +785,8 @@ export function createProductionService(input: {
           selectedProfiles.add(item.profileId);
         }
         const id = selectedDraft?.runId ?? 'crawl-' + randomUUID();
+        const modelEnabled = config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF';
+        await input.access?.begin({ runId: id, scope: modelEnabled ? 'COLLECT_AI' : 'COLLECT', budgetUsd: modelEnabled ? config.opportunity!.budgetUsd : 0 });
         run = { id, collectionLayout: 'PROFILE_QUERY_V2', state: 'RUNNING', startedAt: new Date().toISOString(), finishedAt: null,
           minimumPosts: config.minimumPosts, keywords: config.keywords, outputDirectory: selectedDraft?.outputDirectory ?? join(input.directory, 'collections', id),
           platforms: selections.map(item => ({ platform: item.platform as Platform, profileId: item.profileId as string, state: 'QUEUED', count: 0, reason: null })), preview: [] };
@@ -800,7 +832,7 @@ export function createProductionService(input: {
           }
         }
         throw error;
-      } finally { starting = false; }
+      } finally { if (!launched) await input.access?.end(); starting = false; }
     },
     async stop() {
       const wasWatching = run?.opportunity?.watchActive || run?.opportunity?.assessmentActive;
@@ -823,6 +855,7 @@ export function createProductionService(input: {
       try {
         await closePipeline();
         const config = JSON.parse(readFileSync(file, 'utf8')) as OpportunityConfig;
+        await input.access?.begin({ runId: current.id, scope: config.filterMode === 'OFF' ? 'COLLECT' : 'COLLECT_AI', budgetUsd: config.budgetUsd });
         pipeline = await (input.createOpportunity ?? createOpportunityPipeline)({ projectDirectory: input.directory, directory: current.outputDirectory, runId: current.id, config,
           platforms: [...new Set(current.platforms.map(p => p.platform))], collectConversation: input.collectConversation,
           ...keywordCommentWindow(current), ...readDiscoveryExclusions(current.outputDirectory),
@@ -840,7 +873,7 @@ export function createProductionService(input: {
         if (!launched) { try { await closePipeline(); } finally { run = previousState; saveRun(); } }
         throw error;
       }
-      finally { starting = false; }
+      finally { if (!launched) await input.access?.end(); starting = false; }
     },
     results() {
       if (!run || active(run) || starting || executing) throw Error('RESULTS_UNAVAILABLE');
@@ -860,7 +893,7 @@ export function createProductionService(input: {
       return { run: presentedRun()!, ...raw, ...(opportunity ? { opportunity } : {}) };
     },
     outputDirectory() { if (!run) throw Error('RESULTS_UNAVAILABLE'); return run.outputDirectory; },
-    async shutdown() { stopped = true; await pipeline?.stop(); await work?.catch(() => {}); await closePipeline(); },
+    async shutdown() { stopped = true; await pipeline?.stop(); await work?.catch(() => {}); await closePipeline(); await input.access?.end(); },
     async settled() { await work; },
   };
 }

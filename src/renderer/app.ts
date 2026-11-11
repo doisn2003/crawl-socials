@@ -9,6 +9,7 @@ import { filterModeAtPercent, restoreFilterPercent, type FilterMode } from '../s
 import { MAX_RESULT_TARGET, MAX_RAW_POSTS, MAX_SEARCH_QUERIES, DEFAULT_RAW_CAP, DEFAULT_RUN_BUDGET_USD, DEFAULT_USER_SPEND_LIMITS } from '../shared/collection-limits.js';
 import { planAndStart } from './start-workflow.js';
 import { bindProjectManager } from './project-manager.js';
+import { bindManagedStarter, formatCredits } from './managed-starter.js';
 
 declare global { interface Window { readonly csd: ProductionApi; } }
 
@@ -147,9 +148,10 @@ function setSaveStatus(message: string, kind: string) {
   const node = element('save-status'); node.textContent = message; node.dataset.state = kind;
 }
 function readConfig(): UserConfig {
+  const unit = state?.managed ? 1000 : 1;
   return {
     filterPercent: filterMode.valueAsNumber,
-    spendLimits: { totalUsd: spendTotal.valueAsNumber, dailyUsd: spendDaily.valueAsNumber },
+    spendLimits: { totalUsd: spendTotal.valueAsNumber / unit, dailyUsd: spendDaily.valueAsNumber / unit },
     performance: 'BALANCED',
     keywords: [...new Set(keywords.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean))],
     minimumPosts: minimumPosts.value.trim() ? Number(minimumPosts.value) : NaN,
@@ -158,14 +160,14 @@ function readConfig(): UserConfig {
         enabled: true, filterMode: currentFilter(), prompt: campaignPrompt.value, brandContext: brandContext.value,
         languageScope: 'VIETNAMESE',
         totalTarget: Number(suitableTarget.value),
-        rawCap: Number(rawCap.value), budgetUsd: currentFilter() === 'OFF' ? 0 : Number(modelBudget.value), commentsEnabled: collectComments.checked,
+        rawCap: Number(rawCap.value), budgetUsd: currentFilter() === 'OFF' ? 0 : Number(modelBudget.value) / unit, commentsEnabled: collectComments.checked,
       }
     } : {})
   };
 }
 function validateConfig(value: UserConfig): string {
   if (value.spendLimits && ![value.spendLimits.totalUsd, value.spendLimits.dailyUsd].every(limit => Number.isFinite(limit) && limit >= 0 && limit <= 10000))
-    return 'Nhập trần chi tiêu AI cộng dồn và mỗi ngày từ 0 đến 10.000 USD trong Cấu hình nâng cao.';
+    return 'Kiểm tra trần chi tiêu AI cộng dồn và mỗi ngày trong Cấu hình nâng cao.';
   if (value.keywords.length > MAX_SEARCH_QUERIES) return 'Tối đa 240 từ khóa cho mỗi lượt thu thập.';
   if (value.keywords.some(word => word.length > 200)) return 'Mỗi từ khóa cần có tối đa 200 ký tự.';
   if (!Number.isSafeInteger(value.minimumPosts) || value.minimumPosts < 1 || value.minimumPosts > MAX_RESULT_TARGET)
@@ -175,7 +177,8 @@ function validateConfig(value: UserConfig): string {
     if (o.enabled && o.filterMode !== 'OFF' && !o.prompt.trim()) return 'Hãy mô tả cuộc thảo luận bạn muốn tìm.';
     if (!Number.isSafeInteger(o.totalTarget) || o.totalTarget < 1 || o.totalTarget > MAX_RESULT_TARGET) return 'Số bài muốn nhận phải từ 1 đến 5.000.';
     if (!Number.isSafeInteger(o.rawCap) || o.rawCap < o.totalTarget || o.rawCap > MAX_RAW_POSTS) return 'Số bài tìm tối đa cần ít nhất bằng số bài muốn nhận và không quá 50.000.';
-    if (!Number.isFinite(o.budgetUsd) || (o.filterMode === 'OFF' ? o.budgetUsd !== 0 : o.budgetUsd <= 0) || o.budgetUsd > 30) return 'Ngân sách AI cần lớn hơn 0 và không quá 30 USD.';
+    if (!Number.isFinite(o.budgetUsd) || (o.filterMode === 'OFF' ? o.budgetUsd !== 0 : o.budgetUsd <= 0) || o.budgetUsd > 30)
+      return state?.managed ? 'Ngân sách AI cần lớn hơn 0 và không quá 30.000 credits.' : 'Ngân sách AI cần lớn hơn 0 và không quá 30 USD.';
   }
   return '';
 }
@@ -248,7 +251,8 @@ function friendlyError(error: unknown, fallback: string): string {
 }
 
 function updateControls() {
-  geminiKeyUi.refresh();
+  if (!state?.managed) geminiKeyUi.refresh();
+  managedUi.render();
   const running = active();
   const mode = currentFilter();
   setText('comments-mode-note', mode === 'OFF' ? 'Cần chế độ lọc bài để tìm bình luận ở các bài không phù hợp.'
@@ -280,19 +284,20 @@ function updateControls() {
   collectComments.disabled ||= mode === 'OFF';
   setText('filter-mode-help', { OFF: 'Lấy bài đã tìm được, chưa đánh giá; không gọi AI.', CONSISTENT: 'Tìm rộng cả bối cảnh, sở thích và cơ hội gián tiếp; loại quảng cáo và bài lạc đề.', STANDARD: 'Giữ nhu cầu, vấn đề, tâm sự, mong muốn, trải nghiệm và thảo luận liên quan.', QUALITY: 'Chỉ giữ bài có căn cứ rõ ràng, đáp ứng đúng yêu cầu và có giá trị cụ thể cho mục tiêu tìm kiếm.' }[mode]);
   const money = state?.spending;
-  setText('spend-status', money ? 'Đã dùng $' + money.measuredUsd.toFixed(4) + ' · Đang dự phòng/chưa rõ $' + money.heldUsd.toFixed(4) + ' · Còn $' + money.remainingUsd.toFixed(4) + ' · ' + money.calls + ' lượt gọi. Chi phí ước tính FindLink, không phải hóa đơn Google.' : '');
+  const cost = state?.managed ? formatCredits : (usd: number) => '$' + usd.toFixed(4);
+  setText('spend-status', money ? 'Đã dùng ' + cost(money.measuredUsd) + ' · Đang giữ ' + cost(money.heldUsd) + ' · Còn ' + cost(money.remainingUsd) + ' theo giới hạn của máy' : '');
   const config = readConfig();
   const selected = selectableProfiles();
   setText('keyword-count', config.keywords.length ? number(config.keywords.length) + ' từ khóa' : '');
   setText('selected-count', selected.length ? selected.length + ' tài khoản được chọn' : 'Chưa chọn nguồn');
-  startButton.disabled = !connected || running || commandPending || savePending > 0 || exportPending ||
+  startButton.disabled = !connected || running || managedUi.blocked() || commandPending || savePending > 0 || exportPending ||
     !(config.opportunity?.enabled && config.opportunity.filterMode !== 'OFF' ? config.opportunity.prompt.trim() : config.keywords.length) || !!validateConfig(config) || !selected.length || loginPending.size > 0
     || (intentEnabled.checked && planner.hasUnsavedEdits()) || (!!pendingStart && state?.campaignDialogue?.plan.state === 'NEEDS_CLARIFICATION');
   startButton.hidden = running;
   stopButton.hidden = !running;
   stopButton.disabled = !connected || commandPending || state?.run?.state === 'STOPPING';
   element<HTMLButtonElement>('resume').hidden = running || !state?.run?.opportunity || state.run.state === 'COMPLETED';
-  element<HTMLButtonElement>('resume').disabled = !connected || running || commandPending;
+  element<HTMLButtonElement>('resume').disabled = !connected || running || commandPending || managedUi.blocked();
   for (const platform of platforms) {
     const account = selectedAccount(platform);
     const checkbox = element<HTMLInputElement>('select-' + platform);
@@ -587,7 +592,9 @@ function renderOpportunities() {
   setText('result-count', number(opportunity.targetCount ?? counts.suitable) + ' / ' + number(opportunity.totalTarget) + (opportunity.filterMode === 'OFF' ? ' BÀI CHƯA ĐÁNH GIÁ' : ' BÀI ĐƯỢC NHẬN'));
   setText('opportunity-summary', number(counts.raw) + ' bài đã tìm · ' + number(counts.comments) + ' bình luận'
     + (counts.pending ? ' · ' + number(counts.pending) + (opportunity.filterMode === 'OFF' ? ' bài chưa đánh giá' : ' bài chưa có kết luận') : '')
-    + ' · Chi phí $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2)
+    + (state?.managed ? ' · Đã dùng ' + formatCredits(opportunity.costUsd)
+      + (opportunity.usageUnknown ? ' · Tối đa ' + formatCredits(opportunity.costUpperUsd) : '') + ' / ' + formatCredits(opportunity.budgetUsd)
+      : ' · Chi phí $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2))
     + (opportunity.resultPolicy === 'GLOBAL_FIRST_QUALIFIED' || opportunity.evaluationPolicy === 'GOAL_EVIDENCE' ? '' : ' · Kết quả cũ: cần lọc lại để áp dụng cách đánh giá mới.'));
   if (opportunity.commentsPending) element('opportunity-summary').textContent += ' · ' + number(opportunity.commentsPending) + ' bài chờ đọc bình luận';
   if (opportunity.commentsFailed) element('opportunity-summary').textContent += ' · ' + number(opportunity.commentsFailed) + ' bài lỗi khi đọc bình luận';
@@ -654,6 +661,8 @@ function renderOpportunities() {
 }
 function applyState(next: ProductionState, replaceConfig = false) {
   state = next; connected = true; const connNotice = element('connection-error'); connNotice.hidden = true; delete connNotice.dataset.dismissed;
+  managedUi.enabled(next.managed === true);
+  void managedUi.refresh();
   setText('version', 'v' + next.version);
   if (!initialized || replaceConfig) {
     performanceMode.value = 'BALANCED';
@@ -664,9 +673,16 @@ function applyState(next: ProductionState, replaceConfig = false) {
     filterMode.value = String(restoreFilterPercent(next.config.filterPercent, o?.filterMode));
     languageScope.value = 'VIETNAMESE';
     intentEnabled.checked = true;
-    spendTotal.value = String(next.config.spendLimits?.totalUsd ?? DEFAULT_USER_SPEND_LIMITS.totalUsd);
-    spendDaily.value = String(next.config.spendLimits?.dailyUsd ?? DEFAULT_USER_SPEND_LIMITS.dailyUsd);
-    rawCap.value = String(o?.rawCap ?? DEFAULT_RAW_CAP); modelBudget.value = String(o?.budgetUsd || DEFAULT_RUN_BUDGET_USD);
+    const unit = next.managed ? 1000 : 1;
+    for (const [field, title, max] of [[spendTotal, 'Trần cộng dồn', 10000], [spendDaily, 'Trần mỗi ngày', 10000], [modelBudget, 'Hạn mức mỗi lượt', 30]] as const) {
+      field.max = String(max * unit);
+      field.step = String(0.01 * unit);
+      field.closest('label')!.querySelector('.metric-label')!.textContent = title + (next.managed ? ' (credits)' : ' (USD)');
+    }
+    modelBudget.min = String(0.01 * unit);
+    spendTotal.value = String((next.config.spendLimits?.totalUsd ?? DEFAULT_USER_SPEND_LIMITS.totalUsd) * unit);
+    spendDaily.value = String((next.config.spendLimits?.dailyUsd ?? DEFAULT_USER_SPEND_LIMITS.dailyUsd) * unit);
+    rawCap.value = String(o?.rawCap ?? DEFAULT_RAW_CAP); modelBudget.value = String((o?.budgetUsd || DEFAULT_RUN_BUDGET_USD) * unit);
     collectComments.checked = o?.commentsEnabled ?? false;
     savedConfig = key(next.config); initialized = true; configDirty = false; setSaveStatus('Đã lưu trên máy', 'saved');
     if (active() && next.run) for (const platform of next.run.platforms) {
@@ -720,6 +736,7 @@ function configChanged() {
   setError('config-error', ''); updateControls();
 }
 const geminiKeyUi = bindGeminiKeySettings(window.csd.geminiKey, () => commandPending || active() || !!state?.campaignDraftPreparing);
+const managedUi = bindManagedStarter(window.csd.managed, updateControls, () => commandPending || active() || exportPending);
 function startSignature() { return JSON.stringify([readConfig(), selectableProfiles()]); }
 async function collectFromCurrentPlan() {
   const config = readConfig(), selected = selectableProfiles();
@@ -736,7 +753,7 @@ async function collectFromCurrentPlan() {
 }
 const planner = createCampaignPlanner({
   api: window.csd, state: () => state, config: readConfig,
-  busy: () => !connected || active() || commandPending || savePending > 0 || loginPending.size > 0,
+  busy: () => !connected || active() || managedUi.blocked() || commandPending || savePending > 0 || loginPending.size > 0,
   changed: updateControls,
   reportError: message => operation(message, true),
   execute: async (action, message) => {

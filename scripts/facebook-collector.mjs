@@ -20,7 +20,7 @@ const hash=v=>createHash('sha256').update(v).digest('hex');
 const arg=name=>{const i=process.argv.indexOf(name);return i<0?null:process.argv[i+1];};
 const bounded=(n,min,max)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
 async function timed(work,ms,code){let timer;try{return await Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(code)),ms);})]);}finally{clearTimeout(timer);}}
-export async function runFacebookCollector({config,host,profileId,onProgress=()=>{},shouldStop=()=>false,resume=false,recoverStalled=true,onRecords=null,onQueryEnd=null,beforeNextPage=null,collectionLimitReason=null,continueQuerySlice=null}){
+export async function runFacebookCollector({config,host,profileId,onProgress=()=>{},shouldStop=()=>false,resume=false,recoverStalled=true,onRecords=null,admitRecords=null,onQueryEnd=null,beforeNextPage=null,collectionLimitReason=null,continueQuerySlice=null}){
  if(!/^[a-z0-9][a-z0-9-]{2,80}$/.test(config.runId)||!Array.isArray(config.queries)||!config.queries.length||config.queries.length>240||config.queries.some(q=>typeof q!=='string'||!q.trim()||q.length>200)||!bounded(config.maxScrollsPerQuery,0,50)||!bounded(config.maxMinutes,1,1440)||!bounded(config.targetNewRecords,1,config.includeContextCandidates===true?50000:5000)||!bounded(config.settleMs,2000,15000)||(config.maxReplayPages!==undefined&&!bounded(config.maxReplayPages,1,2000))||(config.warmPageLimit!==undefined&&!bounded(config.warmPageLimit,1,200)))throw new Error('CONFIG_INVALID');
  const directory=resolve(config.output),rel=relative(resolve(process.cwd()),directory);
  if(!isAbsolute(config.output)||(rel!=='..'&&!rel.startsWith('..'+sep)&&!isAbsolute(rel)))throw new Error('OUTPUT_MUST_BE_OUTSIDE_WORKSPACE');
@@ -66,6 +66,7 @@ export async function runFacebookCollector({config,host,profileId,onProgress=()=
   try{parsed=parseFacebookEmbeddedSearch(objects,{query:activeQuery,collectedAt:new Date().toISOString(),documentUrl:wc.getURL(),extractionMethod:method,includeContextCandidates:config.includeContextCandidates===true});}
   catch(e){diagnostics.add('unsupported_responses');event({event:'PARSER_REJECTED',method,code:e.message});return;}
   if(!parsed.connections){if(info?.operation?.includes('Search'))diagnostics.add('unsupported_responses');return;}
+  if(admitRecords)parsed.records=await admitRecords(parsed.records);
   diagnostics.add('parsed_batches');diagnostics.add('parsed_records',parsed.records.length);
   if(method==='BROWSER_RESPONSE'||lastHasNext===null)lastHasNext=parsed.has_next_page;
   for(const skipped of parsed.skipped)if(skipped.observed_post_url)appendFileSync(join(runDirectory,'parser-candidates.jsonl'),JSON.stringify({at:new Date().toISOString(),query:activeQuery,...skipped})+'\n',{flush:true});

@@ -76,6 +76,7 @@ export interface RetainedSourceCatalog {
   issues: Array<{ sourceRootId: string | null; label: string; code: string }>;
 }
 export interface ProductionState {
+  managed?: true;
   spending?: { measuredUsd: number; heldUsd: number; remainingUsd: number; dailyRemainingUsd: number; calls: number };
   version: string; config: UserConfig; accounts: Account[]; run: RunState | null;
   campaignDraft?: CampaignDraftView;
@@ -86,6 +87,7 @@ export interface ProductionState {
 }
 export interface GeminiKeyStatus { source: 'SAVED' | 'ENVIRONMENT' | 'NONE'; readError: boolean; }
 export interface ProductionApi {
+  managed?: import('./managed.js').ManagedApi;
   projects: import('./projects.js').ProjectsApi;
   geminiKey: { status(): Promise<GeminiKeyStatus>; save(input: { key: string }): Promise<GeminiKeyStatus>; remove(): Promise<GeminiKeyStatus>; };
   getState(): Promise<ProductionState>;

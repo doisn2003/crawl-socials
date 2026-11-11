@@ -35,7 +35,7 @@ function projectFields(input: { name: string; avatar?: string | null }): { name:
   return { name: input.name.trim().normalize('NFC'), avatar };
 }
 
-export async function createProjectWorkspace(input: { directory: string; databaseUrl?: string | undefined; backupStore?: ProjectBackupStore; secretStore?: SecretStore }) {
+export async function createProjectWorkspace(input: { directory: string; databaseUrl?: string | undefined; backupStore?: ProjectBackupStore; secretStore?: SecretStore; localGuestOnly?: boolean }) {
   const root = join(input.directory, 'projects');
   const indexFile = join(root, 'index.json');
   mkdirSync(root, { recursive: true });
@@ -95,7 +95,7 @@ export async function createProjectWorkspace(input: { directory: string; databas
     return { files, fingerprint };
   }
   async function push(): Promise<void> {
-    if (!remote) return;
+    if (!remote || (input.localGuestOnly && !user)) return;
     if (!user) await remote.ensureGuest(index.guestId, index.guestSecret);
     else if (!sessionToken || (await remote.session(sessionToken))?.id !== user.id) throw Error('PROJECT_AUTH_EXPIRED');
     for (const project of index.projects.filter(project => project.ownerId === ownerId())) {
@@ -132,7 +132,7 @@ export async function createProjectWorkspace(input: { directory: string; databas
     ensureActive();
   }
   async function sync(options: { pull?: boolean } = {}): Promise<ProjectWorkspaceState> {
-    if (!remote) return state();
+    if (!remote || (input.localGuestOnly && !user)) return state();
     backup.status = 'SYNCING'; backup.error = null;
     try {
       if (!user) await remote.ensureGuest(index.guestId, index.guestSecret);
@@ -142,7 +142,7 @@ export async function createProjectWorkspace(input: { directory: string; databas
     } catch (error) { backup.status = 'ERROR'; backup.error = errorCode(error); }
     return state();
   }
-  async function authenticate(credentials: { username: string; password: string }, register: boolean): Promise<ProjectWorkspaceState> {
+  async function authenticate(credentials: { username: string; password: string; invite?: string }, register: boolean): Promise<ProjectWorkspaceState> {
     if (!remote) throw Error('PROJECT_DATABASE_NOT_CONFIGURED');
     try {
       const authenticated = await remote.authenticate(credentials, register);
@@ -217,8 +217,8 @@ export async function createProjectWorkspace(input: { directory: string; databas
       ensureActive(); save(); pending(); return state();
     }),
     select: (value: { id: string }) => serial(async () => { find(value.id); index.activeProjectId = value.id; save(); return state(); }),
-    register: (value: { username: string; password: string }) => serial(() => authenticate(value, true)),
-    login: (value: { username: string; password: string }) => serial(() => authenticate(value, false)),
+    register: (value: { username: string; password: string; invite?: string }) => serial(() => authenticate(value, true)),
+    login: (value: { username: string; password: string; invite?: string }) => serial(() => authenticate(value, false)),
     logout: () => serial(async () => {
       await sync();
       if (remote && sessionToken) await remote.revoke(sessionToken).catch(() => {});

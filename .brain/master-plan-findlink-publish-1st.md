@@ -1,6 +1,6 @@
 # FindLink — kế hoạch phân phối và quản lý thuê bao lần đầu
 
-Ngày nghiên cứu: 10/11/2026, Asia/Bangkok. Nhánh: `findlink-publish-1st`, tạo trước khi nghiên cứu, từ `bac9399` trên baseline FindLink hiện tại. Trạng thái: đề xuất kiến trúc và thương mại; chưa triển khai backend, đổi model, mở bán hoặc phát hành bản mới.
+Nghiên cứu ngày 10/11/2026, múi giờ Asia/Bangkok. Nhánh `findlink-publish-1st` được tạo từ `bac9399` trước khi nghiên cứu. Backend và Starter MVP đã được triển khai trên nhánh này. Xem kết quả kiểm thử và điều kiện mở bán ở mục 12.
 
 Cập nhật 11/11/2026 theo yêu cầu người dùng: hết trial phải khóa cả thu thập và lọc, vẫn xem/export dữ liệu cũ; bổ sung chống tạo nhiều tài khoản lấy credits tài trợ. Luồng cấp trial ở mục 5 thay thế đề xuất tự cấp 20 credits cho guest và 100 credits chỉ sau xác minh tài khoản trước đây.
 
@@ -18,7 +18,7 @@ Người dùng đã xác nhận khách hàng ưu tiên là **doanh nghiệp nh�
 8. **Trial hết hạn/hết quota khóa cả thu thập lẫn lọc, bao gồm chế độ OFF, Start, Resume và lọc lại dữ liệu cũ.** Giữ quyền xem, tìm kiếm/sắp xếp cục bộ và export dữ liệu đã lưu; không cần trả tiền để lấy lại dữ liệu của mình.
 9. Chống abuse bằng nhiều tín hiệu, xét duyệt và hạn mức cấp grant; giới hạn tổn thất bằng trần chi tiêu thực tế phía server cho AI, xác minh và các dịch vụ tính phí khác. Không có cấu hình ngân sách hợp lệ thì không bật trial tài trợ. Các con số dự toán trong kế hoạch không phải ngân sách chi tiêu được cấp phép.
 
-## 2. Khoảng cách từ mã hiện tại
+## 2. Khoảng cách từ baseline trước triển khai
 
 | Thành phần hiện tại | Bằng chứng | Thay đổi cần làm |
 |---|---|---|
@@ -377,8 +377,11 @@ Kiểm thử bắt buộc bằng mocks/local trước release:
 - Preserve bốn mode và slider mới, ba bước UI, offscreen collection, explicit login window, single-window fallback/memory guard hiện có.
 - Fresh install/update/uninstall/reinstall, account migration, hai máy restore, lỗi version/hash/path traversal đều kiểm với dữ liệu cách ly. Full regression tại checkpoint tích hợp, không chạy paid API để thay thế unit/integration tests.
 
-## 12. Ranh giới của công việc lần này
+## 12. Kết quả triển khai Starter MVP
 
-Đã nghiên cứu mã và tài liệu chính thức, lập thiết kế, tính các kịch bản và lưu công thức tái lập. Bổ sung ngày 11/11 là cập nhật kế hoạch khóa trial/chống abuse; các tiêu chí kiểm thử trên là yêu cầu triển khai, chưa phải kiểm thử tính năng đã chạy. Chưa có thay đổi runtime, backend/publication, API/SMS trả phí, thao tác billing hoặc liên hệ khách hàng. Các ngân sách DEVELOPMENT lịch sử vẫn đóng; không reset ledger, không tái khởi động live E2E/email heartbeat.
+- Backend quản lý tài khoản và thiết bị, cấp mã mời, xét duyệt trial, cấp quyền chạy có thời hạn, quản lý sổ credits và gọi Gemini với bảng giá theo phiên bản. Trial được cấp một lần theo mã mời đã duyệt, tối đa 100 credits, 14 ngày và 1.000 bài gốc. Khi hết quyền, ứng dụng khóa thu thập và lọc, kể cả OFF và Resume. Dữ liệu đã lưu vẫn xem và xuất được trên máy.
+- Starter có giá 23.000.000 VND/năm và 50.000 credits. Webhook SePay xác thực và đối soát giao dịch trước khi cấp quyền, xử lý gia hạn và đưa giao dịch ngoại lệ vào quản trị. Sao lưu/khôi phục qua HTTPS giữ ID tài khoản và dữ liệu dự án hiện có.
+- Migration `findlink_control` phiên bản 1 đã áp dụng vào PostgreSQL cấu hình trong `.env`. Đã xác nhận các bảng và migration baseline `csd_backup` được giữ. Chính sách mới khởi đầu với AI, chạy trial và cấp trial ở trạng thái tạm dừng.
+- Đã qua 1.121 bài hồi quy, kiểm thử tích hợp PostgreSQL cách ly với mock Gemini/SePay, và cài/gỡ NSIS QA trên Windows. Bài tích hợp bao gồm cấp trial đồng thời, khóa quyền, đối soát credits, nâng cấp/gia hạn, sao lưu và đọc dữ liệu đã lưu. Kiểm thử Electron từ bản đã cài xác nhận khóa Start/Resume và export khi mất kết nối. Không phát sinh chi phí AI hoặc giao dịch thật.
 
-Quyết định tiếp theo để triển khai là chốt hợp đồng giá và phạm vi Starter MVP trong tài liệu này, rồi thực hiện P0–P1 trên nhánh phát triển với dữ liệu cách ly. Thiết kế cho phép điều khiển provider và thu hồi quyền từ server; không thể bảo đảm EXE không bao giờ bị sửa hoặc ngăn sao chép mọi tính năng local.
+Bản NSIS 0.5.0 hiện dùng cho QA. Để mở bán, cần đưa backend và feed cập nhật lên HTTPS, cấu hình Gemini và tài khoản nhận SePay, đặt hạn mức vận hành, kiểm chứng webhook bằng SePay Test Mode và thử cài mới/nâng cấp với installer có chữ ký Windows. Đăng ký public 20 + 80, DeepSeek, Agency và Scale thuộc các chặng sau Starter MVP. [Hướng dẫn triển khai](../deploy/README.md)

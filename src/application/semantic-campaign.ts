@@ -12,7 +12,7 @@ import { MAX_RESULT_TARGET, MAX_RAW_POSTS } from '../shared/collection-limits.js
 
 // A wire-level reminder enforces the existing source/revision contract without
 // changing pinned semantic recipes or rewriting recorded model responses.
-const DISCOVERY_WIRE_EVIDENCE = `
+export const DISCOVERY_WIRE_EVIDENCE = `
 Source boundary: PROMPT and nonempty CONTEXT are literal user data fields in the input JSON, not names for these system instructions. If CONTEXT is null, never cite CONTEXT. Product-policy defaults (market research, participation, advertisement exclusions) are not user quotations: leave unsupported intent fields UNSPECIFIED with evidence [] and a neutral Vietnamese value. Preserve roles and subjects actually requested in PROMPT.
 When CONTEXT describes the business and an area where it seeks customers, record the grounded area in intent.geography. Do not repeat an inferred area preference in constraints or turn the business description into conditions on customer posts. Use constraints for independently stated conditions on the posts to collect.
 intent_revision must equal the input revision exactly, including during validation repair; a formatting retry never increments it. Return all labels, explanations and query text in Vietnamese.`;

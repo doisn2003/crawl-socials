@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -13,7 +13,7 @@ export interface RemoteProject extends CsdProject {
 }
 export interface ProjectBackupStore {
   ensureGuest(id: string, secret: string): Promise<void>;
-  authenticate(input: { username: string; password: string }, register: boolean): Promise<{ id: string; username: string; token: string }>;
+  authenticate(input: { username: string; password: string; invite?: string }, register: boolean): Promise<{ id: string; username: string; token: string }>;
   session(token: string): Promise<{ id: string; username: string } | null>;
   revoke(token: string): Promise<void>;
   claim(guestId: string, secret: string, userId: string): Promise<void>;
@@ -115,55 +115,8 @@ export function createPostgresBackup(databaseUrl: string): ProjectBackupStore {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
-        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [input.project.id]);
-        const existing = await client.query('SELECT owner_id,revision,fingerprint FROM csd_backup.projects WHERE id=$1 FOR UPDATE', [input.project.id]);
-        const row = existing.rows[0];
-        if (row && row.owner_id !== input.ownerId) throw Error('PROJECT_ACCESS_DENIED');
-        if (row && Number(row.revision) !== input.revision) {
-          if (row.fingerprint === input.fingerprint) { await client.query('COMMIT'); return Number(row.revision); }
-          throw Error('PROJECT_BACKUP_CONFLICT');
-        }
-        if (!row && input.revision !== 0) throw Error('PROJECT_BACKUP_CONFLICT');
-        const revision = input.revision + 1;
-        await client.query(`INSERT INTO csd_backup.projects(id,owner_id,name,avatar,created_at,updated_at,deleted_at,revision,fingerprint,source_directory,device_id)
-          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-          ON CONFLICT(id) DO UPDATE SET name=excluded.name,avatar=excluded.avatar,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at,
-            revision=excluded.revision,fingerprint=excluded.fingerprint,source_directory=excluded.source_directory,device_id=excluded.device_id,backed_up_at=now()`,
-          [input.project.id,input.ownerId,input.project.name,input.project.avatar,input.project.createdAt,input.project.updatedAt,input.deletedAt,revision,input.fingerprint,input.sourceDirectory,input.deviceId]);
-        const manifest = await client.query('SELECT path,sha256 FROM csd_backup.project_files WHERE project_id=$1', [input.project.id]);
-        const hashes = new Map(manifest.rows.map(row => [String(row.path), String(row.sha256)]));
-        const changedFiles = input.files.filter(file => hashes.get(file.path) !== file.sha256);
-        const paths = input.files.map(file => file.path);
-        await client.query('DELETE FROM csd_backup.project_files WHERE project_id=$1 AND NOT(path=ANY($2::text[]))', [input.project.id, paths]);
-        await client.query('DELETE FROM csd_backup.project_records WHERE project_id=$1 AND NOT(record_key=ANY($2::text[]))', [input.project.id, paths]);
-        for (const file of changedFiles) {
-          await client.query(`INSERT INTO csd_backup.project_files(project_id,path,category,sha256,content) VALUES($1,$2,$3,$4,$5)
-            ON CONFLICT(project_id,path) DO UPDATE SET category=excluded.category,sha256=excluded.sha256,content=excluded.content,updated_at=now()
-            WHERE csd_backup.project_files.sha256<>excluded.sha256`, [input.project.id,file.path,file.category,file.sha256,file.content]);
-          if (file.path.endsWith('.json')) {
-            let payload: unknown;
-            try { payload = JSON.parse(file.content.toString('utf8')); } catch { continue; }
-            await client.query(`INSERT INTO csd_backup.project_records(project_id,kind,record_key,payload) VALUES($1,$2,$3,$4::jsonb)
-              ON CONFLICT(project_id,kind,record_key) DO UPDATE SET payload=excluded.payload`, [input.project.id,file.category,file.path,JSON.stringify(payload)]);
-          }
-        }
-        const canonical = changedFiles.find(file => file.path === 'project-posts.sqlite');
-        if (canonical) {
-          const temporary = join(tmpdir(), 'csd-posts-' + randomUUID() + '.sqlite');
-          writeFileSync(temporary, canonical.content, { mode: 0o600 });
-          const database = new DatabaseSync(temporary, { readOnly: true });
-          try {
-            await client.query('DELETE FROM csd_backup.project_posts WHERE project_id=$1', [input.project.id]);
-            const posts = database.prepare('SELECT * FROM posts').all().map(post => ({ ...post, payload: JSON.parse(String(post.payload)), assessment: post.assessment ? JSON.parse(String(post.assessment)) : null }));
-            await client.query(`INSERT INTO csd_backup.project_posts(project_id,platform,root_id,first_run_id,first_seen_at,last_seen_at,payload,assessment)
-              SELECT $1,platform,root_id,first_run_id,first_seen_at,last_seen_at,payload,assessment
-              FROM jsonb_to_recordset($2::jsonb) AS p(platform text,root_id text,first_run_id text,first_seen_at timestamptz,last_seen_at timestamptz,payload jsonb,assessment jsonb)`, [input.project.id, JSON.stringify(posts)]);
-            const memberships = database.prepare('SELECT * FROM run_posts').all().map(row => ({ ...row, previously_collected: row.previously_collected === 1 }));
-            await client.query(`INSERT INTO csd_backup.project_run_posts(project_id,run_id,platform,root_id,previously_collected)
-              SELECT $1,run_id,platform,root_id,previously_collected
-              FROM jsonb_to_recordset($2::jsonb) AS r(run_id text,platform text,root_id text,previously_collected boolean)`, [input.project.id, JSON.stringify(memberships)]);
-          } finally { database.close(); rmSync(temporary, { force: true }); }
-        }
+        const contents = new Map(input.files.map(file => [file.path, file.content]));
+        const revision = await writeProjectBackup(client, input, input.files, async file => contents.get(file.path)!);
         await client.query('COMMIT');
         return revision;
       } catch (error) { await client.query('ROLLBACK').catch(() => {}); throw error; }
@@ -171,4 +124,65 @@ export function createPostgresBackup(databaseUrl: string): ProjectBackupStore {
     },
     async close() { await pool.end(); },
   };
+}
+
+export type ProjectUpload = Omit<Parameters<ProjectBackupStore['upload']>[0], 'files'>;
+export type BackupManifestEntry = Omit<BackupFile, 'content'>;
+
+/** Apply a revision with the caller's transaction. Only changed blobs are read. */
+export async function writeProjectBackup(client: PoolClient, input: ProjectUpload, files: BackupManifestEntry[],
+  readContent: (file: BackupManifestEntry) => Promise<Buffer>) {
+  await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [input.project.id]);
+  const existing = await client.query('SELECT owner_id,revision,fingerprint FROM csd_backup.projects WHERE id=$1 FOR UPDATE', [input.project.id]);
+  const row = existing.rows[0];
+  if (row && row.owner_id !== input.ownerId) throw Error('PROJECT_ACCESS_DENIED');
+  if (row && Number(row.revision) !== input.revision) {
+    if (row.fingerprint === input.fingerprint) { return Number(row.revision); }
+    throw Error('PROJECT_BACKUP_CONFLICT');
+  }
+  if (!row && input.revision !== 0) throw Error('PROJECT_BACKUP_CONFLICT');
+  const revision = input.revision + 1;
+  await client.query(`INSERT INTO csd_backup.projects(id,owner_id,name,avatar,created_at,updated_at,deleted_at,revision,fingerprint,source_directory,device_id)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+    ON CONFLICT(id) DO UPDATE SET name=excluded.name,avatar=excluded.avatar,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at,
+      revision=excluded.revision,fingerprint=excluded.fingerprint,source_directory=excluded.source_directory,device_id=excluded.device_id,backed_up_at=now()`,
+    [input.project.id,input.ownerId,input.project.name,input.project.avatar,input.project.createdAt,input.project.updatedAt,input.deletedAt,revision,input.fingerprint,input.sourceDirectory,input.deviceId]);
+  const manifest = await client.query('SELECT path,sha256 FROM csd_backup.project_files WHERE project_id=$1', [input.project.id]);
+  const hashes = new Map(manifest.rows.map(row => [String(row.path), String(row.sha256)]));
+  const changedFiles = files.filter(file => hashes.get(file.path) !== file.sha256);
+  const paths = files.map(file => file.path);
+  await client.query('DELETE FROM csd_backup.project_files WHERE project_id=$1 AND NOT(path=ANY($2::text[]))', [input.project.id, paths]);
+  await client.query('DELETE FROM csd_backup.project_records WHERE project_id=$1 AND NOT(record_key=ANY($2::text[]))', [input.project.id, paths]);
+  for (const file of changedFiles) {
+    const content = await readContent(file);
+    await client.query(`INSERT INTO csd_backup.project_files(project_id,path,category,sha256,content) VALUES($1,$2,$3,$4,$5)
+      ON CONFLICT(project_id,path) DO UPDATE SET category=excluded.category,sha256=excluded.sha256,content=excluded.content,updated_at=now()
+      WHERE csd_backup.project_files.sha256<>excluded.sha256`, [input.project.id,file.path,file.category,file.sha256,content]);
+    if (file.path.endsWith('.json')) {
+      let payload: unknown;
+      try { payload = JSON.parse(content.toString('utf8')); } catch { continue; }
+      await client.query(`INSERT INTO csd_backup.project_records(project_id,kind,record_key,payload) VALUES($1,$2,$3,$4::jsonb)
+        ON CONFLICT(project_id,kind,record_key) DO UPDATE SET payload=excluded.payload`, [input.project.id,file.category,file.path,JSON.stringify(payload)]);
+    }
+  }
+  const canonical = changedFiles.find(file => file.path === 'project-posts.sqlite');
+  if (canonical) {
+    const temporary = join(tmpdir(), 'csd-posts-' + randomUUID() + '.sqlite');
+    writeFileSync(temporary, await readContent(canonical), { mode: 0o600 });
+    let database: DatabaseSync | undefined;
+    try {
+      database = new DatabaseSync(temporary, { readOnly: true, allowExtension: false });
+      database.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON');
+      await client.query('DELETE FROM csd_backup.project_posts WHERE project_id=$1', [input.project.id]);
+      const posts = database.prepare('SELECT * FROM posts').all().map(post => ({ ...post, payload: JSON.parse(String(post.payload)), assessment: post.assessment ? JSON.parse(String(post.assessment)) : null }));
+      await client.query(`INSERT INTO csd_backup.project_posts(project_id,platform,root_id,first_run_id,first_seen_at,last_seen_at,payload,assessment)
+        SELECT $1,platform,root_id,first_run_id,first_seen_at,last_seen_at,payload,assessment
+        FROM jsonb_to_recordset($2::jsonb) AS p(platform text,root_id text,first_run_id text,first_seen_at timestamptz,last_seen_at timestamptz,payload jsonb,assessment jsonb)`, [input.project.id, JSON.stringify(posts)]);
+      const memberships = database.prepare('SELECT * FROM run_posts').all().map(row => ({ ...row, previously_collected: row.previously_collected === 1 }));
+      await client.query(`INSERT INTO csd_backup.project_run_posts(project_id,run_id,platform,root_id,previously_collected)
+        SELECT $1,run_id,platform,root_id,previously_collected
+        FROM jsonb_to_recordset($2::jsonb) AS r(run_id text,platform text,root_id text,previously_collected boolean)`, [input.project.id, JSON.stringify(memberships)]);
+    } finally { database?.close(); rmSync(temporary, { force: true }); }
+  }
+  return revision;
 }

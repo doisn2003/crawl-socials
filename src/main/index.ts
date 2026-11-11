@@ -1,9 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, powerMonitor, session, shell } from 'electron';
-import { existsSync, mkdirSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { createDiscoveryStore, exportDigest } from '../infrastructure/storage/discovery-store.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { createProjectWorkspace } from '../infrastructure/projects/workspace.js';
 import { runtimePaths } from '../infrastructure/config/runtime-paths.js';
 import { createBrowserProfiles } from '../infrastructure/browser/profile-repository.js';
@@ -28,30 +28,51 @@ import { createRequestScheduler, type RequestScheduler } from '../infrastructure
 import { unassessedGateway } from '../application/filter-policy.js';
 import { createDurableSpend, REBUILD_MODEL } from '../infrastructure/llm/durable-spend.js';
 import { DEFAULT_USER_SPEND_LIMITS } from '../shared/collection-limits.js';
+import { createManagedClient, ManagedHttpError, type ManagedRelease } from '../infrastructure/managed/client.js';
+import { createHttpBackupStore } from '../infrastructure/managed/backup.js';
+import { createRunAccess } from '../infrastructure/managed/run-access.js';
+import { createRemoteModelGateway } from '../infrastructure/managed/model-gateway.js';
+import type { ManagedStatus } from '../shared/managed.js';
+import { managedUpdates } from './managed-updates.js';
 
 async function bootstrap() {
-  const paths = runtimePaths(app.getPath('appData'));
+  const releaseFile = fileURLToPath(new URL('../managed-release.json', import.meta.url));
+  const commercialRelease = existsSync(releaseFile) ? JSON.parse(readFileSync(releaseFile, 'utf8')) as ManagedRelease : null;
+  const packageInfo = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as { findlinkManaged?: boolean };
+  if (packageInfo.findlinkManaged && (!commercialRelease || (!commercialRelease.testOnly && (!commercialRelease.leasePublicKey || !commercialRelease.updateUrl)))) throw Error('MANAGED_RELEASE_INVALID');
+  const qa = commercialRelease?.testOnly === true;
+  const appData = app.getPath('appData');
+  const paths = runtimePaths(qa ? join(appData, 'FindLink Starter QA') : appData);
   for (const [name, directory] of Object.entries(paths)) {
     mkdirSync(directory, { recursive: true });
     app.setPath(name as 'userData' | 'sessionData' | 'logs' | 'crashDumps', directory);
   }
-  app.setName('FindLink'); app.setAppUserModelId('io.csd.desktop');
+  app.setName(qa ? 'FindLink Starter QA' : 'FindLink');
+  app.setAppUserModelId(qa ? 'io.csd.desktop.starter.qa' : 'io.csd.desktop');
   if (!app.requestSingleInstanceLock()) { app.quit(); return; }
   app.commandLine.appendSwitch('disable-background-networking');
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
   let window: BrowserWindow | null = null;
   app.on('second-instance', () => { window?.restore(); window?.show(); window?.focus(); });
   await app.whenReady(); nativeTheme.themeSource = 'light';
-  const environmentFile = process.env.CSD_ENV_FILE || join(process.env.PORTABLE_EXECUTABLE_DIR || (app.isPackaged ? dirname(app.getPath('exe')) : process.cwd()), '.env');
-  if (existsSync(environmentFile)) process.loadEnvFile(environmentFile);
+  const developerOrigin = app.isPackaged ? undefined : process.env.FINDLINK_DEV_BACKEND_URL;
+  const release = commercialRelease ?? (developerOrigin ? { origin: developerOrigin } : null);
+  const secrets = createElectronSecretStore(join(paths.userData, 'secrets'));
+  const managed = release ? await createManagedClient({ release, secrets, development: !commercialRelease || commercialRelease.testOnly === true }) : null;
+  if (!managed) {
+    const environmentFile = process.env.CSD_ENV_FILE || join(process.env.PORTABLE_EXECUTABLE_DIR || (app.isPackaged ? dirname(app.getPath('exe')) : process.cwd()), '.env');
+    if (existsSync(environmentFile)) process.loadEnvFile(environmentFile);
+  }
   const projects = await createProjectWorkspace({ directory: join(paths.userData, 'data'),
-    secretStore: createElectronSecretStore(join(paths.userData, 'secrets')),
-    ...(process.env.DATABASE_URL ? { databaseUrl: process.env.DATABASE_URL } : {}) });
-  const environmentKey = resolveGeminiApiKey();
-  const geminiKey = await createGeminiKeySettings(createElectronSecretStore(join(paths.userData, 'secrets')), () => environmentKey, { preferEnvironment: true });
+    secretStore: secrets,
+    ...(managed ? { backupStore: createHttpBackupStore(managed), localGuestOnly: true }
+      : process.env.DATABASE_URL ? { databaseUrl: process.env.DATABASE_URL } : {}) });
+  const environmentKey = managed ? null : resolveGeminiApiKey();
+  const geminiKey = managed ? null : await createGeminiKeySettings(secrets, () => environmentKey, { preferEnvironment: true });
   const appConfig = createUserConfigStore(join(paths.userData, 'data'));
   const machineSpendLimits = () => appConfig.read().spendLimits ?? DEFAULT_USER_SPEND_LIMITS;
-  const spending = createDurableSpend({ envelope: () => ({ scope: 'USER', model: REBUILD_MODEL,
+  const spending = createDurableSpend({ ...(qa ? { file: join(paths.userData, 'spending', 'ledger.sqlite') } : {}),
+    envelope: () => ({ scope: 'USER', model: REBUILD_MODEL,
     ...machineSpendLimits() }) });
   const schedulers = new Map<string, RequestScheduler>();
   const schedulerForModel = (model: string) => {
@@ -69,14 +90,30 @@ async function bootstrap() {
   const profiles = createBrowserProfiles(join(paths.userData, 'data'));
   const browserHost = createBrowserHost({ profiles, secrets: createElectronSecretStore(join(paths.userData, 'secrets')),
     journalDirectory: join(paths.userData, 'data', 'session-snapshots'), manualLoginEnabled: true, backgroundThrottling: false });
-  const createService = () => createProductionService({ directory: projects.activeDirectory(), version: app.getVersion(), host: browserHost, spendingStatus: () => spending.status(),
-    createOpportunity: value => createOpportunityPipeline({ ...value, classificationWorkers: 2, assessmentCacheDirectory: join(projects.activeDirectory(), 'assessment-cache'), gateway: value.config.filterMode === 'OFF' ? unassessedGateway : createCampaignModelGateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd, apiKey: geminiKey.current, schedulerForModel, spending }) }),
+  let activeAccess: ReturnType<typeof createRunAccess> | undefined;
+  const createService = (): ReturnType<typeof createProductionService> => {
+    const projectId = projects.state().activeProjectId;
+    const access = managed ? createRunAccess(managed, projectId, () => {
+      if (activeAccess === access) void service.stop().catch(() => {});
+    }) : undefined;
+    activeAccess = access;
+    const gateway = (options: { directory: string; budgetUsd: number }, planning: boolean) => managed && access
+      ? createRemoteModelGateway({ ...options, runId: basename(dirname(options.directory)), client: managed, access, spending, planning })
+      : createCampaignModelGateway({ ...options, ...(planning ? { primaryModel: REBUILD_MODEL, selectionReason: 'REBUILD_SELECTED_MODEL' } : {}),
+        apiKey: geminiKey!.current, schedulerForModel, spending });
+    return createProductionService({ directory: projects.activeDirectory(), version: app.getVersion(), host: browserHost, spendingStatus: () => spending.status(), spendingLimits: machineSpendLimits,
+    ...(access ? { access, watchAfterDiscovery: false } : {}),
+    createOpportunity: value => createOpportunityPipeline({ ...value, classificationWorkers: 2, assessmentCacheDirectory: join(projects.activeDirectory(), 'assessment-cache'), gateway: value.config.filterMode === 'OFF' ? unassessedGateway : gateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd }, false) }),
     // Retry a failed 2.5 draft with the currently selected model while retaining
     // its original directory and spending history. Historical crawl recipes stay pinned.
-    prepareCampaignDraft: value => prepareSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, primaryModel: REBUILD_MODEL,
-      selectionReason: 'REBUILD_SELECTED_MODEL', apiKey: geminiKey.current, schedulerForModel, spending }) }),
-    continueCampaignDraft: value => continueSemanticDraft({ ...value, gatewayFactory: options => createCampaignModelGateway({ ...options, primaryModel: REBUILD_MODEL,
-      selectionReason: 'REBUILD_SELECTED_MODEL', apiKey: geminiKey.current, schedulerForModel, spending }) }),
+    async prepareCampaignDraft(value) {
+      try { return await prepareSemanticDraft({ ...value, gatewayFactory: options => gateway(options,true) }); }
+      finally { await access?.end(); }
+    },
+    async continueCampaignDraft(value) {
+      try { return await continueSemanticDraft({ ...value, gatewayFactory: options => gateway(options,true) }); }
+      finally { await access?.end(); }
+    },
     async collect(value: CollectorInput): Promise<CollectorReceipt> {
       const moduleUrl = new URL('../collectors/' + value.platform + '-collector.mjs', import.meta.url).href;
       const runner = await import(moduleUrl) as Record<string, (options: object) => Promise<CollectorReceipt>>;
@@ -115,25 +152,34 @@ async function bootstrap() {
         await work(target.contents);
       } finally { await browserHost.close(profileId); }
     } });
+  };
   let service = createService();
   let discoveryStore = createDiscoveryStore(join(projects.activeDirectory(), 'discovery.sqlite'));
   let backupTimer: ReturnType<typeof setInterval> | null = null;
   let projectChanging = false, backupRunning = false;
   let projectWork: Promise<unknown> | null = null;
   let closing = false, shutdownComplete = false;
+  let updates: ReturnType<typeof managedUpdates> | null = null;
+  async function finishForExit() {
+    if (backupTimer) clearInterval(backupTimer);
+    updates?.close();
+    await Promise.resolve(projectWork).catch(() => {});
+    await service.shutdown();
+    await browserHost.shutdown();
+    discoveryStore.close();
+    await projects.sync().catch(() => {});
+    await projects.close();
+    shutdownComplete = true;
+  }
   app.on('before-quit', event => {
     if (shutdownComplete) return;
     event.preventDefault(); if (closing) return; closing = true;
-    if (backupTimer) clearInterval(backupTimer);
-    void Promise.resolve(projectWork).catch(() => {}).then(() => service.shutdown()).then(() => browserHost.shutdown()).then(async () => {
-      discoveryStore.close();
-      await projects.sync().catch(() => {});
-      await projects.close();
-      shutdownComplete = true; app.quit();
-    }).catch(() => { console.error('CSD_SESSION_SAVE_FAILED'); app.exit(1); });
+    void finishForExit().then(() => app.quit()).catch(() => { console.error('CSD_SESSION_SAVE_FAILED'); app.exit(1); });
   });
   app.on('window-all-closed', () => app.quit());
-  powerMonitor.on('suspend', () => { void service.stop().catch(() => {}); });
+  const suspendWork = () => { activeAccess?.interrupt(); void service.stop().catch(() => {}); };
+  powerMonitor.on('suspend', suspendWork);
+  powerMonitor.on('resume', suspendWork);
   const uiSession = session.fromPartition('csd-ui');
   for (const current of [session.defaultSession, uiSession]) {
     current.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
@@ -157,6 +203,19 @@ async function bootstrap() {
   mainWindow.webContents.on('will-attach-webview', event => event.preventDefault());
   let exporting = false, choosingRetainedRoot = false;
   let keyChanging = false, modelCommands = 0;
+  const guestStatus = (reason = 'AUTH_REQUIRED', state: ManagedStatus['state'] = 'GUEST'): ManagedStatus => ({ state, reason,
+    available: '0', held: '0', spent: '0', until: null, rawRemaining: null, verified: false });
+  const managedClient = () => { if (!managed) throw Error('MANAGED_SERVICE_UNAVAILABLE'); return managed; };
+  const managedStatus = async (): Promise<ManagedStatus | null> => {
+    if (!managed) return null;
+    const updateReady = updates?.ready() ?? false;
+    if (!managed.identity()) return { ...guestStatus(), updateReady };
+    try { return { ...await managed.json<ManagedStatus>('/v1/me/entitlements'), updateReady }; }
+    catch (error) {
+      if (error instanceof ManagedHttpError && error.status === 401) return { ...guestStatus(), updateReady };
+      return { ...guestStatus('ENTITLEMENT_UNAVAILABLE', 'UNAVAILABLE'), updateReady };
+    }
+  };
   async function modelCommand<T>(work: () => Promise<T>): Promise<T> {
     if (keyChanging) throw Error('GEMINI_KEY_BUSY');
     modelCommands++; try { return await work(); } finally { modelCommands--; }
@@ -199,12 +258,36 @@ async function bootstrap() {
     'csd:projects:login': value => projectCommand(() => projects.login(value as never)),
     'csd:projects:logout': () => projectCommand(() => projects.logout()),
     'csd:projects:sync': () => projectCommand(() => projects.sync({ pull: true })),
-    'csd:gemini-key:status': () => geminiKey.status(),
-    'csd:gemini-key:save': value => changeKey(() => geminiKey.save(value)),
-    'csd:gemini-key:remove': () => changeKey(() => geminiKey.remove()),
+    'csd:gemini-key:status': () => geminiKey?.status() ?? { source: 'NONE', readError: false },
+    'csd:gemini-key:save': value => { if (!geminiKey) throw Error('MODEL_NOT_AUTHORIZED'); return changeKey(() => geminiKey.save(value)); },
+    'csd:gemini-key:remove': () => { if (!geminiKey) throw Error('MODEL_NOT_AUTHORIZED'); return changeKey(() => geminiKey.remove()); },
+    'csd:managed:status': managedStatus,
+    'csd:managed:wallet': () => managedClient().json('/v1/wallet'),
+    'csd:managed:trial': () => managedClient().json('/v1/trial/activate', { method: 'POST', json: {} }),
+    'csd:managed:order': () => managedClient().json('/v1/billing/orders', { method: 'POST', json: { requestId: randomUUID() } }),
+    'csd:managed:topup': () => managedClient().json('/v1/billing/orders', { method: 'POST', json: { requestId: randomUUID(), kind: 'TOPUP' } }),
+    'csd:managed:order-status': value => {
+      const id = (value as { id?: unknown } | null)?.id;
+      if (typeof id !== 'string' || !/^[a-f0-9-]{36}$/.test(id)) throw Error('ORDER_NOT_FOUND');
+      return managedClient().json('/v1/billing/orders/' + id);
+    },
+    'csd:managed:recover': value => projectCommand(async () => {
+      const v = value as { code?: unknown; password?: unknown } | null;
+      if (!v || typeof v.code !== 'string' || typeof v.password !== 'string' || v.code.length !== 64 || v.password.length > 256) throw Error('INVITE_INVALID');
+      await managedClient().json('/v1/auth/recover', { method: 'POST', json: { code: v.code, password: v.password } }, false);
+    }),
+    'csd:managed:update': async () => {
+      if (!updates?.ready()) throw Error('UPDATE_UNAVAILABLE');
+      if (closing || modelCommands || projectChanging || backupRunning || exporting) throw Error('PROJECT_BUSY');
+      await requireIdleForKey();
+      if (closing || modelCommands || projectChanging || backupRunning || exporting) throw Error('PROJECT_BUSY');
+      closing = true;
+      try { await finishForExit(); updates.install(); }
+      catch { app.quit(); throw Error('UPDATE_INSTALL_FAILED'); }
+    },
     'csd:state': async () => {
       const state = await service.getState();
-      return { ...state, config: { ...state.config, spendLimits: machineSpendLimits() } };
+      return { ...state, ...(managed ? { managed: true } : {}), config: { ...state.config, spendLimits: machineSpendLimits() } };
     },
     'csd:config': value => {
       const { spendLimits, ...projectConfig } = parseUserConfig(value);
@@ -216,8 +299,8 @@ async function bootstrap() {
       return { ...config, spendLimits: machineSpendLimits() };
     },
     'csd:login': value => service.login(value),
-    'csd:campaign:prepare': () => modelCommand(() => service.prepareCampaign()),
-    'csd:campaign:continue': value => modelCommand(() => service.continueCampaign(value)),
+    'csd:campaign:prepare': () => modelCommand(async () => { await activeAccess?.preflight(); return service.prepareCampaign(); }),
+    'csd:campaign:continue': value => modelCommand(async () => { await activeAccess?.preflight(); return service.continueCampaign(value); }),
     'csd:campaign:update': value => service.updateCampaign(value),
     'csd:preset:save': value => service.saveCampaignPreset(value),
     'csd:preset:apply': value => service.applyCampaignPreset(value),
@@ -254,8 +337,10 @@ async function bootstrap() {
       exporting = true;
       try {
         const format = (value as { format: 'json' | 'xlsx' }).format, result = await service.snapshotResults();
+        let suggestedDirectory = paths.userData;
+        try { const downloads = app.getPath('downloads'); if (existsSync(downloads)) suggestedDirectory = downloads; } catch { /* A new Windows profile may not have a Downloads folder yet. */ }
         const choice = await dialog.showSaveDialog(mainWindow, { title: format === 'xlsx' ? 'Xuất kết quả Excel' : 'Xuất kết quả JSON',
-          defaultPath: join(app.getPath('downloads'), 'FindLink-' + result.run.id + (result.opportunity ? '-' + (group ?? 'ALL') : '') + '.' + format),
+          defaultPath: join(suggestedDirectory, 'FindLink-' + result.run.id + (result.opportunity ? '-' + (group ?? 'ALL') : '') + '.' + format),
           filters: [{ name: format === 'xlsx' ? 'Excel Workbook' : 'JSON', extensions: [format] }] });
         if (choice.canceled || !choice.filePath) return { canceled: true, path: null };
         const staged = choice.filePath + '.csd-' + randomUUID() + '.' + format;
@@ -277,6 +362,7 @@ async function bootstrap() {
   };
   const noPayload = new Set(['csd:gemini-key:status', 'csd:gemini-key:remove', 'csd:state', 'csd:stop', 'csd:resume', 'csd:open-output', 'csd:campaign:prepare', 'csd:retained:list', 'csd:retained:choose-root']);
   for (const channel of ['csd:projects:state', 'csd:projects:logout', 'csd:projects:sync']) noPayload.add(channel);
+  for (const channel of ['csd:managed:status', 'csd:managed:wallet', 'csd:managed:trial', 'csd:managed:order','csd:managed:topup','csd:managed:update']) noPayload.add(channel);
   for (const [channel, handler] of Object.entries(handlers)) ipcMain.handle(channel, (event, ...args: unknown[]) => {
     if (closing || !allowDesktopRequest({ senderId: event.sender.id, expectedSenderId: mainWindow.webContents.id,
       isMainFrame: event.senderFrame === event.sender.mainFrame, frameUrl: event.senderFrame?.url || '', expectedUrl: uiUrl, args: [] }) ||
@@ -292,6 +378,7 @@ async function bootstrap() {
   }, 30000);
   backupTimer.unref();
   await mainWindow.loadFile(uiFile);
+  if (app.isPackaged && commercialRelease?.updateUrl && !commercialRelease.testOnly) updates = managedUpdates(commercialRelease.updateUrl);
 }
 void bootstrap().catch(() => {
   console.error('CSD_STARTUP_FAILED');

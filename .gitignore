@@ -25,6 +25,8 @@ credentials*/
 *.exe
 *.pem
 *.key
+*.pfx
+deploy/downloads/
 .tmp/
 *.local.log
 .env

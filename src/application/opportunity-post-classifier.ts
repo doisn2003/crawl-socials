@@ -82,6 +82,9 @@ type Cached = { key: string; state: 'STARTED' | 'COMPLETE' | 'FAILED'; evidence?
   attempts?: number; last_error?: string; failure_history?: Array<{ attempt: number; code: string }>;
   failed_response?: { invocation_id: string; request_hash: string; item: unknown } };
 const REPAIR_SYSTEM = '\nLượt sửa định dạng có giới hạn, chỉ gồm bài chưa có kết quả hợp lệ. Đọc lại độc lập từ bài gốc; không suy kết luận từ mã lỗi. Trả đúng một object cho mỗi i. ev phải chỉ tới 1–3 spans thực có trong bài khi đưa ra kết luận; không bỏ ev cho bài bị loại. Không chế bằng chứng: nếu thiếu nội dung, dùng UNKNOWN và giữ chưa rõ.';
+export function postEvidenceWireSystem(review: boolean, repairing: boolean) {
+  return (review ? REVIEW_SYSTEM : POST_EVIDENCE_SYSTEM) + (repairing ? REPAIR_SYSTEM : '') + WIRE_SYSTEM;
+}
 
 export async function classifyOpportunityPosts(plan: CampaignPlan, snapshots: ConversationSnapshot[], gateway: ModelGateway,
   options: ClassifyOptions = {}): Promise<ClassificationBatchResult> {
@@ -203,7 +206,7 @@ export async function classifyOpportunityPosts(plan: CampaignPlan, snapshots: Co
           save({ ...old, key: key(e), state: 'STARTED', attempts: (old?.attempts ?? 0) + 1 });
         }
         const result = await gateway.generateJson({ purpose: POST_EVIDENCE_VERSION + (review ? '-review' : ''),
-          system: (review ? REVIEW_SYSTEM : POST_EVIDENCE_SYSTEM) + (repairing ? REPAIR_SYSTEM : '') + WIRE_SYSTEM,
+          system: postEvidenceWireSystem(review, repairing),
           schema: postEvidenceWireSchema(batch.map(e => e.snapshot.spans.length)),
           input: { goal: target, as_of: asOf, posts: batch.map((e, i) => ({ i, ...e.doc })),
             ...(repairing ? { repair: batch.map((e, i) => ({ i, attempt: read(key(e))!.attempts,

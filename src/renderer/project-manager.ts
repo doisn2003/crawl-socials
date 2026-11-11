@@ -16,6 +16,7 @@ export function bindProjectManager(api: ProjectsApi, input: {
   const avatarPreview = element<HTMLImageElement>('project-avatar-preview');
   const username = element<HTMLInputElement>('project-username');
   const password = element<HTMLInputElement>('project-password');
+  const invite = element<HTMLInputElement>('project-invite');
   let state: ProjectWorkspaceState | null = null;
   let pending = false, refreshing = false, lastRender = '', avatarLoading = false;
   let editingId: string | null = null, deletingId: string | null = null, avatar: string | null = null;
@@ -37,6 +38,8 @@ export function bindProjectManager(api: ProjectsApi, input: {
     if (/INVALID_CREDENTIALS|AUTH_FAILED|LOGIN_FAILED|PASSWORD/.test(code)) return 'Tên đăng nhập hoặc mật khẩu chưa đúng.';
     if (/DATABASE.*MISSING|NOT_CONFIGURED|BACKUP_UNAVAILABLE/.test(code)) return 'Chưa cấu hình kết nối sao lưu cho máy này.';
     if (/DATABASE_UNAVAILABLE/.test(code)) return 'Chưa kết nối được máy chủ sao lưu. Hãy kiểm tra kết nối rồi thử lại.';
+    if (/INVITE_REQUIRED/.test(code)) return 'Nhập mã mời được gửi đến email của bạn.';
+    if (/DEVICE_LIMIT_REACHED|DEVICE_REVOKED/.test(code)) return 'Thiết bị này chưa có quyền truy cập. Liên hệ FindLink để kiểm tra thiết bị đã đăng ký.';
     if (/AUTH_INPUT_INVALID/.test(code)) return 'Hãy nhập tên đăng nhập và mật khẩu.';
     if (/AVATAR/.test(code)) return 'Chọn ảnh PNG, JPEG, WebP hoặc GIF tối đa 2 MB.';
     if (/PROJECT_NAME|NAME_REQUIRED/.test(code)) return 'Hãy nhập tên project.';
@@ -96,7 +99,7 @@ export function bindProjectManager(api: ProjectsApi, input: {
     for (const id of ['project-editor-cancel', 'project-auth-cancel', 'project-delete-cancel']) element<HTMLButtonElement>(id).disabled = pending;
     if (!state) return;
     element('project-account-name').textContent = state.user ? 'Tài khoản · ' + state.user.username : 'Làm việc trên máy này';
-    element('project-auth-open').hidden = !!state.user;
+    element('project-auth-open').hidden = !!state.user && !document.body.classList.contains('managed-mode');
     element('project-logout').hidden = !state.user;
     element('project-sync').hidden = !state.backup.configured;
     const backupMessages = {
@@ -163,7 +166,7 @@ export function bindProjectManager(api: ProjectsApi, input: {
   element('project-auth-cancel').addEventListener('click', () => authDialog.close());
   element('project-delete-cancel').addEventListener('click', () => deleteDialog.close());
   for (const dialog of [editor, authDialog, deleteDialog]) dialog.addEventListener('cancel', event => { if (pending) event.preventDefault(); });
-  authDialog.addEventListener('close', () => { password.value = ''; });
+  authDialog.addEventListener('close', () => { password.value = ''; invite.value = ''; });
   element('project-avatar-remove').addEventListener('click', () => {
     avatarRevision++; avatar = null; avatarLoading = false; avatarFile.value = ''; avatarPreview.hidden = true; avatarPreview.removeAttribute('src'); render();
   });
@@ -202,7 +205,7 @@ export function bindProjectManager(api: ProjectsApi, input: {
   });
   element<HTMLFormElement>('project-auth-form').addEventListener('submit', event => {
     event.preventDefault();
-    const credentials = { username: username.value, password: password.value };
+    const credentials = { username: username.value, password: password.value, ...(invite.value.trim() ? { invite: invite.value.trim() } : {}) };
     const register = (event.submitter as HTMLButtonElement | null)?.value === 'register';
     void action(() => register ? api.register(credentials) : api.login(credentials), 'project-auth-error').then(ok => {
       if (ok) { password.value = ''; authDialog.close(); }

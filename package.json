@@ -16,8 +16,14 @@
     "collect:threads": "npm run build && node scripts/run-threads-collector.mjs",
     "threads:control": "node scripts/run-threads-collector.mjs",
     "collector:control": "node scripts/run-facebook-collector.mjs",
-    "build": "node scripts/clean-build.mjs && tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && node scripts/copy-assets.mjs",
-    "check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.tests.json --noEmit",
+    "build": "node scripts/clean-build.mjs && tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && tsc -p tsconfig.backend.json && node scripts/copy-assets.mjs",
+    "check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.backend.json --noEmit && tsc -p tsconfig.tests.json --noEmit",
+    "backend:migrate": "node dist/backend/index.js --migrate",
+    "backend:start": "node dist/backend/index.js",
+    "backend:test": "node scripts/starter-integration.mjs",
+    "dist:starter": "node scripts/package-starter.mjs",
+    "pack:starter:qa": "node scripts/package-starter.mjs --qa --dir",
+    "dist:starter:qa": "node scripts/package-starter.mjs --qa",
     "test": "npm run build && npm run test:unit",
     "test:unit": "tsc -p tsconfig.tests.json && node scripts/copy-semantic-assets.mjs .test-build/src/domain && node --test .test-build/tests/*.test.js tests/*.test.mjs",
     "pack:dir": "npm run build && electron-builder --dir --win --x64",
@@ -25,6 +31,7 @@
   },
   "dependencies": {
     "ajv": "8.20.0",
+    "electron-updater": "6.8.11",
     "exceljs": "4.4.0",
     "franc-min": "6.2.0",
     "pg": "8.23.1",
@@ -46,6 +53,7 @@
     },
     "files": [
       "dist/**/*",
+      "!dist/backend/**",
       "package.json"
     ],
     "win": {
