@@ -24,7 +24,7 @@ Quản trị cấp mã một lần theo email cho đăng ký, dùng thử hoặc
 
 Chủ tài khoản Starter được đăng ký tối đa hai thiết bị và chạy một lượt cùng lúc. Run lease tối đa 120 giây và gia hạn khoảng một phút. Server xét quyền và ngân sách lại trước khi gọi Gemini. Mỗi request giữ chi phí trần trong transaction. Worker đánh dấu dispatch trước khi gọi provider. Timeout hoặc crash sau mốc này giữ ngân sách cho tới khi đối soát, và tạm dừng yêu cầu AI mới của lượt đó. Quản trị ghi nhận số chi phí xác minh và bằng chứng qua mục đối soát AI. Dùng ledger provider để so sánh hóa đơn và ledger credits để giải thích debit của khách.
 
-Backup gửi manifest và blob thay đổi, có checksum và kiểm tra quyền theo account. Giới hạn Starter là 5 GB dữ liệu lưu trên server, 5 project có backup đang hoạt động và 128 MiB mỗi blob. Bản desktop vẫn lưu và export dữ liệu local khi quyền chạy hết hạn hoặc backup vượt giới hạn. Không dùng backup để chuyển phiên Facebook/Threads sang máy khác.
+Backup gửi cấu hình, prompt, preset và JSON kết quả đã lưu theo manifest có checksum. Máy khác khôi phục để xem và export kết quả. Resume dùng checkpoint trên máy đang chạy. Giới hạn Starter là 5 GB dữ liệu lưu trên server, 5 project có backup đang hoạt động và 128 MiB mỗi blob. Bản desktop vẫn lưu và export dữ liệu local khi quyền chạy hết hạn hoặc backup vượt giới hạn.
 
 ## Đóng gói Windows
 

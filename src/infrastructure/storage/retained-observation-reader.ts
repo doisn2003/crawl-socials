@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { lstat, open, realpath, stat } from 'node:fs/promises';
+import { lstat, open, readFile, realpath, stat } from 'node:fs/promises';
 import { isAbsolute, join, relative, sep } from 'node:path';
 import { contentHash, stableJson, validateObservation, type ConversationObservation, type SocialPlatform } from '../../domain/conversation.js';
 import { allocatePlatformTargets } from '../../shared/platform-targets.js';
@@ -7,6 +7,7 @@ import { allocatePlatformTargets } from '../../shared/platform-targets.js';
 const RUN_ID = /^crawl-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const RELATIVE_JOURNAL = 'opportunity/store/conversation-events.jsonl';
 const LEGACY_PATHS = ['facebook/posts.jsonl', 'threads/posts.jsonl'] as const;
+const SAVED_RESULTS = 'results.json';
 const LEGACY_MAPPING = 'COLLECTOR_POST_OBSERVATION_V1' as const;
 const LIMITS = { sourceBytes: 512 * 1024 * 1024, lineBytes: 8 * 1024 * 1024, events: 1_000_000, roots: 100_000 } as const;
 const TYPES = new Set(['OBSERVATION', 'DECISION', 'JOB_ENQUEUED', 'KEYWORD_COMMENT_CAPTURE', 'INVOCATION_RESERVED', 'INVOCATION_FINISHED']);
@@ -44,6 +45,7 @@ export interface RetainedLegacyFile {
   source_bytes_at_freeze: number;
   ignored_tail_bytes: number;
   record_count: number;
+  from_results?: true;
 }
 export type RetainedSourceManifest = RetainedSourceCommon & (
   { kind: 'OPPORTUNITY_JOURNAL'; relative_path: typeof RELATIVE_JOURNAL }
@@ -69,7 +71,7 @@ export async function retainedRunDirectory(dataDirectory: string, runId: string)
   return run;
 }
 async function sourceFile(dataDirectory: string, runId: string, relativePath: string = RELATIVE_JOURNAL): Promise<string> {
-  if (![RELATIVE_JOURNAL, ...LEGACY_PATHS].includes(relativePath)) throw Error('RETAINED_SOURCE_INVALID');
+  if (![RELATIVE_JOURNAL, SAVED_RESULTS, ...LEGACY_PATHS].includes(relativePath)) throw Error('RETAINED_SOURCE_INVALID');
   const run = await retainedRunDirectory(dataDirectory, runId);
   let file: string; try { file = await realpath(join(run, ...relativePath.split('/'))); }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw Error('RETAINED_OPPORTUNITY_JOURNAL_REQUIRED'); throw error; }
@@ -190,6 +192,7 @@ function assertManifest(manifest: RetainedSourceManifest): void {
     for (const file of manifest.files) {
       const index = LEGACY_PATHS.indexOf(file.relative_path);
       if (index <= previous || file.relative_path !== `${file.platform}/posts.jsonl` || !/^[a-f0-9]{64}$/.test(file.prefix_sha256)
+        || (file.from_results !== undefined && file.from_results !== true)
         || !Number.isSafeInteger(file.prefix_bytes) || file.prefix_bytes < 0 || file.prefix_bytes > LIMITS.sourceBytes
         || !Number.isSafeInteger(file.record_count) || file.record_count < 0 || file.record_count > LIMITS.events) throw Error('RETAINED_MANIFEST_INVALID');
       previous = index;
@@ -244,7 +247,7 @@ export async function* readRetainedObservations(input: { dataDirectory: string; 
 type LegacyManifest = Extract<RetainedSourceManifest, { kind: 'LEGACY_POSTS_JSONL' }>;
 const legacyHash = (files: RetainedLegacyFile[]) => contentHash({ mapping_version: LEGACY_MAPPING,
   files: files.map(file => ({ platform: file.platform, relative_path: file.relative_path, prefix_bytes: file.prefix_bytes,
-    prefix_sha256: file.prefix_sha256, record_count: file.record_count })) });
+    prefix_sha256: file.prefix_sha256, record_count: file.record_count, ...(file.from_results ? { from_results: true } : {}) })) });
 const nonempty = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
 const validDate = (value: unknown): value is string => typeof value === 'string' && Number.isFinite(Date.parse(value));
 const nativeId = (value: unknown): value is string => typeof value === 'string' && /^\d+$/u.test(value);
@@ -326,17 +329,22 @@ async function freezeLegacySource(input: SourceInput): Promise<LegacyManifest> {
   const files: RetainedLegacyFile[] = [], roots = new Set<string>(), entityIds = new Set<string>();
   const candidates: RetainedSourceCommon['selection']['roots'] = [], sourceCounts = { facebook: 0, threads: 0 };
   const commentRoots = new Map<string, string | null>(); let latest: string | null = null, totalBytes = 0, sequence = 0, eventId: string | null = null;
+  const hasJournal = await hasSourceFile(input.dataDirectory, input.sourceRunId, LEGACY_PATHS[0])
+    || await hasSourceFile(input.dataDirectory, input.sourceRunId, LEGACY_PATHS[1]);
+  const fromResults = !hasJournal && await hasSourceFile(input.dataDirectory, input.sourceRunId, SAVED_RESULTS);
+  const saved = fromResults ? await readSavedRows(input.dataDirectory, input.sourceRunId) : null;
   for (const relativePath of LEGACY_PATHS) {
-    if (!await hasSourceFile(input.dataDirectory, input.sourceRunId, relativePath)) continue;
     const platform: SocialPlatform = relativePath === 'facebook/posts.jsonl' ? 'facebook' : 'threads';
-    const file = await sourceFile(input.dataDirectory, input.sourceRunId, relativePath), size = (await stat(file)).size;
+    if (saved ? !saved[platform].length : !await hasSourceFile(input.dataDirectory, input.sourceRunId, relativePath)) continue;
+    const file = saved ? null : await sourceFile(input.dataDirectory, input.sourceRunId, relativePath);
+    const size = file ? (await stat(file)).size : saved![platform].reduce<number>((bytes, row) => bytes + Buffer.byteLength(JSON.stringify(row)) + 1, 0);
     totalBytes += size; if (totalBytes > LIMITS.sourceBytes) throw Error('RETAINED_SOURCE_BYTE_LIMIT');
     const hash = createHash('sha256'); let end = 0, records = 0, lineNumber = 0;
-    for await (const line of completeLines(file, size)) {
+    for await (const line of file ? completeLines(file, size) : resultLines(saved![platform])) {
       hash.update(line.bytes); end = line.end; lineNumber++;
       const row = legacyRecord(line.bytes); if (!row) continue;
       if (++sequence > LIMITS.events) throw Error('RETAINED_EVENT_LIMIT_OR_DUPLICATE');
-      records++; const observation = legacyObservation(row, platform, relativePath, lineNumber);
+      records++; const observation = legacyObservation(row, platform, fromResults ? SAVED_RESULTS + '#' + platform : relativePath, lineNumber);
       eventId = `legacy:${platform}:${lineNumber}:${contentHash(row)}`;
       const entityKey = key(platform, observation.entity_id!);
       if (entityIds.has(entityKey)) throw Error('RETAINED_LEGACY_DUPLICATE'); entityIds.add(entityKey);
@@ -348,7 +356,7 @@ async function freezeLegacySource(input: SourceInput): Promise<LegacyManifest> {
       if (input.platformWeights || candidates.length < input.maxRoots) candidates.push({ platform, root_post_id: root });
     }
     files.push({ platform, relative_path: relativePath, prefix_bytes: end, prefix_sha256: hash.digest('hex'), source_bytes_at_freeze: size,
-      ignored_tail_bytes: size - end, record_count: records });
+      ignored_tail_bytes: size - end, record_count: records, ...(fromResults ? { from_results: true } : {}) });
   }
   if (!files.length) throw Error('RETAINED_OPPORTUNITY_JOURNAL_REQUIRED');
   if (!sequence) throw Error('RETAINED_SOURCE_EMPTY');
@@ -364,20 +372,21 @@ async function freezeLegacySource(input: SourceInput): Promise<LegacyManifest> {
     platforms: (['facebook', 'threads'] as const).filter(platform => selectedCounts[platform] > 0), limits: LIMITS };
 }
 async function verifyLegacyFile(dataDirectory: string, runId: string, descriptor: RetainedLegacyFile): Promise<void> {
-  const file = await sourceFile(dataDirectory, runId, descriptor.relative_path), hash = createHash('sha256'); let end = 0;
-  for await (const line of completeLines(file, descriptor.prefix_bytes)) { hash.update(line.bytes); end = line.end; }
+  const hash = createHash('sha256'); let end = 0;
+  for await (const line of legacyLines(dataDirectory, runId, descriptor)) { hash.update(line.bytes); end = line.end; }
   if (end !== descriptor.prefix_bytes || hash.digest('hex') !== descriptor.prefix_sha256) throw Error('RETAINED_SOURCE_PREFIX_CHANGED');
 }
 async function* readLegacyObservations(dataDirectory: string, manifest: LegacyManifest, after: number): AsyncGenerator<RetainedObservation> {
   const selected = new Set(manifest.selection.roots.map(root => key(root.platform, root.root_post_id))), excluded = new Set(manifest.selection.excluded_comment_keys);
   let sequence = 0, byteOffset = 0;
   for (const descriptor of manifest.files) {
-    const file = await sourceFile(dataDirectory, manifest.source_run_id, descriptor.relative_path), hash = createHash('sha256');
+    const hash = createHash('sha256');
     let end = 0, records = 0, lineNumber = 0;
-    for await (const line of completeLines(file, descriptor.prefix_bytes)) {
+    for await (const line of legacyLines(dataDirectory, manifest.source_run_id, descriptor)) {
       hash.update(line.bytes); end = line.end; lineNumber++;
       const row = legacyRecord(line.bytes); if (!row) continue; sequence++; records++;
-      const observation = legacyObservation(row, descriptor.platform, descriptor.relative_path, lineNumber);
+      const observation = legacyObservation(row, descriptor.platform,
+        descriptor.from_results ? SAVED_RESULTS + '#' + descriptor.platform : descriptor.relative_path, lineNumber);
       if (sequence <= after || (observation.entity_type === 'COMMENT' && excluded.has(key(observation.platform, observation.entity_id!)))
         || (observation.root_post_id && !selected.has(key(observation.platform, observation.root_post_id)))) continue;
       yield { sourceEventId: `legacy:${descriptor.platform}:${lineNumber}:${contentHash(row)}`, sequence, byteEnd: byteOffset + line.end, observation };
@@ -388,4 +397,31 @@ async function* readLegacyObservations(dataDirectory: string, manifest: LegacyMa
   if (sequence !== manifest.watermark.sequence) throw Error('RETAINED_SOURCE_PREFIX_CHANGED');
   // Revalidate both files after the final row, including a first file changed while reading the second.
   for (const descriptor of manifest.files) await verifyLegacyFile(dataDirectory, manifest.source_run_id, descriptor);
+}
+
+async function readSavedRows(dataDirectory: string, runId: string): Promise<Record<SocialPlatform, unknown[]>> {
+  const file = await sourceFile(dataDirectory, runId, SAVED_RESULTS);
+  if ((await stat(file)).size > LIMITS.sourceBytes) throw Error('RETAINED_SOURCE_BYTE_LIMIT');
+  const data = JSON.parse(await readFile(file, 'utf8')) as Record<SocialPlatform, unknown[]>;
+  if (!data || !Array.isArray(data.facebook) || !Array.isArray(data.threads)) throw Error('RETAINED_LEGACY_RECORD_INVALID');
+  return data;
+}
+
+function* resultLines(rows: unknown[]) {
+  let end = 0;
+  for (const row of rows) {
+    const bytes = Buffer.from(JSON.stringify(row) + '\n');
+    if (bytes.length > LIMITS.lineBytes) throw Error('RETAINED_LINE_LIMIT');
+    end += bytes.length;
+    if (end > LIMITS.sourceBytes) throw Error('RETAINED_SOURCE_BYTE_LIMIT');
+    yield { bytes, end };
+  }
+}
+
+async function* legacyLines(directory: string, runId: string, entry: RetainedLegacyFile) {
+  if (entry.from_results) {
+    yield* resultLines((await readSavedRows(directory, runId))[entry.platform]);
+  } else {
+    yield* completeLines(await sourceFile(directory, runId, entry.relative_path), entry.prefix_bytes);
+  }
 }

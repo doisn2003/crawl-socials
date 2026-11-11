@@ -114,7 +114,7 @@ export function createCampaignPlanner(host: PlannerHost) {
     select.replaceChildren(placeholder, ...sources.map(source => {
       const option = document.createElement('option'); option.value = sourceKey(source);
       option.textContent = new Date(source.updatedAt).toLocaleDateString('vi-VN') + ' · ' + (source.prompt || 'Lượt dữ liệu')
-        + (source.format === 'LEGACY_JSONL' ? ' · Bài viết' : ' · Có bình luận')
+        + (source.format === 'OBSERVATION_JOURNAL' ? ' · Có bình luận' : ' · Bài viết')
         + (source.sourceLabel ? ' · ' + source.sourceLabel : ' · Máy này');
       return option;
     }));

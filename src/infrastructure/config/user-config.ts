@@ -52,9 +52,9 @@ export function parseUserConfig(value: unknown): UserConfig {
   return { ...(v.filterPercent === undefined ? {} : { filterPercent: Number(v.filterPercent) }), ...(limits === undefined ? {} : { spendLimits: { totalUsd: limits.totalUsd!, dailyUsd: limits.dailyUsd! } }), ...(v.performance === undefined ? {} : { performance: v.performance as NonNullable<UserConfig['performance']> }), keywords, minimumPosts: Number(v.minimumPosts), ...(versionTwo ? { schemaVersion: 2 as const, opportunity: parseOpportunityConfig(v.opportunity) } : {}) };
 }
 
-export function atomicJson(file: string, value: unknown) {
+export function atomicJson(file: string, value: unknown, indent = 2) {
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file + '.next', JSON.stringify(value, null, 2), { flush: true, mode: 0o600 });
+  writeFileSync(file + '.next', JSON.stringify(value, null, indent), { flush: true, mode: 0o600 });
   renameSync(file + '.next', file);
 }
 

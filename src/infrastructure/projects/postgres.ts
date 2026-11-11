@@ -3,10 +3,12 @@ import { Pool, type PoolClient } from 'pg';
 import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { writeFileSync, rmSync } from 'node:fs';
+import { writeFile, rm } from 'node:fs/promises';
+import { Worker } from 'node:worker_threads';
 import type { CsdProject } from '../../shared/projects.js';
 import { PROJECT_SCHEMA_SQL } from './schema.js';
-import { sha256, type BackupFile } from './snapshot.js';
+import { isSavedProjectFile, sha256, type BackupEntry, type BackupFile, type ProjectSnapshot } from './snapshot.js';
+import type { BackupWorkerData, BackupWorkerResult } from './postgres-backup-worker.js';
 
 export interface RemoteProject extends CsdProject {
   ownerId: string; revision: number; fingerprint: string; sourceDirectory: string; deletedAt: string | null;
@@ -18,8 +20,8 @@ export interface ProjectBackupStore {
   revoke(token: string): Promise<void>;
   claim(guestId: string, secret: string, userId: string): Promise<void>;
   list(ownerId: string): Promise<RemoteProject[]>;
-  files(ownerId: string, id: string, revision: number): Promise<BackupFile[]>;
-  upload(input: { ownerId: string; deviceId: string; project: CsdProject; revision: number; fingerprint: string; sourceDirectory: string; deletedAt: string | null; files: BackupFile[] }): Promise<number>;
+  files(ownerId: string, id: string, revision: number): AsyncIterable<BackupFile>;
+  upload(input: ProjectUpload, snapshot: ProjectSnapshot, signal?: AbortSignal): Promise<number>;
   close(): Promise<void>;
 }
 
@@ -97,47 +99,66 @@ export function createPostgresBackup(databaseUrl: string): ProjectBackupStore {
       return rows.rows.map(row => ({ id: row.id, name: row.name, avatar: row.avatar, createdAt: new Date(row.created_at).toISOString(), updatedAt: new Date(row.updated_at).toISOString(),
         ownerId: row.owner_id, revision: Number(row.revision), fingerprint: row.fingerprint, sourceDirectory: row.source_directory, deletedAt: row.deleted_at ? new Date(row.deleted_at).toISOString() : null }));
     },
-    async files(ownerId, id, revision) {
+    async *files(ownerId, id, revision) {
       await ready();
       const client = await pool.connect();
       try {
         await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
         const project = await client.query('SELECT revision FROM csd_backup.projects WHERE owner_id=$1 AND id=$2', [ownerId,id]);
         if (!project.rows[0] || Number(project.rows[0].revision) !== revision) throw Error('PROJECT_BACKUP_CONFLICT');
-        const rows = await client.query('SELECT path,category,sha256,content FROM csd_backup.project_files WHERE project_id=$1', [id]);
-        await client.query('COMMIT');
-        return rows.rows as BackupFile[];
-      } catch(error) { await client.query('ROLLBACK').catch(() => {}); throw error; }
-      finally { client.release(); }
+        const { rows } = await client.query('SELECT path FROM csd_backup.project_files WHERE project_id=$1 ORDER BY path', [id]);
+        for (const { path } of rows) {
+          const blob = await client.query('SELECT path,category,sha256,content FROM csd_backup.project_files WHERE project_id=$1 AND path=$2', [id,path]);
+          yield blob.rows[0] as BackupFile;
+        }
+      } finally { await client.query('ROLLBACK').catch(() => {}); client.release(); }
     },
-    async upload(input) {
+    async upload(input, snapshot, signal) {
       await ready();
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        const contents = new Map(input.files.map(file => [file.path, file.content]));
-        const revision = await writeProjectBackup(client, input, input.files, async file => contents.get(file.path)!);
-        await client.query('COMMIT');
-        return revision;
-      } catch (error) { await client.query('ROLLBACK').catch(() => {}); throw error; }
-      finally { client.release(); }
+      return uploadInWorker({ databaseUrl, input, snapshot }, signal);
     },
     async close() { await pool.end(); },
   };
 }
 
-export type ProjectUpload = Omit<Parameters<ProjectBackupStore['upload']>[0], 'files'>;
-export type BackupManifestEntry = Omit<BackupFile, 'content'>;
+export interface ProjectUpload {
+  ownerId: string; deviceId: string; project: CsdProject; revision: number; fingerprint: string;
+  sourceDirectory: string; deletedAt: string | null; resultsOnly?: boolean;
+}
+
+async function uploadInWorker(data: BackupWorkerData, signal?: AbortSignal): Promise<number> {
+  signal?.throwIfAborted();
+  const worker = new Worker(new URL('./postgres-backup-worker.js', import.meta.url), { workerData: data });
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  const cancel = () => {
+    worker.postMessage('cancel');
+    deadline = setTimeout(() => void worker.terminate(), 5000);
+  };
+  try {
+    return await new Promise<number>((resolve, reject) => {
+      worker.once('message', (result: BackupWorkerResult) => {
+        if ('error' in result) reject(Error(result.error)); else resolve(result.revision);
+      });
+      worker.once('error', () => reject(Error('PROJECT_BACKUP_WORKER_FAILED')));
+      worker.once('exit', () => reject(signal?.aborted ? signal.reason : Error('PROJECT_BACKUP_WORKER_EXITED')));
+      signal?.addEventListener('abort', cancel, { once: true });
+    });
+  } finally {
+    signal?.removeEventListener('abort', cancel);
+    clearTimeout(deadline);
+    await worker.terminate();
+  }
+}
 
 /** Apply a revision with the caller's transaction. Only changed blobs are read. */
-export async function writeProjectBackup(client: PoolClient, input: ProjectUpload, files: BackupManifestEntry[],
-  readContent: (file: BackupManifestEntry) => Promise<Buffer>) {
+export async function writeProjectBackup(client: PoolClient, input: ProjectUpload, files: BackupEntry[],
+  readContent: (file: BackupEntry) => Promise<Buffer>, signal?: AbortSignal) {
   await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [input.project.id]);
   const existing = await client.query('SELECT owner_id,revision,fingerprint FROM csd_backup.projects WHERE id=$1 FOR UPDATE', [input.project.id]);
   const row = existing.rows[0];
   if (row && row.owner_id !== input.ownerId) throw Error('PROJECT_ACCESS_DENIED');
+  if (row?.fingerprint === input.fingerprint) return Number(row.revision);
   if (row && Number(row.revision) !== input.revision) {
-    if (row.fingerprint === input.fingerprint) { return Number(row.revision); }
     throw Error('PROJECT_BACKUP_CONFLICT');
   }
   if (!row && input.revision !== 0) throw Error('PROJECT_BACKUP_CONFLICT');
@@ -150,25 +171,48 @@ export async function writeProjectBackup(client: PoolClient, input: ProjectUploa
   const manifest = await client.query('SELECT path,sha256 FROM csd_backup.project_files WHERE project_id=$1', [input.project.id]);
   const hashes = new Map(manifest.rows.map(row => [String(row.path), String(row.sha256)]));
   const changedFiles = files.filter(file => hashes.get(file.path) !== file.sha256);
-  const paths = files.map(file => file.path);
-  await client.query('DELETE FROM csd_backup.project_files WHERE project_id=$1 AND NOT(path=ANY($2::text[]))', [input.project.id, paths]);
-  await client.query('DELETE FROM csd_backup.project_records WHERE project_id=$1 AND NOT(record_key=ANY($2::text[]))', [input.project.id, paths]);
-  for (const file of changedFiles) {
-    const content = await readContent(file);
-    await client.query(`INSERT INTO csd_backup.project_files(project_id,path,category,sha256,content) VALUES($1,$2,$3,$4,$5)
-      ON CONFLICT(project_id,path) DO UPDATE SET category=excluded.category,sha256=excluded.sha256,content=excluded.content,updated_at=now()
-      WHERE csd_backup.project_files.sha256<>excluded.sha256`, [input.project.id,file.path,file.category,file.sha256,content]);
-    if (file.path.endsWith('.json')) {
-      let payload: unknown;
-      try { payload = JSON.parse(content.toString('utf8')); } catch { continue; }
-      await client.query(`INSERT INTO csd_backup.project_records(project_id,kind,record_key,payload) VALUES($1,$2,$3,$4::jsonb)
-        ON CONFLICT(project_id,kind,record_key) DO UPDATE SET payload=excluded.payload`, [input.project.id,file.category,file.path,JSON.stringify(payload)]);
-    }
+  const paths = new Set(files.map(file => file.path));
+  // A results-only backup leaves previously uploaded legacy checkpoints recoverable.
+  const removed = [...hashes.keys()].filter(path => !paths.has(path) && (!input.resultsOnly || isSavedProjectFile(path)));
+  if (removed.length) {
+    await client.query('DELETE FROM csd_backup.project_files WHERE project_id=$1 AND path=ANY($2::text[])', [input.project.id, removed]);
+    await client.query('DELETE FROM csd_backup.project_records WHERE project_id=$1 AND record_key=ANY($2::text[])', [input.project.id, removed]);
   }
+  if (input.resultsOnly && paths.size) await client.query(
+    'DELETE FROM csd_backup.project_records WHERE project_id=$1 AND record_key=ANY($2::text[])', [input.project.id, [...paths]]);
+  let batch: BackupEntry[] = [], batchBytes = 0;
+  const flush = async () => {
+    if (!batch.length) return;
+    signal?.throwIfAborted();
+    const blobs: (string | Buffer)[] = [input.project.id], records: string[] = [input.project.id];
+    const fileRows: string[] = [], recordRows: string[] = [];
+    for (const file of batch) {
+      const content = await readContent(file);
+      const n = blobs.length;
+      blobs.push(file.path, file.category, file.sha256, content);
+      fileRows.push(`($1,$${n+1},$${n+2},$${n+3},$${n+4})`);
+      if (input.resultsOnly || !file.path.endsWith('.json')) continue;
+      let payload: string;
+      try { payload = JSON.stringify(JSON.parse(content.toString('utf8'))); } catch { continue; }
+      const r = records.length;
+      records.push(file.category, file.path, payload);
+      recordRows.push(`($1,$${r+1},$${r+2},$${r+3}::jsonb)`);
+    }
+    await client.query(`INSERT INTO csd_backup.project_files(project_id,path,category,sha256,content) VALUES ${fileRows.join(',')}
+      ON CONFLICT(project_id,path) DO UPDATE SET category=excluded.category,sha256=excluded.sha256,content=excluded.content,updated_at=now()`, blobs);
+    if (recordRows.length) await client.query(`INSERT INTO csd_backup.project_records(project_id,kind,record_key,payload) VALUES ${recordRows.join(',')}
+      ON CONFLICT(project_id,kind,record_key) DO UPDATE SET payload=excluded.payload`, records);
+    batch = []; batchBytes = 0;
+  };
+  for (const file of changedFiles) {
+    if (batch.length >= 64 || batchBytes + file.size > 8 * 1024 * 1024) await flush();
+    batch.push(file); batchBytes += file.size;
+  }
+  await flush();
   const canonical = changedFiles.find(file => file.path === 'project-posts.sqlite');
   if (canonical) {
     const temporary = join(tmpdir(), 'csd-posts-' + randomUUID() + '.sqlite');
-    writeFileSync(temporary, await readContent(canonical), { mode: 0o600 });
+    await writeFile(temporary, await readContent(canonical), { mode: 0o600 });
     let database: DatabaseSync | undefined;
     try {
       database = new DatabaseSync(temporary, { readOnly: true, allowExtension: false });
@@ -182,7 +226,7 @@ export async function writeProjectBackup(client: PoolClient, input: ProjectUploa
       await client.query(`INSERT INTO csd_backup.project_run_posts(project_id,run_id,platform,root_id,previously_collected)
         SELECT $1,run_id,platform,root_id,previously_collected
         FROM jsonb_to_recordset($2::jsonb) AS r(run_id text,platform text,root_id text,previously_collected boolean)`, [input.project.id, JSON.stringify(memberships)]);
-    } finally { database?.close(); rmSync(temporary, { force: true }); }
+    } finally { database?.close(); await rm(temporary, { force: true }); }
   }
   return revision;
 }

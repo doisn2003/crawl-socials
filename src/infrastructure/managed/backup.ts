@@ -1,5 +1,5 @@
 import type { ProjectBackupStore, RemoteProject } from '../projects/postgres.js';
-import { sha256, type BackupFile } from '../projects/snapshot.js';
+import { readSnapshotFile, sha256 } from '../projects/snapshot.js';
 import { ManagedHttpError, type ManagedClient } from './client.js';
 
 interface Entry { path: string; category: string; sha256: string; size: number }
@@ -43,37 +43,35 @@ export function createHttpBackupStore(client: ManagedClient): ProjectBackupStore
       owner(ownerId);
       return call(() => client.json<RemoteProject[]>('/v1/projects'));
     },
-    async files(ownerId, id, revision) {
+    async *files(ownerId, id, revision) {
       owner(ownerId);
-      return call(async () => {
-        const root = '/v1/projects/' + id;
-        const files = await client.json<Entry[]>(root + '/manifest?revision=' + revision);
-        const output: BackupFile[] = [];
-        for (const file of files) {
-          const res = await client.request(root + '/file?revision=' + revision + '&path=' + encodeURIComponent(file.path), { timeout: 120_000 });
-          const content = Buffer.from(await res.arrayBuffer());
-          if (content.length !== file.size || sha256(content) !== file.sha256) throw Error('PROJECT_BACKUP_CORRUPT');
-          output.push({ path: file.path, category: file.category, sha256: file.sha256, content });
-        }
-        return output;
-      });
+      const root = '/v1/projects/' + id;
+      const files = await call(() => client.json<Entry[]>(root + '/manifest?revision=' + revision));
+      for (const file of files) {
+        const res = await call(() => client.request(root + '/file?revision=' + revision + '&path=' + encodeURIComponent(file.path), { timeout: 120_000 }));
+        const content = Buffer.from(await res.arrayBuffer());
+        if (content.length !== file.size || sha256(content) !== file.sha256) throw Error('PROJECT_BACKUP_CORRUPT');
+        yield { path: file.path, category: file.category, sha256: file.sha256, content };
+      }
     },
-    async upload({ files, ownerId, deviceId: _device, ...snapshot }) {
+    async upload({ ownerId, deviceId: _device, ...metadata }, snapshot, signal) {
       owner(ownerId);
       return call(async () => {
+        const cancel = signal ? { signal } : {};
         const plan = await client.json<{ revision: number | null; stage: string | null; missing: string[] }>('/v1/projects/backups', {
-          method: 'POST', timeout: 30_000, json: { ...snapshot, files: files.map(({ path,category,sha256,content }) => ({ path,category,sha256,size:content.length })) },
+          method: 'POST', timeout: 30_000, json: { ...metadata, files: snapshot.files }, ...cancel,
         });
         if (plan.revision !== null) return plan.revision;
         if (!plan.stage) throw Error('PROJECT_BACKUP_STAGE_INCOMPLETE');
-        const paths = new Map(files.map(f => [f.path,f]));
+        const paths = new Map(snapshot.files.map(f => [f.path,f]));
         const root = '/v1/projects/backups/' + plan.stage;
         for (const path of plan.missing) {
-          const content = paths.get(path)?.content;
-          if (!content) throw Error('PROJECT_BACKUP_STAGE_INCOMPLETE');
-          await client.json(root + '/file?path=' + encodeURIComponent(path), { method: 'PUT', bytes: content, timeout: 120_000 });
+          const entry = paths.get(path);
+          if (!entry) throw Error('PROJECT_BACKUP_STAGE_INCOMPLETE');
+          const content = await readSnapshotFile(snapshot, entry, signal);
+          await client.json(root + '/file?path=' + encodeURIComponent(path), { method: 'PUT', bytes: content, timeout: 120_000, ...cancel });
         }
-        const result = await client.json<{ revision: number }>(root + '/commit', { method: 'POST', timeout: 120_000 });
+        const result = await client.json<{ revision: number }>(root + '/commit', { method: 'POST', timeout: 120_000, ...cancel });
         return result.revision;
       });
     },

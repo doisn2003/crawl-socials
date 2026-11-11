@@ -1,12 +1,13 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { cp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { backup as sqliteBackup, DatabaseSync } from 'node:sqlite';
 import type { SecretStore } from '../../application/ports/secret-store.js';
 import type { CsdProject, ProjectWorkspaceState } from '../../shared/projects.js';
 import { atomicJson } from '../config/user-config.js';
 import { createPostgresBackup, type ProjectBackupStore } from './postgres.js';
-import { restoreProject, sha256, snapshotProject } from './snapshot.js';
+import { restoreProject, sha256, snapshotFiles, withProjectSnapshot, type ProjectFileHashes, type ProjectSnapshot } from './snapshot.js';
 
 interface LocalProject extends CsdProject {
   ownerId: string;
@@ -51,6 +52,7 @@ export async function createProjectWorkspace(input: { directory: string; databas
   const remote = input.backupStore ?? (input.databaseUrl ? createPostgresBackup(input.databaseUrl) : null);
   let backup: ProjectWorkspaceState['backup'] = { configured: remote !== null, status: remote ? 'PENDING' : 'LOCAL', lastSyncAt: null, error: null };
   let queue = Promise.resolve();
+  const hashes: ProjectFileHashes = new Map();
   const ownerId = () => user?.id ?? index.guestId;
   const save = () => atomicJson(indexFile, index);
   function directory(project: LocalProject): string { return join(root, project.id, 'data'); }
@@ -88,23 +90,24 @@ export async function createProjectWorkspace(input: { directory: string; databas
     queue = next.then(() => {}, () => {});
     return next;
   }
-  async function capture(project: LocalProject) {
-    const files = await snapshotProject(directory(project));
-    const fingerprint = sha256(JSON.stringify({ name: project.name, avatar: project.avatar, deletedAt: project.deletedAt,
-      files: files.map(file => [file.path, file.sha256]) }));
-    return { files, fingerprint };
-  }
-  async function push(): Promise<void> {
+  const fingerprint = (project: LocalProject, snapshot: ProjectSnapshot) => sha256(JSON.stringify({ name: project.name,
+    avatar: project.avatar, deletedAt: project.deletedAt, files: snapshot.files.map(file => [file.path, file.sha256]) }));
+  const captureHash = (project: LocalProject, full = false) =>
+    withProjectSnapshot(directory(project), async snapshot => fingerprint(project, snapshot), { full });
+  async function push(signal?: AbortSignal): Promise<void> {
     if (!remote || (input.localGuestOnly && !user)) return;
+    signal?.throwIfAborted();
     if (!user) await remote.ensureGuest(index.guestId, index.guestSecret);
     else if (!sessionToken || (await remote.session(sessionToken))?.id !== user.id) throw Error('PROJECT_AUTH_EXPIRED');
     for (const project of index.projects.filter(project => project.ownerId === ownerId())) {
-      const snapshot = await capture(project);
-      if (snapshot.fingerprint === project.lastFingerprint && project.revision > 0) continue;
-      project.revision = await remote.upload({ ownerId: ownerId(), deviceId: index.deviceId, project, revision: project.revision,
-        fingerprint: snapshot.fingerprint, sourceDirectory: directory(project), deletedAt: project.deletedAt, files: snapshot.files });
-      project.lastFingerprint = snapshot.fingerprint;
-      save();
+      await withProjectSnapshot(directory(project), async snapshot => {
+        const hash = fingerprint(project, snapshot);
+        if (hash === project.lastFingerprint && project.revision > 0) return;
+        project.revision = await remote.upload({ ownerId: ownerId(), deviceId: index.deviceId, project, revision: project.revision,
+          fingerprint: hash, sourceDirectory: directory(project), deletedAt: project.deletedAt, resultsOnly: true }, snapshot, signal);
+        project.lastFingerprint = hash;
+        save();
+      }, { cache: hashes, ...(signal ? { signal } : {}) });
     }
   }
   async function pull(): Promise<void> {
@@ -115,31 +118,35 @@ export async function createProjectWorkspace(input: { directory: string; databas
       let local = index.projects.find(entry => entry.id === project.id && entry.ownerId === ownerId());
       if (local && local.revision === project.revision) continue;
       if (local) {
-        const snapshot = await capture(local);
-        if (snapshot.fingerprint !== local.lastFingerprint) throw Error('PROJECT_BACKUP_CONFLICT');
+        if (await captureHash(local) !== local.lastFingerprint && await captureHash(local, true) !== local.lastFingerprint) throw Error('PROJECT_BACKUP_CONFLICT');
       }
       const isNew = !local;
       local ??= { ...project, lastFingerprint: null };
       if (!project.deletedAt) {
-        const files = await remote.files(ownerId(), project.id, project.revision);
-        restoreProject(directory(local), project.sourceDirectory, files);
+        await restoreProject(directory(local), project.sourceDirectory, remote.files(ownerId(), project.id, project.revision));
       }
       Object.assign(local, project);
-      local.lastFingerprint = (await capture(local)).fingerprint;
+      local.lastFingerprint = await captureHash(local);
       if (isNew) index.projects.push(local);
       save();
     }
     ensureActive();
   }
-  async function sync(options: { pull?: boolean } = {}): Promise<ProjectWorkspaceState> {
+  async function sync(options: { pull?: boolean; signal?: AbortSignal } = {}): Promise<ProjectWorkspaceState> {
     if (!remote || (input.localGuestOnly && !user)) return state();
     backup.status = 'SYNCING'; backup.error = null;
     try {
-      if (!user) await remote.ensureGuest(index.guestId, index.guestSecret);
-      if (options.pull) await pull();
-      await push();
+      options.signal?.throwIfAborted();
+      if (options.pull) {
+        if (!user) await remote.ensureGuest(index.guestId, index.guestSecret);
+        await pull();
+      }
+      await push(options.signal);
       backup = { configured: true, status: 'SYNCED', error: null, lastSyncAt: timestamp() };
-    } catch (error) { backup.status = 'ERROR'; backup.error = errorCode(error); }
+    } catch (error) {
+      if (options.signal?.aborted) pending();
+      else { backup.status = 'ERROR'; backup.error = errorCode(error); }
+    }
     return state();
   }
   async function authenticate(credentials: { username: string; password: string; invite?: string }, register: boolean): Promise<ProjectWorkspaceState> {
@@ -154,7 +161,7 @@ export async function createProjectWorkspace(input: { directory: string; databas
         if (existingRemote.some(project => !project.deletedAt)) {
           for (const project of index.projects.filter(entry => entry.ownerId === index.guestId && entry.revision === 0
             && [defaultProjectName, ...legacyDefaultProjectNames].includes(entry.name))) {
-            if ((await snapshotProject(directory(project))).length === 0) index.projects.splice(index.projects.indexOf(project), 1);
+            if (await withProjectSnapshot(directory(project), async snapshot => snapshot.files.length === 0, { full: true })) index.projects.splice(index.projects.indexOf(project), 1);
           }
         }
         await push();
@@ -182,14 +189,15 @@ export async function createProjectWorkspace(input: { directory: string; databas
     const names = ['user-config.json', 'user-config.json.v1.backup', 'latest-run.json', 'active-campaign-draft.json', 'collections', 'filter-presets', 'assessment-cache', 'retained-source-roots.json'];
     for (const name of names) {
       const source = join(input.directory, name);
-      if (existsSync(source)) cpSync(source, join(directory(migrated), name), { recursive: true, force: true });
+      if (existsSync(source)) await cp(source, join(directory(migrated), name), { recursive: true, force: true });
     }
     if (existsSync(join(input.directory, 'discovery.sqlite'))) {
       const db = new DatabaseSync(join(input.directory, 'discovery.sqlite'), { readOnly: true });
       try { await sqliteBackup(db, join(directory(migrated), 'discovery.sqlite')); } finally { db.close(); }
     }
-    const files = await snapshotProject(directory(migrated));
-    if (files.length) restoreProject(directory(migrated), input.directory, files);
+    await withProjectSnapshot(directory(migrated), async snapshot => {
+      if (snapshot.files.length) await restoreProject(directory(migrated), input.directory, snapshotFiles(snapshot));
+    }, { full: true });
     index.migrationPending = false; save();
   }
   if (input.secretStore) {
@@ -225,7 +233,7 @@ export async function createProjectWorkspace(input: { directory: string; databas
       await input.secretStore?.delete('csd-project-auth');
       user = null; sessionToken = null; ensureActive(); pending(); return state();
     }),
-    sync: (options: { pull?: boolean } = {}) => serial(() => sync(options)),
+    sync: (options: { pull?: boolean; signal?: AbortSignal } = {}) => serial(() => sync(options)),
     close: async () => { await queue; await remote?.close(); },
   };
 }

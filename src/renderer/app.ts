@@ -296,7 +296,7 @@ function updateControls() {
   startButton.hidden = running;
   stopButton.hidden = !running;
   stopButton.disabled = !connected || commandPending || state?.run?.state === 'STOPPING';
-  element<HTMLButtonElement>('resume').hidden = running || !state?.run?.opportunity || state.run.state === 'COMPLETED';
+  element<HTMLButtonElement>('resume').hidden = running || !state?.run?.opportunity || state.run.state === 'COMPLETED' || state.run.resultsOnly === true;
   element<HTMLButtonElement>('resume').disabled = !connected || running || commandPending || managedUi.blocked();
   for (const platform of platforms) {
     const account = selectedAccount(platform);

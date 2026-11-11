@@ -60,6 +60,8 @@ export interface RunState {
   discoverySourceRunId?: string;
   collectionLayout?: 'PROFILE_QUERY_V2';
   mode?: 'DISCOVERY' | 'RETAINED';
+  resultsOnly?: true;
+  compactOnCompletion?: true;
   retained?: RetainedRunProgress;
 }
 export interface RetainedRunProgress {
@@ -68,7 +70,7 @@ export interface RetainedRunProgress {
   status: 'IMPORTING' | 'IMPORTED' | 'PAUSED' | 'FAILED';
 }
 export interface RetainedSourceSummary {
-  runId: string; prompt: string; updatedAt: string; bytes: number; format: 'OBSERVATION_JOURNAL' | 'LEGACY_JSONL';
+  runId: string; prompt: string; updatedAt: string; bytes: number; format: 'OBSERVATION_JOURNAL' | 'LEGACY_JSONL' | 'SAVED_RESULTS_JSON';
   sourceRootId?: string; sourceLabel?: string;
 }
 export interface RetainedSourceCatalog {

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { writeProjectBackup, type ProjectUpload } from '../infrastructure/projects/postgres.js';
+import { isSavedProjectFile } from '../infrastructure/projects/snapshot.js';
 import type { CsdProject } from '../shared/projects.js';
 import type { Principal } from './auth.js';
 import { ApiError, bad, hash, hex, integer, lockAccount, policy, record, string, uuid } from './core.js';
@@ -102,10 +103,12 @@ export function createBackup(pool: Pool) {
       if (!categories.includes(category)) throw bad('PROJECT_BACKUP_MANIFEST_INVALID');
       return { path: backupPath(f.path), category, sha256: hex(f.sha256), size: integer(f.size, 0, MAX_BACKUP_FILE) };
     }).sort((a, b) => a.path.localeCompare(b.path));
+    if (request.resultsOnly === true && files.some(file => !isSavedProjectFile(file.path))) throw bad('PROJECT_BACKUP_MANIFEST_INVALID');
     if (new Set(files.map(f => f.path.toLowerCase())).size !== files.length) throw bad('PROJECT_BACKUP_MANIFEST_INVALID');
     const fingerprint = hash(JSON.stringify({ name: p.name, avatar: p.avatar, deletedAt, files: files.map(f => [f.path,f.sha256]) }));
     if (fingerprint !== request.fingerprint) throw bad('PROJECT_BACKUP_HASH_INVALID');
-    const metadata = { ownerId: actor.accountId, deviceId: actor.deviceId, project: p, revision, fingerprint, sourceDirectory, deletedAt };
+    const metadata = { ownerId: actor.accountId, deviceId: actor.deviceId, project: p, revision, fingerprint, sourceDirectory, deletedAt,
+      ...(request.resultsOnly === true ? { resultsOnly: true } : {}) };
 
     return transaction(pool, async db => {
       await quota(db, actor, metadata, files);

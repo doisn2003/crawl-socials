@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, powerMonitor, session, shell } from 'electron';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { createDiscoveryStore, exportDigest } from '../infrastructure/storage/discovery-store.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -101,9 +101,10 @@ async function bootstrap() {
       ? createRemoteModelGateway({ ...options, runId: basename(dirname(options.directory)), client: managed, access, spending, planning })
       : createCampaignModelGateway({ ...options, ...(planning ? { primaryModel: REBUILD_MODEL, selectionReason: 'REBUILD_SELECTED_MODEL' } : {}),
         apiKey: geminiKey!.current, schedulerForModel, spending });
-    return createProductionService({ directory: projects.activeDirectory(), version: app.getVersion(), host: browserHost, spendingStatus: () => spending.status(), spendingLimits: machineSpendLimits,
+    return createProductionService({ directory: projects.activeDirectory(), version: app.getVersion(), host: browserHost, compactCompletedRuns: true,
+    spendingStatus: () => spending.status(), spendingLimits: machineSpendLimits,
     ...(access ? { access, watchAfterDiscovery: false } : {}),
-    createOpportunity: value => createOpportunityPipeline({ ...value, classificationWorkers: 2, assessmentCacheDirectory: join(projects.activeDirectory(), 'assessment-cache'), gateway: value.config.filterMode === 'OFF' ? unassessedGateway : gateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd }, false) }),
+    createOpportunity: value => createOpportunityPipeline({ ...value, compactProjectIndex: true, classificationWorkers: 2, assessmentCacheDirectory: join(projects.activeDirectory(), 'assessment-cache'), gateway: value.config.filterMode === 'OFF' ? unassessedGateway : gateway({ directory: join(value.directory, 'opportunity'), budgetUsd: value.config.budgetUsd }, false) }),
     // Retry a failed 2.5 draft with the currently selected model while retaining
     // its original directory and spending history. Historical crawl recipes stay pinned.
     async prepareCampaignDraft(value) {
@@ -156,18 +157,26 @@ async function bootstrap() {
   let service = createService();
   let discoveryStore = createDiscoveryStore(join(projects.activeDirectory(), 'discovery.sqlite'));
   let backupTimer: ReturnType<typeof setInterval> | null = null;
-  let projectChanging = false, backupRunning = false;
+  let projectChanging = false;
+  let backgroundBackup: { controller: AbortController; done: Promise<unknown> } | null = null;
   let projectWork: Promise<unknown> | null = null;
   let closing = false, shutdownComplete = false;
   let updates: ReturnType<typeof managedUpdates> | null = null;
+  async function stopBackgroundBackup() {
+    const backup = backgroundBackup;
+    if (!backup) return;
+    backup.controller.abort(Error('PROJECT_BACKUP_CANCELLED'));
+    await backup.done;
+  }
   async function finishForExit() {
     if (backupTimer) clearInterval(backupTimer);
     updates?.close();
+    await stopBackgroundBackup();
     await Promise.resolve(projectWork).catch(() => {});
     await service.shutdown();
     await browserHost.shutdown();
     discoveryStore.close();
-    await projects.sync().catch(() => {});
+    await projects.sync({ signal: AbortSignal.timeout(3000) }).catch(() => {});
     await projects.close();
     shutdownComplete = true;
   }
@@ -230,12 +239,13 @@ async function bootstrap() {
     try { await requireIdleForKey(); return await work(); } finally { keyChanging = false; }
   }
   function projectCommand(work: () => Promise<unknown>) {
-    if (projectChanging || backupRunning || modelCommands || exporting || choosingRetainedRoot || keyChanging) throw Error('PROJECT_BUSY');
+    if (projectChanging || modelCommands || exporting || choosingRetainedRoot || keyChanging) throw Error('PROJECT_BUSY');
     projectChanging = true;
     const task = (async () => {
       try {
         const state = await service.getState();
         if (state.run && (['RUNNING', 'STOPPING'].includes(state.run.state) || state.run.opportunity?.watchActive || state.run.opportunity?.assessmentActive) || state.campaignDraftPreparing) throw Error('PROJECT_RUN_ACTIVE');
+        await stopBackgroundBackup();
         await service.shutdown();
         discoveryStore.close();
         try { return await work(); }
@@ -278,9 +288,9 @@ async function bootstrap() {
     }),
     'csd:managed:update': async () => {
       if (!updates?.ready()) throw Error('UPDATE_UNAVAILABLE');
-      if (closing || modelCommands || projectChanging || backupRunning || exporting) throw Error('PROJECT_BUSY');
+      if (closing || modelCommands || projectChanging || exporting) throw Error('PROJECT_BUSY');
       await requireIdleForKey();
-      if (closing || modelCommands || projectChanging || backupRunning || exporting) throw Error('PROJECT_BUSY');
+      if (closing || modelCommands || projectChanging || exporting) throw Error('PROJECT_BUSY');
       closing = true;
       try { await finishForExit(); updates.install(); }
       catch { app.quit(); throw Error('UPDATE_INSTALL_FAILED'); }
@@ -349,9 +359,6 @@ async function bootstrap() {
           if (exported) await exportOpportunityWorkbook(staged, exported);
           else await exportSocialWorkbook(staged, result.facebook, result.threads);
         } else writeFileSync(staged, JSON.stringify(exported ?? result, null, 2), { flush: true });
-        const savedExports = join(projects.activeDirectory(), 'exports');
-        mkdirSync(savedExports, { recursive: true });
-        copyFileSync(staged, join(savedExports, result.run.id + '-' + (group ?? 'ALL') + '-' + randomUUID() + '.' + format));
         const roots = exported ? deliveredOpportunityRoots(exported) : [];
         const receipt = roots.length ? discoveryStore.prepareExport(result.run.id, roots, choice.filePath, exportDigest(staged)) : null;
         renameSync(staged, choice.filePath);
@@ -372,9 +379,10 @@ async function bootstrap() {
   });
   app.once('will-quit', () => { for (const channel of Object.keys(handlers)) ipcMain.removeHandler(channel); });
   backupTimer = setInterval(() => {
-    if (closing || projectChanging || backupRunning) return;
-    backupRunning = true;
-    void projects.sync().catch(() => {}).finally(() => { backupRunning = false; });
+    if (closing || projectChanging || backgroundBackup) return;
+    const controller = new AbortController();
+    const done = projects.sync({ signal: controller.signal }).catch(() => {}).finally(() => { backgroundBackup = null; });
+    backgroundBackup = { controller, done };
   }, 30000);
   backupTimer.unref();
   await mainWindow.loadFile(uiFile);

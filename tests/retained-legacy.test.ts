@@ -9,6 +9,7 @@ import type { EvaluationContext } from '../src/domain/conversation.js';
 import { createConversationStore, type ConversationStore } from '../src/infrastructure/storage/conversation-store.js';
 import { freezeRetainedSource, readRetainedObservations, verifyRetainedSource, type RetainedObservation } from '../src/infrastructure/storage/retained-observation-reader.js';
 import { importRetainedData, prepareRetainedImport, readRetainedImport } from '../src/application/retained-data-service.js';
+import { discardCompletedRunWork } from '../src/infrastructure/projects/compact-project.js';
 
 const SOURCE = 'crawl-11111111-1111-1111-1111-111111111111', TARGET = 'crawl-22222222-2222-2222-2222-222222222222';
 const at = '2026-01-01T00:00:00.000Z', published = '2025-12-31T12:00:00.000Z';
@@ -43,6 +44,23 @@ const prepare = (directory: string, maxRoots = 10) => prepareRetainedImport({ da
 async function observations(directory: string, manifest: Awaited<ReturnType<typeof freeze>>) {
   const rows: RetainedObservation[] = []; for await (const row of readRetainedObservations({ dataDirectory: directory, manifest })) rows.push(row); return rows;
 }
+
+test('a finished run can be filtered from saved JSON after its working journals are released', async () => {
+  const f = fixture();
+  try {
+    const resultFile = join(f.source, 'results.json');
+    writeFileSync(resultFile, JSON.stringify({ facebook: [facebook()], threads: [threads()] }));
+    await discardCompletedRunWork(f.directory, SOURCE, false);
+    assert.equal(existsSync(f.fb), false);
+    const manifest = await freeze(f.directory);
+    assert.ok(manifest.kind === 'LEGACY_POSTS_JSONL' && manifest.files.every(file => file.from_results));
+    const rows = await observations(f.directory, manifest);
+    assert.deepEqual(rows.map(row => row.observation.entity_id), ['10', '20']);
+    assert.equal(rows[0]!.observation.provenance.response_sha256, capture.response_sha256);
+    writeFileSync(resultFile, JSON.stringify({ facebook: [facebook('11')], threads: [threads()] }));
+    await assert.rejects(verifyRetainedSource({ dataDirectory: f.directory, manifest }), /RETAINED_SOURCE_PREFIX_CHANGED/);
+  } finally { rmSync(f.directory, { recursive: true, force: true }); }
+});
 
 test('real collector row shapes preserve capture provenance, native timestamps, reply parents and media under a combined root cap', async () => {
   const f = fixture([facebook()], [threads('21', { entity_type: 'COMMENT', is_reply: true, root_post_id: '20', parent_id: '20', text: 'Is the room quiet?' }),

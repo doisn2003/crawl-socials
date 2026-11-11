@@ -71,6 +71,7 @@ export interface OpportunityPipelineInput {
   assessmentCacheDirectory?: string;
   /** Project-wide identities and completed assessments shared by its runs. */
   projectDirectory?: string;
+  compactProjectIndex?: boolean;
   excludedRootKeys?: string[];
 }
 type Row = Record<string, unknown>;
@@ -162,7 +163,7 @@ export async function createOpportunityPipeline(input: OpportunityPipelineInput)
   try { if (activeEvaluation?.state === 'MIGRATING') await resumeEvaluationMigration(directory, store); }
   catch (error) { await leases.close(); if (!input.store) await store.close(); throw error; }
   const context: EvaluationContext = evaluationContext(campaign);
-  const projectPosts = input.projectDirectory ? new ProjectPostStore(input.projectDirectory) : null;
+  const projectPosts = input.projectDirectory ? new ProjectPostStore(input.projectDirectory, input.compactProjectIndex) : null;
   const excludedRoots = new Set(input.projectDirectory ? [] : input.excludedRootKeys ?? []);
   function previouslyCollected(snapshot: ConversationSnapshot): boolean {
     return projectPosts?.previouslyCollected(input.runId, snapshot.platform, snapshot.root_post_id) ?? false;

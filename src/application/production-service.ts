@@ -27,6 +27,7 @@ import { importRetainedData, prepareRetainedImport, readRetainedImport } from '.
 import type { RetainedImportState } from './retained-data-service.js';
 import type { CoverageExpansionRequest } from './coverage-queries.js';
 import { presentSavedAssessmentExport, restoreAssessmentProgress } from './saved-assessment-progress.js';
+import { discardCompletedRunWork } from '../infrastructure/projects/compact-project.js';
 
 export interface ProductionHost {
   list(): Promise<(BrowserProfile & { open: boolean; persistenceError: string | null })[]>;
@@ -72,6 +73,7 @@ export function createProductionService(input: {
   withConversationWindow?(profileId: string, work: (window: WebContents) => Promise<void>): Promise<void>;
   withKeywordCommentWindow?(profileId: string, platform: Platform, shouldStop: () => boolean, work: (window: WebContents) => Promise<void>): Promise<void>;
   watchAfterDiscovery?: boolean;
+  compactCompletedRuns?: boolean;
   access?: {
     begin(value: { runId: string; scope: ManagedScope; budgetUsd: number }): Promise<void>;
     reason(): string | null;
@@ -143,6 +145,7 @@ export function createProductionService(input: {
   function presentedRun(): RunState | null {
     if (!run) return null;
     const value = structuredClone(run);
+    if (!active(run) && savedResultsOnly(run)) value.resultsOnly = true;
     if (pipeline && value.opportunity) value.opportunity.modelScheduling = pipeline.progress().modelScheduling;
     if (!existsSync(join(run.outputDirectory, 'opportunity', 'active-evaluation.json'))) return value;
     try {
@@ -170,7 +173,7 @@ export function createProductionService(input: {
         exported.retained_input = (await readRetainedImport({ dataDirectory: input.directory, targetRunId: run.id })).exportMetadata;
       }
       assertActiveExport(outputDirectory, exported);
-      atomicJson(join(outputDirectory, 'opportunity-results.json'), exported);
+      atomicJson(join(outputDirectory, 'opportunity-results.json'), exported, 0);
       return exported;
     });
     exports.set(target, task);
@@ -219,13 +222,28 @@ export function createProductionService(input: {
       if (run.opportunity) { run.opportunity.watchActive = false; run.opportunity.assessmentActive = false; run.opportunity.phase = 'PAUSED'; }
       if (run.retained?.status === 'IMPORTING') run.retained.status = 'PAUSED';
       for (const item of run.platforms) if (item.state === 'RUNNING' || item.state === 'QUEUED') { item.state = 'STOPPED'; item.reason = 'APP_INTERRUPTED'; }
-      rebuildResults(); saveRun();
+      if (!savedResultsOnly(run)) rebuildResults();
+      saveRun();
     }
     restoreAssessmentProgress(run);
   }
   function accountDirectory(current: RunState, item: RunState['platforms'][number]): string {
     return current.collectionLayout === 'PROFILE_QUERY_V2' && item.profileId
       ? join(current.outputDirectory, item.platform, 'profiles', item.profileId) : join(current.outputDirectory, item.platform);
+  }
+  function savedResultsOnly(current: RunState): boolean {
+    return !existsSync(join(current.outputDirectory, 'opportunity', 'store'))
+      && !(current.mode === 'RETAINED' && existsSync(join(current.outputDirectory, 'opportunity', 'retained-import.json')))
+      && !current.platforms.some(item => existsSync(accountDirectory(current, item)));
+  }
+  function exportRows(current: RunState): Record<Platform, Row[]> {
+    const result = join(current.outputDirectory, 'results.json');
+    if (current === run && !active(current) && existsSync(result)) {
+      const saved = JSON.parse(readFileSync(result, 'utf8')) as Partial<Record<Platform, Row[]>>;
+      if (!Array.isArray(saved.facebook) || !Array.isArray(saved.threads)) throw Error('COLLECTION_DATA_INVALID');
+      return { facebook: saved.facebook, threads: saved.threads };
+    }
+    return { facebook: rows('facebook'), threads: rows('threads') };
   }
   function readRows(folder: string): Row[] {
     const json = join(folder, 'posts.json'), jsonl = join(folder, 'posts.jsonl');
@@ -251,7 +269,7 @@ export function createProductionService(input: {
   }
   function projectRows(platform: Platform, values: Row[]): Row[] {
     if (!run || !values.length) return values;
-    const posts = new ProjectPostStore(input.directory);
+    const posts = new ProjectPostStore(input.directory, input.compactCompletedRuns);
     try {
       return values.map(row => {
         const id = typeof row.post_id === 'string' ? row.post_id : '';
@@ -297,7 +315,7 @@ export function createProductionService(input: {
         query: String(row.query || ''), link: String(row.observed_post_url || row.post_url || ''), previouslyCollected: row.previouslyCollected === true,
       });
     }
-    atomicJson(join(run.outputDirectory, 'results.json'), { run: { id: run.id, startedAt: run.startedAt, minimumPosts: run.minimumPosts, keywords: run.keywords }, ...data });
+    atomicJson(join(run.outputDirectory, 'results.json'), { run: { id: run.id, startedAt: run.startedAt, minimumPosts: run.minimumPosts, keywords: run.keywords }, ...data }, 0);
   }
   let accountCache: Account[] = [];
   async function accounts(): Promise<Account[]> {
@@ -555,8 +573,18 @@ export function createProductionService(input: {
       } catch (error) {
         if (run.opportunity) { run.opportunity.watchActive = false; run.opportunity.assessmentActive = false; run.opportunity.lastError = 'WATCH_' + code(error); }
       }
-      try { saveRun(); }
-      finally { try { if (!watching) await closePipeline(); } finally { if (!watching) await input.access?.end(); executing = false; } }
+      let published = false;
+      try { saveRun(); published = true; }
+      finally {
+        try {
+          if (!watching) {
+            await closePipeline();
+            if (published && run.state === 'COMPLETED' && run.compactOnCompletion) {
+              await discardCompletedRunWork(input.directory, run.id, !!run.opportunity).catch(() => console.error('PROJECT_COMPACT_RUN_FAILED'));
+            }
+          }
+        } finally { if (!watching) await input.access?.end(); executing = false; }
+      }
     }
   }
   async function listRetainedSources(): Promise<RetainedSourceCatalog> {
@@ -789,6 +817,7 @@ export function createProductionService(input: {
         await input.access?.begin({ runId: id, scope: modelEnabled ? 'COLLECT_AI' : 'COLLECT', budgetUsd: modelEnabled ? config.opportunity!.budgetUsd : 0 });
         run = { id, collectionLayout: 'PROFILE_QUERY_V2', state: 'RUNNING', startedAt: new Date().toISOString(), finishedAt: null,
           minimumPosts: config.minimumPosts, keywords: config.keywords, outputDirectory: selectedDraft?.outputDirectory ?? join(input.directory, 'collections', id),
+          ...(input.compactCompletedRuns ? { compactOnCompletion: true } : {}),
           platforms: selections.map(item => ({ platform: item.platform as Platform, profileId: item.profileId as string, state: 'QUEUED', count: 0, reason: null })), preview: [] };
         stopped = false; mkdirSync(run.outputDirectory, { recursive: true }); saveRun();
         if (config.opportunity?.enabled) {
@@ -846,6 +875,7 @@ export function createProductionService(input: {
     },
     async resume() {
       if (active(run) || starting || executing) throw Error('COLLECTION_BUSY');
+      if (run && savedResultsOnly(run)) throw Error('RESUME_UNAVAILABLE');
       if (run?.mode === 'RETAINED') return resumeRetained();
       if (!run?.opportunity || !input.collectConversation) throw Error('RESUME_UNAVAILABLE');
       const current = run, file = join(current.outputDirectory, 'opportunity-config.json');
@@ -878,12 +908,12 @@ export function createProductionService(input: {
     results() {
       if (!run || active(run) || starting || executing) throw Error('RESULTS_UNAVAILABLE');
       const opportunity = cachedOpportunity(run);
-      return { run: presentedRun()!, facebook: rows('facebook'), threads: rows('threads'), ...(opportunity ? { opportunity } : {}) };
+      return { run: presentedRun()!, ...exportRows(run), ...(opportunity ? { opportunity } : {}) };
     },
     async snapshotResults() {
       if (!run || starting || (active(run) && !pipeline)) throw Error('RESULTS_UNAVAILABLE');
       const currentRun = structuredClone(run), currentPipeline = pipeline;
-      const raw = { facebook: rows('facebook'), threads: rows('threads') };
+      const raw = exportRows(run);
       if (currentPipeline) {
         const exported = await exportPipeline(currentPipeline, currentRun.outputDirectory);
         currentRun.opportunity = exported.progress;

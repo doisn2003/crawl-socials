@@ -14,7 +14,7 @@ import { createRunAccess } from '../dist/infrastructure/managed/run-access.js';
 import { createRemoteModelGateway } from '../dist/infrastructure/managed/model-gateway.js';
 import { createDurableSpend, REBUILD_MODEL } from '../dist/infrastructure/llm/durable-spend.js';
 import { createPostgresBackup } from '../dist/infrastructure/projects/postgres.js';
-import { snapshotProject } from '../dist/infrastructure/projects/snapshot.js';
+import { snapshotProject, withProjectSnapshot } from '../dist/infrastructure/projects/snapshot.js';
 import { ProjectPostStore } from '../dist/infrastructure/storage/project-post-store.js';
 import { postEvidenceWireSchema, postEvidenceWireSystem } from '../dist/application/opportunity-post-classifier.js';
 import { createProductionService } from '../dist/application/production-service.js';
@@ -262,14 +262,16 @@ try {
   } finally { canonical.close(); }
   const files = await snapshotProject(snapshotDir);
   const fingerprint = digest(JSON.stringify({name:project.name,avatar:null,deletedAt:null,files:files.map(f=>[f.path,f.sha256])}));
-  const upload = {ownerId:a.user.id,deviceId:randomUUID(),project,revision:0,fingerprint,sourceDirectory:temporary,deletedAt:null,files};
-  assert.equal(await backup.upload(upload),1);
-  assert.equal(await backup.upload(upload),1);
-  assert.deepEqual(await backup.files(a.user.id,projectId,1),files);
+  const upload = {ownerId:a.user.id,deviceId:randomUUID(),project,revision:0,fingerprint,sourceDirectory:temporary,deletedAt:null};
+  const uploadFull = (store, input = upload) => withProjectSnapshot(snapshotDir, snapshot => store.upload(input, snapshot), { full: true });
+  const readBackup = (store, owner) => Array.fromAsync(store.files(owner,projectId,1));
+  assert.equal(await uploadFull(backup),1);
+  assert.equal(await uploadFull(backup),1);
+  assert.deepEqual(await readBackup(backup,a.user.id),files);
   const memberships = (await pool.query('SELECT previously_collected FROM csd_backup.project_run_posts WHERE project_id=$1 ORDER BY previously_collected',[projectId])).rows;
   assert.deepEqual(memberships.map(r=>r.previously_collected),[false,true]);
-  await assert.rejects(alternate.files(other.user.id,projectId,1),/PROJECT_NOT_FOUND|PROJECT_DATABASE/);
-  await assert.rejects(alternate.upload({...upload,ownerId:other.user.id}),/PROJECT_BACKUP_READ_ONLY|PROJECT_ACCESS_DENIED/);
+  await assert.rejects(readBackup(alternate,other.user.id),/PROJECT_NOT_FOUND|PROJECT_DATABASE/);
+  await assert.rejects(uploadFull(alternate,{...upload,ownerId:other.user.id}),/PROJECT_BACKUP_READ_ONLY|PROJECT_ACCESS_DENIED/);
   await assert.rejects(a.client.json('/v1/projects/backups',{method:'POST',json:{...upload,files:[{path:'../.env',category:'state',sha256:digest(content),size:content.length}]}}),/PROJECT_BACKUP_PATH_INVALID/);
 
   // Exercise the real remote desktop gateway and its local reservation ledger.
@@ -306,8 +308,8 @@ try {
   await admin('payments/1003/refund',{reason:'Synthetic bank refund record'});
   await admin('payments/1004/refund',{reason:'Synthetic renewal refund record'});
   assert.equal((await getStatus(a.client)).reason,'SUBSCRIPTION_REQUIRED');
-  assert.deepEqual(await backup.files(a.user.id,projectId,1),files);
-  await assert.rejects(backup.upload(upload),/PROJECT_BACKUP_READ_ONLY/);
+  assert.deepEqual(await readBackup(backup,a.user.id),files);
+  await assert.rejects(uploadFull(backup),/PROJECT_BACKUP_READ_ONLY/);
 
   const local = join(temporary,'saved');
   mkdirSync(local);
@@ -328,6 +330,21 @@ try {
 
   oldBackup = createPostgresBackup(isolated.href);
   const legacy = await oldBackup.authenticate({username:'legacy-test',password:'oldpassword'},true);
+  const legacyFolder = join(temporary,'legacy-results');
+  mkdirSync(legacyFolder);
+  writeFileSync(join(legacyFolder,'user-config.json'),'{"keywords":["fixture"]}');
+  const legacyProject = { ...project, id:randomUUID() };
+  await withProjectSnapshot(legacyFolder, async snapshot => {
+    assert.deepEqual(snapshot.files.map(file=>file.path),['user-config.json']);
+    const fingerprint = digest(JSON.stringify({name:legacyProject.name,avatar:null,deletedAt:null,files:snapshot.files.map(f=>[f.path,f.sha256])}));
+    const legacyUpload = { ownerId:legacy.id,deviceId:randomUUID(),project:legacyProject,revision:0,fingerprint,
+      sourceDirectory:legacyFolder,deletedAt:null,resultsOnly:true };
+    assert.equal(await oldBackup.upload(legacyUpload,snapshot),1);
+    assert.equal(await oldBackup.upload(legacyUpload,snapshot),1);
+  });
+  const legacyFiles = await Array.fromAsync(oldBackup.files(legacy.id,legacyProject.id,1));
+  assert.equal(legacyFiles[0].content.toString(),'{"keywords":["fixture"]}');
+  assert.equal((await pool.query('SELECT 1 FROM csd_backup.project_records WHERE project_id=$1',[legacyProject.id])).rowCount,0);
   const legacyClient = await newClient(memory());
   const imported = await legacyClient.login({username:'legacy-test',password:'oldpassword'},false);
   assert.equal(imported.id,legacy.id);

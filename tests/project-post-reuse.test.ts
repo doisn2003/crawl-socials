@@ -9,7 +9,7 @@ import { literalCampaign } from '../src/application/compile-campaign.js';
 import { withFilterPolicy, unassessedGateway } from '../src/application/filter-policy.js';
 import type { ModelGateway } from '../src/application/ports/model-gateway.js';
 import type { FilterMode } from '../src/shared/filter-policy.js';
-import { ProjectPostStore } from '../src/infrastructure/storage/project-post-store.js';
+import { compactProjectPostIndex, ProjectPostStore } from '../src/infrastructure/storage/project-post-store.js';
 import { exportOpportunityWorkbook, selectOpportunityExport } from '../src/infrastructure/export/opportunity-workbook.js';
 import { exportSocialWorkbook } from '../src/infrastructure/export/social-workbook.js';
 
@@ -29,7 +29,7 @@ test('project reuses QUALITY assessment in CONSISTENT with durable run flags and
   const create = (id: string, mode: FilterMode) => {
     const campaign = campaigns.get(id) ?? withFilterPolicy(literalCampaign({ campaign_id: id, prompt: 'Tìm người muốn học piano', seed_queries: ['học piano'], suitable_target: 1, raw_cap: 10 }), mode);
     campaigns.set(id, campaign);
-    return createOpportunityPipeline({ projectDirectory, directory: join(projectDirectory, 'collections', id), runId: id, campaign, gateway,
+    return createOpportunityPipeline({ projectDirectory, compactProjectIndex: id !== 'first', directory: join(projectDirectory, 'collections', id), runId: id, campaign, gateway,
       excludedRootKeys: ['facebook:post-a'], platforms: ['facebook'], collectConversation: async () => {},
       config: { enabled: true, prompt: campaign.prompt, brandContext: '', filterMode: mode, totalTarget: 1, rawCap: 10, budgetUsd: 3, commentsEnabled: false } });
   };
@@ -42,6 +42,7 @@ test('project reuses QUALITY assessment in CONSISTENT with durable run flags and
     assert.equal(first.progress.targetCount, 1); assert.ok(calls > 0);
     assert.equal(first.snapshots[0]!.previouslyCollected, false);
     await pipeline.close(); pipeline = null;
+    compactProjectPostIndex(join(projectDirectory, 'project-posts.sqlite'));
     const firstCalls = calls;
     pipeline = await create('second', 'CONSISTENT');
     await pipeline.ingestRows('facebook', [row, row], {}); await pipeline.drain();

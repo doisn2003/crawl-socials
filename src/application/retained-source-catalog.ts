@@ -35,7 +35,18 @@ export async function listRetainedSources(dataDirectory: string): Promise<Retain
             if (info.isFile() && info.size) { bytes += info.size; updatedAt = [updatedAt, info.mtime.toISOString()].sort().at(-1)!; }
           } catch (legacyError) { if ((legacyError as NodeJS.ErrnoException).code !== 'ENOENT') throw legacyError; }
         }
-        if (!bytes) continue;
+        if (!bytes) {
+          try {
+            const saved = await realpath(join(directory, 'results.json'));
+            if (!isInside(directory, saved)) continue;
+            const info = await stat(saved);
+            if (!info.isFile() || !info.size) continue;
+            format = 'SAVED_RESULTS_JSON'; bytes = info.size; updatedAt = info.mtime.toISOString();
+          } catch (savedError) {
+            if ((savedError as NodeJS.ErrnoException).code === 'ENOENT') continue;
+            throw savedError;
+          }
+        }
       }
       let prompt = '';
       try {

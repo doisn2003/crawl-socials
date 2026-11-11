@@ -38,7 +38,11 @@ Machine login cookies, browser sessions, API keys, PostgreSQL credentials, encry
 
 ## Synchronization and recovery
 
-Normal synchronization uploads changed project data. Hash comparison avoids resending unchanged recovery files. Local writes remain available when PostgreSQL is unavailable, and the next synchronization recomputes the pending changes. SQLite's online backup API captures committed WAL content. A changing ordinary file causes that attempt to retry later. Per-project remote transactions publish metadata, files and relational projections together.
+New backups contain project configuration, saved prompts and presets, run metadata, and JSON results. Hash comparison avoids resending unchanged files. Direct PostgreSQL uploads use a worker and bounded batches. A changing file causes the attempt to retry later. Projects restored from JSON can show and export the saved results. A local checkpoint supports Resume for incomplete runs.
+
+Newly completed collection runs keep the result JSON and release their generated working stores after closing the writers. Saved post rows can be filtered again from JSON. Local identity and delivery indexes keep previous-collection flags, assessment provenance and export history. Older full backups remain readable, including SQLite snapshots and their committed WAL state.
+
+An existing project whose latest run is complete can be compacted while FindLink is closed. Run `node scripts/compact-project-data.mjs <absolute-project-data-directory>` after building. The migration verifies the result files before switching the active directory and preserves the original directory as a recovery checkpoint.
 
 Each remote update compares the last observed revision while holding a project advisory lock. An outdated device with divergent changes receives `PROJECT_BACKUP_CONFLICT`, preserving its local files. Explicit pull and account login restore only projects whose local content still matches the last synchronized snapshot. Remote reads verify the expected revision inside a repeatable-read transaction.
 

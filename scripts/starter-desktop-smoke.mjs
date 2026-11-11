@@ -25,8 +25,8 @@ if (!process.versions.electron) {
   const runId = 'crawl-' + randomUUID(), profileId = 'csd-' + randomUUID();
   const outputDirectory = join(local,'collections',runId);
   const now = new Date().toISOString();
-  mkdirSync(join(outputDirectory,'facebook'),{recursive:true});
-  writeFileSync(join(outputDirectory,'facebook','posts.json'),JSON.stringify([{post_id:'fixture-post',text:'Bài đã lưu để kiểm tra export.'}]));
+  mkdirSync(outputDirectory,{recursive:true});
+  writeFileSync(join(outputDirectory,'results.json'),JSON.stringify({facebook:[{post_id:'fixture-post',text:'Bài đã lưu để kiểm tra export.'}],threads:[]}));
   writeFileSync(join(local,'latest-run.json'),JSON.stringify({ id:runId,state:'STOPPED',startedAt:now,finishedAt:now,minimumPosts:1,
     keywords:['cà phê'],outputDirectory,platforms:[{platform:'facebook',profileId,state:'STOPPED',count:1,reason:'USER_STOP'}],preview:[] }));
   const config = JSON.parse(readFileSync(resolve(dirname(entry),'../managed-release.json'),'utf8'));
@@ -84,6 +84,7 @@ if (!process.versions.electron) {
         assert.equal(app.getName(),'FindLink Starter QA');
         assert.equal(app.getPath('userData'),qaRoot);
         assert.equal(initial.run.id,runId);
+        assert.equal(initial.run.resultsOnly,true);
         assert.equal((await run('window.csd.managed.status()')).state,'GUEST');
         assert.match(await run("window.csd.prepareCampaign().then(()=>'',e=>String(e.message))"),/AUTH_REQUIRED/);
         assert.match(await run("window.csd.geminiKey.save({key:'fixture-no-provider-key'}).then(()=>'',e=>String(e.message))"),/MODEL_NOT_AUTHORIZED/);
