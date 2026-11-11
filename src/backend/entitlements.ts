@@ -1,6 +1,6 @@
 import { randomUUID, sign } from 'node:crypto';
 import type { Pool } from 'pg';
-import type { ManagedLease, ManagedScope, ManagedStatus, SignedLease } from '../shared/managed.js';
+import { TRIAL_OFFER, type ManagedLease, type ManagedScope, type ManagedStatus, type SignedLease } from '../shared/managed.js';
 import type { Principal } from './auth.js';
 import type { BackendConfig } from './config.js';
 import { ApiError, audit, bad, hex, lockAccount, micros, policy, record, runId, tag, TRIAL_CREDITS, TRIAL_RAW_LIMIT, uuid } from './core.js';
@@ -115,7 +115,7 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
         THEN amount ELSE spent+held END),0)::text AS amount FROM findlink_control.grants WHERE kind='TRIAL'`, [current.now])).rows[0];
       if (limits.total >= rules.max_trial_subjects || limits.today >= rules.trial_subjects_per_day ||
         BigInt(obligations.amount) + TRIAL_CREDITS > BigInt(rules.trial_grant_cap)) throw new ApiError(503, 'TRIAL_FUNDING_PAUSED');
-      const subject = randomUUID(), until = new Date(+current.now + 14 * 86_400_000);
+      const subject = randomUUID(), until = new Date(+current.now + TRIAL_OFFER.days * 86_400_000);
       await db.query(`INSERT INTO findlink_control.trial_subjects(id,account_id,email_tag,device_tag,started_at,expires_at,reviewed)
         VALUES($1,$2,$3,$4,$5,$6,$7)`, [subject, actor.accountId, emailTag, actor.deviceTag, current.now, until, approved]);
       await grantCredits(db, { accountId: actor.accountId, kind: 'TRIAL', origin: 'trial:' + subject, from: current.now, until, amount: TRIAL_CREDITS });

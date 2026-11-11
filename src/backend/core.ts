@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { Pool } from 'pg';
+import { STARTER_OFFER, TRIAL_OFFER } from '../shared/managed.js';
 import type { Transaction } from './database.js';
 
 export class ApiError extends Error {
@@ -47,9 +48,9 @@ export function micros(value: unknown, maximum = 10_000_000_000_000_000n) {
   return BigInt(value);
 }
 export const microsForUsd = (value: number) => BigInt(Math.ceil(value * 1_000_000_000));
-export const TRIAL_CREDITS = 100_000_000n;
-export const STARTER_CREDITS = 50_000_000_000n;
-export const TRIAL_RAW_LIMIT = 1000;
+export const TRIAL_CREDITS = BigInt(TRIAL_OFFER.credits) * 1_000_000n;
+export const STARTER_CREDITS = BigInt(STARTER_OFFER.credits) * 1_000_000n;
+export const TRIAL_RAW_LIMIT = TRIAL_OFFER.rawLimit;
 
 export async function rateLimit(pool: Pool, key: string, max: number, seconds: number) {
   const { rows } = await pool.query(`INSERT INTO findlink_control.rate_buckets(bucket,hits,expires_at)

@@ -21,6 +21,7 @@
     "backend:migrate": "node dist/backend/index.js --migrate",
     "backend:start": "node dist/backend/index.js",
     "backend:test": "node scripts/starter-integration.mjs",
+    "starter:preview": "npm run build && node scripts/starter-preview.mjs",
     "dist:starter": "node scripts/package-starter.mjs",
     "pack:starter:qa": "node scripts/package-starter.mjs --qa --dir",
     "dist:starter:qa": "node scripts/package-starter.mjs --qa",

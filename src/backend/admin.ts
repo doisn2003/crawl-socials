@@ -1,5 +1,6 @@
 import { createHmac, randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
+import { STARTER_OFFER, TRIAL_OFFER } from '../shared/managed.js';
 import type { BackendConfig } from './config.js';
 import { ApiError, audit, bad, email, hash, hex, integer, lockAccount, micros, policy, rateLimit, record, safeEqual, string, token, uuid } from './core.js';
 import { transaction } from './database.js';
@@ -198,15 +199,26 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
   async function overview() {
     const queries = [
       ['policy','SELECT * FROM findlink_control.policy'],
-      ['accounts',`SELECT a.id,u.username,a.email_verified_at,a.suspended,a.created_at,
-        (SELECT max(ends_at) FROM findlink_control.subscriptions WHERE account_id=a.id AND revoked_at IS NULL) AS paid_until,
-        (SELECT expires_at FROM findlink_control.trial_subjects WHERE account_id=a.id) AS trial_until,
-        (SELECT coalesce(sum(amount-spent-held),0)::text FROM findlink_control.grants WHERE account_id=a.id
-          AND revoked_at IS NULL AND starts_at<=now() AND ends_at>now()) AS available
-        FROM findlink_control.accounts a JOIN csd_backup.users u ON u.id=a.id ORDER BY a.created_at DESC LIMIT 100`],
+      ['tariff',`SELECT t.id,t.model,t.price FROM findlink_control.policy p JOIN findlink_control.tariff_versions t ON t.id=p.route_id WHERE p.id=true`],
+      ['accounts',`SELECT u.username,a.id,
+        CASE WHEN paid.active_until IS NOT NULL THEN 'STARTER' WHEN paid.had_paid OR t.id IS NULL THEN 'INACTIVE' ELSE 'TRIAL' END AS plan,
+        CASE WHEN paid.had_paid AND paid.active_until IS NULL THEN '0' ELSE wallet.available END AS available,
+        paid.active_until AS paid_until,t.expires_at AS trial_until,a.suspended,a.email_verified_at
+        FROM findlink_control.accounts a JOIN csd_backup.users u ON u.id=a.id
+        LEFT JOIN findlink_control.trial_subjects t ON t.account_id=a.id
+        CROSS JOIN LATERAL (SELECT count(*)>0 AS had_paid,max(ends_at) FILTER(WHERE revoked_at IS NULL AND starts_at<=now() AND ends_at>now()) AS active_until
+          FROM findlink_control.subscriptions WHERE account_id=a.id) paid
+        CROSS JOIN LATERAL (SELECT coalesce(sum(amount-spent-held),0)::text AS available FROM findlink_control.grants WHERE account_id=a.id
+          AND revoked_at IS NULL AND starts_at<=now() AND ends_at>now() AND (kind='TRIAL')=(paid.active_until IS NULL)) wallet
+        ORDER BY a.created_at DESC LIMIT 100`],
       ['devices','SELECT id,account_id,seen_at,revoked_at FROM findlink_control.devices ORDER BY seen_at DESC LIMIT 100'],
       ['reviews','SELECT id,account_id,reason,created_at FROM findlink_control.trial_reviews WHERE resolved_at IS NULL ORDER BY created_at LIMIT 100'],
       ['payments',`SELECT provider_id,order_id,amount_vnd,state,reason,created_at FROM findlink_control.payments ORDER BY created_at DESC LIMIT 100`],
+      ['orders',`SELECT u.username,o.code,o.kind,o.amount_vnd,o.credits,
+        CASE WHEN EXISTS (SELECT 1 FROM findlink_control.payments p WHERE p.order_id=o.id AND p.state='REFUNDED') THEN 'REFUNDED'
+          WHEN o.paid_at IS NOT NULL THEN 'APPLIED' WHEN o.expires_at<=now() THEN 'EXPIRED' ELSE 'PENDING' END AS state,
+        s.starts_at,s.ends_at,o.id AS order_id FROM findlink_control.orders o JOIN csd_backup.users u ON u.id=o.account_id
+        LEFT JOIN findlink_control.subscriptions s ON s.order_id=o.id ORDER BY o.created_at DESC LIMIT 100`],
       ['costs',`SELECT funding,count(*)::int AS attempts,coalesce(sum(cost),0)::text AS measured,
         coalesce(sum(bound) FILTER(WHERE cost IS NULL),0)::text AS held FROM findlink_control.ai_operations GROUP BY funding`],
       ['unknown',`SELECT account_id,id,run_id,bound,funding,error,started_at FROM findlink_control.ai_operations
@@ -214,7 +226,8 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
       ['audit','SELECT actor,action,target,details,at FROM findlink_control.audit ORDER BY id DESC LIMIT 100'],
     ] as const;
     const result = await Promise.all(queries.map(async ([key, sql]) => [key, (await pool.query(sql)).rows] as const));
-    return Object.fromEntries(result);
+    return { ...Object.fromEntries(result), setup: { geminiConfigured: !!config.geminiKey, sepayConfigured: !!config.sepay,
+      starter: STARTER_OFFER, trial: TRIAL_OFFER } };
   }
 
   return { login, authorize, invite, savePolicy, saveTariff, review, accountAction, creditAction, overview,

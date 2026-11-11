@@ -1,6 +1,6 @@
 # FindLink — kế hoạch phân phối và quản lý thuê bao lần đầu
 
-Nghiên cứu ngày 10/11/2026, múi giờ Asia/Bangkok. Nhánh `findlink-publish-1st` được tạo từ `bac9399` trước khi nghiên cứu. Backend và Starter MVP đã được triển khai trên nhánh này. Xem kết quả kiểm thử và điều kiện mở bán ở mục 12.
+Nghiên cứu ngày 10/11/2026, múi giờ Asia/Bangkok. Nhánh `findlink-publish-1st` được tạo từ `bac9399` trước khi nghiên cứu. Backend và Starter MVP chạy được trong môi trường thử. Xem cách mở bản thử và các điều kiện mở bán ở mục 12.
 
 Cập nhật 11/11/2026 theo yêu cầu người dùng: hết trial phải khóa cả thu thập và lọc, vẫn xem/export dữ liệu cũ; bổ sung chống tạo nhiều tài khoản lấy credits tài trợ. Luồng cấp trial ở mục 5 thay thế đề xuất tự cấp 20 credits cho guest và 100 credits chỉ sau xác minh tài khoản trước đây.
 
@@ -379,9 +379,16 @@ Kiểm thử bắt buộc bằng mocks/local trước release:
 
 ## 12. Kết quả triển khai Starter MVP
 
-- Backend quản lý tài khoản và thiết bị, cấp mã mời, xét duyệt trial, cấp quyền chạy có thời hạn, quản lý sổ credits và gọi Gemini với bảng giá theo phiên bản. Trial được cấp một lần theo mã mời đã duyệt, tối đa 100 credits, 14 ngày và 1.000 bài gốc. Khi hết quyền, ứng dụng khóa thu thập và lọc, kể cả OFF và Resume. Dữ liệu đã lưu vẫn xem và xuất được trên máy.
-- Starter có giá 23.000.000 VND/năm và 50.000 credits. Webhook SePay xác thực và đối soát giao dịch trước khi cấp quyền, xử lý gia hạn và đưa giao dịch ngoại lệ vào quản trị. Sao lưu/khôi phục qua HTTPS giữ ID tài khoản và dữ liệu dự án hiện có.
-- Migration `findlink_control` phiên bản 1 đã áp dụng vào PostgreSQL cấu hình trong `.env`. Đã xác nhận các bảng và migration baseline `csd_backup` được giữ. Chính sách mới khởi đầu với AI, chạy trial và cấp trial ở trạng thái tạm dừng.
-- Đã qua 1.121 bài hồi quy, kiểm thử tích hợp PostgreSQL cách ly với mock Gemini/SePay, và cài/gỡ NSIS QA trên Windows. Bài tích hợp bao gồm cấp trial đồng thời, khóa quyền, đối soát credits, nâng cấp/gia hạn, sao lưu và đọc dữ liệu đã lưu. Kiểm thử Electron từ bản đã cài xác nhận khóa Start/Resume và export khi mất kết nối. Không phát sinh chi phí AI hoặc giao dịch thật.
+Chạy `npm run starter:preview` trên Windows để mở **FindLink Starter — Bản thử** và **Quản trị FindLink Starter — Bản thử**. Bản thử dùng PostgreSQL riêng, tự kích hoạt tài khoản mẫu có 100 credits và mô phỏng Gemini/SePay. Bộ cài Starter QA mặc định cần backend ở `127.0.0.1:9070`. `npm start` mở bản nội bộ. [Các thao tác để tự kiểm tra](../README.md#mở-thử-starter-trên-máy-này)
 
-Bản NSIS 0.5.0 hiện dùng cho QA. Để mở bán, cần đưa backend và feed cập nhật lên HTTPS, cấu hình Gemini và tài khoản nhận SePay, đặt hạn mức vận hành, kiểm chứng webhook bằng SePay Test Mode và thử cài mới/nâng cấp với installer có chữ ký Windows. Đăng ký public 20 + 80, DeepSeek, Agency và Scale thuộc các chặng sau Starter MVP. [Hướng dẫn triển khai](../deploy/README.md)
+| Phần của kế hoạch | Chức năng đã có |
+|---|---|
+| Quản lý từ xa | Tài khoản, mã mời, thiết bị, quyền chạy ngắn hạn và công tắc ngừng AI/trial. Trang quản trị xem được tài khoản, số dư, đơn và hạn gói. |
+| Credits và AI | Backend giữ khóa Gemini 3.1 Flash-Lite. Ví giữ và trừ credits theo usage, tỷ lệ 1 USD = 1.000 credits. Admin quản lý biểu giá theo phiên bản, quỹ AI và khoản chờ đối soát. |
+| Trial | Mã mời theo email và dùng một lần, xét duyệt thiết bị dùng lại, cap tổng. Tối đa 100 credits, 14 ngày, 1.000 bài gốc. Hết quyền khóa thu thập, lọc và Resume. Vẫn xem và export kết quả cũ. |
+| Starter | Giá cố định 23.000.000 ₫/năm và 50.000 credits. Webhook SePay xác thực trước khi cấp gói. Hỗ trợ gia hạn, nạp thêm theo giá cấu hình, đối soát và ghi nhận hoàn tiền. |
+| Sao lưu và đóng gói | Migration `findlink_control` phiên bản 1 đã áp dụng lên database trong `.env`. Backup mới gửi cấu hình, prompt, preset và JSON kết quả. Có bộ cài QA và quy trình build Windows có chữ ký. |
+
+Kiểm thử giao diện bản thử đi qua kích hoạt 100 credits, gọi AI mô phỏng và thấy debit, tạo đơn SePay mô phỏng rồi nhận 50.000 credits. Trang quản trị hiện giao dịch đã xác nhận. PostgreSQL thật hiện có schema, còn AI và trial ở trạng thái tạm dừng cho đến khi thiết lập ngân sách vận hành.
+
+Để mở bán cần đưa backend và feed cập nhật lên HTTPS, cấu hình khóa Gemini và tài khoản SePay, chạy SePay Test Mode với cấu hình đó rồi ký và thử nâng cấp bộ cài Windows. Đăng ký public 20 + 80, DeepSeek, Agency và Scale thuộc chặng sau. [Hướng dẫn quản trị và triển khai](../deploy/README.md)

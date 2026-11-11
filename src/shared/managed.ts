@@ -1,5 +1,8 @@
 import type { ModelPrice } from '../application/ports/model-gateway.js';
 
+export const STARTER_OFFER = { priceVnd: 23_000_000, credits: 50_000 } as const;
+export const TRIAL_OFFER = { credits: 100, days: 14, rawLimit: 1000 } as const;
+
 export type ManagedScope = 'PLAN' | 'COLLECT' | 'COLLECT_AI' | 'ASSESS';
 
 export interface ManagedLease {
@@ -28,6 +31,7 @@ export interface ManagedStatus {
   rawRemaining: number | null;
   verified: boolean;
   updateReady?: boolean;
+  preview?: true;
   topupPriceVnd?: number;
 }
 export interface StarterOrder {

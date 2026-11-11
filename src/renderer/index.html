@@ -102,7 +102,7 @@
     <header class="topbar">
       <div class="brand">
         <img class="brand-mark" src="./findlink-mark.png" width="48" height="48" alt="">
-        <span class="brand-name">FindLink<span class="brand-subtitle">TRỢ LÝ THU THẬP DỮ LIỆU MẠNG XÃ HỘI</span></span>
+        <span class="brand-name"><span id="brand-product">FindLink</span><span class="brand-subtitle">TRỢ LÝ THU THẬP DỮ LIỆU MẠNG XÃ HỘI</span></span>
       </div>
       <div class="header-meta">
         <span class="local-label"><span class="status-dot"></span> ĐANG HOẠT ĐỘNG</span>
@@ -111,6 +111,24 @@
     </header>
 
     <main>
+      <section id="managed-starter" class="project-account starter-access" aria-labelledby="managed-plan" hidden>
+        <div>
+          <strong id="managed-plan">FindLink Starter</strong>
+          <p id="managed-balance" class="starter-balance" hidden></p>
+          <p id="managed-status" class="helper" role="status"></p>
+          <p id="managed-terms" class="helper"></p>
+        </div>
+        <div class="project-actions">
+          <button id="managed-sign-in" class="primary-button" type="button" hidden>Đăng nhập hoặc nhập mã mời</button>
+          <button id="managed-refresh" class="secondary-button" type="button" hidden>Kiểm tra kết nối</button>
+          <button id="managed-demo" class="text-button" type="button" hidden>Xem mẫu</button>
+          <button id="managed-trial" class="secondary-button" type="button" hidden>Kích hoạt dùng thử</button>
+          <button id="managed-order" class="primary-button" type="button" hidden>Mua Starter</button>
+          <button id="managed-topup" class="secondary-button" type="button" hidden>Nạp credits</button>
+          <button id="managed-wallet" class="text-button" type="button" hidden>Lịch sử credits</button>
+          <button id="managed-update" class="secondary-button" type="button" hidden>Cài cập nhật</button>
+        </div>
+      </section>
       <section class="intro" aria-labelledby="page-title">
         <div class="intro-main project-manager">
           <div class="project-heading">
@@ -128,17 +146,6 @@
             </div>
           </div>
           <p id="project-message" class="helper" role="status" aria-live="polite" hidden></p>
-          <div id="managed-starter" class="project-account" hidden>
-            <div><strong id="managed-plan">FindLink Starter</strong><p id="managed-status" class="helper" role="status"></p></div>
-            <div class="project-actions">
-              <button id="managed-demo" class="text-button" type="button" hidden>Xem mẫu</button>
-              <button id="managed-trial" class="secondary-button" type="button" hidden>Kích hoạt trial</button>
-              <button id="managed-order" class="primary-button" type="button" hidden>Mua Starter</button>
-              <button id="managed-topup" class="secondary-button" type="button" hidden>Nạp credits</button>
-              <button id="managed-wallet" class="text-button" type="button" hidden>Lịch sử credits</button>
-              <button id="managed-update" class="secondary-button" type="button" hidden>Cài cập nhật</button>
-            </div>
-          </div>
         </div>
       </section>
 

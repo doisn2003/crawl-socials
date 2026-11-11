@@ -100,3 +100,7 @@
   .filter-labels { gap: 2px; font-size: 11px; }
 }
 .wallet-entries { max-height: 45vh; overflow-y: auto; padding-inline-start: 24px; }
+.starter-access { margin: 0 0 20px; padding: 16px 20px; border: 1px solid #d9cbed; border-radius: 14px; background: #f7f1fc; }
+.starter-access .helper { margin: 4px 0 0; }
+.starter-balance { margin: 3px 0 0; font-size: 1.45rem; font-weight: 700; color: #47216e; }
+.starter-access .helper:empty { display: none; }

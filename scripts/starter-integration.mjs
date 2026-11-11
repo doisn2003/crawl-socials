@@ -20,6 +20,7 @@ import { postEvidenceWireSchema, postEvidenceWireSystem } from '../dist/applicat
 import { createProductionService } from '../dist/application/production-service.js';
 import { compileSemanticTurn } from '../dist/application/semantic-campaign.js';
 import { OPPORTUNITY_PLANNER_POLICY } from '../dist/domain/discovery-contract.js';
+import { starterGeminiFixture } from './fixtures/starter-gemini.mjs';
 
 const envPath = process.argv.find(arg => arg.startsWith('--env='))?.slice(6);
 if (envPath) process.loadEnvFile(envPath);
@@ -46,24 +47,10 @@ const fake = {
 };
 
 async function mockProvider(url, request) {
-  assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent');
   assert.equal(request.headers['x-goog-api-key'], fake.geminiKey);
   providerCalls++;
   if (failTransport) throw Error('simulated transport loss');
-  const input = JSON.parse(JSON.parse(request.body).contents[0].parts[0].text);
-  let value = [{i:0,e0:0,ev:[]}];
-  if (Array.isArray(input.ORIGINAL_FACETS)) {
-    const facets = input.ORIGINAL_FACETS, search = facets.filter(f => f.kind === 'SEARCH');
-    value = { state:'READY',intent_revision:input.revision,understanding:'Tìm bài đúng ý gốc',target_roles:[],constraints:[],
-      intent:input.INTENT_FIELD_CATALOG.map(field=>({field,value:'Chưa đặt giới hạn',status:'UNSPECIFIED',evidence:[]})),
-      branches:search.map((f,i)=>({id:'b'+i,label:f.quote,anchor:f.literal_query??'chủ đề',source:f.source,quote:f.quote,scope:'CORE',reason:'Ý gốc',facet_ids:[f.id]})),
-      queries:search.map((f,i)=>({text:f.literal_query??'chủ đề',branch_id:'b'+i,kind:'EXACT',anchor:f.literal_query??'chủ đề',family_id:'TOPIC',facet_ids:[f.id],rationale:'Ý gốc',risk:'LOW'})),
-      coverage:facets.map(f=>({facet_id:f.id,disposition:f.kind,branch_ids:f.kind==='SEARCH'?['b'+search.indexOf(f)]:[],reason:'Giữ ý gốc',superseded_by:null})),
-      questions:[],unresolved_fields:[],unconfirmed_assumptions:[],caveats:[],improvements:[] };
-  }
-  return Response.json({ modelVersion: 'fixture-3.1',
-    candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(value) }] } }],
-    usageMetadata: { promptTokenCount: 900, candidatesTokenCount: 100, cachedContentTokenCount: 100, thoughtsTokenCount: 8 } });
+  return starterGeminiFixture(url, request);
 }
 
 const memory = () => {

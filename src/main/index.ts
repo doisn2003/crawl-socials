@@ -40,7 +40,10 @@ async function bootstrap() {
   const commercialRelease = existsSync(releaseFile) ? JSON.parse(readFileSync(releaseFile, 'utf8')) as ManagedRelease : null;
   const packageInfo = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as { findlinkManaged?: boolean };
   if (packageInfo.findlinkManaged && (!commercialRelease || (!commercialRelease.testOnly && (!commercialRelease.leasePublicKey || !commercialRelease.updateUrl)))) throw Error('MANAGED_RELEASE_INVALID');
-  const qa = commercialRelease?.testOnly === true;
+  const developerOrigin = app.isPackaged ? undefined : process.env.FINDLINK_DEV_BACKEND_URL;
+  const localPreview = process.env.FINDLINK_LOCAL_PREVIEW === '1' && !!developerOrigin
+    && /^http:\/\/127\.0\.0\.1:\d+$/.test(developerOrigin);
+  const qa = commercialRelease?.testOnly === true || localPreview;
   const appData = app.getPath('appData');
   const paths = runtimePaths(qa ? join(appData, 'FindLink Starter QA') : appData);
   for (const [name, directory] of Object.entries(paths)) {
@@ -55,7 +58,6 @@ async function bootstrap() {
   let window: BrowserWindow | null = null;
   app.on('second-instance', () => { window?.restore(); window?.show(); window?.focus(); });
   await app.whenReady(); nativeTheme.themeSource = 'light';
-  const developerOrigin = app.isPackaged ? undefined : process.env.FINDLINK_DEV_BACKEND_URL;
   const release = commercialRelease ?? (developerOrigin ? { origin: developerOrigin } : null);
   const secrets = createElectronSecretStore(join(paths.userData, 'secrets'));
   const managed = release ? await createManagedClient({ release, secrets, development: !commercialRelease || commercialRelease.testOnly === true }) : null;
@@ -197,13 +199,14 @@ async function bootstrap() {
     current.webRequest.onBeforeRequest((details, callback) => callback({ cancel: !['file:', 'about:', 'data:'].includes(new URL(details.url).protocol) }));
   }
   const uiFile = fileURLToPath(new URL('../renderer/index.html', import.meta.url)), uiUrl = pathToFileURL(uiFile).href;
-  window = new BrowserWindow({ title: 'FindLink', width: 1240, height: 940, minWidth: 780, minHeight: 650,
+  window = new BrowserWindow({ title: qa ? 'FindLink Starter — Bản thử' : managed ? 'FindLink Starter' : 'FindLink', width: 1240, height: 940, minWidth: 780, minHeight: 650,
     icon: fileURLToPath(new URL('../renderer/findlink-mark.png', import.meta.url)),
     show: false, backgroundColor: '#ffffff', autoHideMenuBar: true,
     webPreferences: { preload: fileURLToPath(new URL('../preload/index.cjs', import.meta.url)), session: uiSession,
       nodeIntegration: false, contextIsolation: true, sandbox: true, webviewTag: false } });
   const mainWindow = window;
   mainWindow.removeMenu();
+  if (managed) mainWindow.on('page-title-updated', event => event.preventDefault());
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.on('closed', () => { window = null; app.quit(); });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -217,12 +220,15 @@ async function bootstrap() {
   const managedClient = () => { if (!managed) throw Error('MANAGED_SERVICE_UNAVAILABLE'); return managed; };
   const managedStatus = async (): Promise<ManagedStatus | null> => {
     if (!managed) return null;
-    const updateReady = updates?.ready() ?? false;
-    if (!managed.identity()) return { ...guestStatus(), updateReady };
-    try { return { ...await managed.json<ManagedStatus>('/v1/me/entitlements'), updateReady }; }
+    const flags = { updateReady: updates?.ready() ?? false, ...(qa ? { preview: true as const } : {}) };
+    try {
+      if (managed.identity()) return { ...await managed.json<ManagedStatus>('/v1/me/entitlements'), ...flags };
+      await managed.json('/v1/config', { timeout: 2500 }, false);
+      return { ...guestStatus(), ...flags };
+    }
     catch (error) {
-      if (error instanceof ManagedHttpError && error.status === 401) return { ...guestStatus(), updateReady };
-      return { ...guestStatus('ENTITLEMENT_UNAVAILABLE', 'UNAVAILABLE'), updateReady };
+      if (error instanceof ManagedHttpError && error.status === 401) return { ...guestStatus(), ...flags };
+      return { ...guestStatus('ENTITLEMENT_UNAVAILABLE', 'UNAVAILABLE'), ...flags };
     }
   };
   async function modelCommand<T>(work: () => Promise<T>): Promise<T> {

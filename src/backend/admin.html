@@ -9,7 +9,7 @@
 </head>
 <body>
 <main>
-  <h1>Quản trị FindLink</h1>
+  <h1>Quản trị FindLink Starter</h1>
   <p id="message" role="status" aria-live="polite"></p>
   <form id="login">
     <h2>Đăng nhập vận hành</h2>
@@ -18,13 +18,27 @@
     <button>Đăng nhập</button>
   </form>
   <div id="console" hidden>
-    <div class="actions"><button id="refresh">Làm mới</button><button id="logout">Đăng xuất</button></div>
+    <section class="summary" aria-label="Tình trạng dịch vụ">
+      <div><h2>Gói Starter</h2><p id="starter-offer"></p></div>
+      <div><h2>Dùng thử</h2><p id="trial-offer"></p></div>
+      <div><h2>API và thanh toán</h2><p id="service-setup"></p></div>
+    </section>
+    <nav class="actions" aria-label="Đi đến mục quản trị">
+      <a href="#accounts-list">Tài khoản và số dư</a><a href="#orders-list">Đơn hàng và hạn gói</a>
+      <a href="#invite">Cấp mã mời</a><a href="#policy">Ngân sách</a><a href="#tariff">Biểu giá AI</a>
+      <button id="refresh">Làm mới</button><button id="logout">Đăng xuất</button>
+    </nav>
+    <datalist id="account-options"></datalist>
+    <datalist id="device-options"></datalist>
+    <datalist id="order-options"></datalist>
+    <datalist id="payment-options"></datalist>
+    <div id="overview"></div>
     <div class="grid">
       <form id="invite">
         <h2>Mã mời</h2>
         <label>Email người nhận<input name="email" type="email" required></label>
-        <label>Quyền<select name="purpose"><option value="TRIAL">Tài khoản và dùng thử</option><option value="ACCOUNT">Tài khoản Starter</option><option value="RECOVERY">Đặt lại mật khẩu</option></select></label>
-        <label>ID tài khoản hiện có<input name="accountId" autocomplete="off"></label>
+        <label>Quyền<select name="purpose"><option value="TRIAL">Tài khoản và dùng thử</option><option value="ACCOUNT">Tài khoản có thể mua Starter</option><option value="RECOVERY">Đặt lại mật khẩu</option></select></label>
+        <label>Tài khoản hiện có<input name="accountId" list="account-options" autocomplete="off"></label>
         <label>Hiệu lực (giờ)<input name="hours" type="number" min="1" max="168" value="48" required></label>
         <button>Tạo mã mời</button>
         <output id="invite-code"></output>
@@ -46,9 +60,9 @@
       </form>
       <form id="account">
         <h2>Tài khoản và thiết bị</h2>
-        <label>ID tài khoản<input name="accountId" required></label>
+        <label>Tài khoản<input name="accountId" list="account-options" required></label>
         <label>Thao tác<select name="action"><option value="suspend">Tạm ngừng quyền chạy</option><option value="restore">Khôi phục quyền chạy</option><option value="revoke-device">Thu hồi thiết bị</option><option value="move-trial">Chuyển thiết bị dùng thử</option><option value="revoke-trial">Thu hồi trial</option></select></label>
-        <label>ID thiết bị<input name="deviceId"></label>
+        <label>Thiết bị<input name="deviceId" list="device-options"></label>
         <label>Lý do<input name="reason" minlength="4" maxlength="1000" required></label>
         <button>Cập nhật quyền</button>
       </form>
@@ -61,15 +75,15 @@
       </form>
       <form id="payment">
         <h2>Đối soát SePay</h2>
-        <label>ID giao dịch SePay<input name="id" pattern="[0-9]+" required></label>
+        <label>Giao dịch SePay<input name="id" list="payment-options" pattern="[0-9]+" required></label>
         <label>Thao tác<select name="action"><option value="reconcile">Áp giao dịch đã đối soát</option><option value="refund">Ghi nhận tiền đã hoàn</option></select></label>
-        <label>ID đơn hàng<input name="orderId"></label>
+        <label>Đơn hàng<input name="orderId" list="order-options"></label>
         <label>Lý do và tham chiếu đối soát<input name="reason" minlength="4" maxlength="1000" required></label>
         <button>Ghi nhận</button>
       </form>
       <form id="ai">
         <h2>Đối soát phí AI</h2>
-        <label>ID tài khoản<input name="accountId" required></label>
+        <label>Tài khoản<input name="accountId" list="account-options" required></label>
         <label>ID yêu cầu<input name="id" required></label>
         <label>Chi phí đã xác nhận (USD)<input name="cost" type="number" min="0" step="0.000000001" required></label>
         <label>Bằng chứng đối soát<input name="evidence" minlength="4" maxlength="1000" required></label>
@@ -77,7 +91,7 @@
       </form>
       <form id="credits">
         <h2>Điều chỉnh credits Starter</h2>
-        <label>ID tài khoản<input name="accountId" required></label>
+        <label>Tài khoản<input name="accountId" list="account-options" required></label>
         <label>Thao tác<select name="action"><option value="grant">Cấp credits đến hết kỳ Starter</option><option value="refund">Hoàn debit của yêu cầu AI</option></select></label>
         <label>Credits cấp thêm<input name="amount" type="number" min="0" step="0.001"></label>
         <label>ID yêu cầu cần hoàn<input name="operationId"></label>
@@ -86,6 +100,7 @@
       </form>
       <form id="tariff">
         <h2>Biểu giá Gemini 3.1 Flash-Lite</h2>
+        <p id="active-tariff"></p>
         <label>Input (USD/triệu token)<input name="input_per_million" type="number" min="0" step="any" required></label>
         <label>Cached input (USD/triệu token)<input name="cached_input_per_million" type="number" min="0" step="any" required></label>
         <label>Output (USD/triệu token)<input name="output_per_million" type="number" min="0" step="any" required></label>
@@ -93,7 +108,6 @@
         <button>Tạo phiên bản giá</button>
       </form>
     </div>
-    <div id="overview"></div>
   </div>
 </main>
 </body>

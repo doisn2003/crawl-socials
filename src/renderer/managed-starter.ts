@@ -1,4 +1,4 @@
-import type { CreditEntry, ManagedApi, ManagedStatus, StarterOrder } from '../shared/managed.js';
+import { STARTER_OFFER, TRIAL_OFFER, type CreditEntry, type ManagedApi, type ManagedStatus, type StarterOrder } from '../shared/managed.js';
 import { managedPauseMessage } from '../shared/model-status.js';
 
 const amount = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 });
@@ -17,14 +17,23 @@ export function bindManagedStarter(api: ManagedApi | undefined, changed: () => v
   let order: StarterOrder | null = null;
   let refreshedAt = 0;
   let error: string | null = null;
+  let preview = false;
 
   function render() {
     panel.hidden = !enabled;
     if (!enabled) return;
     const trial = el<HTMLButtonElement>('managed-trial'), purchase = el<HTMLButtonElement>('managed-order');
-    el('managed-plan').textContent = status?.state === 'TRIAL' ? 'Dùng thử FindLink' : 'FindLink Starter';
-    el('managed-demo').hidden = status?.state !== 'GUEST';
+    const unavailable = status?.state === 'UNAVAILABLE';
+    const guest = status?.state === 'GUEST';
+    el('brand-product').textContent = preview ? 'FindLink Starter — Bản thử' : 'FindLink Starter';
+    el('managed-plan').textContent = status?.state === 'TRIAL' ? 'Dùng thử FindLink'
+      : status?.state === 'STARTER' ? (status.reason ? 'Gói Starter' : 'Gói Starter đang hoạt động') : 'Tài khoản và gói Starter';
+    el('managed-sign-in').hidden = !guest;
+    el<HTMLButtonElement>('managed-sign-in').disabled = el<HTMLButtonElement>('project-auth-open').disabled;
+    el('managed-refresh').hidden = !unavailable && !!status;
+    el('managed-demo').hidden = !guest && !unavailable;
     trial.hidden = status?.state !== 'INACTIVE';
+    trial.textContent = `Kích hoạt ${TRIAL_OFFER.credits} credits dùng thử`;
     purchase.hidden = !status?.verified;
     purchase.textContent = status?.state === 'STARTER' ? 'Gia hạn Starter' : 'Mua Starter';
     trial.disabled = purchase.disabled = pending || busy();
@@ -39,10 +48,16 @@ export function bindManagedStarter(api: ManagedApi | undefined, changed: () => v
     update.disabled = pending || busy();
     const balance = status && ['TRIAL','STARTER'].includes(status.state)
       ? credits(status.available) + ' còn lại' + (status.held !== '0' ? ' · ' + credits(status.held) + ' đang giữ' : '') : '';
-    const details = status?.state === 'TRIAL' && status.rawRemaining !== null ? ' · ' + amount.format(status.rawRemaining) + ' bài còn lại' : '';
-    const date = status?.until ? ' · Đến ' + displayTime(status.until) : '';
+    const balanceNode = el('managed-balance');
+    balanceNode.textContent = balance;
+    balanceNode.hidden = !balance;
+    const details = status?.state === 'TRIAL' && status.rawRemaining !== null ? amount.format(status.rawRemaining) + ' bài gốc còn lại' : '';
+    const date = status?.until ? 'Hạn đến ' + displayTime(status.until) : '';
     const reason = status?.reason ? managedPauseMessage(status.reason) : null;
-    el('managed-status').textContent = [error || reason, balance ? balance + details + date : ''].filter(Boolean).join(' ');
+    el('managed-status').textContent = [error || (unavailable && preview ? 'Backend bản thử chưa chạy. Mở README để khởi động môi trường thử.' : reason), details, date].filter(Boolean).join(' · ');
+    const offer = status?.state === 'STARTER' ? '' : `Starter ${amount.format(STARTER_OFFER.priceVnd)} ₫/năm gồm ${amount.format(STARTER_OFFER.credits)} credits.`;
+    const trialOffer = guest || unavailable ? `Dùng thử ${TRIAL_OFFER.credits} credits trong ${TRIAL_OFFER.days} ngày theo mã mời.` : '';
+    el('managed-terms').textContent = [trialOffer, offer, preview ? 'Dữ liệu và giao dịch mô phỏng.' : ''].filter(Boolean).join(' ');
     if (!status && !error) el('managed-status').textContent = 'Đang kiểm tra quyền sử dụng…';
   }
 
@@ -54,7 +69,10 @@ export function bindManagedStarter(api: ManagedApi | undefined, changed: () => v
     if (!api || !enabled || checking || (!force && Date.now() - refreshedAt < 7000)) return;
     checking = true;
     refreshedAt = Date.now();
-    try { status = await api.status(); }
+    try {
+      status = await api.status();
+      preview = status?.preview === true;
+    }
     catch { status = null; error = 'Chưa kết nối được dịch vụ FindLink.'; }
     finally { checking = false; render(); changed(); }
   }
@@ -72,8 +90,9 @@ export function bindManagedStarter(api: ManagedApi | undefined, changed: () => v
   function showOrder() {
     if (!order) return;
     el('managed-order-title').textContent = order.kind === 'TOPUP' ? 'Nạp credits qua SePay' : 'Thanh toán Starter qua SePay';
-    el('managed-order-description').textContent = order.kind === 'TOPUP' ? '10.000 credits có hiệu lực một năm kể từ khi xác nhận thanh toán.'
-      : 'Starter có thời hạn một năm và bao gồm 50.000 credits AI.';
+    el('managed-order-description').textContent = preview ? 'Giao dịch mô phỏng. Không chuyển tiền. Chọn Kiểm tra thanh toán để xem kết quả.'
+      : order.kind === 'TOPUP' ? '10.000 credits có hiệu lực một năm kể từ khi xác nhận thanh toán.'
+      : `Starter có thời hạn một năm và bao gồm ${amount.format(STARTER_OFFER.credits)} credits AI.`;
     el('managed-order-amount').textContent = amount.format(order.amountVnd) + ' ₫';
     el('managed-order-bank').textContent = order.bank;
     el('managed-order-account').textContent = order.accountNumber + ' · ' + order.accountName;
@@ -84,6 +103,8 @@ export function bindManagedStarter(api: ManagedApi | undefined, changed: () => v
   }
 
   el('managed-demo').addEventListener('click', () => el<HTMLDialogElement>('managed-demo-dialog').showModal());
+  el('managed-sign-in').addEventListener('click', () => el<HTMLButtonElement>('project-auth-open').click());
+  el('managed-refresh').addEventListener('click', () => void refresh(true));
   el('managed-update').addEventListener('click', () => void action(async () => { await api!.installUpdate(); }));
   el('managed-trial').addEventListener('click', () => void action(async () => { status = await api!.activateTrial(); }));
   el('managed-order').addEventListener('click', () => void action(async () => {
@@ -138,6 +159,7 @@ export function bindManagedStarter(api: ManagedApi | undefined, changed: () => v
       if (enabled === value) return;
       enabled = value;
       document.body.classList.toggle('managed-mode', enabled);
+      if (!enabled) el('brand-product').textContent = 'FindLink';
       el('project-invite-field').hidden = !enabled;
       render();
     },

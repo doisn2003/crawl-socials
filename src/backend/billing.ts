@@ -1,13 +1,13 @@
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Pool } from 'pg';
-import type { StarterOrder } from '../shared/managed.js';
+import { STARTER_OFFER, type StarterOrder } from '../shared/managed.js';
 import type { Principal } from './auth.js';
 import type { BackendConfig } from './config.js';
 import { ApiError, audit, bad, hash, integer, lockAccount, record, STARTER_CREDITS, string, uuid } from './core.js';
 import { transaction, type Transaction } from './database.js';
 import { grantCredits } from './entitlements.js';
 
-export const STARTER_PRICE_VND = 23_000_000;
+export const STARTER_PRICE_VND = STARTER_OFFER.priceVnd;
 const codePattern = /(?<![A-Z0-9])FL[A-F0-9]{12}(?![A-Z0-9])/g;
 const starterVersion = 1;
 const topupCredits = 10_000_000_000n;

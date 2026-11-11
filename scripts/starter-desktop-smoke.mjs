@@ -43,6 +43,7 @@ if (!process.versions.electron) {
     routes.push(url.pathname);
     if (offline) throw Error('SYNTHETIC_OFFLINE');
     const path = url.pathname;
+    if (path === '/v1/config') return Response.json({ protocol:1 });
     if (path === '/v1/auth/register') {
       assert.equal(options.method,'POST');
       return Response.json({ ...user, ...tokens });
