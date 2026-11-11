@@ -2,6 +2,8 @@
 
 Ngày nghiên cứu: 10/11/2026, Asia/Bangkok. Nhánh: `findlink-publish-1st`, tạo trước khi nghiên cứu, từ `bac9399` trên baseline FindLink hiện tại. Trạng thái: đề xuất kiến trúc và thương mại; chưa triển khai backend, đổi model, mở bán hoặc phát hành bản mới.
 
+Cập nhật 11/11/2026 theo yêu cầu người dùng: hết trial phải khóa cả thu thập và lọc, vẫn xem/export dữ liệu cũ; bổ sung chống tạo nhiều tài khoản lấy credits tài trợ. Luồng cấp trial ở mục 5 thay thế đề xuất tự cấp 20 credits cho guest và 100 credits chỉ sau xác minh tài khoản trước đây.
+
 Người dùng đã xác nhận khách hàng ưu tiên là **doanh nghiệp nhỏ và agency**. Mục tiêu là **lãi 10–100 triệu VND trên mỗi tài khoản khách hàng mỗi năm, trước thuế**, sau chi phí AI, hạ tầng, hỗ trợ và bán hàng. Một tài khoản thương mại có thể có nhiều người dùng được cấp ghế; không nhân lợi nhuận trong bảng với số ghế.
 
 ## 1. Quyết định đề xuất
@@ -9,10 +11,12 @@ Người dùng đã xác nhận khách hàng ưu tiên là **doanh nghiệp nh�
 1. Giữ thu thập Facebook/Threads, cookie, SQLite, dữ liệu làm việc và export trên máy khách. Thêm **FindLink Backend** làm nơi xác thực tài khoản, quản lý thuê bao, ví credits, định tuyến AI và sao lưu.
 2. Khách trả phí nhận quyền sử dụng FindLink qua tài khoản. **Không cấp Gemini/DeepSeek API key của chủ sản phẩm xuống máy khách.** Desktop nhận token FindLink có thể thu hồi; provider key chỉ tồn tại trên server.
 3. Giữ quy đổi **1 USD = 1.000 credits**. Tách sổ chi phí provider với sổ credits của khách; lợi nhuận chủ yếu đến từ phí thuê phần mềm năm. Không gọi doanh thu credits bán ngang giá vốn là lợi nhuận.
-4. Cấp tối đa **100 credits dùng thử một lần**, ưu tiên 20 credits cho khách chưa đăng nhập và mở thêm 80 khi xác minh tài khoản. Người đăng ký trực tiếp có thể nhận đủ 100; chuyển từ guest sang account không được nhận lại 100.
+4. Cấp tối đa **100 credits dùng thử một lần cho một chủ thể đủ điều kiện**, không phải cho mỗi tài khoản mới. Pilot dùng mã mời một lần gắn với khách được duyệt; guest chỉ xem demo không phát sinh API. Khi mở đăng ký công khai, cấp 20 credits sau xác minh và kiểm tra chống abuse, thêm tối đa 80 sau bước xác minh tăng cường. Tạo tài khoản, project, workspace hoặc cài lại không tự mở trial mới.
 5. Trial nên dùng API trả phí do FindLink tài trợ, giới hạn tối đa 0,10 USD AI được cấp cho khách. “Miễn phí cho khách hàng” không bắt buộc dùng free tier của provider. Free tier chỉ dùng khi loại dữ liệu và điều khoản phù hợp.
 6. Thử nghiệm ba gói thuê năm **Starter 23 triệu, Agency 70 triệu, Scale 235 triệu VND/tài khoản**, chưa gồm thuế gián thu nếu có. Đây là giá đề xuất từ mô hình chi phí và mục tiêu lợi nhuận, chưa phải bằng chứng thị trường sẽ mua.
 7. Phát hành Starter trước. Agency/Scale chỉ bán những quyền lợi đã có thật; quản trị nhiều ghế, hỗ trợ doanh nghiệp và tích hợp cần các đợt phát triển tiếp theo.
+8. **Trial hết hạn/hết quota khóa cả thu thập lẫn lọc, bao gồm chế độ OFF, Start, Resume và lọc lại dữ liệu cũ.** Giữ quyền xem, tìm kiếm/sắp xếp cục bộ và export dữ liệu đã lưu; không cần trả tiền để lấy lại dữ liệu của mình.
+9. Chống abuse bằng nhiều tín hiệu, xét duyệt và hạn mức cấp grant; giới hạn tổn thất bằng trần chi tiêu thực tế phía server cho AI, xác minh và các dịch vụ tính phí khác. Không có cấu hình ngân sách hợp lệ thì không bật trial tài trợ. Các con số dự toán trong kế hoạch không phải ngân sách chi tiêu được cấp phép.
 
 ## 2. Khoảng cách từ mã hiện tại
 
@@ -49,7 +53,7 @@ flowchart TB
 
 Bắt đầu bằng **một backend TypeScript dạng module**, một PostgreSQL, worker tác vụ bền vững và kho secrets. Chưa cần chia microservices. Backend dùng hàng đợi/outbox trong DB ở pilot; bổ sung hệ thống queue riêng khi đo thấy cần. Mỗi môi trường development/staging/production có secrets và dữ liệu riêng.
 
-Trang quản trị cần: tìm tài khoản; gói và ngày hết hạn; ghế/thiết bị; số dư và credits đang giữ; grant/refund có lý do; revoke token; phiên bản model/giá; tổng spend thực tế; lỗi và request đang chờ đối soát; bản desktop được hỗ trợ. Mọi thay đổi ảnh hưởng tiền hoặc quyền truy cập có actor, thời điểm, trước/sau và audit log. Quản trị dùng MFA và quyền tối thiểu.
+Trang quản trị cần: tìm tài khoản; gói và ngày hết hạn; ghế/thiết bị; số dư và credits đang giữ; grant/refund có lý do; revoke token; phiên bản model/giá; tổng spend thực tế; lỗi và request đang chờ đối soát; bản desktop được hỗ trợ. Thêm quản lý mã mời, lịch sử nhận trial, hàng đợi xét duyệt/chặn nhầm, nghĩa vụ credits đã cấp, ngân sách tài trợ còn lại và công tắc dừng cấp mới/dừng tác vụ trial. Mọi thay đổi ảnh hưởng tiền hoặc quyền truy cập có actor, thời điểm, trước/sau và audit log. Quản trị dùng MFA và quyền tối thiểu.
 
 Server quyết định model/provider, mục đích yêu cầu, giới hạn input/output, ngân sách, bảng giá và feature flags. Client không được gửi URL provider tùy ý hoặc tự khai giá, số dư, token usage để server tin theo. Các endpoint AI chỉ phục vụ tác vụ FindLink được định nghĩa; không mở một proxy AI tổng quát bằng credits trial.
 
@@ -62,7 +66,38 @@ Server quyết định model/provider, mục đích yêu cầu, giới hạn inp
 - Refresh material trên Windows dùng secret store hiện có. DPAPI/safeStorage không chống ứng dụng khác chạy cùng user, vì vậy không dùng nó để “bảo vệ” provider key của chủ sản phẩm khỏi khách hàng. [Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage)
 - Tenant/payer được suy ra từ phiên và membership đã xác minh; không tin `ownerId` do desktop gửi. Mỗi project, export backup, ledger và job phải kiểm quyền đối tượng. Vai trò agency: owner, admin, member, billing-viewer; một ví dùng chung cho tài khoản thương mại.
 - Giới hạn thiết bị đồng thời dùng lease do server cấp; heartbeat không thay thế việc kiểm tra entitlement trước mỗi request AI. Sửa file local hoặc lùi đồng hồ không gia hạn được quyền cloud.
-- Mất mạng/hết hạn vẫn xem và xuất dữ liệu đã lưu. AI và cloud writes mới cần server cấp quyền. Hết credits chỉ dừng AI; giữ raw, checkpoint và khả năng Resume. Việc thu tiếp vẫn phụ thuộc entitlement còn hiệu lực và giới hạn local đã cấu hình.
+- Mất mạng/hết hạn vẫn xem và xuất dữ liệu đã lưu. AI và cloud writes mới cần server cấp quyền. **Gói trả phí còn hạn** hết credits chỉ dừng AI; việc thu tiếp phụ thuộc entitlement và giới hạn local. **Trial hết quota/hết hạn** dừng cả thu thập và lọc theo hợp đồng dưới đây. Giữ raw/checkpoint; Resume chỉ chạy khi server cấp quyền trở lại.
+
+### Khóa thu thập và lọc khi hết trial
+
+Entitlement gồm các quyền riêng: `collect`, `plan`, `assess`, `view_saved`, `export_saved`; không dùng số dư ví làm toàn bộ giấy phép sử dụng. Trial mặc định đề xuất có thời hạn 14 ngày từ kích hoạt đầu tiên, tổng tối đa 100 credits và tối đa 1.000 bài gốc mới thu được trên toàn trial. Hạn raw là tham số sản phẩm cần hiển thị trước khi bắt đầu, không phải cam kết về số bài phù hợp hoặc kết quả bán hàng. Nó cộng dồn qua project/run, không reset khi đổi tài khoản liên kết hoặc tạo lại project.
+
+Trial kết thúc khi hết thời hạn, dùng hết mức tài trợ đã mở đầy đủ, hoặc chạm quota thu thập; sự kiện nào đến trước áp dụng trước. Giai đoạn 20 credits đã hết nhưng chưa qua bước mở 80 còn lại chuyển `TRIAL_VERIFY_REQUIRED`, khóa việc mới cho đến khi đủ điều kiện, không tự cấp thêm. Credits chỉ đang bị giữ/chờ đối soát chuyển `TRIAL_CREDITS_HELD`, tạm dừng việc mới khi không đủ available; không ghi nhầm thành đã tiêu hết. Xác minh bổ sung không khởi động lại mốc 14 ngày.
+
+| Trạng thái | Thu thập mới, kể cả OFF | Planning/lọc mới/lọc lại | Xem và export dữ liệu đã lưu |
+|---|---|---|---|
+| Trial còn hiệu lực và quota | Có, trong hạn mức | Có, khi đủ credits và quyền server | Có |
+| Trial cần xác minh, xét duyệt hoặc không còn credits khả dụng do hold | Tạm khóa | Tạm khóa | Có |
+| Trial hết hạn/hết quota/bị thu hồi | Khóa | Khóa | Có |
+| Gói trả phí còn hạn, hết credits | Có nếu quyền thu thập còn hiệu lực | Tạm dừng đến khi có credits | Có |
+| Gói trả phí hết hạn | Khóa | Khóa | Có |
+| Server không liên lạc được | Không bắt đầu mới; run hiện tại dừng khi lease hết hạn | Không gửi thêm request AI | Có với dữ liệu local |
+
+“Export dữ liệu cũ” gồm raw, kết quả lọc đã lưu và lịch sử; không ngầm khởi động assessment, planning hoặc crawl để tạo export. Tìm kiếm/lọc hiển thị/sắp xếp bằng trường đã lưu vẫn được dùng. Cloud read/restore vẫn cần đăng nhập và ACL đúng chủ sở hữu, nhưng hết trial không tự tước quyền đọc dữ liệu còn trong thời hạn lưu; export local không phụ thuộc server hay số dư. Không xóa, mã hóa lại hoặc giữ dữ liệu làm điều kiện nâng cấp.
+
+Luồng cấp quyền chạy đề xuất:
+
+1. Trước Start, Resume, chuẩn bị/tiếp tục planning, lọc lại hoặc khởi động worker nền, desktop xin **run lease** từ server. Lease gắn với account/trial subject, device key, project/run, các action được phép, policy version, revocation epoch và expiry; không tái dùng lease của run/máy khác.
+2. Bản desktop chính thức gia hạn mỗi 60 giây; TTL đề xuất tối đa 120 giây, có jitter để tránh dồn request. Server kiểm lại entitlement, giới hạn đồng thời và trial state mỗi lần cấp/gia hạn. Desktop kiểm chữ ký, ràng buộc và thời lượng bằng mốc server kết hợp đồng hồ monotonic; mở lại app hoặc thức dậy sau sleep phải xác thực online, không khôi phục lease chỉ từ file/đồng hồ hệ thống.
+3. Thu hồi quyền đã biết có hiệu lực ngay đối với việc mới; khi mất mạng, thời gian chạy thêm của collector chính thức bị chặn bởi lease còn lại, tối đa TTL kể từ lần xác thực cuối. Mỗi lần mở cửa sổ, bắt đầu batch/scroll và xếp việc mới đều kiểm quyền; kiểm tra chỉ ở nút Start là không đủ.
+4. Khi trial kết thúc, ngừng nhận việc mới, hủy queue chưa dispatch, báo dừng cho collector/pipeline, lưu raw/checkpoint rồi đóng cửa sổ thu thập. Request đã gửi có thể hoàn tất/được tính phí dù đã gửi cancel; vẫn lưu kết quả và đối soát reservation, không retry sau khi bị khóa. Nút Stop và đường lưu dữ liệu luôn hoạt động.
+5. Backend kiểm entitlement **mỗi yêu cầu AI và ngay trước dispatch**, độc lập với lease/UI. Queue cũ, thay mode OFF, gọi IPC trực tiếp, import dữ liệu để lọc lại hoặc đổi project không vượt được quyền. Nâng cấp thành công làm mới entitlement rồi cho Resume, giữ run/checkpoint cũ.
+
+Điểm tích hợp hiện có: `src/main/index.ts` cho các IPC `csd:campaign:prepare`, `csd:campaign:continue`, `csd:retained:start`, `csd:start`, `csd:resume`; `src/application/production-service.ts` cho start/resume/stop; `src/application/query-collector.ts` và `src/application/opportunity-pipeline.ts` cho admission/vòng lặp/worker. Thêm `EntitlementService` và `RunLeaseGuard` dùng chung ở tầng application và worker; gateway server là ranh giới chặn chi phí AI. Production build phải rà soát mọi đường collector/diagnostic khác, không để một lệnh nội bộ né kiểm quyền. Nguyên tắc kiểm tra quyền mỗi request có trong [OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html).
+
+Trạng thái dừng cần phân biệt `TRIAL_EXPIRED`, `TRIAL_EXHAUSTED`, `TRIAL_VERIFY_REQUIRED`, `TRIAL_REVIEW_REQUIRED`, `TRIAL_CREDITS_HELD`, `TRIAL_FUNDING_PAUSED` và `ENTITLEMENT_UNAVAILABLE`. Thông báo chỉ rõ bước phù hợp: xác minh, chờ đối soát, xin xét duyệt, kết nối lại hoặc nâng cấp; giữ nút Xem dữ liệu và Export. Không báo trial hết hạn khi chỉ lỗi mạng hoặc hết quỹ tài trợ của FindLink.
+
+Collector và bộ đếm raw vẫn chạy trên máy khách. Lease/giới hạn raw bảo vệ hành vi của bản chính thức, không chứng minh nội dung telemetry do một EXE đã bị sửa gửi lên là đúng. Không hứa chống bẻ khóa local tuyệt đối; backend phải chặn mọi AI/backup tính phí không có quyền kể cả khi kiểm tra local bị bỏ qua. Chữ ký ứng dụng hoặc fingerprint không biến desktop thành môi trường đáng tin cậy.
 
 ## 4. Credits và kế toán sử dụng
 
@@ -76,7 +111,7 @@ Chọn hợp đồng giá cho đợt đầu:
 |---|---|
 | AI sử dụng | Provider charge áp theo bảng giá được chốt cho request × 1.000 credits/USD. Ghi đủ cache/thinking và phí phụ nếu có. |
 | Thuê phần mềm năm | Phí quyền sử dụng, cập nhật, số ghế, quota cloud và hỗ trợ; hóa đơn tách phần này khỏi pool credits tặng kèm. |
-| Backup, export, local collection trong hạn mức | Đã bao gồm trong thuê bao; không tự suy diễn giá điện/RAM máy khách thành khoản trừ credits. OFF vẫn không gọi AI. |
+| Backup, export, local collection trong hạn mức | Đã bao gồm theo quyền của gói; không tự suy diễn giá điện/RAM máy khách thành khoản trừ credits. OFF không gọi AI nhưng vẫn cần quyền thu thập. Xem/export dữ liệu đã lưu không bị khóa khi hết trial. |
 | Cloud storage hoặc dịch vụ vượt hạn mức về sau | Chỉ trừ credits khi có rate card riêng công khai và khách bật/đồng ý. Không tự thêm phí ẩn để bù thiếu lợi nhuận. |
 
 Như vậy mọi **phí sử dụng biến đổi** có thể hiển thị bằng credits, còn phí thuê năm có bản chất riêng. Nếu muốn cả phí thuê cũng thể hiện bằng credits, invoice có thể ghi giá USD dịch vụ quy đổi tại tỷ giá khóa cho đơn rồi nhân 1.000; đó là khoản thanh toán quyền thuê, **không biến toàn bộ tiền mua gói thành số dư AI**. Quyền lợi và pool AI phải hiển thị riêng để tránh nghĩa vụ chi phí vượt dự tính.
@@ -105,7 +140,7 @@ Luồng một thao tác:
 
 Reservation thử lại cho lỗi kỹ thuật phải nằm trong cap server toàn hệ thống. Không tự động tính mọi internal retry cho khách; công bố chính sách, ví dụ lỗi kỹ thuật của FindLink được miễn/refund, đánh giá hợp lệ nhưng không có bài phù hợp vẫn có phí. Dự phòng 20% trong mô hình kinh tế dành cho phần giá vốn không thu lại này, tránh tính trùng retry đã debit khách.
 
-Reuse assessment hợp lệ trong cùng project không tạo model call thì không debit AI mới. Cache và provenance phải xét nội dung/evidence, intent, recipe, provider/model/version và policy tương thích; không đổi nhãn model cũ sang model mới. Không chia sẻ raw nội dung/cache giữa tenant mặc định.
+Reuse assessment hợp lệ trong cùng project không tạo model call thì không debit AI mới, nhưng bắt đầu một run/đánh giá mới vẫn phải có entitlement; không dùng cache để né khóa trial. Đọc/export assessment đã lưu luôn được giữ theo quyền sở hữu dữ liệu. Cache và provenance phải xét nội dung/evidence, intent, recipe, provider/model/version và policy tương thích; không đổi nhãn model cũ sang model mới. Không chia sẻ raw nội dung/cache giữa tenant mặc định.
 
 ### Nạp thêm và thời hạn
 
@@ -116,22 +151,73 @@ Reuse assessment hợp lệ trong cùng project không tạo model call thì kh�
 - Ví dụ số học: phí dịch vụ 25% tạo tổng $12,50 cho $10 face credits, còn $12,25 sau phí thanh toán 2%, chỉ dư $0,25 nếu giá vốn và overhead là $12. Đây không phải mức lời lớn; cần đo chi phí thật trước khi chốt rate card.
 - Giới hạn account không thay thế cap nhà cung cấp/toàn hệ thống. Giữ explicit machine spending limits hiện hữu như guardrail phụ; mức được phép là mức chặt nhất giữa account, run, ngày, máy và cap nền tảng, có giải thích rõ trong UI.
 
-## 5. Dùng thử 100 credits
+## 5. Dùng thử 100 credits và chống tạo nhiều tài khoản
 
-| Trạng thái | Quyền lợi đề xuất |
+Mục tiêu là giảm cấp trùng/lạm dụng và chặn chi phí vượt quỹ tài trợ, không hứa nhận diện đúng mọi người thật. Email, số điện thoại và thiết bị đều có thể thay đổi hoặc dùng chung. Tạo tài khoản hàng loạt là một nhóm abuse riêng được mô tả trong [OWASP OAT-019 Account Creation](https://owasp.org/www-project-automated-threats-to-web-applications/assets/oats/EN/OAT-019_Account_Creation.html).
+
+### Luồng mặc định cho pilot và khi mở đăng ký công khai
+
+**Pilot dùng mã mời một lần, chưa bật cấp credits tự động đại trà.** Admin duyệt khách phù hợp, cấp invitation có hạn dùng, gắn với email đã xác minh/tài khoản đích, và ghi nguồn tài trợ. Không dùng một mã khuyến mại chung có thể nhận lại trên vô số tài khoản. Mời thêm thành viên vào một tài khoản agency không tạo một quỹ trial mới.
+
+| Trường hợp | Quyền lợi và điều kiện cấp |
 |---|---|
-| Chưa đăng nhập | Guest principal do server cấp; tối đa 20 credits, một project, một run hoạt động. |
-| Đăng ký/xác minh sau guest | Nhận tối đa 80 credits bổ sung, giữ nguyên khoản đã dùng; tổng đã cấp tối đa 100. |
-| Đăng ký trực tiếp, chưa nhận grant | Nhận 100 credits sau xác minh. |
-| Hết trial/chưa mua | Xem/export kết quả đã có; AI mới bị dừng, có nút nâng cấp. Không mất project. |
+| Chưa đăng nhập/chưa đủ xác minh | Xem demo bằng dữ liệu mẫu và dữ liệu cũ; không cấp credits, không crawl/lọc thật bằng tài trợ. Không gọi provider trong demo. |
+| Pilot: email đã xác minh + mã mời riêng hợp lệ + kiểm tra đủ điều kiện | Cấp tối đa 100 credits một lần, một project, một thiết bị/một run hoạt động. Mã mời không bỏ qua chống cấp trùng hoặc ngân sách. |
+| Public sau pilot: email đã xác minh + chống bot + đánh giá rủi ro chấp nhận | Mở 20 credits đầu; chưa cấp toàn bộ 100 chỉ vì tạo tài khoản. |
+| Public: hoàn tất bước tăng cường | Mở thêm tối đa 80 khi xác minh số điện thoại chưa dùng nhận trial trong chương trình hoặc có mã mời/xét duyệt thủ công thay thế; các kiểm tra rủi ro và ngân sách vẫn áp dụng. |
+| Có liên kết rõ với trial đã nhận | Cho tiếp tục tài khoản/trial cũ nếu còn quyền; không cấp lại. Không tự chuyển dữ liệu hoặc tiết lộ tài khoản liên quan. |
+| Nghi ngờ hoặc chặn nhầm | Tạm dừng cấp/tác vụ trial, có đường xét duyệt. Xem/export dữ liệu cũ của chính người dùng vẫn mở. |
+| Hết trial/chưa mua | Khóa cả thu thập và lọc theo mục 3, giữ dữ liệu và cho nâng cấp. |
 
-Nếu ưu tiên trải nghiệm hoàn toàn không đăng nhập, có thể cấp đủ 100 ngay cho guest nhưng phải chấp nhận tỷ lệ lạm dụng cao hơn. Không thể bảo đảm “mỗi người đúng một lần” chỉ bằng EXE, registry hoặc fingerprint; cài lại, VM, máy khác và tài khoản mới có thể vượt biện pháp local.
+Luồng public 20 + 80 thay thế phương án 20 credits vô danh. Trước khi phát hành phải ghi rõ điều kiện mở đủ 100 trong giao diện; không quảng cáo 100 được cấp vô điều kiện. Có thể dùng mã mời để bỏ bước SMS khi đã xét duyệt khách doanh nghiệp, tránh chi phí xác minh cao hơn phần trial. Chưa đăng nhập vẫn có thể trải nghiệm demo; thử thật yêu cầu tài khoản. Không bật lại anonymous credits chỉ để giảm số bước nếu chưa có đánh giá chi phí abuse.
 
-Backend giữ campaign grant ID, device binding mềm và sự kiện claim account. Dùng IP/device/account velocity, xác minh email, thử thách chống bot khi rủi ro cao và giới hạn đồng thời; IP không phải danh tính vì nhiều khách dùng chung NAT. Tránh khóa vĩnh viễn chỉ vì fingerprint đổi. Giữ dữ liệu chống abuse tối thiểu, có thời hạn lưu.
+### Nhận diện lần cấp trial trên server
 
-Trial phải có **trần ngân sách toàn chương trình**, số grant/ngày và công tắc tạm dừng cấp mới. Ví dụ giả định FX 26.000: 100 credits được dùng hết tương đương 2.600 VND AI; 10.000 trial là 26 triệu VND, chưa tính overhead. Đây là bài toán dự toán, không mở một ngân sách chi tiêu thật.
+1. Tạo `trial_subject` cho người/đơn vị hưởng ưu đãi đã được hệ thống liên kết, tách khỏi `account_id`. `trial_program_key` ổn định, ví dụ `FINDLINK_INTRO_TRIAL`; đổi policy/campaign version không tạo quyền nhận lại. Account mới, đổi email, project, thiết bị, cài lại hoặc xóa tài khoản không tự reset lịch sử cấp trong thời gian lưu dấu chống abuse đã công bố.
+2. Dùng nhiều tín hiệu: account và lịch sử grant, ID đăng nhập liên kết đã xác thực (`issuer` + `subject`), email/số điện thoại đã chứng minh quyền sở hữu, device key và dấu thiết bị, tốc độ đăng ký/claim, IP/dải mạng và hành vi sử dụng. Email verification hoặc CAPTCHA chỉ là một lớp, không chứng minh một người chưa từng dùng trial.
+3. Cùng định danh xác thực mạnh đã nhận trial hoặc cùng invitation đã redeem thì không cấp lần hai. Khớp IP, VPN, tên miền doanh nghiệp hoặc dấu thiết bị đơn lẻ chỉ tăng mức rủi ro/đưa vào xét duyệt; không tự kết luận hai người là một hay khóa toàn công ty. Không tự gộp dữ liệu/ACL các tài khoản chỉ vì bị đánh dấu liên quan.
+4. Device key tạo tại cài đặt và lưu bằng secret store Windows; fingerprint bổ sung chỉ là tín hiệu có thể giả mạo, không phải bằng chứng phần cứng không thể thay đổi. Không lấy cookie, mật khẩu Facebook/Threads hoặc nội dung bài đăng làm vật chứng danh tính chống abuse.
+5. Claim chạy bằng transaction với unique constraint cho `(trial_program_key, trial_subject_id, grant_stage)` và các định danh/invitation đủ điều kiện đã liên kết. Hai tài khoản claim đồng thời cùng một định danh phải tranh chấp cùng hàng eligibility/khóa, không chỉ unique theo account. Ghi trạng thái claim và grant có idempotency key; lỗi mạng/retry trả receipt cũ, không cấp lại.
+6. Không chỉ chuẩn hóa email để suy ra người thật: alias và nhiều hộp thư vẫn tồn tại. Chỉ chuẩn hóa theo quy tắc của provider đã xác định, không tự xóa dấu chấm/đuôi `+` cho mọi domain. Đổi số điện thoại không xóa dấu lần cấp cũ; số dùng chung/tái cấp có đường xét duyệt có audit, không tạo vĩnh viễn một lệnh cấm người mới.
 
-100 credits không đồng nghĩa 100 bài hoặc bảo đảm một run hoàn tất. Probe planning lịch sử đã dùng khoảng 76,24 credits cho 10 calls, nhưng khác workload và không dự báo mức dùng của khách mới. UI phải cho xem đã dùng/còn lại, mức trần dự kiến, và dừng có lưu kết quả khi hết quota. Không bán quota bằng số bài “chất lượng” chưa kiểm chứng.
+Tín hiệu đủ mạnh để từ chối cấp trùng và tín hiệu chỉ để xét duyệt phải được ghi trong `trial_policy_version`. Giữ reason code phục vụ hỗ trợ, không trả thông tin tài khoản khác hoặc toàn bộ luật phát hiện cho client. Admin override phải có lý do, hạn mức riêng trong cùng ngân sách và không sửa/xóa ledger cũ.
+
+### Chống bot và bảo vệ chính luồng xác minh
+
+- Thử thách chống bot chạy trong trang xác thực qua trình duyệt hệ thống; backend xác minh token, action/hostname và binding với phiên claim. Ví dụ Turnstile yêu cầu Siteverify phía server, token có thời hạn ngắn; phát hiện replay có độ trễ lan truyền nên vẫn phải có nonce/idempotency và unique claim của FindLink. CAPTCHA thành công không tự cấp credits. [Cloudflare Turnstile server validation](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/)
+- Rate limit nhiều chiều và theo cửa sổ thời gian cho signup, gửi email, gửi OTP, kiểm OTP, claim, xin lease và gọi AI: account, định danh đã xác minh, thiết bị, IP và toàn hệ thống. Thêm cooldown/backoff, giới hạn burst và một run hoạt động/trial subject. IP chung không được là điều kiện duy nhất từ chối một người hợp lệ; client không được tự khai IP hay reset bộ đếm.
+- Kiểm rủi ro và rate limit trước khi gửi SMS/email tính phí. Nếu dùng OTP: giới hạn số lần gửi và đoán mã, tăng khoảng chờ, chỉ mở quốc gia/kênh thực sự hỗ trợ, không tự chuyển sang voice call đắt hơn. OTP/số điện thoại có thể được thuê hoặc mua, nên không thay thế giới hạn chi phí. Luồng OTP còn có thể bị lợi dụng để tạo phí SMS; [Twilio hướng dẫn chống pumping](https://www.twilio.com/docs/verify/preventing-toll-fraud) khuyến nghị rate limits và kiểm soát kênh/quốc gia.
+- Khi nhà cung cấp xác minh lỗi hoặc risk service không sẵn sàng: không tự bỏ bước để cấp grant. Cho chờ hoặc xét duyệt bằng mã mời; không làm mất dữ liệu cũ, không khóa phần trả phí chỉ vì hệ thống trial đang lỗi.
+- Giai đoạn public nên mở theo đợt nhỏ, giữ một phần quỹ cho mã mời/khách đã duyệt. Người dùng có thể vượt các tín hiệu bằng nhiều danh tính thật; mã mời/xét duyệt làm tăng chi phí abuse và cap ở dưới chặn chi vượt mức, không bảo đảm kẻ xấu không thể chiếm dụng một phần quỹ trial.
+
+### Trần ngân sách tài trợ và công tắc ngắt
+
+Chỉ hạn chế “mỗi tài khoản 100 credits” không bảo vệ quỹ khi có hàng nghìn tài khoản. Server cần hai lớp ngân sách độc lập; mọi worker/replica/provider đều đi qua cùng bộ điều phối trong DB:
+
+| Lớp | Quy tắc |
+|---|---|
+| Quyền nhận ưu đãi | Trần số subject mới/ngày và tổng chương trình; hạn mức mỗi đợt/mã mời; `credits_spent_gross + credits_committed_unspent ≤ grant_cap`. Khi kích hoạt public 20 + 80, dự trù cả 100; 80 chưa xác minh chưa được tiêu. Hủy/hết hạn chỉ giải phóng phần cam kết chưa dùng, không làm khoản đã tiêu biến mất. |
+| Giá vốn thực tế | Cap USD AI theo ngày và tổng chương trình: `cost_measured + cost_held + next_upper_bound ≤ cap`. Mỗi attempt, retry, sửa lỗi và request khách được refund đều phải giữ ngân sách trước dispatch. Không chỉ đếm credits đã debit cho khách. |
+| Xác minh và dịch vụ phụ | Cap riêng cho SMS/email/lookup/anti-abuse có tính phí, đồng thời cùng AI chịu cap gộp `sponsor_total_usd`. Giữ mức trần trước khi gửi; không dùng ước lượng 0 cho kết quả chưa biết. Chi phí này cộng vào CAC khi đánh giá lại giá gói. |
+| Hạ tầng | Rate limit, giới hạn payload/input/output, concurrency, timeout, số job/batch, dung lượng backup/egress và thời hạn lưu trial; theo dõi hóa đơn cloud riêng. Cap AI không phải cam kết chặn mọi chi phí hạ tầng/DDoS. |
+
+Giới hạn và reservation cập nhật nguyên tử cùng grant/job phù hợp; retry/đổi provider/đổi ngày không reset tổng chương trình. Cap ngày dùng ngày dispatch theo UTC của server: job đã giữ tiền nhưng chưa dispatch qua ngày phải kiểm/chuyển phần giữ vào bucket ngày hiện hành một cách nguyên tử trước khi gọi provider, không nhân đôi hay nhả phần giữ tổng chương trình. Request đã dispatch nhưng chưa biết usage giữ nguyên hold ở ngày dispatch và tổng chương trình đến khi đối soát; không chạy lại sau nửa đêm để né hold. Giá vốn thực không giảm chỉ vì refund credits cho khách. Budget được chia quỹ trial và quỹ khách trả phí; pool trial không được vay tự động từ pool paid hoặc kích hoạt nạp tiền tự động.
+
+Nếu không cấu hình đủ `grant_cap`, cap chi phí AI/ngày/tổng, `sponsor_total_usd`, cap dịch vụ xác minh và hạn mức request, `funded_trial_enabled=false`. Pilot không dùng dịch vụ xác minh trả phí thì đặt cap tương ứng bằng 0 và tắt integration đó. Giá/bound không xác định thì không dispatch dịch vụ tính phí. Dashboard cảnh báo trước ngưỡng, nhưng **kiểm tra trước dispatch** mới là cơ chế chặn chi; cảnh báo hoặc dashboard provider không thay thế nó. Việc giới hạn tài nguyên và chi dịch vụ bên thứ ba được đề cập trong [OWASP API4 Unrestricted Resource Consumption](https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/).
+
+Hai công tắc riêng: `pause_new_trial_grants` ngừng cấp mới nhưng vẫn phục vụ grant còn hiệu lực trong ngân sách đã dành; `pause_trial_execution` tạm dừng cả tác vụ trial chưa dispatch khi có sự cố/nguy cơ vượt chi, trả `TRIAL_FUNDING_PAUSED`. Mọi request đã dispatch vẫn được lưu/đối soát. Công tắc trial không ảnh hưởng việc xem/export dữ liệu hoặc quyền paid còn hiệu lực. Muốn tăng cap phải là thay đổi quản trị có audit, không tự tăng khi nhiều signup.
+
+Ví dụ giả định FX 26.000: 100 credits dùng hết tương đương 2.600 VND AI; 10.000 trial là 26 triệu VND **chưa** gồm retry miễn phí cho khách, SMS và hạ tầng. Đây chỉ là lý do cần giới hạn quỹ, không phải phê duyệt số tiền nào. Với cấp theo mã mời và ngân sách đã cấu hình, số tiền tài trợ qua gateway nằm trong các bound đã giữ; tạo nhiều tài khoản không tự mở rộng ngân sách đó. Quỹ trial hữu hạn vẫn có thể bị chiếm dụng, vì vậy cap tài chính phải đi cùng kiểm tra đủ điều kiện và rollout theo đợt.
+
+### Dữ liệu chống abuse và trải nghiệm khách hợp lệ
+
+Lưu tối thiểu các định danh cần chống cấp trùng dưới dạng HMAC có secret phía server và key version; giá trị hash vẫn là dữ liệu có thể liên kết, không gọi là đã ẩn danh hoàn toàn. Email/điện thoại phục vụ đăng nhập/xác minh nếu cần giữ phải được hạn chế quyền và bảo vệ riêng; không ghi OTP/token/raw fingerprint vào log. IP và sự kiện chi tiết có thời hạn lưu ngắn được cấu hình; marker đã nhận trial có thời hạn theo chương trình và chính sách dữ liệu được công bố, không giữ vô hạn mặc định. Xóa account không đồng nghĩa mở ưu đãi mới trong thời gian marker được giữ hợp lệ; sau khi marker bị xóa, không hứa nhận diện lại vĩnh viễn.
+
+Khách dùng chung mạng văn phòng, máy được cấp lại, đổi thiết bị hoặc không nhận được SMS có lựa chọn xét duyệt/mã mời. Trạng thái cần xét duyệt chỉ chặn ưu đãi/tác vụ trial, không phá tài khoản, thu hồi quyền paid hợp lệ hay làm mất dữ liệu. Ngoại lệ cấp thêm phải là grant có hạn và nguồn ngân sách rõ ràng; không reset lịch sử để “sửa” chặn nhầm.
+
+Theo dõi số grant, chi phí measured/held, chi phí mỗi trial và mỗi khách chuyển paid, tỷ lệ bị chặn rồi được mở lại, giờ hỗ trợ xét duyệt, OTP gửi/thành công và lượng chi bất thường. Pilot dùng dữ liệu này để quyết định có mở public 20 + 80 hay tiếp tục mã mời; không đánh đổi một khoản AI 0,10 USD bằng xác minh/hỗ trợ đắt hơn mà không đo.
+
+100 credits không đồng nghĩa 100 bài hoặc bảo đảm một run hoàn tất. Probe planning lịch sử đã dùng khoảng 76,24 credits cho 10 calls, nhưng khác workload và không dự báo mức dùng của khách mới. UI cho xem đã dùng/đang giữ/còn lại, hạn ngày và quota raw; dừng có lưu kết quả khi hết trial. Không bán quota bằng số bài “chất lượng” chưa kiểm chứng.
 
 ## 6. Đổi model từ xa và giới hạn của model free
 
@@ -219,7 +305,7 @@ Tính toán tái lập: [findlink-publish-economics-20261110.mjs](research/findl
 4. Một transaction ghi payment, entitlement một năm, grant pool credits và outbox thông báo cho app. Unique provider transaction/order/fulfilment key ngăn cấp đôi.
 5. App refresh entitlement, hiện gói mới và số dư. Không gửi provider key qua email hoặc IPC xuống renderer.
 
-Các trạng thái tối thiểu: `TRIAL`, `PENDING_PAYMENT`, `ACTIVE`, `EXPIRED`, `SUSPENDED`, `REFUNDED`. Đề xuất kỳ năm theo ngày kỷ niệm do server tính UTC và hiển thị giờ người dùng; test năm nhuận, gia hạn sớm và cuối tháng. Renewal cộng kỳ phù hợp, không vô tình reset trial hoặc hoàn lại credits đã dùng.
+Các trạng thái thương mại tối thiểu: `TRIAL`, `PENDING_PAYMENT`, `ACTIVE`, `EXPIRED`, `SUSPENDED`, `REFUNDED`; trial có trạng thái đủ điều kiện/quota riêng theo mục 3 và 5. Đề xuất kỳ năm theo ngày kỷ niệm do server tính UTC và hiển thị giờ người dùng; test năm nhuận, gia hạn sớm và cuối tháng. Renewal cộng kỳ phù hợp, không vô tình reset trial hoặc hoàn lại credits đã dùng. Nâng cấp kích hoạt entitlement paid sau thanh toán đã xác minh, không tự cấp thêm trial; lỗi/chặn chương trình trial không tước quyền paid hợp lệ.
 
 Upgrade giữa kỳ cần order ghi rõ giá bù, số ngày còn lại và **credits bổ sung**, chỉ cấp chênh lệch đã mua; không cấp lại toàn bộ pool mới mà giữ cả pool cũ nếu bảng giá chưa dự toán điều đó. Downgrade thường áp kỳ tiếp theo. Refund/chargeback thu hồi quyền chưa thực hiện, ghi bút toán đối ứng và giữ export đã có; khoản AI không thể thu lại do FindLink chịu/đối soát, không xóa lịch sử để cân số.
 
@@ -246,26 +332,28 @@ Schema mới nên additive, ví dụ namespace `findlink_control`, giữ schema 
 | Thương mại | `plans`, `plan_versions`, `orders`, `payments`, `subscriptions`, `entitlements` |
 | Credits | `wallets`, `credit_grants`, `credit_ledger`, `reservations`, `usage_receipts` |
 | AI | `model_routes`, `tariff_versions`, `ai_operations`, `provider_attempts`, `provider_cost_ledger` |
-| Vận hành | `trial_grants`, `trial_campaign_caps`, `outbox`, `audit_events`, `release_channels` |
+| Trial và chống abuse | `trial_subjects`, `trial_identity_links`, `trial_eligibility_claims`, `trial_invitations`, `trial_grants`, `trial_usage`, `trial_review_cases`, `trial_policy_versions` |
+| Quyền chạy và ngân sách tài trợ | `run_leases`, `trial_campaign_caps`, `sponsor_cost_reservations`, `verification_attempts`, `abuse_rate_counters` |
+| Vận hành | `outbox`, `audit_events`, `release_channels` |
 
-Các unique key quan trọng: payment transaction, fulfilment/order, tenant+operation ID, reservation settlement, grant campaign+eligible principal. Reconciliation có owner và retry policy, không chỉ cron xóa pending.
+Các unique key quan trọng: payment transaction, fulfilment/order, tenant+operation ID, reservation settlement, `trial_program_key+trial_subject_id+grant_stage`, định danh đủ điều kiện đã liên kết và invitation redemption. Eligibility/subject được server suy ra, không nhận ID tự khai để cấp grant. `trial_usage` cộng dồn thời hạn, credits và raw của subject; `run_leases` ghi scope/expiry/revocation; sponsor reservations liên kết operation/attempt với bucket ngân sách kể cả khi không debit khách. Reconciliation có owner và retry policy, không chỉ cron xóa pending.
 
-API đề xuất: `/auth/*`, `/guest/claim`, `/me/entitlements`, `/wallet`, `/usage`, `/runs/authorize`, `/ai/operations`, `/ai/operations/:id`, `/projects/*/backup`, `/projects/*/restore`, `/billing/orders`, `/billing/webhooks/:provider`, `/releases`, `/admin/*`. Không cần public endpoint cho client trực tiếp “settle” số tiền tự tính; server/worker thực hiện nghiệp vụ đó.
+API đề xuất: `/auth/*`, `/guest/claim`, `/me/entitlements`, `/wallet`, `/usage`, `/trial/eligibility`, `/trial/activate`, `/trial/verify`, `/runs/authorize`, `/runs/:id/lease/renew`, `/ai/operations`, `/ai/operations/:id`, `/projects/*/backup`, `/projects/*/restore`, `/billing/orders`, `/billing/webhooks/:provider`, `/releases`, `/admin/*`. `/guest/claim` chỉ nhận quyền sở hữu project guest, không tự cấp credits. Claim/verify/renew đều kiểm auth, scope, idempotency và rate limit trên server. Không cần public endpoint cho client trực tiếp “settle” số tiền tự tính; server/worker thực hiện nghiệp vụ đó.
 
 ## 11. Trình tự phát triển và tiêu chí hoàn thành
 
-Ước lượng dưới đây là phạm vi lập kế hoạch cho một lập trình viên quen repo, chưa phải lịch cam kết. Có thể chồng lấp một số phần, nhưng wallet/auth là phụ thuộc trước AI managed. Tổng đường kỹ thuật khoảng 5–7 tuần, sau đó pilot có kiểm soát; phạm vi nhiều ghế/Scale có thể kéo dài thêm.
+Ước lượng dưới đây là phạm vi lập kế hoạch cho một lập trình viên quen repo, chưa phải lịch cam kết. Có thể chồng lấp một số phần, nhưng wallet/auth là phụ thuộc trước AI managed. Sau bổ sung khóa trial, lease và ngân sách chống abuse, dự trù khoảng 6–8 tuần cho MVP trial theo mã mời, rồi pilot có kiểm soát. Mở public 20 + 80/OTP và phạm vi nhiều ghế/Scale cần ước lượng riêng theo kết quả pilot, không tự coi nằm hết trong mốc này.
 
 | Chặng | Phạm vi | Tiêu chí ra khỏi chặng |
 |---|---|---|
 | P0, 1–2 ngày | Chốt hợp đồng credits/trial/điều khoản model, threat model, API/schema | Có spec versioned, migration map, ngân sách vận hành dự kiến; không gọi paid model. |
-| P1, 5–8 ngày | Backend auth/tenant/device và HTTP backup adapter | Không có DB secret trong desktop; tenant isolation, restore/revision conflict và migration ID pass. |
-| P2, 5–7 ngày | Wallet/grants/holds/ledger/outbox/reconciliation | Kiểm thử concurrency, crash, duplicate, unknown usage; số dư đối soát được; không overspend. |
+| P1, 6–9 ngày | Backend auth/tenant/device, run lease/entitlement và HTTP backup adapter | Không có DB secret trong desktop; tenant isolation, restore/revision conflict, migration ID và giới hạn lease pass. |
+| P2, 6–8 ngày | Wallet/grants/holds/ledger/outbox/reconciliation và sponsor budgets | Kiểm thử concurrency, crash, duplicate, unknown usage; không chi vượt wallet hoặc quỹ tài trợ dù retry/refund. |
 | P3, 3–5 ngày | RemoteModelGateway + Gemini adapter và remote policy | Contract cũ được giữ, OFF zero-call, UI hiển thị receipt/credits, gateway chỉ nhận tác vụ cho phép. |
-| P4, 5–8 ngày | Guest trial, thanh toán, entitlement và admin tối thiểu | Không cấp trial/payment đôi; revoke/expiry có hiệu lực; bảo toàn dữ liệu và audit. |
+| P4, 7–10 ngày | Demo guest, trial theo mã mời, eligibility/rate limits, thanh toán và admin xét duyệt | Không cấp trial/payment đôi; hết trial khóa collect/plan/assess kể cả OFF; export cũ luôn hoạt động; công tắc và cap tài trợ có hiệu lực. |
 | P5, 3–5 ngày | Signed installer/update, secret scan, backup/recovery release | Clean install/update/recovery trên dữ liệu cách ly, migration không mất lịch sử, signing xác minh được. |
 | Pilot, khoảng 2 tuần theo mức sử dụng | Nhóm khách nhỏ, đo chi phí và độ hữu ích | Có chi phí/activation/support thực; chỉ mở rộng khi số liệu đáp ứng mục tiêu. |
-| Sau MVP | DeepSeek adapter, A/B chất lượng; membership/Agency; Scale | Mỗi route/gói qua gate riêng, không bán tính năng chưa hoàn tất. |
+| Sau MVP | Public trial 20 + 80/OTP nếu kinh tế phù hợp; DeepSeek adapter, A/B chất lượng; membership/Agency; Scale | Public trial qua abuse/OTP/budget tests và đo chặn nhầm trước khi mở; mỗi route/gói qua gate riêng. |
 
 Không cần chặn MVP vào việc có hai provider. Hoàn tất server/Gemini trước; route abstraction giúp thêm DeepSeek sau mà không phân phối key. Nếu scope thương mại yêu cầu Agency ngay, đưa membership, quyền project và nhiều thiết bị vào trước pilot và cập nhật ước lượng.
 
@@ -275,7 +363,14 @@ Kiểm thử bắt buộc bằng mocks/local trước release:
 - Hai thiết bị gửi 100 request đồng thời không chi vượt grant; hai worker không dispatch cùng attempt; idempotency không trừ hai lần.
 - Crash trước dispatch, trong provider HTTP, sau provider thành công trước settle và sau settle trước trả client đều có đường khôi phục; usage không rõ không thành zero.
 - Webhook giả, lặp, sai amount/currency, đến muộn và refund không cấp entitlement/credits sai. Gia hạn sớm không mở ngay credits kỳ sau; hold qua thời điểm grant hết hạn không làm số dư âm hoặc hồi sinh credits khi settle/release/refund.
-- Trial guest → login, đăng ký lại trên cùng principal, nhiều thiết bị claim đồng thời không tạo grant trùng; không tuyên bố chặn được mọi danh tính giả.
+- Guest/demo và guest → login không gọi model/cấp grant tự động. Một invitation hoặc định danh đủ điều kiện được claim đồng thời từ nhiều account/replica chỉ tạo một grant đúng stage. Đổi policy version, account/email, project hoặc cài lại không reset subject đã liên kết; dấu yếu chưa đủ liên kết đi vào xét duyệt.
+- Public 20 credits hết chuyển yêu cầu xác minh; bước 80 không được mở hai lần và không gia hạn 14 ngày. Available bằng 0 vì hold không bị ghi thành tiêu hết; settle/release sau lỗi đối soát đúng cả wallet và sponsor cap.
+- Hết hạn, hết đủ credits hoặc chạm quota raw trong lúc chạy đều chặn thu thập và lọc, kể cả OFF, Resume, retained/import/reclassification, worker nền và gọi IPC trực tiếp. Tác vụ đã dispatch vẫn lưu/đối soát; không tạo retry sau khi bị khóa.
+- Lease bị replay sang run/device khác, hết hạn, lùi đồng hồ, sleep/restart và mất server không cho phép chạy vô thời hạn. Backend từ chối AI mới ngay khi thu hồi quyền; collector bản chính thức ngừng admission khi lease hết hạn trong bound đã định, lưu checkpoint và dừng an toàn.
+- Trial bị khóa hoặc server offline vẫn xem/search/sort/export raw và kết quả cũ mà không gọi model/collector; restore cloud vẫn kiểm auth/ACL, không đòi trả tiền chỉ vì trial hết. Upgrade hợp lệ Resume đúng checkpoint; paid còn hạn hết credits chỉ dừng AI theo quyền gói.
+- Challenge giả/hết hạn/replay/gửi đồng thời, OTP brute-force/resend, signup nhiều IP hoặc nhiều account không vượt nonce/claim/rate/budget guard. Cùng NAT, đổi máy và số điện thoại tái cấp có đường xét duyệt, không rò dữ liệu tài khoản liên quan hoặc mất quyền export.
+- Cấp grant và AI/retry/OTP đồng thời qua nhiều worker/provider không vượt cap; không cấu hình budget thì funded trial tắt. Hold qua ngày, unknown usage, miễn phí/refund cho khách không làm mất giá vốn. Risk/verification service lỗi không dẫn đến tự cấp grant.
+- `pause_new_trial_grants` và `pause_trial_execution` có hành vi khác nhau; cả hai không chặn export cũ hoặc tác vụ paid hợp lệ. Cố tạo thêm account không mở rộng pool trial hay tự bật nạp ngân sách; admin override được ghi audit và vẫn nằm trong cap.
 - Thay bảng giá/route giữa run không viết lại provenance; giữ bằng chứng lịch sử nhưng ngừng tái sử dụng cache khi không còn tương thích với intent, policy hoặc model; meter thinking/cache/tool fees đúng adapter.
 - Hết credits/mất server không làm mất raw/export hoặc checkpoint; resume không chạy lại phần đã settle.
 - Không gửi raw diagnostic/secrets trong logs; lỗi transport chỉ dùng code allowlist. Không làm lại chẩn đoán nguyên nhân từ message/URL/headers.
@@ -284,6 +379,6 @@ Kiểm thử bắt buộc bằng mocks/local trước release:
 
 ## 12. Ranh giới của công việc lần này
 
-Đã nghiên cứu mã và tài liệu chính thức, lập thiết kế, tính các kịch bản và lưu công thức tái lập. Chưa có thay đổi runtime, backend/publication, API call trả phí, thao tác billing hoặc liên hệ khách hàng. Các ngân sách DEVELOPMENT lịch sử vẫn đóng; không reset ledger, không tái khởi động live E2E/email heartbeat.
+Đã nghiên cứu mã và tài liệu chính thức, lập thiết kế, tính các kịch bản và lưu công thức tái lập. Bổ sung ngày 11/11 là cập nhật kế hoạch khóa trial/chống abuse; các tiêu chí kiểm thử trên là yêu cầu triển khai, chưa phải kiểm thử tính năng đã chạy. Chưa có thay đổi runtime, backend/publication, API/SMS trả phí, thao tác billing hoặc liên hệ khách hàng. Các ngân sách DEVELOPMENT lịch sử vẫn đóng; không reset ledger, không tái khởi động live E2E/email heartbeat.
 
 Quyết định tiếp theo để triển khai là chốt hợp đồng giá và phạm vi Starter MVP trong tài liệu này, rồi thực hiện P0–P1 trên nhánh phát triển với dữ liệu cách ly. Thiết kế cho phép điều khiển provider và thu hồi quyền từ server; không thể bảo đảm EXE không bao giờ bị sửa hoặc ngăn sao chép mọi tính năng local.
