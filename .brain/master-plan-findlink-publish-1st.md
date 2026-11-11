@@ -300,7 +300,7 @@ Tính toán tái lập: [findlink-publish-economics-20261110.mjs](research/findl
 ## 8. Nâng cấp, thanh toán và trạng thái thuê bao
 
 1. Người dùng chọn gói; server tạo order có giá/tiền tệ/quyền lợi/credits/thời hạn bất biến tại thời điểm mua.
-2. Thanh toán qua checkout/chuyển khoản. Với Việt Nam, payOS là một ứng viên có SDK backend và xác minh webhook; phí, hồ sơ merchant và hợp đồng cần xác nhận khi chọn nhà cung cấp. [payOS Node SDK](https://payos.vn/docs/sdks/back-end/node/)
+2. Thanh toán qua checkout/chuyển khoản. Với Việt Nam, FindLink sẽ dùng **SePay** cho thanh toán chuyển khoản. Backend xác thực webhook bằng HMAC-SHA256 trước khi đối soát giao dịch. [Tài liệu webhook SePay](https://developer.sepay.vn/vi/sepay-webhooks/xac-thuc)
 3. Server xác minh chữ ký, mã đơn, số tiền, tiền tệ, trạng thái thực thu. Redirect “thành công” ở client không kích hoạt gói. Webhook lặp/sai thứ tự và webhook đến sau timeout phải xử lý idempotent.
 4. Một transaction ghi payment, entitlement một năm, grant pool credits và outbox thông báo cho app. Unique provider transaction/order/fulfilment key ngăn cấp đôi.
 5. App refresh entitlement, hiện gói mới và số dư. Không gửi provider key qua email hoặc IPC xuống renderer.
