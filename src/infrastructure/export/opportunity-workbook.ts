@@ -8,6 +8,7 @@ import type { ConversationClassification, ConversationDecision } from '../../dom
 
 export interface OpportunityExportData {
   campaign: unknown; progress: unknown; cost: unknown;
+  cost_unit?: 'credits';
   snapshots: ConversationSnapshot[]; decisions: ConversationDecision[];
   keyword_comments?: KeywordCommentCapture[];
   decision_snapshots?: ConversationSnapshot[]; watermark?: unknown; cost_captured_at?: string;
@@ -114,7 +115,8 @@ export async function exportOpportunityWorkbook(path: string, value: unknown, cl
       d.evaluated_at, d.valid_until, d.temporal_evidence, history.get(d.snapshot_id)?.observed_at]));
   const progress = data.progress && typeof data.progress === 'object' ? { ...data.progress, preview: undefined } : data.progress;
   const capturedAt = data.watermark && typeof data.watermark === 'object' && 'captured_at' in data.watermark ? data.watermark.captured_at : null;
-  sheet(workbook, 'Manifest', ['key', 'value'], [['schema_version', 'opportunity-v1'], ['classification_filter', classification ?? 'ALL'], ['exported_at', new Date().toISOString()], ['campaign', data.campaign], ['progress', progress], ['cost', data.cost], ['watermark', data.watermark], ['cost_captured_at', data.cost_captured_at], ['runtime_limits', data.runtime_limits], ['root_resolution', data.root_resolution],
+  sheet(workbook, 'Manifest', ['key', 'value'], [['schema_version', 'opportunity-v1'], ['classification_filter', classification ?? 'ALL'], ['exported_at', new Date().toISOString()], ['campaign', data.campaign], ['progress', progress], ['cost', data.cost],
+    ...(data.cost_unit ? [['cost_unit', data.cost_unit]] : []), ['watermark', data.watermark], ['cost_captured_at', data.cost_captured_at], ['runtime_limits', data.runtime_limits], ['root_resolution', data.root_resolution],
     ['retained_input', data.retained_input], ['ranking', data.ranking], ['storage', data.storage],
     ['export_counts', { conversations: ordered.size, comments: data.snapshots.reduce((count, snapshot) => count + snapshot.comments.length, 0), decision_history: data.decisions.length, ...(data.keyword_comments ? { keyword_comments: data.keyword_comments.reduce((count, root) => count + root.comments.length, 0) } : {}) }],
     ['comment_scope', 'Captured comments and nested replies of exported roots only; coverage does not imply all comments were collected.'],

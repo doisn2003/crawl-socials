@@ -14,6 +14,7 @@ import { createProductionService } from '../application/production-service.js';
 import type { CollectorInput, CollectorReceipt } from '../application/production-service.js';
 import { exportSocialWorkbook } from '../infrastructure/export/social-workbook.js';
 import { exportOpportunityWorkbook, selectOpportunityExport, deliveredOpportunityRoots } from '../infrastructure/export/opportunity-workbook.js';
+import { starterOpportunityInCredits, starterRunInCredits } from '../infrastructure/export/starter-export.js';
 import type { ConversationClassification } from '../domain/conversation-decision.js';
 import { allowDesktopRequest } from './ipc-policy.js';
 import { createGeminiKeySettings } from '../application/gemini-key-settings.js';
@@ -373,11 +374,16 @@ async function bootstrap() {
           filters: [{ name: format === 'xlsx' ? 'Excel Workbook' : 'JSON', extensions: [format] }] });
         if (choice.canceled || !choice.filePath) return { canceled: true, path: null };
         const staged = choice.filePath + '.csd-' + randomUUID() + '.' + format;
-        const exported = result.opportunity ? selectOpportunityExport(result.opportunity, group) : null;
+        const selected = result.opportunity ? selectOpportunityExport(result.opportunity, group) : null;
+        const exported = selected && managed ? starterOpportunityInCredits(selected) : selected;
         if (format === 'xlsx') {
           if (exported) await exportOpportunityWorkbook(staged, exported);
           else await exportSocialWorkbook(staged, result.facebook, result.threads);
-        } else writeFileSync(staged, JSON.stringify(exported ?? result, null, 2), { flush: true });
+        } else {
+          const report = exported ?? (managed && result.run.opportunity
+            ? { ...result, cost_unit: 'credits', run: starterRunInCredits(result.run) } : result);
+          writeFileSync(staged, JSON.stringify(report, null, 2), { flush: true });
+        }
         const roots = exported ? deliveredOpportunityRoots(exported) : [];
         const receipt = roots.length ? discoveryStore.prepareExport(result.run.id, roots, choice.filePath, exportDigest(staged)) : null;
         renameSync(staged, choice.filePath);

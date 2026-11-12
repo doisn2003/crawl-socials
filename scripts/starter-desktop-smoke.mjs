@@ -7,6 +7,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { dirname, join, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import ExcelJS from 'exceljs';
 
 const entry = resolve(process.argv.find(a => a.startsWith('--module='))?.slice(9) ||
   'release/starter-qa/win-unpacked/resources/app.asar/dist/main/index.js');
@@ -25,10 +26,15 @@ if (!process.versions.electron) {
   const runId = 'crawl-' + randomUUID(), profileId = 'csd-' + randomUUID();
   const outputDirectory = join(local,'collections',runId);
   const now = new Date().toISOString();
+  const emptyCounts = { raw:0,comments:0,suitable:0,notYet:0,unrelated:0,pending:0,failed:0 };
+  const counts = { ...emptyCounts, raw:1, pending:1 };
+  const progress = { campaignId:runId,filterMode:'STANDARD',totalTarget:1,threadsShare:0.8,
+    counts,byPlatform:{facebook:counts,threads:emptyCounts},costUsd:0.03,costUpperUsd:0.031,
+    budgetUsd:0.1,usageUnknown:1,phase:'PARTIAL',lastError:null,preview:[] };
   mkdirSync(outputDirectory,{recursive:true});
   writeFileSync(join(outputDirectory,'results.json'),JSON.stringify({facebook:[{post_id:'fixture-post',text:'Bài đã lưu để kiểm tra export.'}],threads:[]}));
   writeFileSync(join(local,'latest-run.json'),JSON.stringify({ id:runId,state:'STOPPED',startedAt:now,finishedAt:now,minimumPosts:1,
-    keywords:['cà phê'],outputDirectory,platforms:[{platform:'facebook',profileId,state:'STOPPED',count:1,reason:'USER_STOP'}],preview:[] }));
+    keywords:['cà phê'],outputDirectory,platforms:[{platform:'facebook',profileId,state:'STOPPED',count:1,reason:'USER_STOP'}],preview:[],opportunity:progress }));
   const config = JSON.parse(readFileSync(resolve(dirname(entry),'../managed-release.json'),'utf8'));
   assert.equal(config.testOnly,true);
   app.getVersion = () => JSON.parse(readFileSync(resolve(dirname(entry),'../../package.json'),'utf8')).version;
@@ -36,7 +42,8 @@ if (!process.versions.electron) {
   const tokens = { accessToken:'a'.repeat(64),refreshToken:'b'.repeat(64),expiresIn:900,deviceId:randomUUID() };
   const routes = [];
   let offline = false, exports = 0;
-  dialog.showSaveDialog = async () => ({ canceled:false,filePath:join(isolated,'export-' + ++exports + '.json') });
+  dialog.showSaveDialog = async (_window, options) => ({ canceled:false,
+    filePath:join(isolated,'export-' + ++exports + '.' + options.filters[0].extensions[0]) });
   globalThis.fetch = async (value, options) => {
     const url = new URL(value);
     assert.equal(url.origin,config.origin);
@@ -110,11 +117,44 @@ if (!process.versions.electron) {
         assert.equal((await run('window.csd.managed.status()')).state,'UNAVAILABLE');
         const exported = await run("window.csd.exportResults({format:'json'})");
         assert.equal(exported.canceled,false);
-        assert.equal(JSON.parse(readFileSync(exported.path,'utf8')).facebook[0].post_id,'fixture-post');
+        const raw = JSON.parse(readFileSync(exported.path,'utf8'));
+        assert.equal(raw.facebook[0].post_id,'fixture-post');
+        assert.equal(raw.cost_unit,'credits');
+        assert.equal(raw.run.opportunity.costCredits,30);
+        assert.equal(raw.run.opportunity.costUsd,undefined);
+        const project = await run('window.csd.projects.state()');
+        const savedReport = join(local,'projects',project.activeProjectId,'data','collections',runId,'opportunity-results.json');
+        const report = { campaign: { filter_mode:'STANDARD', budget:{model_usd:0.1,raw_cap:1000} },
+          progress,
+          cost:{measured_cost_usd:0.03,unmetered_cost_upper_usd:0.001,reserved_usd:0,
+            models:[{model:'fixture',measured_cost_usd:0.03,reserved_usd:0.000000001}]},
+          runtime_limits:{model_budget_usd:0.1,overrides:[{model_budget_usd:0.1,from_raw_cap:900,to_raw_cap:1000}]},
+          snapshots:[], decisions:[], conversations:[] };
+        const savedBytes = JSON.stringify(report);
+        writeFileSync(savedReport,savedBytes);
+        const jsonFile = await run("window.csd.exportResults({format:'json'})");
+        const json = JSON.parse(readFileSync(jsonFile.path,'utf8'));
+        assert.equal(json.cost_unit,'credits');
+        assert.deepEqual(json.campaign.budget,{model_credits:100,raw_cap:1000});
+        assert.equal(json.progress.costCredits,30);
+        assert.equal(json.progress.costUpperCredits,31);
+        assert.equal(json.cost.unmetered_cost_upper_credits,1);
+        assert.equal(json.cost.models[0].measured_cost_credits,30);
+        assert.equal(json.cost.models[0].reserved_credits,0.000001);
+        assert.equal(json.runtime_limits.overrides[0].model_budget_credits,100);
+        assert.doesNotMatch(JSON.stringify(json), /(?:_usd|Usd)"/);
+        const workbookFile = await run("window.csd.exportResults({format:'xlsx'})");
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(workbookFile.path);
+        const manifest = new Map();
+        workbook.getWorksheet('Manifest').eachRow(row => manifest.set(row.getCell(1).value,row.getCell(2).value));
+        assert.equal(manifest.get('cost_unit'),'credits');
+        assert.deepEqual(JSON.parse(manifest.get('cost')),json.cost);
+        assert.equal(readFileSync(savedReport,'utf8'),savedBytes);
         assert.deepEqual(errors,[]);
         assert.equal(BrowserWindow.getAllWindows().length,1);
         assert.equal(routes.some(path=>path.startsWith('/v1/ai/') || path.startsWith('/v1/runs/')),false);
-        console.log('STARTER_DESKTOP_SMOKE_PASSED managed guest, locked trial, SePay order, offline export, isolated AppData');
+        console.log('STARTER_DESKTOP_SMOKE_PASSED managed guest, locked trial, SePay order, offline JSON and Excel in credits, isolated AppData');
         clearTimeout(timer); app.quit();
       } catch (error) { console.error(error); clearTimeout(timer); app.exit(1); }
     })());
