@@ -75,6 +75,8 @@ Starter hiện có giá **23.000.000 ₫/năm** và **50.000 credits**. Hai giá
 
 ## 5. Phát hành Windows
 
+FindLink phát hành bộ cài `.exe` qua đường tải HTTPS. Khách cài và cập nhật trực tiếp từ FindLink. Microsoft Store là kênh tùy chọn. [Phát hành ứng dụng Windows](https://learn.microsoft.com/windows/apps/package-and-deploy/publish-first-app)
+
 Chữ ký Authenticode xác nhận tên nhà phát hành trên bộ cài Windows và giúp kiểm tra tệp còn nguyên vẹn. Chọn tên cá nhân hoặc doanh nghiệp sẽ đứng tên chứng chỉ ký mã. Nhà cấp chứng chỉ xác minh danh tính trước khi cấp. Sau khi thiết lập thiết bị hoặc dịch vụ ký, lấy tên publisher đúng như trên chứng chỉ để cấu hình build. [Chữ ký Authenticode](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/authenticode)
 
 - `npm run dist:starter:qa` tạo bộ cài thử chưa ký trong `release/starter-qa`. Địa chỉ backend mặc định là `http://127.0.0.1:9070`. Có thể đặt `FINDLINK_QA_ORIGIN` khi build.

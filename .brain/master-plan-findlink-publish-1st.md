@@ -416,3 +416,7 @@ Commit `1de09eb` thêm đường tải Windows qua HTTPS trên Railway, dùng Gi
 Giá nạp production đã chốt **325.000 ₫ cho 10.000 credits**. Railway đã áp dụng `FINDLINK_TOPUP_PRICE_VND=325000`. Gói nạp dành cho tài khoản Starter còn hạn.
 
 Commit `0a6a073` đã qua bài kiểm thử tự cập nhật có chữ ký Authenticode trên máy Windows CI cách ly. Hai bộ cài `0.0.1` và `0.0.2` ký bằng chứng chỉ thử. Bản cài `0.0.1` tải bản mới qua HTTPS, hiện nút **Cài cập nhật**, cài `0.0.2` và tự mở lại. Ứng dụng đọc được cùng lượt đã lưu và JSON kết quả giữ nguyên checksum. Chứng chỉ và feed của bài kiểm thử nằm trong máy CI. Còn cần danh tính ký của nhà phát hành và xác minh cài mới, cập nhật từ feed production. [Nhật ký kiểm thử ký và cập nhật](https://github.com/doisn2003/crawl-socials/actions/runs/43164927970/job/131004566391)
+
+Ngày 12/11/2026, bản đóng gói QA 0.5.5 kết nối staging qua HTTPS và chạy với AppData riêng. Tài khoản thử đăng ký qua **Gói dịch vụ**, tạo đơn Starter và đơn nạp trong ứng dụng. SePay Test Mode giao hai webhook `#48554` và `#48555`, cả hai nhận HTTP 201. Giao diện hiển thị 50.000 rồi 60.000 credits tại khu vực Projects. PostgreSQL có đúng một kỳ Starter và hai khoản cấp credits cho tài khoản thử. Kiểm thử ghi nhận 0 lượt AI.
+
+Người dùng chọn đứng tên doanh nghiệp trên bộ cài phát hành trực tiếp qua HTTPS. Chứng chỉ ký mã của doanh nghiệp sẽ dùng tên đã được nhà cấp chứng chỉ xác minh. [Hướng dẫn phát hành Windows](../deploy/README.md#5-phát-hành-windows)
