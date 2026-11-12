@@ -2,6 +2,8 @@
 
 FindLink Starter dùng tài khoản FindLink để quản lý quyền chạy, số dư credits và thanh toán SePay. Quản trị viên chọn model và biểu giá trên backend.
 
+Bản production dành cho Windows x64 tải từ GitHub Releases. Bộ cài hiện chưa ký và cập nhật thủ công. [Tải FindLink Starter](https://github.com/doisn2003/crawl-socials/releases/latest)
+
 ## Mở thử Starter trên máy này
 
 Chạy tại thư mục dự án trên Windows. Cần Node.js theo [.node-version](.node-version) và `DATABASE_URL` trong `.env` có quyền tạo database thử.

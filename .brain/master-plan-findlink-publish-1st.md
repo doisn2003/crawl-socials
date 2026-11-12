@@ -455,3 +455,9 @@ Chạy lại `npm test` đạt 1.127/1.127. `npm run backend:test -- --env=.env`
 Bài tải trên backend thử và PostgreSQL cách ly gửi 100 yêu cầu từ hai tài khoản với quỹ chỉ đủ một yêu cầu. Server chỉ giữ đúng một khoản. Với 100 yêu cầu cùng lúc, 16 nhận thông báo vượt quỹ và 83 báo `BACKEND_UNAVAILABLE` ở desktop trong bài thử dùng thời hạn 8 giây. Giới hạn bốn yêu cầu đồng thời cho kết quả một được duyệt và 99 bị từ chối đúng lý do. Còn cần kiểm tra độ trễ trên cấu hình triển khai thực.
 
 Đăng ký công khai 20 + 80 credits với xác minh bổ sung, Agency/Scale nhiều ghế và đo chất lượng DeepSeek thuộc chặng sau. Rollout theo tỷ lệ phần trăm và đo chi phí, hỗ trợ, chuyển đổi của pilot chưa thực hiện.
+
+### Phát hành Starter 0.5.9 ngày 12/11/2026
+
+Đã công bố bộ cài Windows x64 của commit `b6a3266` trên GitHub Releases. Bản này trỏ production, dùng khóa xác minh quyền chạy của production và cập nhật thủ công. Windows CI cài đúng tệp đã công bố, chạy kiểm thử giao diện và xác nhận hash của file. Defender quét tệp đã công bố và không phát hiện mối đe dọa. Bộ cài chưa ký nên SmartScreen hoặc chính sách Windows vẫn có thể cảnh báo hay chặn cài. [Tải bộ cài và SHA-256](https://github.com/doisn2003/crawl-socials/releases/tag/findlink-starter-v0.5.9) · [Kiểm thử Windows](https://github.com/doisn2003/crawl-socials/actions/runs/43179241048)
+
+Production đã bật quyền cấp trial và AI. Đợt đầu có một suất trial, quỹ AI trial 100 credits và quỹ AI Starter 50.000 credits. Các mức quỹ áp dụng cả theo ngày và tổng đợt. Chưa phát hành mã mời cho khách hoặc dispatch AI trong lần mở này. Tạo mã mời theo email khi có khách, rồi gán khóa AI riêng của tài khoản sau khi mua Starter. SePay Live nhận giao dịch vào tài khoản đã duyệt. Đơn thật khớp mã và lượt AI thật sẽ có bằng chứng khi khách đầu tiên dùng dịch vụ. [Quản trị production](https://findlink-api-production.up.railway.app/admin)
