@@ -74,7 +74,7 @@ export function managedUpdates(feed: string, publisher: string) {
     },
     install() {
       if (!verifiedFile) throw Error('UPDATE_UNAVAILABLE');
-      autoUpdater.quitAndInstall(false, true);
+      autoUpdater.quitAndInstall(true, true);
     },
   };
 }

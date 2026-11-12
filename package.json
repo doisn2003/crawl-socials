@@ -24,6 +24,7 @@
     "starter:preview": "npm run build && node scripts/starter-preview.mjs",
     "dist:starter": "node scripts/package-starter.mjs",
     "verify:starter-feed": "node scripts/starter-release-feed.mjs",
+    "test:starter-signed-update": "node scripts/starter-signed-update-smoke.mjs",
     "pack:starter:qa": "node scripts/package-starter.mjs --qa --dir",
     "dist:starter:qa": "node scripts/package-starter.mjs --qa",
     "test": "npm run build && npm run test:unit",

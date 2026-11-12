@@ -79,3 +79,48 @@ jobs:
           Install-Qa '0.5.5'
           Assert-ResultsPreserved
           Write-Output 'STARTER_WINDOWS_INSTALL_UPGRADE_REINSTALL_PASSED'
+
+  signed-update:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify the signed installer and update through HTTPS
+        shell: pwsh
+        run: |
+          if ($env:RUNNER_ENVIRONMENT -ne 'github-hosted') { throw 'EXPECTED_DISPOSABLE_WINDOWS_RUNNER' }
+          $testDir = Join-Path $env:RUNNER_TEMP ('findlink-certificates-' + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $testDir | Out-Null
+          $store = 'Cert:\CurrentUser\My'
+          $until = (Get-Date).AddDays(1)
+          $testRoot = New-SelfSignedCertificate -Type Custom -Subject 'CN=FindLink Windows CI Test Root' -CertStoreLocation $store `
+            -KeyUsage CertSign,CRLSign -TextExtension '2.5.29.19={critical}{text}ca=1&pathlength=0' `
+            -HashAlgorithm SHA256 -NotAfter $until.AddDays(1)
+          $publisher = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=FindLink Windows CI Test Publisher' `
+            -CertStoreLocation $store -Signer $testRoot -HashAlgorithm SHA256 -NotAfter $until
+          $serverCert = New-SelfSignedCertificate -Type SSLServerAuthentication -DnsName localhost -CertStoreLocation $store `
+            -Signer $testRoot -KeyExportPolicy Exportable -HashAlgorithm SHA256 -NotAfter $until
+
+          $rootFile = Join-Path $testDir 'root.cer'
+          Export-Certificate -Cert $testRoot -FilePath $rootFile | Out-Null
+          Import-Certificate -FilePath $rootFile -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
+          $rootPem = Join-Path $testDir 'root.pem'
+          $rootBase64 = [Convert]::ToBase64String($testRoot.RawData, [Base64FormattingOptions]::InsertLineBreaks)
+          [IO.File]::WriteAllText($rootPem, "-----BEGIN CERTIFICATE-----`n$rootBase64`n-----END CERTIFICATE-----`n")
+          $env:NODE_EXTRA_CA_CERTS = $rootPem
+          $env:FINDLINK_TEST_TLS_PFX = Join-Path $testDir 'localhost.pfx'
+          $env:FINDLINK_TEST_TLS_PASSWORD = [guid]::NewGuid().ToString('N')
+          $pfxPassword = ConvertTo-SecureString -String $env:FINDLINK_TEST_TLS_PASSWORD -AsPlainText -Force
+          Export-PfxCertificate -Cert $serverCert -FilePath $env:FINDLINK_TEST_TLS_PFX -Password $pfxPassword `
+            -CryptoAlgorithmOption AES256_SHA256 | Out-Null
+          $env:FINDLINK_SIGNING_CERT_SHA1 = $publisher.Thumbprint
+          $env:FINDLINK_SIGNING_PUBLISHER = $publisher.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
+          npm run test:starter-signed-update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
