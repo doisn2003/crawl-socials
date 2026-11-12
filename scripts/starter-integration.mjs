@@ -9,7 +9,7 @@ import { createBackend } from '../dist/backend/server.js';
 import { totp } from '../dist/backend/admin.js';
 import { yearAfter } from '../dist/backend/billing.js';
 import { createEntitlements } from '../dist/backend/entitlements.js';
-import { createManagedClient } from '../dist/infrastructure/managed/client.js';
+import { createManagedClient, ManagedHttpError } from '../dist/infrastructure/managed/client.js';
 import { createHttpBackupStore } from '../dist/infrastructure/managed/backup.js';
 import { createRunAccess } from '../dist/infrastructure/managed/run-access.js';
 import { createRemoteModelGateway } from '../dist/infrastructure/managed/model-gateway.js';
@@ -257,18 +257,70 @@ try {
   await backend.models.workOnce();
   await admin('policy',{pause_trial:false,trial_total_cost:'100000000'},'PUT');
   await release(c.client,cLease.id);
-  const trialGate = createRunAccess(a.client,projectId,()=>{});
+  let lostRawResponse, recoveredRawResponse, trialService;
+  const trialClient = { ...a.client, async json(path, input, authenticated) {
+    const result = await a.client.json(path,input,authenticated);
+    if (path.endsWith('/raw') && result.rawRemaining === 0) {
+      if (!lostRawResponse) {
+        lostRawResponse = { path,input,result };
+        throw new ManagedHttpError('BACKEND_UNAVAILABLE',0);
+      }
+      assert.deepEqual(input,lostRawResponse.input);
+      assert.deepEqual(result,lostRawResponse.result);
+      recoveredRawResponse = true;
+    }
+    return result;
+  } };
+  const trialGate = createRunAccess(trialClient,projectId,()=>{ void trialService?.stop().catch(()=>{}); });
   await trialGate.begin({runId:run,scope:'COLLECT_AI',budgetUsd:3});
-  const prefix = await trialGate.admit('facebook',Array.from({length:999},(_,i)=>({post_id:'root-'+i})));
-  assert.equal(prefix.length,999);
-  const tail = await trialGate.admit('threads',[{post_id:'last-1'},{post_id:'last-2'}]);
-  assert.equal(tail.length,1);
-  assert.equal(trialGate.reason(),'TRIAL_EXHAUSTED');
+  const prefix = await a.client.json('/v1/runs/leases/'+trialGate.lease().id+'/raw',{
+    method:'POST',json:{roots:Array.from({length:999},(_,i)=>digest('facebook\0root-'+i))},
+  });
+  assert.equal(prefix.accepted.length,999);
+  assert.equal(prefix.rawRemaining,1);
+  await trialGate.end();
+  const trialProfile = 'csd-' + randomUUID();
+  const trialSource = { profiles:[{platform:'threads',profileId:trialProfile}] };
+  const callsBeforeRawQuota = providerCalls;
+  trialService = createProductionService({ directory:join(temporary,'trial-quota'),version:'test',access:trialGate,
+    host:{list:async()=>[{id:trialProfile,label:'Fixture',platform:'threads',open:false,persistenceError:null}],sessionStatus:async()=>true},
+    collectConversation:async()=>{ throw Error('UNEXPECTED_COMMENT_COLLECTION'); },
+    collect:async input=>{
+      const candidates = ['last-1','last-2'].map(post_id=>({post_id,text:'Bài đã duyệt của trial'}));
+      const admitted = await input.admitRecords(candidates);
+      assert.equal(input.shouldStop(),true);
+      assert.deepEqual(await input.admitRecords([{post_id:'after-quota'}]),[]);
+      await input.onRecords(admitted,{method:'FIXTURE'});
+      writeFileSync(join(input.config.output,'posts.json'),JSON.stringify(admitted));
+      return { stop_reason:'USER_STOP' };
+    } });
+  trialService.saveConfig({schemaVersion:2,keywords:['thử'],minimumPosts:2,filterPercent:0,opportunity:{enabled:true,prompt:'',brandContext:'',
+    totalTarget:2,filterMode:'OFF',rawCap:1000,budgetUsd:0,commentsEnabled:false,languageScope:'VIETNAMESE'}});
+  await trialService.start(trialSource);
+  await trialService.settled();
+  const retainedTrial = await trialService.snapshotResults();
+  assert.ok(lostRawResponse,'The server must commit the final admission before the simulated disconnect');
+  assert.equal(lostRawResponse.result.accepted.length,1);
+  assert.equal(recoveredRawResponse,true,'The final admitted batch must survive a lost response');
+  assert.equal(retainedTrial.run.state,'STOPPED');
+  assert.equal(retainedTrial.run.platforms[0].reason,'TRIAL_EXHAUSTED');
+  assert.equal(retainedTrial.threads.length,1);
+  assert.equal(retainedTrial.opportunity.snapshots[0].root_post_id,retainedTrial.threads[0].post_id);
+  assert.equal(retainedTrial.opportunity.decisions.length,0);
+  assert.equal(providerCalls,callsBeforeRawQuota);
+  assert.deepEqual(await a.client.json(lostRawResponse.path,lostRawResponse.input),lostRawResponse.result);
+  await assert.rejects(aDevice2.json(lostRawResponse.path,lostRawResponse.input),/RUN_LEASE_INVALID/);
+  await assert.rejects(other.client.json(lostRawResponse.path,lostRawResponse.input),/RUN_LEASE_INVALID/);
+  const newRoots = [digest('trial-after-quota')];
+  await assert.rejects(a.client.json(lostRawResponse.path,{method:'POST',json:{...lostRawResponse.input.json,roots:newRoots}}),/TRIAL_RAW_IDEMPOTENCY_MISMATCH/);
+  await assert.rejects(a.client.json(lostRawResponse.path,{method:'POST',json:{reportId:randomUUID(),roots:newRoots}}),/TRIAL_EXHAUSTED/);
   assert.equal((await getStatus(a.client)).reason,'TRIAL_EXHAUSTED');
+  assert.equal((await getStatus(a.client)).rawRemaining,0);
+  await assert.rejects(trialService.start(trialSource),/TRIAL_EXHAUSTED/);
   await assert.rejects(lease(a.client,scopes(projectId,'crawl-off','COLLECT')),/TRIAL_EXHAUSTED/);
   await assert.rejects(lease(a.client,scopes(projectId,'crawl-assess','ASSESS')),/TRIAL_EXHAUSTED/);
-  await trialGate.end();
-  console.log('PASS durable AI holds, replay, isolation, revocation and OFF/AI trial lock');
+  await trialService.shutdown();
+  console.log('PASS durable AI holds, replay, isolation, revocation, OFF/AI trial lock and final batch recovery');
 
   async function sepay(order, id, { amount = order.amountVnd, good = true, currency, code = order.code } = {}) {
     const payload = JSON.stringify({id,gateway:fake.sepay.bank,accountNumber:fake.sepay.account,transferType:'in',

@@ -1,15 +1,16 @@
 import { randomUUID, sign } from 'node:crypto';
 import type { Pool } from 'pg';
-import { TRIAL_INSTALLATION_REVIEW_DAYS, TRIAL_OFFER, type ManagedLease, type ManagedScope, type ManagedStatus, type SignedLease } from '../shared/managed.js';
+import { TRIAL_INSTALLATION_REVIEW_DAYS, TRIAL_OFFER, type ManagedLease, type ManagedRawReceipt, type ManagedScope, type ManagedStatus, type SignedLease } from '../shared/managed.js';
 import type { Principal } from './auth.js';
 import type { BackendConfig } from './config.js';
 import { requireModelCredential, trialCredential } from './model-credentials.js';
-import { ApiError, audit, bad, hex, lockAccount, micros, policy, record, runId, tag, TRIAL_CREDITS, TRIAL_RAW_LIMIT, uuid } from './core.js';
+import { ApiError, audit, bad, hash, hex, lockAccount, micros, policy, record, runId, tag, TRIAL_CREDITS, TRIAL_RAW_LIMIT, uuid } from './core.js';
 import { transaction, type Transaction } from './database.js';
 
 export const LEASE_SECONDS = 120;
 const scopes = new Set<ManagedScope>(['PLAN', 'COLLECT', 'COLLECT_AI', 'ASSESS']);
 const hasAI = (scope: ManagedScope) => scope !== 'COLLECT';
+interface TrialRawReport { leaseId: string; reportId: string; requestHash: string; receipt: ManagedRawReceipt }
 
 export async function grantCredits(db: Transaction, input: { accountId: string; kind: 'TRIAL' | 'STARTER' | 'TOPUP' | 'ADJUSTMENT'; origin: string; from: Date; until: Date; amount: bigint }) {
   const id = randomUUID();
@@ -27,7 +28,8 @@ export async function entitlement(db: Transaction, accountId: string, controls: 
   const paid = (await db.query(`SELECT ends_at FROM findlink_control.subscriptions WHERE account_id=$1
     AND revoked_at IS NULL AND starts_at<=$2 AND ends_at>$2 ORDER BY ends_at DESC LIMIT 1`, [accountId, now])).rows[0];
   const hadPaid = !!paid || !!(await db.query('SELECT 1 FROM findlink_control.subscriptions WHERE account_id=$1 LIMIT 1', [accountId])).rowCount;
-  const trial = (await db.query('SELECT * FROM findlink_control.trial_subjects WHERE account_id=$1', [accountId])).rows[0];
+  const trial = (await db.query(`SELECT id,device_tag,expires_at,revoked,raw_count
+    FROM findlink_control.trial_subjects WHERE account_id=$1`, [accountId])).rows[0];
   const funding = paid ? 'PAID' as const : 'TRIAL' as const;
   const balances = (await db.query(`SELECT coalesce(sum(amount-spent-held),0)::text AS available,
     coalesce(sum(spent),0)::text AS spent,coalesce(sum(held),0)::text AS held
@@ -221,14 +223,24 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
     });
   }
 
-  async function reportRaw(actor: Principal, id: string, value: unknown) {
-    const roots = record(value).roots;
+  async function reportRaw(actor: Principal, id: string, value: unknown): Promise<ManagedRawReceipt> {
+    const body = record(value), roots = body.roots;
     if (!Array.isArray(roots) || roots.length > 1000) throw bad('TRIAL_ROOTS_INVALID');
     const hashes = [...new Set(roots.map(hex))];
+    const reportId = body.reportId === undefined ? null : uuid(body.reportId);
+    const requestHash = reportId ? hash(JSON.stringify(hashes)) : null;
     return transaction(pool, async db => {
       const account = await lockAccount(db, actor.accountId);
       const lease = await getLease(db, actor, id);
       if (!['COLLECT','COLLECT_AI'].includes(lease.scope)) throw new ApiError(403, 'RUN_LEASE_INVALID');
+      // Keep one committed receipt per trial. The collector submits batches serially.
+      const last = reportId ? (await db.query<{ last_raw_report: TrialRawReport }>(`SELECT last_raw_report
+        FROM findlink_control.trial_subjects WHERE account_id=$1 AND last_raw_report->>'leaseId'=$2
+        AND last_raw_report->>'reportId'=$3`, [actor.accountId, id, reportId])).rows[0]?.last_raw_report : null;
+      if (last) {
+        if (last.requestHash !== requestHash) throw new ApiError(409, 'TRIAL_RAW_IDEMPOTENCY_MISMATCH');
+        return last.receipt;
+      }
       const access = await requireAction(db, actor, await policy(db), lease.scope, { lockedAccount: account });
       if (lease.ended_at || +lease.expires_at <= +access.now || lease.epoch !== account.epoch) throw new ApiError(403, 'RUN_LEASE_EXPIRED');
       if (access.funding === 'PAID') return { rawRemaining: null, accepted: hashes };
@@ -239,10 +251,13 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
         WHERE NOT EXISTS(SELECT 1 FROM findlink_control.trial_roots WHERE subject_id=$1 AND root_hash=x)
         LIMIT $3 ON CONFLICT DO NOTHING`, [trial.id, hashes, remaining]);
       const count = inserted.rowCount ?? 0;
-      if (count) await db.query('UPDATE findlink_control.trial_subjects SET raw_count=raw_count+$2 WHERE id=$1', [trial.id, count]);
       const accepted = (await db.query('SELECT root_hash FROM findlink_control.trial_roots WHERE subject_id=$1 AND root_hash=ANY($2::text[])',
         [trial.id, hashes])).rows.map(row => String(row.root_hash));
-      return { rawRemaining: remaining - count, accepted };
+      const receipt = { rawRemaining: remaining - count, accepted };
+      if (count || reportId) await db.query(`UPDATE findlink_control.trial_subjects
+        SET raw_count=raw_count+$2,last_raw_report=coalesce($3::jsonb,last_raw_report) WHERE id=$1`,
+      [trial.id, count, reportId ? JSON.stringify({ leaseId: id, reportId, requestHash, receipt }) : null]);
+      return receipt;
     });
   }
 

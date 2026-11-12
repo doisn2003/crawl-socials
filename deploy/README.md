@@ -37,7 +37,7 @@ npm run backend:migrate
 npm run backend:start
 ```
 
-Migration tạo schema `findlink_control`. Phiên bản 2 thêm dấu cài đặt Windows cho trial. Phiên bản 3 bổ sung khóa Starter mã hóa và biểu giá riêng cho trial. Giữ và sao lưu nhất quán hai schema `csd_backup` và `findlink_control`. Nếu tách role, dùng role migration để cập nhật schema và role runtime có quyền USAGE, đọc/ghi bảng và sequence liên quan.
+Migration tạo schema `findlink_control`. Phiên bản 2 thêm dấu cài đặt Windows cho trial. Phiên bản 3 bổ sung khóa Starter mã hóa và biểu giá riêng cho trial. Phiên bản 4 lưu xác nhận gần nhất của lượt dùng thử để nhận lại đúng lô bài đã duyệt khi mất phản hồi. Giữ và sao lưu nhất quán hai schema `csd_backup` và `findlink_control`. Nếu tách role, dùng role migration để cập nhật schema và role runtime có quyền USAGE, đọc/ghi bảng và sequence liên quan.
 
 Có thể dùng [Compose](compose.yaml) với Caddy. Đặt `FINDLINK_DOMAIN` và tạo `deploy/findlink.env`. Chạy migration rồi khởi động dịch vụ.
 

@@ -1,5 +1,5 @@
-import { createPublicKey, verify, type KeyObject } from 'node:crypto';
-import { isManagedModel, type ManagedLease, type ManagedScope, type ManagedStatus, type SignedLease } from '../../shared/managed.js';
+import { createPublicKey, randomUUID, verify, type KeyObject } from 'node:crypto';
+import { isManagedModel, type ManagedLease, type ManagedRawReceipt, type ManagedScope, type ManagedStatus, type SignedLease } from '../../shared/managed.js';
 import { sha256 } from '../projects/snapshot.js';
 import { ManagedHttpError, type ManagedClient } from './client.js';
 
@@ -12,6 +12,8 @@ interface Active {
 
 const definitive = (error: unknown) => error instanceof ManagedHttpError && error.status >= 400 && error.status < 500;
 const reasonCode = (error: unknown) => error instanceof ManagedHttpError ? error.code : 'ENTITLEMENT_UNAVAILABLE';
+const uncertainRawReport = (error: unknown) => !(error instanceof ManagedHttpError) || error.status === 0
+  || (error.status >= 500 && error.code === 'BACKEND_UNAVAILABLE');
 
 export function createRunAccess(client: ManagedClient, projectId: string, onDenied: (code: string) => void) {
   let active: Active | null = null;
@@ -99,6 +101,17 @@ export function createRunAccess(client: ManagedClient, projectId: string, onDeni
     return acquiring;
   }
 
+  async function reportRaw(leaseId: string, roots: string[]) {
+    const path = '/v1/runs/leases/' + leaseId + '/raw';
+    const submission = { method: 'POST', json: { reportId: randomUUID(), roots } };
+    try { return await client.json<ManagedRawReceipt>(path, submission); }
+    catch (error) {
+      if (!uncertainRawReport(error) || active?.lease.id !== leaseId || performance.now() >= active.deadline
+        || (failure && failure !== 'TRIAL_EXHAUSTED')) throw error;
+      return client.json<ManagedRawReceipt>(path, submission);
+    }
+  }
+
   return {
     begin, reason,
     model(runId: string) { return active?.lease.runId === runId ? active.lease.model : undefined; },
@@ -121,14 +134,17 @@ export function createRunAccess(client: ManagedClient, projectId: string, onDeni
           ? sha256(platform + '\0' + row.post_id) : null }));
         const hashes = [...new Set(candidates.flatMap(item => item.root && !knownRoots.has(item.root) ? [item.root] : []))];
         for (let offset = 0; offset < hashes.length; offset += 1000) {
+          if (reason()) break;
           try {
-            const ack = await client.json<{ rawRemaining: number | null; accepted: string[] }>('/v1/runs/leases/' + current.lease.id + '/raw', {
-              method: 'POST', json: { roots: hashes.slice(offset,offset + 1000) },
-            });
-            if (active?.lease.id === current.lease.id) active.rawRemaining = ack.rawRemaining;
+            const ack = await reportRaw(current.lease.id, hashes.slice(offset,offset + 1000));
+            if (active?.lease.id !== current.lease.id) return [];
+            active.rawRemaining = ack.rawRemaining;
             for (const root of ack.accepted) knownRoots.add(root);
             if (ack.rawRemaining === 0) { deny('TRIAL_EXHAUSTED'); break; }
-          } catch (error) { deny(definitive(error) ? reasonCode(error) : 'ENTITLEMENT_UNAVAILABLE'); break; }
+          } catch (error) {
+            if (active?.lease.id !== current.lease.id) return [];
+            deny(uncertainRawReport(error) ? 'ENTITLEMENT_UNAVAILABLE' : reasonCode(error)); break;
+          }
         }
         return candidates.filter(item => item.root !== null && knownRoots.has(item.root)).map(item => item.row);
       });

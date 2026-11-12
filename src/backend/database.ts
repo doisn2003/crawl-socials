@@ -2,7 +2,7 @@ import { Pool, type PoolClient } from 'pg';
 import { PROJECT_SCHEMA_SQL } from '../infrastructure/projects/schema.js';
 
 export type Transaction = PoolClient;
-export const CONTROL_SCHEMA_VERSION = 3;
+export const CONTROL_SCHEMA_VERSION = 4;
 
 export function database(url: string) {
   const pool = new Pool({ connectionString: url, max: 12, connectionTimeoutMillis: 8000,
@@ -50,6 +50,10 @@ export async function migrate(pool: Pool) {
         ALTER TABLE findlink_control.policy ALTER COLUMN trial_route_id SET NOT NULL,
           ALTER COLUMN trial_route_id SET DEFAULT 1;
         INSERT INTO findlink_control.migrations(version) VALUES(3);`);
+    }
+    if (!versions.has(4)) {
+      await db.query(`ALTER TABLE findlink_control.trial_subjects ADD COLUMN last_raw_report jsonb;
+        INSERT INTO findlink_control.migrations(version) VALUES(4);`);
     }
   });
 }

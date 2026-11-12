@@ -27,6 +27,7 @@ export interface ManagedLease {
   rawRemaining: number | null;
 }
 export interface SignedLease { lease: ManagedLease; signature: string }
+export interface ManagedRawReceipt { rawRemaining: number | null; accepted: string[] }
 export interface ManagedStatus {
   state: 'GUEST' | 'INACTIVE' | 'TRIAL' | 'STARTER' | 'UNAVAILABLE';
   reason: string | null;
