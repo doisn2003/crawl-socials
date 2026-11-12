@@ -90,6 +90,6 @@ Chữ ký Authenticode xác nhận tên nhà phát hành trên bộ cài Windows
 
 Nếu vận hành bằng Caddy, đặt tệp trong `deploy/downloads/windows`, đưa installer và blockmap lên trước `latest.yml` và dùng `https://<domain>/downloads/windows/` làm feed.
 
-Workflow [FindLink Starter Windows QA](../.github/workflows/findlink-starter-windows-qa.yml) kiểm tra cài mới, nâng cấp, gỡ và cài lại trên máy Windows sạch. Kiểm tra thêm cài mới và tự cập nhật **bằng bộ cài đã ký** từ feed HTTPS trước khi mở bán. [Cập nhật tự động electron-builder v26](https://www.electron.build/v26/docs/features/auto-update/)
+Workflow [FindLink Starter Windows QA](../.github/workflows/findlink-starter-windows-qa.yml) kiểm tra cài mới, nâng cấp, gỡ và cài lại trên máy Windows sạch. Bài kiểm thử ký số tạo chứng chỉ thử trong máy CI, chạy bản cài thật và bấm **Cài cập nhật** để kiểm tra tải HTTPS, xác minh chữ ký, mở lại ứng dụng và giữ kết quả đã lưu. Sau khi có chứng chỉ của nhà phát hành, thử lại từ feed production trước khi mở bán. [Cập nhật tự động electron-builder v26](https://www.electron.build/v26/docs/features/auto-update/)
 
 Trước khi mở bán, kiểm tra `npm test`, `npm run backend:test -- --env=.env`, luồng SePay Test Mode, giá và hạn mức Gemini, cài mới/cập nhật có chữ ký, và khôi phục dữ liệu trên máy QA. Bài tích hợp trong repo dùng PostgreSQL cách ly và dịch vụ mô phỏng.
