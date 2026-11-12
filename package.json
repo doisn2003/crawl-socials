@@ -23,6 +23,7 @@
     "backend:test": "node scripts/starter-integration.mjs",
     "starter:preview": "npm run build && node scripts/starter-preview.mjs",
     "dist:starter": "node scripts/package-starter.mjs",
+    "dist:starter:unsigned": "node scripts/package-starter.mjs --unsigned",
     "verify:starter-feed": "node scripts/starter-release-feed.mjs",
     "test:starter-signed-update": "node scripts/starter-signed-update-smoke.mjs",
     "pack:starter:qa": "node scripts/package-starter.mjs --qa --dir",

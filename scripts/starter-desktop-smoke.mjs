@@ -11,18 +11,22 @@ import ExcelJS from 'exceljs';
 
 const entry = resolve(process.argv.find(a => a.startsWith('--module='))?.slice(9) ||
   'release/starter-qa/win-unpacked/resources/app.asar/dist/main/index.js');
+const unsigned = process.argv.includes('--unsigned');
 if (!process.versions.electron) {
   const env = { ...process.env };
   delete env.ELECTRON_RUN_AS_NODE;
-  const child = spawn(createRequire(import.meta.url)('electron'), [fileURLToPath(import.meta.url), '--module=' + entry],
+  const child = spawn(createRequire(import.meta.url)('electron'), [fileURLToPath(import.meta.url), '--module=' + entry,
+    ...(unsigned ? ['--unsigned'] : [])],
     { windowsHide: true, env, stdio: ['ignore','inherit','inherit'] });
   process.exitCode = await new Promise((done,fail) => { child.once('exit', code => done(code ?? 1)); child.once('error',fail); });
 } else {
   const { app, dialog, BrowserWindow } = await import('electron');
   const isolated = mkdtempSync(join(tmpdir(), 'findlink-desktop-it-'));
   app.setPath('appData',isolated);
-  const qaRoot = join(isolated,'FindLink Starter QA','csd-desktop');
-  const local = join(qaRoot,'data');
+  if (unsigned) process.env.USERPROFILE = isolated;
+  const productName = unsigned ? 'FindLink' : 'FindLink Starter QA';
+  const dataRoot = unsigned ? join(isolated,'csd-desktop') : join(isolated,productName,'csd-desktop');
+  const local = join(dataRoot,'data');
   const runId = 'crawl-' + randomUUID(), profileId = 'csd-' + randomUUID();
   const outputDirectory = join(local,'collections',runId);
   const now = new Date().toISOString();
@@ -36,7 +40,14 @@ if (!process.versions.electron) {
   writeFileSync(join(local,'latest-run.json'),JSON.stringify({ id:runId,state:'STOPPED',startedAt:now,finishedAt:now,minimumPosts:1,
     keywords:['cà phê'],outputDirectory,platforms:[{platform:'facebook',profileId,state:'STOPPED',count:1,reason:'USER_STOP'}],preview:[],opportunity:progress }));
   const config = JSON.parse(readFileSync(resolve(dirname(entry),'../managed-release.json'),'utf8'));
-  assert.equal(config.testOnly,true);
+  if (unsigned) {
+    assert.equal(config.origin, new URL(process.env.FINDLINK_PUBLIC_URL).origin);
+    assert.equal(config.testOnly,undefined);
+    assert.equal(config.manualUpdate,true);
+    assert.ok(config.leasePublicKey);
+    assert.equal(config.updateUrl,undefined);
+    assert.equal(config.updatePublisher,undefined);
+  } else assert.equal(config.testOnly,true);
   app.getVersion = () => JSON.parse(readFileSync(resolve(dirname(entry),'../../package.json'),'utf8')).version;
   const user = { id: randomUUID(), username: 'starter-fixture@example.test' };
   const tokens = { accessToken:'a'.repeat(64),refreshToken:'b'.repeat(64),expiresIn:900,deviceId:randomUUID() };
@@ -89,8 +100,9 @@ if (!process.versions.electron) {
         const initial = await run('window.csd.getState()');
         assert.equal(initial.managed,true);
         assert.equal(initial.version,process.env.FINDLINK_STARTER_VERSION || '0.5.1');
-        assert.equal(app.getName(),'FindLink Starter QA');
-        assert.equal(app.getPath('userData'),qaRoot);
+        assert.equal(app.getName(),productName);
+        assert.equal(app.getPath('userData'),dataRoot);
+        assert.equal((await run('window.csd.managed.status()')).preview === true,!unsigned);
         assert.equal(initial.run.id,runId);
         assert.equal(initial.run.resultsOnly,true);
         assert.equal(await run("!!document.querySelector('.intro #managed-balance')"),true);

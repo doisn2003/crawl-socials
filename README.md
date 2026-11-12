@@ -29,7 +29,7 @@ Bản thử tạo database và AppData riêng, mô phỏng Gemini và SePay, r�
 | `npm run starter:preview` | Xem trial, credits, mua Starter và quản trị ngay với dữ liệu mô phỏng. |
 | `npm start` | Chạy nội bộ với key và giới hạn chi tiêu của máy. |
 | **FindLink Starter QA** | Kiểm thử bộ cài Windows. Bản QA mặc định kết nối backend ở `http://127.0.0.1:9070`. |
-| **FindLink Starter phát hành** | Kết nối backend HTTPS của FindLink. Bản này cần được build và ký trên Windows. |
+| **FindLink Starter phát hành** | Kết nối backend HTTPS của FindLink. Bản cài chưa ký cập nhật thủ công. Bản có chữ ký hỗ trợ tự cập nhật. |
 
 ## Quản trị và mở bán
 

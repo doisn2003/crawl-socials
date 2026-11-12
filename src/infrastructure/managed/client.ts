@@ -6,6 +6,7 @@ export interface ManagedRelease {
   leasePublicKey?: string;
   updateUrl?: string;
   updatePublisher?: string;
+  manualUpdate?: true;
   testOnly?: true;
 }
 export interface ManagedIdentity { id: string; username: string }

@@ -79,9 +79,11 @@ FindLink phát hành bộ cài `.exe` qua đường tải HTTPS. Khách cài và
 
 Chữ ký Authenticode xác nhận tên nhà phát hành trên bộ cài Windows và giúp kiểm tra tệp còn nguyên vẹn. Chọn tên cá nhân hoặc doanh nghiệp sẽ đứng tên chứng chỉ ký mã. Nhà cấp chứng chỉ xác minh danh tính trước khi cấp. Sau khi thiết lập thiết bị hoặc dịch vụ ký, lấy tên publisher đúng như trên chứng chỉ để cấu hình build. [Chữ ký Authenticode](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/authenticode)
 
-SmartScreen có thể cảnh báo khi khách tải một bộ cài mới, kể cả khi đã ký. Giữ cùng danh tính ký qua các phiên bản giúp tích lũy uy tín. Bản QA chưa ký dùng để thử trên staging. Windows 11 có thể chặn bản này khi Smart App Control đang bật. [SmartScreen và chữ ký ứng dụng](https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation)
+SmartScreen có thể cảnh báo khi khách tải một bộ cài mới, kể cả khi đã ký. Với bộ cài chưa ký, Windows có thể hiện nhà phát hành không xác định hoặc chặn cài theo chính sách của máy. [SmartScreen và chữ ký ứng dụng](https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation)
 
 - `npm run dist:starter:qa` tạo bộ cài thử chưa ký trong `release/starter-qa`. Địa chỉ backend mặc định là `http://127.0.0.1:9070`. Có thể đặt `FINDLINK_QA_ORIGIN` khi build.
+- Để tạo bộ cài production cập nhật thủ công, đặt `FINDLINK_PUBLIC_URL`, `FINDLINK_LEASE_PUBLIC_KEY` và `FINDLINK_STARTER_VERSION` rồi chạy `npm run dist:starter:unsigned`. Lệnh tạo installer trong `release/starter-unsigned`. Lấy `leasePublicKey` từ `/v1/config` của chính backend production.
+- Với bản cập nhật thủ công, đưa `.exe` và SHA-256 lên GitHub Release theo phiên bản. Khi có bản mới, khách tải bộ cài mới từ cùng trang phát hành. Thông báo rõ tình trạng chữ ký của bộ cài.
 - Đặt `FINDLINK_PUBLIC_URL`, `FINDLINK_UPDATE_URL`, `FINDLINK_LEASE_PUBLIC_KEY` và `FINDLINK_SIGNING_PUBLISHER` trong môi trường build chính thức. Lấy `leasePublicKey` từ `/v1/config` của chính backend production. Dùng `FINDLINK_SIGNING_CERT_SHA1` hoặc `CSC_LINK` cùng mật khẩu chứng chỉ từ kho secrets.
 - Chạy `npm run dist:starter` trên Windows. Lệnh kiểm chữ ký của FindLink và installer, kiểm publisher trong `app-update.yml`, rồi tạo `release/starter-feed/<version>` chứa installer, blockmap và `latest.yml`. Dùng phiên bản cao hơn khi phát hành bản sửa.
 
@@ -96,4 +98,4 @@ Nếu vận hành bằng Caddy, đặt tệp trong `deploy/downloads/windows`, �
 
 Workflow [FindLink Starter Windows QA](../.github/workflows/findlink-starter-windows-qa.yml) kiểm tra cài mới, nâng cấp, gỡ và cài lại trên máy Windows sạch. Bài kiểm thử ký số tạo chứng chỉ thử trong máy CI, chạy bản cài thật và bấm **Cài cập nhật** để kiểm tra tải HTTPS, xác minh chữ ký, mở lại ứng dụng và giữ kết quả đã lưu. Sau khi có chứng chỉ của nhà phát hành, thử lại từ feed production trước khi mở bán. [Cập nhật tự động electron-builder v26](https://www.electron.build/v26/docs/features/auto-update/)
 
-Trước khi mở bán, kiểm tra `npm test`, `npm run backend:test -- --env=.env`, luồng SePay Test Mode, giá và hạn mức Gemini, cài mới/cập nhật có chữ ký, và khôi phục dữ liệu trên máy QA. Bài tích hợp trong repo dùng PostgreSQL cách ly và dịch vụ mô phỏng.
+Trước khi mở bán, kiểm tra `npm test`, `npm run backend:test -- --env=.env`, luồng SePay Test Mode, giá và hạn mức Gemini, cài mới/cập nhật theo cách phân phối đã chọn và khôi phục dữ liệu trên máy QA. Bài tích hợp trong repo dùng PostgreSQL cách ly và dịch vụ mô phỏng.

@@ -41,7 +41,13 @@ async function bootstrap() {
   const releaseFile = fileURLToPath(new URL('../managed-release.json', import.meta.url));
   const commercialRelease = existsSync(releaseFile) ? JSON.parse(readFileSync(releaseFile, 'utf8')) as ManagedRelease : null;
   const packageInfo = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as { findlinkManaged?: boolean };
-  if (packageInfo.findlinkManaged && (!commercialRelease || (!commercialRelease.testOnly && (!commercialRelease.leasePublicKey || !commercialRelease.updateUrl)))) throw Error('MANAGED_RELEASE_INVALID');
+  if (packageInfo.findlinkManaged && !commercialRelease) throw Error('MANAGED_RELEASE_INVALID');
+  if (commercialRelease && !commercialRelease.testOnly) {
+    const validUpdates = commercialRelease.manualUpdate === true
+      ? !commercialRelease.updateUrl && !commercialRelease.updatePublisher
+      : !!commercialRelease.updateUrl && !!commercialRelease.updatePublisher;
+    if (!commercialRelease.leasePublicKey || !validUpdates) throw Error('MANAGED_RELEASE_INVALID');
+  }
   const developerOrigin = app.isPackaged ? undefined : process.env.FINDLINK_DEV_BACKEND_URL;
   const localPreview = process.env.FINDLINK_LOCAL_PREVIEW === '1' && !!developerOrigin
     && /^http:\/\/127\.0\.0\.1:\d+$/.test(developerOrigin);

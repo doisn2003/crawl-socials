@@ -80,6 +80,45 @@ jobs:
           Assert-ResultsPreserved
           Write-Output 'STARTER_WINDOWS_INSTALL_UPGRADE_REINSTALL_PASSED'
 
+  unsigned-production:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      FINDLINK_PUBLIC_URL: https://findlink-api-production.up.railway.app
+      FINDLINK_STARTER_VERSION: '0.5.9'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Build and install the unsigned production package
+        shell: pwsh
+        run: |
+          $config = Invoke-RestMethod -Uri ($env:FINDLINK_PUBLIC_URL + '/v1/config') -TimeoutSec 15
+          if ($config.protocol -ne 1 -or !$config.leasePublicKey) { throw 'PRODUCTION_LEASE_CONFIG_UNAVAILABLE' }
+          $env:FINDLINK_LEASE_PUBLIC_KEY = $config.leasePublicKey
+          npm run dist:starter:unsigned
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $setup = (Resolve-Path -LiteralPath "release/starter-unsigned/FindLink-Starter-$env:FINDLINK_STARTER_VERSION-Setup.exe").Path
+          if ((Get-AuthenticodeSignature -LiteralPath $setup).Status -ne 'NotSigned') { throw 'UNEXPECTED_INSTALLER_SIGNATURE' }
+          $installDir = Join-Path $env:RUNNER_TEMP ('findlink-starter-unsigned-' + [guid]::NewGuid().ToString('N'))
+          $process = Start-Process -FilePath $setup -ArgumentList "/S /D=$installDir" -WindowStyle Hidden -Wait -PassThru
+          $entry = Join-Path $installDir 'resources/app.asar/dist/main/index.js'
+          if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath (Join-Path $installDir 'FindLink.exe'))) { throw 'STARTER_INSTALL_FAILED' }
+          if (Test-Path -LiteralPath (Join-Path $installDir 'resources/app-update.yml')) { throw 'UNEXPECTED_UPDATE_FEED' }
+          node scripts/starter-desktop-smoke.mjs --unsigned "--module=$entry"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-FileHash -LiteralPath $setup -Algorithm SHA256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: findlink-starter-unsigned-windows
+          path: release/starter-unsigned/FindLink-Starter-*-Setup.exe
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 2
+
   signed-update:
     runs-on: windows-latest
     timeout-minutes: 25
