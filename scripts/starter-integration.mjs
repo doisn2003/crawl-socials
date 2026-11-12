@@ -48,6 +48,7 @@ const fake = {
 };
 const starterGeminiKey = 'mock-starter-gemini-key', peerGeminiKey = 'mock-peer-gemini-key';
 const starterDeepseekKey = 'mock-starter-deepseek-key';
+const peerDeepseekKey = 'mock-peer-deepseek-key';
 let expectedGeminiKey = fake.trialGeminiKey;
 
 async function mockProvider(url, request) {
@@ -353,6 +354,9 @@ try {
   await release(a.client,revokedLease.id);
   await credential(a.user.id,{key:starterGeminiKey});
   expectedGeminiKey = starterGeminiKey;
+  const waiting = await signUp('paid-waiting-for-key@example.test',memory(),'ACCOUNT');
+  const waitingOrder = await waiting.client.json('/v1/billing/orders',{method:'POST',json:{requestId:randomUUID()}});
+  await sepay(waitingOrder,1008);
   console.log('PASS paid credentials scoped to account and provider, trial key isolation and queued revocation');
 
   const backup = createHttpBackupStore(a.client), alternate = createHttpBackupStore(other.client);
@@ -412,8 +416,18 @@ try {
     await admin('tariffs',{model:'arbitrary-model',price},'POST',400);
     await admin('tariffs',{model:'deepseek-flash',price},'POST',409);
     await credential(a.user.id,{provider:'deepseek',key:starterDeepseekKey});
+    const coverage = (await admin('overview',undefined,'GET')).setup.models.find(model=>model.model==='deepseek-flash');
+    assert.equal(coverage.paidKeys,1);
+    assert.equal(coverage.paidMissingOnSwitch,1);
+    const incomplete = await admin('tariffs',{model:'deepseek-flash',price},'POST',409);
+    assert.equal(incomplete.code,'MODEL_ROUTE_KEYS_MISSING');
+    assert.equal((await getStatus(peer.client)).aiReason,undefined);
+    assert.equal((await admin('overview',undefined,'GET')).tariff[0].model,REBUILD_MODEL);
+    await credential(peer.user.id,{provider:'deepseek',key:peerDeepseekKey});
     const switched = await admin('tariffs',{model:'deepseek-flash',price},'POST',201);
     assert.equal(switched.model,'deepseek-flash');
+    assert.equal((await getStatus(peer.client)).aiReason,undefined);
+    assert.equal((await getStatus(waiting.client)).aiReason,'MODEL_ACCOUNT_KEY_REQUIRED');
     assert.equal((await admin('tariffs',{funding:'TRIAL',model:'deepseek-flash',price},'POST',409)).code,'MODEL_KEY_REQUIRED');
     const trialAfterSwitch = await lease(reinstalledNewDevice,scopes(randomUUID(),'trial-after-paid-switch','PLAN'));
     assert.equal(trialAfterSwitch.model,REBUILD_MODEL);

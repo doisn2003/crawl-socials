@@ -6,6 +6,7 @@ const message = (text, failed = false) => {
 };
 const operatorErrors = {
   MODEL_KEY_REQUIRED:'Cần cấu hình khóa cho nhà cung cấp của gói đã chọn.',
+  MODEL_ROUTE_KEYS_MISSING:'Gán khóa nhà cung cấp mới cho các tài khoản Starter đang dùng AI rồi áp dụng lại.',
   MODEL_KEY_INVALID:'Kiểm tra định dạng khóa API và lý do thay đổi.',
   MODEL_KEY_RESERVED_FOR_TRIAL:'Khóa này đang dành cho dùng thử.',
   MODEL_KEY_IN_USE:'Khóa này đã được gán. Hãy dùng khóa riêng cho tài khoản và nhà cung cấp này.',
@@ -90,6 +91,9 @@ function fillTariff() {
   info.textContent = funding === 'TRIAL'
     ? (provider?.trialConfigured ? 'Đã cấu hình khóa dùng thử. ' : 'Cấu hình khóa dùng thử trên máy chủ. ')
     : `${number.format(provider?.paidKeys ?? 0)} tài khoản đã gán khóa cho nhà cung cấp này. `;
+  if (funding === 'PAID' && provider?.paidMissingOnSwitch) {
+    info.append(`${number.format(provider.paidMissingOnSwitch)} tài khoản Starter đang dùng AI cần khóa mới trước khi chuyển. `);
+  }
   if (provider) {
     const link = document.createElement('a');
     link.href = provider.source;

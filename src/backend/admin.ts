@@ -1,6 +1,6 @@
 import { createHmac, randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
-import { isManagedModel, MANAGED_MODELS, STARTER_OFFER, TRIAL_OFFER } from '../shared/managed.js';
+import { isManagedModel, MANAGED_MODELS, STARTER_OFFER, TRIAL_OFFER, type ManagedModel } from '../shared/managed.js';
 import type { BackendConfig } from './config.js';
 import { ApiError, audit, bad, email, hash, hex, integer, lockAccount, micros, policy, rateLimit, record, safeEqual, string, token, uuid } from './core.js';
 import { transaction, type Transaction } from './database.js';
@@ -34,6 +34,19 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
     const result = await db.query(`SELECT 1 FROM findlink_control.model_credentials
       WHERE provider=$1 AND NOT (key_tag=ANY($2::text[])) LIMIT 1`, [MODEL_PROVIDERS[model], trialCredentialTags(config)]);
     return !!result.rowCount;
+  }
+
+  async function paidAccountsMissingKey(db: Pool | Transaction, activeModel: unknown, nextModel: ManagedModel) {
+    if (!isManagedModel(activeModel) || MODEL_PROVIDERS[activeModel] === MODEL_PROVIDERS[nextModel]) return 0;
+    const { rows: [row] } = await db.query<{ count: number }>(`SELECT count(*)::int AS count
+      FROM findlink_control.model_credentials current_key JOIN findlink_control.accounts a ON a.id=current_key.account_id
+      WHERE current_key.provider=$1 AND NOT (current_key.key_tag=ANY($3::text[])) AND NOT a.suspended
+        AND EXISTS (SELECT 1 FROM findlink_control.subscriptions s WHERE s.account_id=a.id AND s.revoked_at IS NULL
+          AND s.starts_at<=now() AND s.ends_at>now())
+        AND NOT EXISTS (SELECT 1 FROM findlink_control.model_credentials next_key WHERE next_key.account_id=a.id
+          AND next_key.provider=$2 AND NOT (next_key.key_tag=ANY($3::text[])))`,
+    [MODEL_PROVIDERS[activeModel], MODEL_PROVIDERS[nextModel], trialCredentialTags(config)]);
+    return row!.count;
   }
 
   async function login(value: unknown, ip: string) {
@@ -127,6 +140,7 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
       const model: unknown = body.model ?? (trial ? before.trial_route_model : before.route_model);
       if (!isManagedModel(model)) throw bad('MODEL_NOT_SUPPORTED');
       if (trial ? !trialCredential(config, model) : !await paidKeyConfigured(db, model)) throw new ApiError(409, 'MODEL_KEY_REQUIRED');
+      if (!trial && await paidAccountsMissingKey(db, before.route_model, model)) throw new ApiError(409, 'MODEL_ROUTE_KEYS_MISSING');
       const snapshot = { input_per_million: price.input_per_million, output_per_million: price.output_per_million,
         cached_input_per_million: price.cached_input_per_million, observed_at: observed, source: MODEL_PRICE_SOURCES[model] };
       const id = (await db.query('SELECT max(id)+1 AS id FROM findlink_control.tariff_versions')).rows[0].id as number;
@@ -149,6 +163,8 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
     if (fingerprint && trialCredentialTags(config).includes(fingerprint)) throw new ApiError(409, 'MODEL_KEY_RESERVED_FOR_TRIAL');
     await transaction(pool, async db => {
       await lockAccount(db, accountId);
+      // Serialize key changes with a provider switch's account coverage check.
+      await policy(db, true);
       if (key === null) {
         const result = await db.query('DELETE FROM findlink_control.model_credentials WHERE account_id=$1 AND provider=$2', [accountId, provider]);
         if (!result.rowCount) return;
@@ -281,11 +297,16 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
       pool.query<{ provider: ModelProvider; count: number }>(`SELECT provider,count(*)::int AS count FROM findlink_control.model_credentials
         WHERE NOT (key_tag=ANY($1::text[])) GROUP BY provider`, [trialCredentialTags(config)]),
     ]);
-    return { ...Object.fromEntries(result), setup: { sepayConfigured: !!config.sepay,
+    const data = Object.fromEntries(result);
+    const models = await Promise.all(MANAGED_MODELS.map(async model => ({
+      model, trialConfigured: !!trialCredential(config, model),
+      paidKeys: paidKeys.rows.find(row => row.provider === MODEL_PROVIDERS[model])?.count ?? 0,
+      paidMissingOnSwitch: await paidAccountsMissingKey(pool, data.tariff?.[0]?.model, model),
+      source: MODEL_PRICE_SOURCES[model],
+    })));
+    return { ...data, setup: { sepayConfigured: !!config.sepay,
       sepayMode: config.sepay ? config.sepay.test ? 'test' : 'live' : 'disabled',
-      models: MANAGED_MODELS.map(model => ({ model, trialConfigured: !!trialCredential(config, model),
-        paidKeys: paidKeys.rows.find(row => row.provider === MODEL_PROVIDERS[model])?.count ?? 0, source: MODEL_PRICE_SOURCES[model] })),
-      starter: STARTER_OFFER, trial: TRIAL_OFFER } };
+      models, starter: STARTER_OFFER, trial: TRIAL_OFFER } };
   }
 
   return { login, authorize, invite, savePolicy, saveTariff, review, accountAction, creditAction, modelCredentialAction, overview,
