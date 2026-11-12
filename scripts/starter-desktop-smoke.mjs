@@ -96,7 +96,12 @@ if (!process.versions.electron) {
         const credential = {username:user.username,password:'fixture-desktop-password',invite:'c'.repeat(64)};
         await run('window.csd.projects.register(' + JSON.stringify(credential) + ')');
         assert.equal((await run('window.csd.managed.status()')).reason,'TRIAL_EXHAUSTED');
-        assert.match(await run("window.csd.prepareCampaign().then(()=>'',e=>String(e.message))"),/TRIAL_EXHAUSTED/);
+        const start = { profiles:[{platform:'facebook', profileId}] };
+        const retained = { sourceRunId:runId, draft:{runId, revision:1, configHash:'a'.repeat(64)} };
+        for (const call of ['window.csd.prepareCampaign()', 'window.csd.resume()',
+          `window.csd.start(${JSON.stringify(start)})`, `window.csd.startRetained(${JSON.stringify(retained)})`]) {
+          assert.match(await run(call + ".then(()=>'',e=>String(e.message))"),/TRIAL_EXHAUSTED/);
+        }
         assert.equal(await run("document.getElementById('start').disabled"),true);
         assert.equal(await run("document.getElementById('resume').disabled"),true);
         const order = await run('window.csd.managed.buyStarter()');
@@ -108,7 +113,7 @@ if (!process.versions.electron) {
         assert.equal(JSON.parse(readFileSync(exported.path,'utf8')).facebook[0].post_id,'fixture-post');
         assert.deepEqual(errors,[]);
         assert.equal(BrowserWindow.getAllWindows().length,1);
-        assert.equal(routes.some(path=>path.startsWith('/v1/ai/')),false);
+        assert.equal(routes.some(path=>path.startsWith('/v1/ai/') || path.startsWith('/v1/runs/')),false);
         console.log('STARTER_DESKTOP_SMOKE_PASSED managed guest, locked trial, SePay order, offline export, isolated AppData');
         clearTimeout(timer); app.quit();
       } catch (error) { console.error(error); clearTimeout(timer); app.exit(1); }

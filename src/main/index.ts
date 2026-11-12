@@ -232,8 +232,13 @@ async function bootstrap() {
     }
   };
   async function modelCommand<T>(work: () => Promise<T>): Promise<T> {
+    if (closing || projectChanging) throw Error('PROJECT_BUSY');
     if (keyChanging) throw Error('GEMINI_KEY_BUSY');
-    modelCommands++; try { return await work(); } finally { modelCommands--; }
+    modelCommands++;
+    try {
+      await activeAccess?.preflight();
+      return await work();
+    } finally { modelCommands--; }
   }
   const requireIdleForKey = async () => {
     const state = await service.getState();
@@ -315,8 +320,8 @@ async function bootstrap() {
       return { ...config, spendLimits: machineSpendLimits() };
     },
     'csd:login': value => service.login(value),
-    'csd:campaign:prepare': () => modelCommand(async () => { await activeAccess?.preflight(); return service.prepareCampaign(); }),
-    'csd:campaign:continue': value => modelCommand(async () => { await activeAccess?.preflight(); return service.continueCampaign(value); }),
+    'csd:campaign:prepare': () => modelCommand(() => service.prepareCampaign()),
+    'csd:campaign:continue': value => modelCommand(() => service.continueCampaign(value)),
     'csd:campaign:update': value => service.updateCampaign(value),
     'csd:preset:save': value => service.saveCampaignPreset(value),
     'csd:preset:apply': value => service.applyCampaignPreset(value),
