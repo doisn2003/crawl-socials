@@ -112,6 +112,8 @@ export function createBackend(pool: Pool, config: BackendConfig, options: { tran
       if (method === 'POST' && account) { await admin.accountAction(uuid(account[1]), await body()); return reply({ ok: true }); }
       const adjustment = /^\/v1\/admin\/accounts\/([^/]+)\/credits$/.exec(path);
       if (method === 'POST' && adjustment) { await admin.creditAction(uuid(adjustment[1]), await body()); return reply({ ok: true }); }
+      const credential = /^\/v1\/admin\/accounts\/([^/]+)\/model-credential$/.exec(path);
+      if (method === 'PUT' && credential) { await admin.modelCredentialAction(uuid(credential[1]), await body()); return reply({ ok: true }); }
       const payment = /^\/v1\/admin\/payments\/([0-9]{1,16})\/(reconcile|refund)$/.exec(path);
       if (method === 'POST' && payment) {
         const value = record(await body()), reason = string(value.reason, 1000, 4);

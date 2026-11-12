@@ -51,7 +51,7 @@ try {
   pool = database(isolated.href);
   await migrate(pool);
   const config = { databaseUrl: isolated.href, production: false, origin: 'http://' + local, host: local, port: 0,
-    leaseKey: generateKeyPairSync('ed25519').privateKey, identityKey: password(), geminiKey: 'preview-fixture',
+    leaseKey: generateKeyPairSync('ed25519').privateKey, identityKey: password(), trialGeminiKey: 'preview-trial-fixture',
     admin, sepay, topupPriceVnd: 325_000, trustLocalProxy: false };
   backend = createBackend(pool, config, { transport: starterGeminiFixture });
   await new Promise((done, fail) => { backend.server.once('error', fail); backend.server.listen(verify ? 0 : 9070, local, done); });

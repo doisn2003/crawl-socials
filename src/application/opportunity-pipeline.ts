@@ -78,7 +78,7 @@ type Row = Record<string, unknown>;
 const safeCode = (error: unknown) => error instanceof Error && /^[A-Z][A-Z0-9_]{1,100}$/.test(error.message) ? error.message : 'PIPELINE_FAILED';
 const emptyCounts = (): OpportunityCounts => ({ raw: 0, comments: 0, suitable: 0, notYet: 0, unrelated: 0, pending: 0, failed: 0 });
 const nullableText = (v: unknown): string | null => typeof v === 'string' && v ? v : null;
-const fatalModelCode = (code: string) => code === 'GEMINI_API_KEY_MISSING' || /^(?:TRIAL_|ENTITLEMENT_|RUN_LEASE_|SUBSCRIPTION_REQUIRED|AUTH_REQUIRED|MODEL_(?:BUDGET|GLOBAL_BUDGET|SPEND|CALL_LIMIT|NOT_AUTHORIZED|AUTHENTICATION|BILLING|PERMISSION|NOT_AVAILABLE|KEY|QUOTA|DAILY_QUOTA|REQUEST_INVALID|USAGE_UNKNOWN))/.test(code);
+const fatalModelCode = (code: string) => code === 'GEMINI_API_KEY_MISSING' || /^(?:TRIAL_|ENTITLEMENT_|RUN_LEASE_|SUBSCRIPTION_REQUIRED|AUTH_REQUIRED|MODEL_(?:BUDGET|GLOBAL_BUDGET|SPEND|CALL_LIMIT|NOT_AUTHORIZED|AUTHENTICATION|BILLING|PERMISSION|NOT_AVAILABLE|ACCOUNT_KEY_REQUIRED|KEY|QUOTA|DAILY_QUOTA|REQUEST_INVALID|USAGE_UNKNOWN))/.test(code);
 const retryableModelCode = (code: string) => /^MODEL_(?:HTTP_(?:429|5\d\d)|NETWORK_USAGE_UNKNOWN|ATTEMPTS_EXHAUSTED)/.test(code);
 function goalConditions(decision:ConversationDecisionInput) {
   const conditions:NonNullable<OpportunityProgress['preview'][number]['conditions']> = decision.goal_assessment?.checks.map(check=>({

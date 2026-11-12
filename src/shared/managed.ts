@@ -40,6 +40,7 @@ export interface ManagedStatus {
   preview?: true;
   checkoutAvailable?: boolean;
   topupPriceVnd?: number;
+  aiReason?: string;
 }
 export interface StarterOrder {
   id: string; code: string; kind: 'STARTER' | 'TOPUP'; amountVnd: number; bank: string; accountNumber: string;

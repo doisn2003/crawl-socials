@@ -118,6 +118,7 @@ app.on('browser-window-created', (_event, window) => {
       await until(window, "window.csd.managed.status().then(status => status.state === 'STARTER')", 'PREVIEW_SEPAY_NOT_APPLIED');
       await run("document.getElementById('managed-order-check').click()");
       await until(window, "document.getElementById('managed-balance').textContent.includes('50.000 credits')", 'PREVIEW_STARTER_BALANCE_NOT_VISIBLE');
+      await until(window, "document.getElementById('managed-access-note').textContent.includes('chờ FindLink cấu hình AI')", 'PREVIEW_STARTER_KEY_NOTICE_NOT_VISIBLE');
       await run("document.getElementById('managed-order-close').click()");
       assert.equal(await run("document.getElementById('managed-service-dialog').open"),true);
       await run("document.getElementById('managed-topup').click()");
@@ -127,7 +128,19 @@ app.on('browser-window-created', (_event, window) => {
       await until(window, "document.getElementById('managed-balance').textContent.includes('60.000 credits')", 'PREVIEW_TOPUP_BALANCE_NOT_VISIBLE');
       await operations.webContents.executeJavaScript("document.getElementById('refresh').click()");
       await until(operations, "document.getElementById('orders-list')?.textContent.includes('Đã xác nhận')", 'PREVIEW_ADMIN_ORDER_NOT_VISIBLE');
-      console.log('FINDLINK_PREVIEW_VERIFIED intro=credits service=dialog trial=100 ai=charged sepay=applied starter=50000 topup=60000 admin=visible');
+      phase = 'PROVIDER_CREDENTIAL';
+      await operations.webContents.executeJavaScript(`(() => {
+        const form = document.getElementById('model-credential');
+        form.elements.accountId.value = [...document.getElementById('account-options').options]
+          .find(option => option.label === ${JSON.stringify(signup.username)}).value;
+        form.elements.key.value = 'preview-starter-fixture';
+        form.elements.reason.value = 'Khóa riêng của tài khoản mô phỏng';
+        form.requestSubmit();
+      })()`);
+      await until(operations, "document.getElementById('service-setup').textContent.includes('Starter 1 tài khoản có khóa')", 'PREVIEW_ADMIN_KEY_NOT_ASSIGNED');
+      assert.equal(await operations.webContents.executeJavaScript("document.getElementById('model-credential').elements.key.value"), '');
+      assert.equal((await run('window.csd.managed.status()')).aiReason, undefined);
+      console.log('FINDLINK_PREVIEW_VERIFIED intro=credits service=dialog trial=100 ai=charged sepay=applied starter=50000 topup=60000 admin=visible starter-key=assigned');
       clearTimeout(startup);
       app.quit();
     } catch {

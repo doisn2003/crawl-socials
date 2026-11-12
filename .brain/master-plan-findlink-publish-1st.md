@@ -9,7 +9,7 @@ Người dùng đã xác nhận khách hàng ưu tiên là **doanh nghiệp nh�
 ## 1. Quyết định đề xuất
 
 1. Giữ thu thập Facebook/Threads, cookie, SQLite, dữ liệu làm việc và export trên máy khách. Thêm **FindLink Backend** làm nơi xác thực tài khoản, quản lý thuê bao, ví credits, định tuyến AI và sao lưu.
-2. Khách trả phí nhận quyền sử dụng FindLink qua tài khoản. **Không cấp Gemini/DeepSeek API key của chủ sản phẩm xuống máy khách.** Desktop nhận token FindLink có thể thu hồi; provider key chỉ tồn tại trên server.
+2. Khách trả phí nhận quyền sử dụng FindLink qua tài khoản. Mỗi tài khoản Starter dùng một khóa riêng cho từng nhà cung cấp đã cấu hình. Khóa chung Gemini của FindLink dành cho trial. Desktop nhận token FindLink có thể thu hồi. Khóa nhà cung cấp chỉ lưu trên server.
 3. Giữ quy đổi **1 USD = 1.000 credits**. Tách sổ chi phí provider với sổ credits của khách; lợi nhuận chủ yếu đến từ phí thuê phần mềm năm. Không gọi doanh thu credits bán ngang giá vốn là lợi nhuận.
 4. Cấp tối đa **100 credits dùng thử một lần cho một chủ thể đủ điều kiện**, không phải cho mỗi tài khoản mới. Pilot dùng mã mời một lần gắn với khách được duyệt; guest chỉ xem demo không phát sinh API. Khi mở đăng ký công khai, cấp 20 credits sau xác minh và kiểm tra chống abuse, thêm tối đa 80 sau bước xác minh tăng cường. Tạo tài khoản, project, workspace hoặc cài lại không tự mở trial mới.
 5. Trial nên dùng API trả phí do FindLink tài trợ, giới hạn tối đa 0,10 USD AI được cấp cho khách. “Miễn phí cho khách hàng” không bắt buộc dùng free tier của provider. Free tier chỉ dùng khi loại dữ liệu và điều khoản phù hợp.
@@ -384,7 +384,7 @@ Chạy `npm run starter:preview` trên Windows để mở **FindLink Starter —
 | Phần của kế hoạch | Chức năng đã có |
 |---|---|
 | Quản lý từ xa | Tài khoản, mã mời, thiết bị, quyền chạy ngắn hạn và công tắc ngừng AI/trial. Trang quản trị xem được tài khoản, số dư, đơn và hạn gói. |
-| Credits và AI | Backend đọc khóa dịch vụ từ biến máy chủ. Admin chọn Gemini 3.1 Flash-Lite hoặc DeepSeek Flash và lưu biểu giá cho lượt mới. Lượt đang có giữ model và biểu giá đã cấp. Ví giữ và trừ credits theo usage với tỷ lệ 1 USD = 1.000 credits. |
+| Credits và AI | Backend đọc khóa trial từ biến máy chủ. Quản trị gán khóa Starter theo tài khoản và nhà cung cấp. Hai gói có thể dùng model và biểu giá riêng cho lượt mới. Lượt đang có giữ model và biểu giá đã cấp. Ví giữ và trừ credits theo usage với tỷ lệ 1 USD = 1.000 credits. |
 | Trial | Mã mời theo email và dùng một lần, xét duyệt thiết bị hoặc bản cài Windows đã nhận trial, cap tổng. Tối đa 100 credits, 14 ngày, 1.000 bài gốc. Hết quyền khóa thu thập, lọc và Resume. Vẫn xem và export kết quả cũ. |
 | Starter | Giá cố định 23.000.000 ₫/năm và 50.000 credits. Webhook SePay xác thực trước khi cấp gói. Hỗ trợ gia hạn, nạp thêm theo giá cấu hình, đối soát và ghi nhận hoàn tiền. |
 | Sao lưu và đóng gói | Migration `findlink_control` phiên bản 2 thêm dấu cài đặt Windows. Backup mới gửi cấu hình, prompt, preset và JSON kết quả. Có bộ cài QA và quy trình build Windows có chữ ký. |
@@ -393,10 +393,16 @@ Kiểm thử trên PostgreSQL cách ly đã xác minh khóa trial, chống cấp
 
 Khi kích hoạt trial, ứng dụng Windows gửi một dấu đã băm của bản cài đặt và backend lưu HMAC trong 90 ngày. Mã mời khác trên cùng bản Windows có thể phải xét duyệt dù đã xóa AppData của FindLink. Dấu này có thể thay đổi hoặc bị giả mạo. Việc đổi khóa thiết bị không xóa hồ sơ đang chờ hoặc đã từ chối. Phê duyệt gắn với thiết bị đã xem xét và vẫn chịu giới hạn cấp trial. Migration 2 đã được kiểm thử trên PostgreSQL cách ly. Webhook SePay báo tiền tệ khác VND bị chặn ở cả cấp gói tự động và đối soát thủ công.
 
+Migration 3 bổ sung kho khóa AI Starter mã hóa, một khóa riêng theo tài khoản và nhà cung cấp. Quản trị có thể gán, thay hoặc thu hồi khóa. Khách đã thanh toán thấy thông báo chờ khi chưa có khóa. Kiểm thử với hai tài khoản Starter xác nhận mỗi tài khoản gọi bằng khóa của mình, khóa trial bị từ chối khi gán cho Starter và thu hồi khóa chặn yêu cầu đang chờ gửi. Trial và Starter có thể đổi biểu giá độc lập.
+
 Ngày 12/11/2026, 1.123 kiểm thử hồi quy, kiểm thử backend trên PostgreSQL cách ly và kiểm thử main/preload/renderer trong bộ cài QA 0.5.1 đã qua. Backend khởi động được với `NODE_ENV=production` trong môi trường cách ly. Bản QA kết nối địa chỉ staging và chưa ký Authenticode.
 
 Quy trình phát hành kiểm chữ ký Authenticode của ứng dụng và installer cùng publisher trong `app-update.yml`. Desktop kiểm lại chữ ký trước khi hiện và cài bản cập nhật. Bộ build lưu đúng ba tệp phân phối vào thư mục theo phiên bản. `npm run verify:starter-feed` kiểm tra metadata, checksum và Range trên HTTPS. Kiểm thử với Caddy cách ly xác nhận tải theo khoảng byte và phát hiện installer bị thay đổi. Bộ xác minh trên Windows nhận tệp có chữ ký hợp lệ, từ chối publisher sai và bộ cài QA chưa ký. Bản QA 0.5.2 cùng 1.125 kiểm thử hồi quy đã qua. [Cách chuẩn bị và kiểm tra feed Windows](../deploy/README.md#5-phát-hành-windows)
 
 Sau thay đổi chống lạm dụng trial, 1.126 kiểm thử hồi quy, tích hợp PostgreSQL cách ly, luồng Starter mô phỏng trên Windows và kiểm thử bản đóng gói QA 0.5.3 đã qua. Bản QA chưa ký và cấu hình địa chỉ staging.
 
-Railway đã có service `findlink-api`, hai môi trường và database staging riêng. Migration staging đã ghi phiên bản 1, còn phiên bản 2 chờ triển khai. Lần kiểm tra HTTPS gần nhất trả 404 tại `/healthz` ở cả staging lẫn production. Điều kiện mở bán gồm xác minh backend production qua HTTPS, cấu hình khóa dịch vụ và ngân sách, xác minh SePay Test Mode rồi Live, cấp danh tính ký Windows và thử cài mới cùng cập nhật từ feed đã phát hành. Đăng ký public 20 + 80, Agency và Scale thuộc chặng sau. [Hướng dẫn quản trị và triển khai](../deploy/README.md)
+Ngày 12/11/2026, Railway đã triển khai commit `a3a0cbc` từ nhánh `findlink-publish-1st` lên staging và production. Đặt `PORT=9070` đã khắc phục healthcheck. Cả hai môi trường trả HTTP 200 tại `/healthz`, có migration `findlink_control` phiên bản 2 và dùng database, khóa cấp quyền riêng. Kiểm tra production xác nhận tài khoản backup hiện có được giữ và đăng nhập quản trị bằng TOTP thành công. [Staging](https://findlink-api-staging.up.railway.app/healthz) · [Production](https://findlink-api-production.up.railway.app/healthz)
+
+SePay Test Mode đã gửi webhook HMAC-SHA256 thật từ nhà cung cấp tới staging. Tài khoản thử nhận 50.000 credits khi mua Starter và 60.000 sau khi nạp. Phát lại webhook nạp giữ đúng một khoản nạp. Migration 2 giữ số dư 60.000 và giao dịch gia hạn nối kỳ mới đúng ngày. Bộ lọc SePay gửi giao dịch có mã `FL` và bỏ qua giao dịch thử thiếu mã.
+
+SePay Live đã bật webhook production theo phạm vi người dùng xác nhận. Webhook chỉ nhận tiền vào có mã `FL` từ ACB đuôi `0111`. Đã đọc lại phạm vi lưu trên SePay và trạng thái **SePay Live** trong quản trị. Nút **Gửi thử** của SePay trả HTTP 403 với payload mẫu. Xác minh giao dịch ngân hàng thật, cấu hình AI và quỹ, giá gói nạp production, danh tính ký Windows và kiểm thử cài mới/cập nhật từ feed phát hành còn chờ. Đăng ký public 20 + 80, Agency và Scale thuộc chặng sau. [Hướng dẫn quản trị và triển khai](../deploy/README.md)

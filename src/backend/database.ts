@@ -2,7 +2,7 @@ import { Pool, type PoolClient } from 'pg';
 import { PROJECT_SCHEMA_SQL } from '../infrastructure/projects/schema.js';
 
 export type Transaction = PoolClient;
-export const CONTROL_SCHEMA_VERSION = 2;
+export const CONTROL_SCHEMA_VERSION = 3;
 
 export function database(url: string) {
   const pool = new Pool({ connectionString: url, max: 12, connectionTimeoutMillis: 8000,
@@ -31,12 +31,25 @@ export async function migrate(pool: Pool) {
     const baseline = prior.rows[0]?.installed ? await db.query('SELECT version FROM csd_backup.schema_migrations WHERE version=1') : null;
     if (!baseline?.rowCount) await db.query(PROJECT_SCHEMA_SQL);
     await db.query(CONTROL_SCHEMA);
-    const installed = await db.query('SELECT version FROM findlink_control.migrations WHERE version=2');
-    if (!installed.rowCount) {
+    const versions = new Set((await db.query<{ version: number }>('SELECT version FROM findlink_control.migrations')).rows.map(row => row.version));
+    if (!versions.has(2)) {
       await db.query(`ALTER TABLE findlink_control.trial_subjects ADD COLUMN installation_tag text;
         CREATE INDEX trial_installation ON findlink_control.trial_subjects(installation_tag,started_at)
           WHERE installation_tag IS NOT NULL;`);
       await db.query('INSERT INTO findlink_control.migrations(version) VALUES(2)');
+    }
+    if (!versions.has(3)) {
+      await db.query(`CREATE TABLE findlink_control.model_credentials (
+          account_id uuid NOT NULL REFERENCES findlink_control.accounts(id),
+          provider text NOT NULL CHECK(provider IN ('gemini','deepseek')),
+          key_tag text NOT NULL UNIQUE, encrypted_key bytea NOT NULL,
+          updated_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(account_id,provider)
+        );
+        ALTER TABLE findlink_control.policy ADD COLUMN trial_route_id integer REFERENCES findlink_control.tariff_versions(id);
+        UPDATE findlink_control.policy SET trial_route_id=route_id;
+        ALTER TABLE findlink_control.policy ALTER COLUMN trial_route_id SET NOT NULL,
+          ALTER COLUMN trial_route_id SET DEFAULT 1;
+        INSERT INTO findlink_control.migrations(version) VALUES(3);`);
     }
   });
 }

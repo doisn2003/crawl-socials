@@ -3,9 +3,10 @@ import type { Pool } from 'pg';
 import { isManagedModel, MANAGED_MODELS, STARTER_OFFER, TRIAL_OFFER } from '../shared/managed.js';
 import type { BackendConfig } from './config.js';
 import { ApiError, audit, bad, email, hash, hex, integer, lockAccount, micros, policy, rateLimit, record, safeEqual, string, token, uuid } from './core.js';
-import { transaction } from './database.js';
+import { transaction, type Transaction } from './database.js';
 import { grantCredits } from './entitlements.js';
-import { MODEL_PRICE_SOURCES, modelCredential } from './model-providers.js';
+import { credentialTag, encryptCredential, trialCredential, trialCredentialTags } from './model-credentials.js';
+import { MODEL_PRICE_SOURCES, MODEL_PROVIDERS, type ModelProvider } from './model-providers.js';
 
 function decodeBase32(text: string) {
   let bits = 0, word = 0;
@@ -28,6 +29,13 @@ export function totp(secret: string, step: number) {
 }
 
 export function createAdmin(pool: Pool, config: BackendConfig) {
+  async function paidKeyConfigured(db: Transaction, model: unknown) {
+    if (!isManagedModel(model)) return false;
+    const result = await db.query(`SELECT 1 FROM findlink_control.model_credentials
+      WHERE provider=$1 AND NOT (key_tag=ANY($2::text[])) LIMIT 1`, [MODEL_PROVIDERS[model], trialCredentialTags(config)]);
+    return !!result.rowCount;
+  }
+
   async function login(value: unknown, ip: string) {
     await rateLimit(pool, 'admin:login:' + ip, 8, 900);
     if (!config.admin) throw new ApiError(404, 'ADMIN_DISABLED');
@@ -89,8 +97,10 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
       if (proposed.trial_enabled && !proposed.pause_grants &&
         (!proposed.max_trial_subjects || !proposed.trial_subjects_per_day || BigInt(proposed.trial_grant_cap) < 100_000_000n ||
           BigInt(proposed.trial_daily_cost) <= 0n || BigInt(proposed.trial_total_cost) <= 0n)) throw bad('TRIAL_CAP_REQUIRED');
-      if (!proposed.pause_ai && (!modelCredential(config, before.route_model) || BigInt(proposed.paid_daily_cost) <= 0n || BigInt(proposed.paid_total_cost) <= 0n)) {
-        throw bad('AI_CAP_REQUIRED');
+      if (!proposed.pause_ai && before.pause_ai) {
+        if (BigInt(proposed.paid_daily_cost) <= 0n || BigInt(proposed.paid_total_cost) <= 0n) throw bad('AI_CAP_REQUIRED');
+        const trialConfigured = proposed.trial_enabled && !proposed.pause_trial && !!trialCredential(config, before.trial_route_model);
+        if (!trialConfigured && !await paidKeyConfigured(db, before.route_model)) throw new ApiError(409, 'MODEL_KEY_REQUIRED');
       }
       // Column names are from the fixed lists above.
       const { rows } = await db.query('UPDATE findlink_control.policy SET ' + pairs.map(([key], i) => key + '=$' + (i + 1)).join(',') +
@@ -102,6 +112,8 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
 
   async function saveTariff(value: unknown) {
     const body = record(value), price = record(body.price);
+    const funding = body.funding ?? 'PAID';
+    if (funding !== 'TRIAL' && funding !== 'PAID') throw bad('MODEL_FUNDING_INVALID');
     for (const key of ['input_per_million','output_per_million','cached_input_per_million']) {
       if (typeof price[key] !== 'number' || !Number.isFinite(price[key]) || price[key] < 0 || price[key] > 1000) throw bad('TARIFF_INVALID');
     }
@@ -111,16 +123,47 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(observed) || !Number.isFinite(observedTime) || new Date(observedTime).toISOString().slice(0, 10) !== observed) throw bad('TARIFF_INVALID');
     return transaction(pool, async db => {
       const before = await policy(db, true);
-      const model: unknown = body.model ?? before.route_model;
+      const trial = funding === 'TRIAL';
+      const model: unknown = body.model ?? (trial ? before.trial_route_model : before.route_model);
       if (!isManagedModel(model)) throw bad('MODEL_NOT_SUPPORTED');
-      if (!modelCredential(config, model)) throw new ApiError(409, 'MODEL_KEY_REQUIRED');
+      if (trial ? !trialCredential(config, model) : !await paidKeyConfigured(db, model)) throw new ApiError(409, 'MODEL_KEY_REQUIRED');
       const snapshot = { input_per_million: price.input_per_million, output_per_million: price.output_per_million,
         cached_input_per_million: price.cached_input_per_million, observed_at: observed, source: MODEL_PRICE_SOURCES[model] };
       const id = (await db.query('SELECT max(id)+1 AS id FROM findlink_control.tariff_versions')).rows[0].id as number;
       await db.query('INSERT INTO findlink_control.tariff_versions(id,model,price) VALUES($1,$2,$3)', [id, model, JSON.stringify(snapshot)]);
-      await db.query('UPDATE findlink_control.policy SET route_id=$1 WHERE id=true', [id]);
-      await audit(db, 'operator', 'TARIFF_CHANGED', String(id), { previous: before.route_id, model, price: snapshot });
-      return { id, model };
+      await db.query(trial ? 'UPDATE findlink_control.policy SET trial_route_id=$1 WHERE id=true'
+        : 'UPDATE findlink_control.policy SET route_id=$1 WHERE id=true', [id]);
+      await audit(db, 'operator', 'TARIFF_CHANGED', String(id), { previous: trial ? before.trial_route_id : before.route_id, funding, model, price: snapshot });
+      return { id, model, funding };
+    });
+  }
+
+  async function modelCredentialAction(accountId: string, value: unknown) {
+    const body = record(value), provider: unknown = body.provider, action = body.action;
+    if ((provider !== 'gemini' && provider !== 'deepseek') || (action !== 'set' && action !== 'revoke')) throw bad();
+    const reason = string(body.reason, 1000, 4).trim();
+    if (reason.length < 4) throw bad();
+    const key = action === 'set' ? string(body.key, 4096, 12).trim() : null;
+    if (key !== null && (!/^[a-zA-Z0-9._~+/=-]{12,4096}$/.test(key) || reason.includes(key))) throw bad('MODEL_KEY_INVALID');
+    const fingerprint = key === null ? null : credentialTag(config, key);
+    if (fingerprint && trialCredentialTags(config).includes(fingerprint)) throw new ApiError(409, 'MODEL_KEY_RESERVED_FOR_TRIAL');
+    await transaction(pool, async db => {
+      await lockAccount(db, accountId);
+      if (key === null) {
+        const result = await db.query('DELETE FROM findlink_control.model_credentials WHERE account_id=$1 AND provider=$2', [accountId, provider]);
+        if (!result.rowCount) return;
+      } else {
+        try {
+          await db.query(`INSERT INTO findlink_control.model_credentials(account_id,provider,key_tag,encrypted_key)
+            VALUES($1,$2,$3,$4) ON CONFLICT(account_id,provider) DO UPDATE
+            SET key_tag=excluded.key_tag,encrypted_key=excluded.encrypted_key,updated_at=now()`,
+          [accountId, provider, fingerprint, encryptCredential(config, accountId, provider, key)]);
+        } catch (error) {
+          if ((error as { code?: string }).code === '23505') throw new ApiError(409, 'MODEL_KEY_IN_USE');
+          throw error;
+        }
+      }
+      await audit(db, 'operator', action === 'set' ? 'MODEL_KEY_SET' : 'MODEL_KEY_REVOKED', accountId, { provider, reason });
     });
   }
 
@@ -205,11 +248,13 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
     const queries = [
       ['policy','SELECT * FROM findlink_control.policy'],
       ['tariff',`SELECT t.id,t.model,t.price FROM findlink_control.policy p JOIN findlink_control.tariff_versions t ON t.id=p.route_id WHERE p.id=true`],
+      ['trialTariff',`SELECT t.id,t.model,t.price FROM findlink_control.policy p JOIN findlink_control.tariff_versions t ON t.id=p.trial_route_id WHERE p.id=true`],
       ['tariffs',`SELECT DISTINCT ON (model) model,price FROM findlink_control.tariff_versions ORDER BY model,id DESC`],
       ['accounts',`SELECT u.username,a.id,
         CASE WHEN paid.active_until IS NOT NULL THEN 'STARTER' WHEN paid.had_paid OR t.id IS NULL THEN 'INACTIVE' ELSE 'TRIAL' END AS plan,
         CASE WHEN paid.had_paid AND paid.active_until IS NULL THEN '0' ELSE wallet.available END AS available,
-        paid.active_until AS paid_until,t.expires_at AS trial_until,a.suspended,a.email_verified_at
+        paid.active_until AS paid_until,t.expires_at AS trial_until,a.suspended,a.email_verified_at,
+        ARRAY(SELECT provider FROM findlink_control.model_credentials WHERE account_id=a.id ORDER BY provider) AS model_providers
         FROM findlink_control.accounts a JOIN csd_backup.users u ON u.id=a.id
         LEFT JOIN findlink_control.trial_subjects t ON t.account_id=a.id
         CROSS JOIN LATERAL (SELECT count(*)>0 AS had_paid,max(ends_at) FILTER(WHERE revoked_at IS NULL AND starts_at<=now() AND ends_at>now()) AS active_until
@@ -231,13 +276,18 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
         WHERE state='UNKNOWN' ORDER BY started_at LIMIT 100`],
       ['audit','SELECT actor,action,target,details,at FROM findlink_control.audit ORDER BY id DESC LIMIT 100'],
     ] as const;
-    const result = await Promise.all(queries.map(async ([key, sql]) => [key, (await pool.query(sql)).rows] as const));
-    return { ...Object.fromEntries(result), setup: { geminiConfigured: !!config.geminiKey, sepayConfigured: !!config.sepay,
+    const [result, paidKeys] = await Promise.all([
+      Promise.all(queries.map(async ([key, sql]) => [key, (await pool.query(sql)).rows] as const)),
+      pool.query<{ provider: ModelProvider; count: number }>(`SELECT provider,count(*)::int AS count FROM findlink_control.model_credentials
+        WHERE NOT (key_tag=ANY($1::text[])) GROUP BY provider`, [trialCredentialTags(config)]),
+    ]);
+    return { ...Object.fromEntries(result), setup: { sepayConfigured: !!config.sepay,
       sepayMode: config.sepay ? config.sepay.test ? 'test' : 'live' : 'disabled',
-      models: MANAGED_MODELS.map(model => ({ model, configured: !!modelCredential(config, model), source: MODEL_PRICE_SOURCES[model] })),
+      models: MANAGED_MODELS.map(model => ({ model, trialConfigured: !!trialCredential(config, model),
+        paidKeys: paidKeys.rows.find(row => row.provider === MODEL_PROVIDERS[model])?.count ?? 0, source: MODEL_PRICE_SOURCES[model] })),
       starter: STARTER_OFFER, trial: TRIAL_OFFER } };
   }
 
-  return { login, authorize, invite, savePolicy, saveTariff, review, accountAction, creditAction, overview,
+  return { login, authorize, invite, savePolicy, saveTariff, review, accountAction, creditAction, modelCredentialAction, overview,
     logout: (value: string) => pool.query('DELETE FROM findlink_control.admin_sessions WHERE hash=$1', [hash(value)]) };
 }

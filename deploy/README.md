@@ -17,10 +17,10 @@ Tạo một tệp cấu hình riêng theo [.env.example](../.env.example). Cất
 |---|---|
 | Database | `DATABASE_URL` của PostgreSQL, chỉ backend kết nối. |
 | Địa chỉ | `FINDLINK_PUBLIC_URL` là địa chỉ HTTPS của backend. Backend mặc định nghe tại `127.0.0.1:9070` sau reverse proxy. |
-| AI | `FINDLINK_GEMINI_API_KEY` cho Gemini 3.1 Flash-Lite, `FINDLINK_DEEPSEEK_API_KEY` cho DeepSeek Flash. Cập nhật biến và redeploy khi đổi khóa. |
+| AI dùng thử | `FINDLINK_TRIAL_GEMINI_API_KEY` cho Gemini 3.1 Flash-Lite, `FINDLINK_TRIAL_DEEPSEEK_API_KEY` cho DeepSeek Flash. Cập nhật biến và redeploy khi đổi khóa. |
 | SePay | `FINDLINK_SEPAY_MODE` nhận `disabled`, `test` hoặc `live`. Cấu hình secret HMAC, bank, số tài khoản và tên chủ tài khoản qua `FINDLINK_SEPAY_WEBHOOK_SECRET`, `FINDLINK_SEPAY_BANK`, `FINDLINK_SEPAY_ACCOUNT`, `FINDLINK_SEPAY_ACCOUNT_NAME`. Bank và số tài khoản khớp `gateway` và `accountNumber` trong webhook. |
 | Quản trị | `FINDLINK_ADMIN_TOKEN` gồm 64 ký tự hex. Thêm `FINDLINK_ADMIN_TOTP_SECRET` dạng Base32 vào trình xác thực TOTP, chu kỳ 30 giây, 6 chữ số, HMAC-SHA1. |
-| Quyền chạy | `FINDLINK_IDENTITY_SECRET` là khóa hex ổn định để đối chiếu thiết bị và trial. `FINDLINK_LEASE_PRIVATE_KEY` là khóa Ed25519 PKCS#8 PEM mã hóa base64. Giữ private key ở server và cung cấp public key SPKI DER mã hóa base64 cho máy build Windows. |
+| Quyền chạy | `FINDLINK_IDENTITY_SECRET` là khóa hex ổn định để đối chiếu thiết bị, trial và dẫn xuất khóa mã hóa API Starter. Giữ giá trị này khi chuyển database sang máy chủ khác. `FINDLINK_LEASE_PRIVATE_KEY` là khóa Ed25519 PKCS#8 PEM mã hóa base64. Giữ private key ở server và cung cấp public key SPKI DER mã hóa base64 cho máy build Windows. |
 | Gói nạp thêm | Đặt `FINDLINK_TOPUP_PRICE_VND` nếu bán thêm gói 10.000 credits. |
 
 Trong trình duyệt Codex, mở service `findlink-api` ở môi trường staging. Khi nhánh `findlink-publish-1st` đã có trên GitHub, dùng **Settings → Source → Connect Repo** và chọn nhánh đó. Railway dùng `Dockerfile` ở gốc repo. Trong **Settings**, đặt **Pre-deploy Command** là `node dist/backend/index.js --migrate`, **Healthcheck Path** là `/healthz` và thời gian chờ là 120 giây. [Nguồn triển khai Railway](https://docs.railway.com/services#service-source) · [Lệnh trước deploy](https://docs.railway.com/deployments/pre-deploy-command) · [Cấu hình hạ tầng trong repo](../.railway/railway.ts)
@@ -54,7 +54,10 @@ Chính sách mới khởi đầu với AI và cấp trial tạm dừng. Trang qu
 1. Mở **Ngân sách và quyền dùng thử**. Đặt ngân sách AI riêng cho trial và Starter, giới hạn trial mỗi ngày và tổng credits tài trợ. Bật phần quyền cần mở rồi bấm **Lưu ngân sách**.
 2. Mở **Mã mời** và chọn **Tài khoản và dùng thử**. Tạo mã cho email đã duyệt và gửi mã riêng cho đúng khách. Mỗi mã dùng một lần. Khách chọn **Đăng ký** trong FindLink rồi bấm **Kích hoạt 100 credits dùng thử**.
 3. Mở **Tài khoản và số dư** để kiểm tra gói, credits và hạn. Mục **Tài khoản và thiết bị** cho tạm ngừng quyền chạy, thu hồi trial và xử lý đổi máy. Mục **Xét duyệt trial** xử lý thiết bị đã nhận dùng thử.
-4. Mở **Model và biểu giá**. Chọn model đã cấu hình khóa, nhập giá theo credits trên một triệu token và bấm **Áp dụng cho lượt mới**. Lượt đã cấp quyền giữ model và biểu giá của lượt đó. Khi phí chưa rõ, ghi bằng chứng tại **Đối soát phí AI** để xử lý khoản giữ.
+4. Mở **Khóa AI Starter**. Chọn ID tài khoản, nhà cung cấp và nhập khóa API riêng đã tạo ở nhà cung cấp. Bảng **Tài khoản và số dư** hiển thị nhà cung cấp đã gán. Khi khách mới mua và đang chờ gán khóa, app báo trạng thái chờ cấu hình AI. Thu thập ở chế độ OFF, xem và xuất dữ liệu vẫn dùng được khi gói còn hạn.
+5. Mở **Model và biểu giá**. Chọn **Starter** hoặc **Dùng thử**, chọn model đã có khóa cho gói đó và nhập giá theo credits trên một triệu token. Bấm **Áp dụng cho lượt mới**. Lượt đã cấp quyền giữ model và biểu giá của lượt đó. Khi phí chưa rõ, ghi bằng chứng tại **Đối soát phí AI** để xử lý khoản giữ.
+
+FindLink mã hóa khóa API Starter trong PostgreSQL và dùng khóa theo tài khoản, nhà cung cấp. Form quản trị hỗ trợ gán, thay và thu hồi khóa. Việc tạo khóa vẫn thực hiện tại nhà cung cấp. Khi đổi model Starter sang nhà cung cấp khác, gán khóa cho các tài khoản cần chuyển trước khi áp dụng biểu giá. Khi thu hồi một khóa, yêu cầu đang chờ chưa gửi sẽ dừng và giải phóng credits đã giữ.
 
 Khi khách kích hoạt trial, FindLink băm dấu cài đặt Windows ngay trên máy và backend lưu thêm dưới dạng HMAC trong 90 ngày. Cài lại FindLink trên cùng bản Windows có thể đưa tài khoản mới vào **Xét duyệt trial**. Hồ sơ đi theo tài khoản khi đổi khóa thiết bị. Duyệt hồ sơ vẫn áp dụng giới hạn cấp trial và ngân sách đã đặt. Các lượt đã cấp trước migration chỉ có dấu thiết bị lưu từ trước.
 
@@ -64,15 +67,15 @@ Gemini 3.1 Flash-Lite là model mặc định. DeepSeek Flash có giá theo khun
 
 Starter hiện có giá **23.000.000 ₫/năm** và **50.000 credits**. Hai giá trị là điều khoản cố định của phiên bản này. Trang quản trị theo dõi từng đơn, hạn gói và số dư. Mục **Điều chỉnh credits Starter** cấp thêm credits hoặc hoàn debit AI có lý do.
 
-1. Cấu hình SePay Test Mode gửi tiền vào bằng JSON HMAC-SHA256 tới `/v1/billing/webhooks/sepay` của staging. Sau khi thử thành công, cấu hình webhook Live và tài khoản nhận thật ở production. [Xác thực webhook](https://developer.sepay.vn/vi/sepay-webhooks/xac-thuc) · [SePay Test Mode](https://developer.sepay.vn/en/tien-ich-khac/test-mode/mo-phong-giao-dich)
+1. Cấu hình SePay Test Mode gửi tiền vào bằng JSON HMAC-SHA256 tới `/v1/billing/webhooks/sepay` của staging. Tạo mẫu tiền tố `FL`, hậu tố đúng 12 ký tự **Số và chữ**. Chọn đúng tài khoản nhận, bật **Chỉ gửi khi có mã thanh toán** và lọc riêng tiền tố `FL`. Sau khi thử thành công, áp dụng cùng phạm vi cho tài khoản nhận đã được duyệt trong SePay Live và dùng khóa HMAC production riêng. [Cấu hình mã thanh toán](https://developer.sepay.vn/vi/sepay-webhooks/cau-hinh-ma-thanh-toan) · [SePay Test Mode](https://developer.sepay.vn/vi/sepay-webhooks/test-mode/bat-dau-nhanh)
 2. Khách mở **Gói dịch vụ** và chọn **Mua Starter**, **Gia hạn Starter** hoặc **Nạp credits**. Đặt `FINDLINK_TOPUP_PRICE_VND` để mở gói nạp 10.000 credits. Khách chuyển đúng số tiền với mã đơn `FL…` rồi chọn **Kiểm tra giao dịch**.
 3. Backend xác thực chữ ký, tài khoản nhận, mã đơn, số tiền và thời điểm. Giao dịch hợp lệ cấp quyền và credits một lần. Mục **Đơn hàng và hạn gói** hiện ngày bắt đầu và hết hạn. Gia hạn sớm mở credits mới từ đầu kỳ mới.
-4. Dùng **Đối soát SePay** cho giao dịch ngoại lệ sau khi xác minh tiền tệ và chứng từ trong SePay. Giao dịch báo tiền tệ khác VND không thể áp vào đơn. Sau khi đã hoàn tiền qua ngân hàng, ghi nhận trong quản trị để thu hồi quyền và credits còn lại.
+4. Dùng **Đối soát SePay** cho giao dịch ngoại lệ sau khi xác minh tiền tệ và chứng từ trong SePay. Với chuyển khoản sai mã bị bộ lọc bỏ qua, kiểm tra trực tiếp lịch sử giao dịch SePay. Sau khi đã hoàn tiền qua ngân hàng, ghi nhận trong quản trị để thu hồi quyền và credits còn lại.
 
 ## 5. Phát hành Windows
 
 - `npm run dist:starter:qa` tạo bộ cài thử chưa ký trong `release/starter-qa`. Địa chỉ backend mặc định là `http://127.0.0.1:9070`. Có thể đặt `FINDLINK_QA_ORIGIN` khi build.
-- Đặt `FINDLINK_PUBLIC_URL`, `FINDLINK_UPDATE_URL`, `FINDLINK_LEASE_PUBLIC_KEY` và `FINDLINK_SIGNING_PUBLISHER` trong môi trường build chính thức. Dùng `FINDLINK_SIGNING_CERT_SHA1` hoặc `CSC_LINK` cùng mật khẩu chứng chỉ từ kho secrets.
+- Đặt `FINDLINK_PUBLIC_URL`, `FINDLINK_UPDATE_URL`, `FINDLINK_LEASE_PUBLIC_KEY` và `FINDLINK_SIGNING_PUBLISHER` trong môi trường build chính thức. Lấy `leasePublicKey` từ `/v1/config` của chính backend production. Dùng `FINDLINK_SIGNING_CERT_SHA1` hoặc `CSC_LINK` cùng mật khẩu chứng chỉ từ kho secrets.
 - Chạy `npm run dist:starter` trên Windows. Lệnh kiểm chữ ký của FindLink và installer, kiểm publisher trong `app-update.yml`, rồi tạo `release/starter-feed/<version>` chứa installer, blockmap và `latest.yml`. Dùng phiên bản cao hơn khi phát hành bản sửa.
 - Đưa hai tệp theo phiên bản lên feed HTTPS trước, rồi đưa `latest.yml` lên sau. Với Caddy trong repo, đặt tệp vào `deploy/downloads/windows` và dùng `https://<domain>/downloads/windows/` cho `FINDLINK_UPDATE_URL`.
 - Chạy `npm run verify:starter-feed` bằng cấu hình build để so tệp HTTPS với gói đã ký và kiểm tra HTTP Range. Thử cài mới và cập nhật từ phiên bản trước trên máy QA. [Cập nhật tự động electron-builder v26](https://www.electron.build/v26/docs/features/auto-update/)

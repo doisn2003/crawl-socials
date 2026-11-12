@@ -8,8 +8,8 @@ export interface BackendConfig {
   port: number;
   leaseKey: KeyObject;
   identityKey: string;
-  geminiKey: string | null;
-  deepseekKey?: string | null;
+  trialGeminiKey: string | null;
+  trialDeepseekKey?: string | null;
   admin: { token: string; totp: string } | null;
   sepay: { secret: string; bank: string; account: string; name: string; test?: boolean } | null;
   trustLocalProxy: boolean;
@@ -61,12 +61,12 @@ export function backendConfig(env: NodeJS.ProcessEnv): BackendConfig {
   if (sepay && (sepay.secret.length < 16 || !/^\d{6,30}$/.test(sepay.account) || sepay.bank.length > 40 || sepay.name.length > 100)) {
     throw Error('FINDLINK_SEPAY_CONFIG_INVALID');
   }
-  const geminiKey = env.FINDLINK_GEMINI_API_KEY?.trim() || null;
-  const deepseekKey = env.FINDLINK_DEEPSEEK_API_KEY?.trim() || null;
+  const trialGeminiKey = (env.FINDLINK_TRIAL_GEMINI_API_KEY ?? env.FINDLINK_GEMINI_API_KEY)?.trim() || null;
+  const trialDeepseekKey = (env.FINDLINK_TRIAL_DEEPSEEK_API_KEY ?? env.FINDLINK_DEEPSEEK_API_KEY)?.trim() || null;
   const topupPriceVnd = env.FINDLINK_TOPUP_PRICE_VND ? Number(env.FINDLINK_TOPUP_PRICE_VND) : undefined;
   if (topupPriceVnd !== undefined && (!Number.isSafeInteger(topupPriceVnd) || topupPriceVnd <= 0 || topupPriceVnd > 100_000_000)) throw Error('TOPUP_PRICE_INVALID');
   return { production, databaseUrl: required(env, 'DATABASE_URL'), origin: endpoint.origin, host, port,
-    leaseKey, identityKey, geminiKey, deepseekKey, admin, sepay, trustLocalProxy: env.FINDLINK_TRUST_LOCAL_PROXY === '1',
+    leaseKey, identityKey, trialGeminiKey, trialDeepseekKey, admin, sepay, trustLocalProxy: env.FINDLINK_TRUST_LOCAL_PROXY === '1',
     trustRailwayProxy: !!env.RAILWAY_ENVIRONMENT_ID && env.FINDLINK_TRUST_RAILWAY_PROXY === '1',
     ...(topupPriceVnd === undefined ? {} : { topupPriceVnd }) };
 }

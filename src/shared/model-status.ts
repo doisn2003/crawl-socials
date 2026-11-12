@@ -12,6 +12,7 @@ export function managedPauseMessage(code: string): string | null {
   if (/RUN_LEASE_BUSY/.test(code)) return 'Tài khoản đang chạy trên một lượt hoặc thiết bị khác.';
   if (/RUN_LEASE_|ENTITLEMENT_UNAVAILABLE|BACKEND_UNAVAILABLE/.test(code)) return 'FindLink chưa xác nhận được quyền chạy. Kiểm tra kết nối rồi thử lại.';
   if (/CHECKOUT_UNAVAILABLE/.test(code)) return 'Thanh toán Starter đang tạm thời chưa khả dụng.';
+  if (/MODEL_ACCOUNT_KEY_REQUIRED/.test(code)) return 'Tài khoản Starter đang chờ FindLink cấu hình AI. Bạn vẫn có thể thu thập ở chế độ OFF, xem và xuất dữ liệu.';
   if (/MODEL_NOT_AUTHORIZED/.test(code)) return 'Dịch vụ AI đang tạm dừng. Bạn vẫn có thể xem và xuất dữ liệu đã lưu.';
   if (/RATE_LIMITED/.test(code)) return 'Thao tác quá thường xuyên. Hãy thử lại sau.';
   return null;

@@ -40,18 +40,21 @@ const digest = value => createHash('sha256').update(value).digest('hex');
 const secret = () => randomBytes(32).toString('hex');
 const fake = {
   databaseUrl: isolated.href, production: false, origin: 'http://127.0.0.1', host: '127.0.0.1', port: 0,
-  leaseKey: generateKeyPairSync('ed25519').privateKey, identityKey: secret(), geminiKey: 'mock-transport-only',
+  leaseKey: generateKeyPairSync('ed25519').privateKey, identityKey: secret(), trialGeminiKey: 'mock-trial-gemini-key',
   admin: { token: secret(), totp: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP' },
   sepay: { secret: secret(), bank: 'Vietcombank', account: '1000012345', name: 'FindLink fixture' },
   topupPriceVnd: 325000,
   trustLocalProxy: false,
 };
+const starterGeminiKey = 'mock-starter-gemini-key', peerGeminiKey = 'mock-peer-gemini-key';
+const starterDeepseekKey = 'mock-starter-deepseek-key';
+let expectedGeminiKey = fake.trialGeminiKey;
 
 async function mockProvider(url, request) {
   providerCalls++;
   if (failTransport) throw Error('simulated transport loss');
   if (url === 'https://api.deepseek.com/chat/completions') {
-    assert.equal(request.headers.Authorization, 'Bearer ' + fake.deepseekKey);
+    assert.equal(request.headers.Authorization, 'Bearer ' + starterDeepseekKey);
     assert.equal(request.headers['x-goog-api-key'], undefined);
     const body = JSON.parse(request.body);
     assert.equal(body.model, 'deepseek-flash');
@@ -62,7 +65,7 @@ async function mockProvider(url, request) {
     return Response.json({ model:'fixture-deepseek', choices:[{finish_reason:'stop',message:{content:'{"result":[{"i":0,"e0":0,"ev":[]}]}'}}],
       usage:{prompt_tokens:900,completion_tokens:108,prompt_cache_hit_tokens:100,prompt_cache_miss_tokens:800} });
   }
-  assert.equal(request.headers['x-goog-api-key'], fake.geminiKey);
+  assert.equal(request.headers['x-goog-api-key'], expectedGeminiKey);
   return starterGeminiFixture(url, request);
 }
 
@@ -100,6 +103,8 @@ try {
   }
   const admin = (path, json, method = 'POST', expected = 200) =>
     request('/v1/admin/' + path, expected, { method, json, authorization: administrator });
+  const credential = (accountId, input, expected = 200) => admin('accounts/' + accountId + '/model-credential',
+    { provider:'gemini', action:'set', reason:'Synthetic provider credential test', ...input }, 'PUT', expected);
   const invite = (email, purpose = 'TRIAL', accountId) => admin('invites', { email,purpose,...(accountId ? { accountId } : {}) }, 'POST', 201);
   const newClient = secrets => createManagedClient({ release: { origin }, secrets, development: true });
   const signUp = async (email, secrets = memory(), purpose = 'TRIAL') => {
@@ -269,6 +274,22 @@ try {
   await Promise.all([sepay(paid,1003),sepay(paid,1003)]);
   assert.equal((await getStatus(a.client)).available,'50000000000');
   assert.equal((await getStatus(aDevice2)).state,'STARTER');
+  assert.equal((await getStatus(a.client)).aiReason,'MODEL_ACCOUNT_KEY_REQUIRED');
+  await assert.rejects(lease(a.client,scopes(projectId,'paid-no-key','PLAN')),/MODEL_ACCOUNT_KEY_REQUIRED/);
+  const noKeyLease = await lease(a.client,scopes(projectId,'paid-no-key'));
+  await assert.rejects(enqueue(a.client,digest('no-paid-key'),noKeyLease.id),/MODEL_ACCOUNT_KEY_REQUIRED/);
+  await release(a.client,noKeyLease.id);
+  const offLease = await lease(a.client,scopes(projectId,'paid-no-key-off','COLLECT'));
+  await release(a.client,offLease.id);
+  assert.equal((await credential(a.user.id,{key:fake.trialGeminiKey},409)).code,'MODEL_KEY_RESERVED_FOR_TRIAL');
+  await credential(a.user.id,{key:starterGeminiKey});
+  assert.equal((await getStatus(a.client)).aiReason,undefined);
+  const storedKey = (await pool.query('SELECT key_tag,encrypted_key FROM findlink_control.model_credentials WHERE account_id=$1',[a.user.id])).rows[0];
+  assert.notEqual(storedKey.key_tag,starterGeminiKey);
+  assert.equal(storedKey.encrypted_key.includes(starterGeminiKey),false);
+  const overview = await admin('overview',undefined,'GET');
+  assert.deepEqual(overview.accounts.find(account=>account.id===a.user.id).model_providers,['gemini']);
+  assert.equal(JSON.stringify(overview).includes(starterGeminiKey),false);
   const renewal = await buy();
   await sepay(renewal,1004);
   assert.equal((await getStatus(a.client)).available,'50000000000');
@@ -284,6 +305,38 @@ try {
   await admin('payments/1005/refund',{reason:'Synthetic top-up refund record'});
   assert.equal((await getStatus(a.client)).available,'50000000000');
   console.log('PASS SePay signature, amount, currency, manual reconciliation, double delivery and early renewal');
+
+  const peer = await signUp('paid-peer@example.test',memory(),'ACCOUNT');
+  const peerOrder = await peer.client.json('/v1/billing/orders',{method:'POST',json:{requestId:randomUUID()}});
+  await sepay(peerOrder,1007);
+  const peerLease = await lease(peer.client,scopes(randomUUID(),'paid-peer'));
+  await assert.rejects(enqueue(peer.client,digest('peer-without-key'),peerLease.id),/MODEL_ACCOUNT_KEY_REQUIRED/);
+  assert.equal((await credential(peer.user.id,{key:starterGeminiKey},409)).code,'MODEL_KEY_IN_USE');
+  await credential(peer.user.id,{key:peerGeminiKey});
+  expectedGeminiKey = peerGeminiKey;
+  const peerRequest = digest('peer-with-own-key');
+  await enqueue(peer.client,peerRequest,peerLease.id);
+  assert.equal(await backend.models.workOnce(),true);
+  assert.equal((await status(peer.client,peerRequest)).state,'DONE');
+  await release(peer.client,peerLease.id);
+
+  const revokedLease = await lease(a.client,scopes(projectId,'paid-key-revoked'));
+  const revokedRequest = digest('queued-before-key-revocation');
+  const callsBeforeRevoke = providerCalls;
+  await enqueue(a.client,revokedRequest,revokedLease.id);
+  assert.ok(BigInt((await getStatus(a.client)).held)>0n);
+  await credential(a.user.id,{action:'revoke'});
+  assert.equal(await backend.models.workOnce(),false);
+  const revoked = await status(a.client,revokedRequest);
+  assert.equal(revoked.state,'FAILED');
+  assert.equal(revoked.error,'MODEL_ACCOUNT_KEY_REQUIRED');
+  assert.equal(revoked.dispatched,false);
+  assert.equal((await getStatus(a.client)).held,'0');
+  assert.equal(providerCalls,callsBeforeRevoke);
+  await release(a.client,revokedLease.id);
+  await credential(a.user.id,{key:starterGeminiKey});
+  expectedGeminiKey = starterGeminiKey;
+  console.log('PASS paid credentials scoped to account and provider, trial key isolation and queued revocation');
 
   const backup = createHttpBackupStore(a.client), alternate = createHttpBackupStore(other.client);
   const now = new Date().toISOString();
@@ -341,9 +394,13 @@ try {
     const price = {input_per_million:.3,cached_input_per_million:.006,output_per_million:1.2,observed_at:'2026-11-12'};
     await admin('tariffs',{model:'arbitrary-model',price},'POST',400);
     await admin('tariffs',{model:'deepseek-flash',price},'POST',409);
-    fake.deepseekKey = 'deepseek-mock-transport-only';
+    await credential(a.user.id,{provider:'deepseek',key:starterDeepseekKey});
     const switched = await admin('tariffs',{model:'deepseek-flash',price},'POST',201);
     assert.equal(switched.model,'deepseek-flash');
+    assert.equal((await admin('tariffs',{funding:'TRIAL',model:'deepseek-flash',price},'POST',409)).code,'MODEL_KEY_REQUIRED');
+    const trialAfterSwitch = await lease(reinstalledNewDevice,scopes(randomUUID(),'trial-after-paid-switch','PLAN'));
+    assert.equal(trialAfterSwitch.model,REBUILD_MODEL);
+    await release(reinstalledNewDevice,trialAfterSwitch.id);
     await gate.end();
     await gate.begin({runId:paidRun,scope:'COLLECT_AI',budgetUsd:3});
     assert.equal(gate.lease().model,REBUILD_MODEL);

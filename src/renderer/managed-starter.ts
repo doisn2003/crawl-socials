@@ -56,7 +56,8 @@ export function bindManagedStarter(api: ManagedApi | undefined, changed: () => v
     held.textContent = status && !held.hidden ? credits(status.held) + ' đang giữ' : '';
     const details = status?.state === 'TRIAL' && status.rawRemaining !== null ? amount.format(status.rawRemaining) + ' bài gốc còn lại' : '';
     const date = status?.until ? 'Hạn đến ' + displayTime(status.until) : '';
-    const reason = status?.reason ? managedPauseMessage(status.reason) : null;
+    const reasonCode = status?.reason ?? status?.aiReason;
+    const reason = reasonCode ? managedPauseMessage(reasonCode) : null;
     const note = el('managed-access-note');
     note.textContent = reason ?? '';
     note.hidden = !reason || guest;

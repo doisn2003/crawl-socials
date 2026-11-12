@@ -3,7 +3,7 @@ import type { Pool } from 'pg';
 import { TRIAL_INSTALLATION_REVIEW_DAYS, TRIAL_OFFER, type ManagedLease, type ManagedScope, type ManagedStatus, type SignedLease } from '../shared/managed.js';
 import type { Principal } from './auth.js';
 import type { BackendConfig } from './config.js';
-import { modelCredential } from './model-providers.js';
+import { requireModelCredential, trialCredential } from './model-credentials.js';
 import { ApiError, audit, bad, hex, lockAccount, micros, policy, record, runId, tag, TRIAL_CREDITS, TRIAL_RAW_LIMIT, uuid } from './core.js';
 import { transaction, type Transaction } from './database.js';
 
@@ -78,7 +78,8 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
 
   async function status(actor: Principal) {
     return transaction(pool, async db => {
-      const value = await entitlement(db, actor.accountId, await policy(db));
+      const rules = await policy(db);
+      const value = await entitlement(db, actor.accountId, rules);
       if (value.funding === 'TRIAL' && value.trial && !value.status.reason && value.trial.device_tag !== actor.deviceTag) {
         value.status.reason = 'TRIAL_DEVICE_MISMATCH';
       }
@@ -88,6 +89,15 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
       }
       value.status.checkoutAvailable = config.sepay !== null;
       if (config.sepay && value.status.state === 'STARTER' && config.topupPriceVnd !== undefined) value.status.topupPriceVnd = config.topupPriceVnd;
+      if (value.funding === 'PAID' && !value.status.reason) {
+        try {
+          await requireModelCredential(db, config, actor.accountId, 'PAID', rules.route_model);
+          if (rules.pause_ai) value.status.aiReason = 'MODEL_NOT_AUTHORIZED';
+        } catch (error) {
+          if (!(error instanceof ApiError)) throw error;
+          value.status.aiReason = error.code;
+        }
+      }
       return value.status;
     });
   }
@@ -104,7 +114,7 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
       const invite = await db.query(`SELECT 1 FROM findlink_control.invites WHERE account_id=$1 AND email=$2
         AND purpose='TRIAL' AND redeemed_at IS NOT NULL LIMIT 1`, [actor.accountId, account.email]);
       if (!invite.rowCount) throw new ApiError(403, 'INVITE_REQUIRED');
-      if (!rules.trial_enabled || rules.pause_grants || rules.pause_trial || rules.pause_ai || !modelCredential(config, rules.route_model)
+      if (!rules.trial_enabled || rules.pause_grants || rules.pause_trial || rules.pause_ai || !trialCredential(config, rules.trial_route_model)
         || BigInt(rules.trial_daily_cost) <= 0n || BigInt(rules.trial_total_cost) <= 0n) throw new ApiError(503, 'TRIAL_FUNDING_PAUSED');
       const emailTag = tag(config.identityKey, 'trial-email', account.email);
       const used = await db.query('SELECT 1 FROM findlink_control.trial_subjects WHERE email_tag=$1', [emailTag]);
@@ -181,12 +191,13 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
           WHERE r.account_id=$1 AND (p.id IS NULL OR (p.owner_id=$1 AND p.deleted_at IS NULL))`, [actor.accountId]);
         if (rows.length >= 5 && !rows.some(row => row.id === projectId)) throw new ApiError(403, 'PROJECT_LIMIT_REACHED');
       }
+      const defaultRoute = current.funding === 'TRIAL' ? rules.trial_route_id : rules.route_id;
       await db.query(`INSERT INTO findlink_control.runs(account_id,id,project_id,route_id,budget) VALUES($1,$2,$3,$4,$5)
-        ON CONFLICT(account_id,id) DO UPDATE SET budget=least(runs.budget,excluded.budget)`, [actor.accountId, id, projectId, rules.route_id, budget]);
+        ON CONFLICT(account_id,id) DO UPDATE SET budget=least(runs.budget,excluded.budget)`, [actor.accountId, id, projectId, defaultRoute, budget]);
       const route = (await db.query(`SELECT r.project_id,r.route_id,t.model,t.price FROM findlink_control.runs r
         JOIN findlink_control.tariff_versions t ON t.id=r.route_id WHERE r.account_id=$1 AND r.id=$2`, [actor.accountId, id])).rows[0];
       if (route.project_id !== projectId) throw new ApiError(409, 'RUN_PROJECT_MISMATCH');
-      if ((scope === 'PLAN' || scope === 'ASSESS') && !modelCredential(config, route.model)) throw new ApiError(503, 'MODEL_NOT_AUTHORIZED');
+      if (scope === 'PLAN' || scope === 'ASSESS') await requireModelCredential(db, config, actor.accountId, current.funding, route.model);
       const expiresAt = Math.min(+current.now + LEASE_SECONDS * 1000, +current.until!);
       const leaseId = existing?.id ?? randomUUID();
       if (existing) await db.query('UPDATE findlink_control.leases SET expires_at=$2 WHERE id=$1', [leaseId, new Date(expiresAt)]);
@@ -202,6 +213,7 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
       const account = await lockAccount(db, actor.accountId), lease = await getLease(db, actor, id);
       const current = await requireAction(db, actor, await policy(db), lease.scope, { lockedAccount: account });
       if (lease.ended_at || +lease.expires_at <= +current.now || lease.epoch !== account.epoch) throw new ApiError(403, 'RUN_LEASE_EXPIRED');
+      if (lease.scope === 'PLAN' || lease.scope === 'ASSESS') await requireModelCredential(db, config, actor.accountId, current.funding, lease.model);
       const expiresAt = Math.min(+current.now + LEASE_SECONDS * 1000, +current.until!);
       await db.query('UPDATE findlink_control.leases SET expires_at=$2 WHERE id=$1', [id, new Date(expiresAt)]);
       return signed({ id, accountId: actor.accountId, deviceId: actor.deviceId, epoch: Number(account.epoch), runId: lease.run_id, projectId: lease.project_id, scope: lease.scope, issuedAt: +current.now,

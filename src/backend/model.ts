@@ -9,7 +9,8 @@ import { ApiError, audit, hex, lockAccount, microsForUsd, policy, record, uuid }
 import { transaction, type Transaction } from './database.js';
 import { requireAction } from './entitlements.js';
 import { validateModelRequest } from './ai-contract.js';
-import { modelCredential, modelEndpoint, parseModelResponse } from './model-providers.js';
+import { requireModelCredential } from './model-credentials.js';
+import { modelEndpoint, parseModelResponse } from './model-providers.js';
 
 type Row = Record<string, any>;
 const deadline = 45_000;
@@ -113,8 +114,9 @@ export function createModelQueue(pool: Pool, config: BackendConfig, transport: t
       if (unknown.rowCount) throw new ApiError(409, 'MODEL_USAGE_UNKNOWN');
       const rules = await policy(db, true);
       const current = await requireAction(db, actor, rules, lease.scope, { lockedAccount: account });
-      if (rules.pause_ai || !isManagedModel(lease.model) || !modelCredential(config, lease.model)) throw new ApiError(503, 'MODEL_NOT_AUTHORIZED');
+      if (rules.pause_ai || !isManagedModel(lease.model)) throw new ApiError(503, 'MODEL_NOT_AUTHORIZED');
       if (lease.ended_at || +lease.expires_at <= +current.now || lease.epoch !== account.epoch) throw new ApiError(403, 'RUN_LEASE_EXPIRED');
+      await requireModelCredential(db, config, actor.accountId, current.funding, lease.model);
       const bound = BigInt(managedModelBound(lease.model, request, lease.price as ModelPrice));
       const day = utcDay(current.now), row = { account_id: actor.accountId, run_id: lease.run_id, funding: current.funding, bound, budget: lease.budget };
       await metered(db, row, day, rules);
@@ -159,40 +161,41 @@ export function createModelQueue(pool: Pool, config: BackendConfig, transport: t
       if (!row) return null;
       try {
         const current = await requireAction(db, { accountId: row.account_id, deviceTag: row.key_hash }, rules, row.scope, { ownHold: true, lockedAccount: account });
-        if (!isManagedModel(row.model) || !modelCredential(config, row.model)) throw new ApiError(503, 'MODEL_NOT_AUTHORIZED');
+        if (!isManagedModel(row.model)) throw new ApiError(503, 'MODEL_NOT_AUTHORIZED');
         if (row.ended_at || row.revoked_at || !row.session_active || +row.expires_at <= +current.now || row.epoch !== account.epoch ||
           current.funding !== row.funding) throw new ApiError(403, 'RUN_LEASE_EXPIRED');
+        const model = row.model;
+        const credential = await requireModelCredential(db, config, row.account_id, row.funding, model);
         const today = utcDay(current.now);
         await metered(db, row, today, rules, row.id);
         // The durable dispatch marker precedes the only outbound attempt.
         await db.query(`UPDATE findlink_control.ai_operations SET state='DISPATCHING',started_at=clock_timestamp(),budget_day=$3
           WHERE account_id=$1 AND id=$2`, [row.account_id, row.id, today]);
+        return { row, model, credential };
       } catch (error) {
         if (!(error instanceof ApiError)) throw error;
         await finalize(db, row, null, 0n, error.code);
         return null;
       }
-      return row;
     });
   }
 
   async function workOnce() {
-    const row = await claim();
-    if (!row) return false;
+    const job = await claim();
+    if (!job) return false;
+    const { row, model, credential } = job;
     const start = Date.now();
     let raw: string | undefined;
     let result: JsonModelResult | null = null;
     let cost: bigint | null = null;
     let error: string | null = null;
     try {
-      const model = row.model, credential = modelCredential(config, model);
-      if (!isManagedModel(model) || !credential) throw Error('MODEL_NOT_AUTHORIZED');
       const { url, headers } = modelEndpoint(model, credential);
       const response = await transport(url, {
         method: 'POST', redirect: 'error', signal: AbortSignal.timeout(deadline),
         headers, body: JSON.stringify(row.wire),
       });
-      raw = await boundedResponse(response);
+      raw = (await boundedResponse(response)).replaceAll(credential, '[REDACTED]');
       let payload: Row | null = null;
       try { payload = JSON.parse(raw) as Row; } catch { error = 'MODEL_RESPONSE_NOT_JSON'; }
       const { usage, complete, generated, version } = parseModelResponse(model, payload);

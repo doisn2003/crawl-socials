@@ -4,6 +4,12 @@ const message = (text, failed = false) => {
   byId('message').textContent = text;
   byId('message').dataset.error = String(failed);
 };
+const operatorErrors = {
+  MODEL_KEY_REQUIRED:'Cần cấu hình khóa cho nhà cung cấp của gói đã chọn.',
+  MODEL_KEY_INVALID:'Kiểm tra định dạng khóa API và lý do thay đổi.',
+  MODEL_KEY_RESERVED_FOR_TRIAL:'Khóa này đang dành cho dùng thử.',
+  MODEL_KEY_IN_USE:'Khóa này đã được gán. Hãy dùng khóa riêng cho tài khoản và nhà cung cấp này.',
+};
 async function api(path, method = 'GET', data) {
   const headers = { 'Content-Type': 'application/json' };
   if (session) headers.Authorization = 'Bearer ' + session;
@@ -30,7 +36,7 @@ function bind(id, action) {
       message('Đã cập nhật.');
     } catch (error) {
       if (error.message === 'ADMIN_AUTH_REQUIRED') reset();
-      message(error.message,true);
+      message(operatorErrors[error.message] ?? error.message,true);
     } finally { button.disabled = false; }
   });
 }
@@ -41,11 +47,12 @@ const microsPerCredit = 1e6;
 const creditsPerUsd = 1000;
 const tariffFields = ['input_per_million','cached_input_per_million','output_per_million'];
 const modelNames = { 'gemini-3.1-flash-lite':'Gemini 3.1 Flash-Lite', 'deepseek-flash':'DeepSeek Flash' };
-let models = [], savedPrices = new Map();
+const providerNames = { gemini:'Gemini', deepseek:'DeepSeek' };
+let models = [], savedPrices = new Map(), activeTariffs = {};
 const overviewNames = { accounts: 'Tài khoản và số dư', orders: 'Đơn hàng và hạn gói', payments: 'Giao dịch SePay',
   devices: 'Thiết bị', reviews: 'Hồ sơ xét duyệt', costs: 'Chi phí AI và dự phòng (credits)', unknown: 'Yêu cầu chờ đối soát', audit: 'Nhật ký vận hành' };
 const columnsVi = { username:'Tài khoản', id:'ID', account_id:'ID tài khoản', plan:'Gói', available:'Credits còn lại', paid_until:'Starter đến',
-  trial_until:'Trial đến', suspended:'Đã tạm ngừng', email_verified_at:'Xác minh lúc', code:'Mã đơn', kind:'Loại', amount_vnd:'Số tiền',
+  trial_until:'Trial đến', suspended:'Đã tạm ngừng', email_verified_at:'Xác minh lúc', model_providers:'Khóa AI Starter', code:'Mã đơn', kind:'Loại', amount_vnd:'Số tiền',
   credits:'Credits', state:'Trạng thái', starts_at:'Bắt đầu', ends_at:'Kết thúc', order_id:'ID đơn', provider_id:'ID SePay', reason:'Lý do',
   created_at:'Tạo lúc', seen_at:'Hoạt động gần nhất', revoked_at:'Thu hồi lúc', funding:'Quỹ', attempts:'Lượt gọi', measured:'Đã đo', held:'Đang giữ', bound:'Dự phòng (credits)' };
 const names = { STARTER:'Starter', TRIAL:'Dùng thử', INACTIVE:'Chưa có gói', TOPUP:'Nạp credits', PAID:'Starter', PENDING:'Chờ thanh toán',
@@ -56,6 +63,7 @@ const number = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 6 });
 const date = new Intl.DateTimeFormat('vi-VN', { dateStyle:'short', timeStyle:'short' });
 function cellText(key, value) {
   if (value == null) return '';
+  if (key === 'model_providers') return value.map(provider => providerNames[provider]).join(', ') || 'Chưa gán';
   if (['available','credits','measured','held','bound'].includes(key)) return number.format(Number(value)/microsPerCredit);
   if (key === 'amount_vnd') return number.format(Number(value)) + ' ₫';
   if ((key === 'at' || key.endsWith('_at') || key.endsWith('_until')) && Number.isFinite(Date.parse(value))) return date.format(new Date(value));
@@ -73,11 +81,15 @@ function choices(id, rows, value, label) {
 }
 function fillTariff() {
   const form = byId('tariff'), model = form.elements.model.value;
-  const price = savedPrices.get(model), provider = models.find(option => option.model === model);
+  const funding = form.elements.funding.value, active = activeTariffs[funding];
+  const price = active?.model === model ? active.price : savedPrices.get(model);
+  const provider = models.find(option => option.model === model);
   for (const key of tariffFields) form.elements[key].value = price ? price[key] * creditsPerUsd : '';
   form.elements.observed_at.value = price?.observed_at ?? '';
   const info = byId('tariff-provider');
-  info.textContent = provider?.configured ? 'Khóa đã cấu hình trên máy chủ. ' : 'Thêm khóa của model vào cấu hình máy chủ. ';
+  info.textContent = funding === 'TRIAL'
+    ? (provider?.trialConfigured ? 'Đã cấu hình khóa dùng thử. ' : 'Cấu hình khóa dùng thử trên máy chủ. ')
+    : `${number.format(provider?.paidKeys ?? 0)} tài khoản đã gán khóa cho nhà cung cấp này. `;
   if (provider) {
     const link = document.createElement('a');
     link.href = provider.source;
@@ -87,19 +99,28 @@ function fillTariff() {
     info.append(link);
   }
 }
+function selectTariff() {
+  const form = byId('tariff'), active = activeTariffs[form.elements.funding.value];
+  if (!active) return;
+  form.elements.model.value = active.model;
+  byId('active-tariff').textContent = `${modelNames[active.model]} · Biểu giá ${active.id} · Xác minh ngày ${active.price.observed_at}`;
+  fillTariff();
+}
 async function refresh() {
   const result = await api('overview');
   const form = byId('policy');
   const policy = result.policy[0], tariff = result.tariff[0];
   const { starter, trial, sepayMode } = result.setup;
   models = result.setup.models;
+  activeTariffs = { PAID:tariff, TRIAL:result.trialTariff[0] };
   savedPrices = new Map(result.tariffs.map(row => [row.model, row.price]));
   byId('starter-offer').textContent = number.format(starter.priceVnd) + ' ₫/năm · ' + number.format(starter.credits) + ' credits';
   byId('trial-offer').textContent = trial.credits + ' credits · ' + trial.days + ' ngày · ' + (policy.trial_enabled && !policy.pause_grants ? 'Đang cấp mã đã duyệt' : 'Tạm dừng cấp mới');
-  const activeConfigured = models.some(model => model.model === tariff.model && model.configured);
-  byId('service-setup').textContent = 'AI ' + (!activeConfigured ? 'thiếu khóa' : policy.pause_ai ? 'tạm dừng' : 'đang hoạt động')
+  const trialConfigured = models.some(row => row.model === activeTariffs.TRIAL.model && row.trialConfigured);
+  const paidKeys = models.find(row => row.model === tariff.model)?.paidKeys ?? 0;
+  byId('service-setup').textContent = 'AI ' + (policy.pause_ai ? 'tạm dừng' : 'đã bật')
+    + ' · Trial ' + (trialConfigured ? 'đã có khóa' : 'chưa có khóa') + ` · Starter ${number.format(paidKeys)} tài khoản có khóa`
     + ' · SePay ' + (sepayMode === 'live' ? 'Live' : sepayMode === 'test' ? 'Test Mode' : 'chưa cấu hình');
-  byId('active-tariff').textContent = `${modelNames[tariff.model]} · Biểu giá ${tariff.id} · Xác minh ngày ${tariff.price.observed_at}`;
   const tariffForm = byId('tariff');
   tariffForm.elements.model.replaceChildren(...models.map(row => {
     const option = document.createElement('option');
@@ -107,8 +128,7 @@ async function refresh() {
     option.textContent = modelNames[row.model];
     return option;
   }));
-  tariffForm.elements.model.value = tariff.model;
-  fillTariff();
+  selectTariff();
   for (const key of flags) form.elements[key].checked = result.policy[0][key];
   for (const key of countFields) form.elements[key].value = result.policy[0][key];
   for (const key of amountFields) form.elements[key].value = Number(result.policy[0][key]) / microsPerCredit;
@@ -180,9 +200,22 @@ bind('credits', async ({accountId,amount,...values}) => {
   await refresh();
 });
 byId('tariff').elements.model.addEventListener('change', fillTariff);
-bind('tariff', async ({model,observed_at,...values}) => {
+byId('tariff').elements.funding.addEventListener('change', selectTariff);
+bind('tariff', async ({funding,model,observed_at,...values}) => {
   const price = Object.fromEntries(tariffFields.map(key => [key,Number(values[key])/creditsPerUsd]));
-  await api('tariffs','POST',{model,price:{observed_at,...price}});
+  await api('tariffs','POST',{funding,model,price:{observed_at,...price}});
+  await refresh();
+});
+const credentialForm = byId('model-credential');
+credentialForm.elements.action.addEventListener('change', () => {
+  const field = credentialForm.elements.key;
+  field.disabled = credentialForm.elements.action.value === 'revoke';
+  field.required = !field.disabled;
+  if (field.disabled) field.value = '';
+});
+bind('model-credential', async ({accountId,...values}) => {
+  credentialForm.elements.key.value = '';
+  await api('accounts/' + encodeURIComponent(accountId) + '/model-credential','PUT',values);
   await refresh();
 });
 byId('refresh').addEventListener('click',()=>void refresh().catch(error=>{if(error.message==='ADMIN_AUTH_REQUIRED')reset();message(error.message,true);}));

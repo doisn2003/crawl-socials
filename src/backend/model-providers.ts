@@ -1,18 +1,17 @@
 import type { ModelUsage } from '../application/ports/model-gateway.js';
 import { parseGeminiUsage } from '../infrastructure/llm/gemini-gateway.js';
 import type { ManagedModel } from '../shared/managed.js';
-import type { BackendConfig } from './config.js';
+
+export const MODEL_PROVIDERS = {
+  'gemini-3.1-flash-lite': 'gemini',
+  'deepseek-flash': 'deepseek',
+} as const satisfies Record<ManagedModel, string>;
+export type ModelProvider = typeof MODEL_PROVIDERS[ManagedModel];
 
 export const MODEL_PRICE_SOURCES: Record<ManagedModel, string> = {
   'gemini-3.1-flash-lite': 'https://ai.google.dev/gemini-api/docs/pricing',
   'deepseek-flash': 'https://api-docs.deepseek.com/quick_start/pricing/',
 };
-
-export function modelCredential(config: BackendConfig, model: unknown) {
-  if (model === 'gemini-3.1-flash-lite') return config.geminiKey;
-  if (model === 'deepseek-flash') return config.deepseekKey ?? null;
-  return null;
-}
 
 export function modelEndpoint(model: ManagedModel, credential: string): { url: string; headers: Record<string, string> } {
   if (model === 'deepseek-flash') {
