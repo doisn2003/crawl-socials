@@ -66,7 +66,7 @@ Gemini 3.1 Flash-Lite là model mặc định. DeepSeek Flash có giá theo khun
 
 ## 4. Bán, gia hạn Starter và nạp credits qua SePay
 
-Starter hiện có giá **23.000.000 ₫/năm** và **50.000 credits**. Hai giá trị là điều khoản cố định của phiên bản này. Trang quản trị theo dõi từng đơn, hạn gói và số dư. Mục **Điều chỉnh credits Starter** cấp thêm credits hoặc hoàn debit AI có lý do.
+Starter hiện có giá **23.000.000 ₫/năm** và **50.000 credits**. Hai giá trị là điều khoản cố định của phiên bản này. Gói nạp production có giá **325.000 ₫ cho 10.000 credits**. Trang quản trị theo dõi từng đơn, hạn gói và số dư. Mục **Điều chỉnh credits Starter** cấp thêm credits hoặc hoàn debit AI có lý do.
 
 1. Cấu hình SePay Test Mode gửi tiền vào bằng JSON HMAC-SHA256 tới `/v1/billing/webhooks/sepay` của staging. Tạo mẫu tiền tố `FL`, hậu tố đúng 12 ký tự **Số và chữ**. Chọn đúng tài khoản nhận, bật **Chỉ gửi khi có mã thanh toán** và lọc riêng tiền tố `FL`. Sau khi thử thành công, áp dụng cùng phạm vi cho tài khoản nhận đã được duyệt trong SePay Live và dùng khóa HMAC production riêng. [Cấu hình mã thanh toán](https://developer.sepay.vn/vi/sepay-webhooks/cau-hinh-ma-thanh-toan) · [SePay Test Mode](https://developer.sepay.vn/vi/sepay-webhooks/test-mode/bat-dau-nhanh)
 2. Khách mở **Gói dịch vụ** và chọn **Mua Starter**, **Gia hạn Starter** hoặc **Nạp credits**. Đặt `FINDLINK_TOPUP_PRICE_VND` để mở gói nạp 10.000 credits. Khách chuyển đúng số tiền với mã đơn `FL…` rồi chọn **Kiểm tra giao dịch**.
@@ -74,6 +74,8 @@ Starter hiện có giá **23.000.000 ₫/năm** và **50.000 credits**. Hai giá
 4. Dùng **Đối soát SePay** cho giao dịch ngoại lệ sau khi xác minh tiền tệ và chứng từ trong SePay. Với chuyển khoản sai mã bị bộ lọc bỏ qua, kiểm tra trực tiếp lịch sử giao dịch SePay. Sau khi đã hoàn tiền qua ngân hàng, ghi nhận trong quản trị để thu hồi quyền và credits còn lại.
 
 ## 5. Phát hành Windows
+
+Chữ ký Authenticode xác nhận tên nhà phát hành trên bộ cài Windows và giúp kiểm tra tệp còn nguyên vẹn. Chọn tên cá nhân hoặc doanh nghiệp sẽ đứng tên chứng chỉ ký mã. Nhà cấp chứng chỉ xác minh danh tính trước khi cấp. Sau khi thiết lập thiết bị hoặc dịch vụ ký, lấy tên publisher đúng như trên chứng chỉ để cấu hình build. [Chữ ký Authenticode](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/authenticode)
 
 - `npm run dist:starter:qa` tạo bộ cài thử chưa ký trong `release/starter-qa`. Địa chỉ backend mặc định là `http://127.0.0.1:9070`. Có thể đặt `FINDLINK_QA_ORIGIN` khi build.
 - Đặt `FINDLINK_PUBLIC_URL`, `FINDLINK_UPDATE_URL`, `FINDLINK_LEASE_PUBLIC_KEY` và `FINDLINK_SIGNING_PUBLISHER` trong môi trường build chính thức. Lấy `leasePublicKey` từ `/v1/config` của chính backend production. Dùng `FINDLINK_SIGNING_CERT_SHA1` hoặc `CSC_LINK` cùng mật khẩu chứng chỉ từ kho secrets.
