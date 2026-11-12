@@ -298,12 +298,14 @@ async function bootstrap() {
       await managedClient().json('/v1/auth/recover', { method: 'POST', json: { code: v.code, password: v.password } }, false);
     }),
     'csd:managed:update': async () => {
-      if (!updates?.ready()) throw Error('UPDATE_UNAVAILABLE');
+      const pendingUpdate = updates;
+      if (!pendingUpdate?.ready()) throw Error('UPDATE_UNAVAILABLE');
       if (closing || modelCommands || projectChanging || exporting) throw Error('PROJECT_BUSY');
+      await pendingUpdate.verifyForInstall();
       await requireIdleForKey();
       if (closing || modelCommands || projectChanging || exporting) throw Error('PROJECT_BUSY');
       closing = true;
-      try { await finishForExit(); updates.install(); }
+      try { await finishForExit(); pendingUpdate.install(); }
       catch { app.quit(); throw Error('UPDATE_INSTALL_FAILED'); }
     },
     'csd:state': async () => {
@@ -397,7 +399,10 @@ async function bootstrap() {
   }, 30000);
   backupTimer.unref();
   await mainWindow.loadFile(uiFile);
-  if (app.isPackaged && commercialRelease?.updateUrl && !commercialRelease.testOnly) updates = managedUpdates(commercialRelease.updateUrl);
+  if (app.isPackaged && commercialRelease?.updateUrl && !commercialRelease.testOnly) {
+    try { updates = managedUpdates(commercialRelease.updateUrl, commercialRelease.updatePublisher ?? ''); }
+    catch { console.error('FINDLINK_UPDATE_CONFIG_INVALID'); }
+  }
 }
 void bootstrap().catch(() => {
   console.error('CSD_STARTUP_FAILED');

@@ -23,6 +23,7 @@
     "backend:test": "node scripts/starter-integration.mjs",
     "starter:preview": "npm run build && node scripts/starter-preview.mjs",
     "dist:starter": "node scripts/package-starter.mjs",
+    "verify:starter-feed": "node scripts/starter-release-feed.mjs",
     "pack:starter:qa": "node scripts/package-starter.mjs --qa --dir",
     "dist:starter:qa": "node scripts/package-starter.mjs --qa",
     "test": "npm run build && npm run test:unit",
@@ -35,10 +36,12 @@
     "electron-updater": "6.8.11",
     "exceljs": "4.4.0",
     "franc-min": "6.2.0",
+    "js-yaml": "4.3.2",
     "pg": "8.23.1",
     "tldts": "7.4.19"
   },
   "devDependencies": {
+    "@types/js-yaml": "4.0.9",
     "@types/node": "24.19.2",
     "@types/pg": "8.23.1",
     "electron": "44.10.0",

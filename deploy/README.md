@@ -71,6 +71,8 @@ Starter hiện có giá **23.000.000 ₫/năm** và **50.000 credits**. Hai giá
 
 - `npm run dist:starter:qa` tạo bộ cài thử chưa ký trong `release/starter-qa`. Địa chỉ backend mặc định là `http://127.0.0.1:9070`. Có thể đặt `FINDLINK_QA_ORIGIN` khi build.
 - Đặt `FINDLINK_PUBLIC_URL`, `FINDLINK_UPDATE_URL`, `FINDLINK_LEASE_PUBLIC_KEY` và `FINDLINK_SIGNING_PUBLISHER` trong môi trường build chính thức. Dùng `FINDLINK_SIGNING_CERT_SHA1` hoặc `CSC_LINK` cùng mật khẩu chứng chỉ từ kho secrets.
-- Chạy `npm run dist:starter` trên Windows. Đưa installer và blockmap lên feed HTTPS trước `latest.yml`. Thử cài mới và cập nhật với bản đã ký. [Cập nhật tự động electron-builder v26](https://www.electron.build/v26/docs/features/auto-update/)
+- Chạy `npm run dist:starter` trên Windows. Lệnh kiểm chữ ký của FindLink và installer, kiểm publisher trong `app-update.yml`, rồi tạo `release/starter-feed/<version>` chứa installer, blockmap và `latest.yml`. Dùng phiên bản cao hơn khi phát hành bản sửa.
+- Đưa hai tệp theo phiên bản lên feed HTTPS trước, rồi đưa `latest.yml` lên sau. Với Caddy trong repo, đặt tệp vào `deploy/downloads/windows` và dùng `https://<domain>/downloads/windows/` cho `FINDLINK_UPDATE_URL`.
+- Chạy `npm run verify:starter-feed` bằng cấu hình build để so tệp HTTPS với gói đã ký và kiểm tra HTTP Range. Thử cài mới và cập nhật từ phiên bản trước trên máy QA. [Cập nhật tự động electron-builder v26](https://www.electron.build/v26/docs/features/auto-update/)
 
 Trước khi mở bán, kiểm tra `npm test`, `npm run backend:test -- --env=.env`, luồng SePay Test Mode, giá và hạn mức Gemini, cài mới/cập nhật có chữ ký, và khôi phục dữ liệu trên máy QA. Bài tích hợp trong repo dùng PostgreSQL cách ly và dịch vụ mô phỏng.

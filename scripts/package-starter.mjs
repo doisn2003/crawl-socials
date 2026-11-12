@@ -1,10 +1,11 @@
 import { execFileSync } from 'node:child_process';
 import { createPublicKey } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import builder from 'electron-builder';
 import asar from '@electron/asar';
+import { defaultStarterVersion, stageStarterFeed, verifyStarterSignature } from './starter-release-feed.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const qa = process.argv.includes('--qa');
@@ -25,14 +26,15 @@ function httpsUrl(value, pathAllowed = false) {
   return url;
 }
 
-const version = process.env.FINDLINK_STARTER_VERSION || '0.5.1';
+const version = process.env.FINDLINK_STARTER_VERSION || defaultStarterVersion;
 if (!/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(version)) throw Error('STARTER_VERSION_INVALID');
+const publisherName = qa ? null : required('FINDLINK_SIGNING_PUBLISHER');
 const manifest = qa ? { origin: process.env.FINDLINK_QA_ORIGIN || 'http://127.0.0.1:9070', testOnly: true } : {
   origin: httpsUrl(required('FINDLINK_PUBLIC_URL')).origin,
   updateUrl: httpsUrl(required('FINDLINK_UPDATE_URL'), true).href,
   leasePublicKey: required('FINDLINK_LEASE_PUBLIC_KEY'),
+  updatePublisher: publisherName,
 };
-const publisherName = qa ? null : required('FINDLINK_SIGNING_PUBLISHER');
 const certSha1 = process.env.FINDLINK_SIGNING_CERT_SHA1;
 if (!qa) {
   const key = createPublicKey({ key: Buffer.from(manifest.leasePublicKey, 'base64'), format: 'der', type: 'spki' });
@@ -72,11 +74,17 @@ try {
   if (metadata.findlinkManaged !== true || !contents.some(path => /[\\/]dist[\\/]managed-release\.json$/.test(path))) {
     throw Error('RELEASE_PACKAGE_MANAGED_FLAG_MISSING');
   }
+  const bundledVerifier = asar.extractFile(packageFile, join('dist', 'main', 'verify-starter-signing.ps1'));
+  if (!bundledVerifier.equals(readFileSync(join(root, 'scripts', 'verify-starter-signing.ps1')))) {
+    throw Error('RELEASE_UPDATE_VERIFIER_MISMATCH');
+  }
   if (!qa && !directoryOnly) {
-    const name = artifactName.replace('${version}',version).replace('${ext}','exe');
-    execFileSync('powershell.exe', ['-NoProfile','-NonInteractive','-File',join(root,'scripts','verify-starter-signing.ps1'),join(root,output,name),publisherName],
-      { windowsHide: true, stdio: 'inherit' });
-    if (!existsSync(join(root,output,'latest.yml'))) throw Error('RELEASE_UPDATE_METADATA_MISSING');
+    const { assertStarterUpdateConfig } = await import('../dist/infrastructure/managed/starter-release.js');
+    const unpacked = join(root, output, 'win-unpacked');
+    assertStarterUpdateConfig(readFileSync(join(unpacked, 'resources', 'app-update.yml'), 'utf8'),
+      { url: manifest.updateUrl, publisher: publisherName });
+    verifyStarterSignature(join(unpacked, base.productName + '.exe'), publisherName);
+    await stageStarterFeed(join(root, output), join(root, 'release', 'starter-feed'), version, publisherName);
   }
   console.log(qa ? 'STARTER_QA_PACKAGE_READY' : 'STARTER_SIGNED_PACKAGE_READY');
 } finally {

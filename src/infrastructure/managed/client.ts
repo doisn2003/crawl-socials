@@ -5,6 +5,7 @@ export interface ManagedRelease {
   origin: string;
   leasePublicKey?: string;
   updateUrl?: string;
+  updatePublisher?: string;
   testOnly?: true;
 }
 export interface ManagedIdentity { id: string; username: string }
