@@ -2,6 +2,7 @@ import { Pool, type PoolClient } from 'pg';
 import { PROJECT_SCHEMA_SQL } from '../infrastructure/projects/schema.js';
 
 export type Transaction = PoolClient;
+export const CONTROL_SCHEMA_VERSION = 2;
 
 export function database(url: string) {
   const pool = new Pool({ connectionString: url, max: 12, connectionTimeoutMillis: 8000,
@@ -30,6 +31,13 @@ export async function migrate(pool: Pool) {
     const baseline = prior.rows[0]?.installed ? await db.query('SELECT version FROM csd_backup.schema_migrations WHERE version=1') : null;
     if (!baseline?.rowCount) await db.query(PROJECT_SCHEMA_SQL);
     await db.query(CONTROL_SCHEMA);
+    const installed = await db.query('SELECT version FROM findlink_control.migrations WHERE version=2');
+    if (!installed.rowCount) {
+      await db.query(`ALTER TABLE findlink_control.trial_subjects ADD COLUMN installation_tag text;
+        CREATE INDEX trial_installation ON findlink_control.trial_subjects(installation_tag,started_at)
+          WHERE installation_tag IS NOT NULL;`);
+      await db.query('INSERT INTO findlink_control.migrations(version) VALUES(2)');
+    }
   });
 }
 

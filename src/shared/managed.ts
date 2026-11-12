@@ -3,6 +3,7 @@ import type { ModelPrice } from '../application/ports/model-gateway.js';
 export const CREDITS_PER_USD = 1000;
 export const STARTER_OFFER = { priceVnd: 23_000_000, credits: 50_000 } as const;
 export const TRIAL_OFFER = { credits: 100, days: 14, rawLimit: 1000 } as const;
+export const TRIAL_INSTALLATION_REVIEW_DAYS = 90;
 export const TOPUP_CREDITS = 10_000;
 export const MANAGED_MODELS = ['gemini-3.1-flash-lite', 'deepseek-flash'] as const;
 export type ManagedModel = typeof MANAGED_MODELS[number];

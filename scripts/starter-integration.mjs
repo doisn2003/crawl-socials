@@ -8,6 +8,7 @@ import { migrate, database } from '../dist/backend/database.js';
 import { createBackend } from '../dist/backend/server.js';
 import { totp } from '../dist/backend/admin.js';
 import { yearAfter } from '../dist/backend/billing.js';
+import { createEntitlements } from '../dist/backend/entitlements.js';
 import { createManagedClient } from '../dist/infrastructure/managed/client.js';
 import { createHttpBackupStore } from '../dist/infrastructure/managed/backup.js';
 import { createRunAccess } from '../dist/infrastructure/managed/run-access.js';
@@ -108,7 +109,7 @@ try {
     return { client,user,secrets,issued };
   };
   const getStatus = c => c.json('/v1/me/entitlements');
-  const activate = c => c.json('/v1/trial/activate', { method: 'POST', json: {} });
+  const activate = (c, installationTag) => c.json('/v1/trial/activate', { method: 'POST', json: { installationTag } });
   const lease = async (c, json) => (await c.json('/v1/runs/authorize',{ method: 'POST', json })).lease;
   const release = (c, id) => c.json('/v1/runs/leases/' + id + '/release', { method: 'POST' });
   const enqueue = (c, id, leaseId, data = modelRequest) => c.json('/v1/ai/operations',{ method: 'POST', json: { id,leaseId,request:data } });
@@ -128,7 +129,8 @@ try {
   await aDevice2.login({username:a.user.username,password:'synthetic-password-2026'},false);
   assert.equal((await getStatus(a.client)).state,'INACTIVE');
   await assert.rejects(aDevice2.login({ username: a.user.username,password:'synthetic-password-2026',invite:a.issued.code },true));
-  const double = await Promise.all([activate(a.client),activate(a.client)]);
+  const installation = digest('synthetic-windows-installation');
+  const double = await Promise.all([activate(a.client,installation),activate(a.client,installation)]);
   assert.ok(double.every(s => s.available === '100000000'));
   assert.equal((await getStatus(aDevice2)).reason,'TRIAL_DEVICE_MISMATCH');
   await assert.rejects(activate(other.client),/INVITE_REQUIRED/);
@@ -138,7 +140,38 @@ try {
   assert.equal(review.account_id,reused.user.id);
   await admin('reviews/'+review.id,{ approved:false,reason:'Synthetic device reuse test' });
   await assert.rejects(activate(reused.client),/TRIAL_REVIEW_REQUIRED/);
-  console.log('PASS invitation, reuse, MFA, registration and concurrent claim');
+  const reusedNewDevice = await newClient(memory());
+  await reusedNewDevice.login({username:reused.user.username,password:'synthetic-password-2026'},false);
+  await assert.rejects(activate(reusedNewDevice),/TRIAL_REVIEW_REQUIRED/);
+  assert.equal((await getStatus(reusedNewDevice)).reason,'TRIAL_REVIEW_REQUIRED');
+
+  const reinstalled = await signUp('reinstalled@example.test');
+  await assert.rejects(activate(reinstalled.client,installation),/TRIAL_REVIEW_REQUIRED/);
+  const reinstalledReview = (await admin('overview',undefined,'GET')).reviews[0];
+  assert.equal(reinstalledReview.account_id,reinstalled.user.id);
+  assert.equal(reinstalledReview.reason,'WINDOWS_INSTALLATION_REUSE');
+  const reinstalledNewDevice = await newClient(memory());
+  await reinstalledNewDevice.login({username:reinstalled.user.username,password:'synthetic-password-2026'},false);
+  await assert.rejects(activate(reinstalledNewDevice),/TRIAL_REVIEW_REQUIRED/);
+  await admin('reviews/'+reinstalledReview.id,{ approved:true,reason:'Verified distinct fixture user' });
+  await assert.rejects(activate(reinstalledNewDevice),/TRIAL_REVIEW_REQUIRED/);
+  const movedReview = (await admin('overview',undefined,'GET')).reviews[0];
+  assert.equal(movedReview.reason,'REVIEW_DEVICE_CHANGED');
+  await admin('reviews/'+movedReview.id,{ approved:true,reason:'Verified replacement fixture device' });
+  await admin('policy',{max_trial_subjects:1},'PUT');
+  await assert.rejects(activate(reinstalledNewDevice,installation),/TRIAL_FUNDING_PAUSED/);
+  await admin('policy',{max_trial_subjects:4},'PUT');
+  assert.equal((await activate(reinstalledNewDevice,installation)).available,'100000000');
+  const tags = () => pool.query('SELECT account_id,installation_tag FROM findlink_control.trial_subjects ORDER BY started_at').then(result => result.rows);
+  const storedTags = await tags();
+  assert.equal(storedTags[0].installation_tag,createHmac('sha256',fake.identityKey).update('trial-windows-installation\0'+installation).digest('hex'));
+  assert.equal(storedTags[1].installation_tag,storedTags[0].installation_tag);
+  await pool.query("UPDATE findlink_control.trial_subjects SET started_at=now()-interval '91 days' WHERE account_id=$1",[a.user.id]);
+  await createEntitlements(pool,fake).pruneInstallationTags();
+  const prunedTags = await tags();
+  assert.deepEqual(prunedTags,[{account_id:a.user.id,installation_tag:null},storedTags[1]]);
+  assert.equal((await getStatus(a.client)).available,'100000000');
+  console.log('PASS invitation, concurrent claim, reinstall review, device rotation, sponsor cap and tag retention');
 
   const projectId = randomUUID(), run = 'crawl-' + randomUUID();
   let l = await lease(a.client,scopes(projectId,run,'COLLECT'));
@@ -214,10 +247,10 @@ try {
   await trialGate.end();
   console.log('PASS durable AI holds, replay, isolation, revocation and OFF/AI trial lock');
 
-  async function sepay(order, id, { amount = order.amountVnd, good = true } = {}) {
+  async function sepay(order, id, { amount = order.amountVnd, good = true, currency, code = order.code } = {}) {
     const payload = JSON.stringify({id,gateway:fake.sepay.bank,accountNumber:fake.sepay.account,transferType:'in',
       transactionDate:new Date(Date.now()+7*3600_000).toISOString().slice(0,19).replace('T',' '),
-      content:'Thanh toán '+order.code,code:null,transferAmount:amount,referenceCode:'FIXTURE-'+id});
+      content:'Thanh toán '+code,code:null,transferAmount:amount,referenceCode:'FIXTURE-'+id,currency});
     const now = String(Math.floor(Date.now()/1000));
     return request('/v1/billing/webhooks/sepay',good?201:401,{method:'POST',raw:payload,headers:{
       'Content-Type':'application/json','X-SePay-Timestamp':now,'X-SePay-Signature':'sha256='+(good?
@@ -228,6 +261,10 @@ try {
   assert.equal(paid.amountVnd,23_000_000);
   await sepay(paid,1001,{good:false});
   await sepay(paid,1002,{amount:paid.amountVnd-1});
+  await sepay(paid,1006,{code:'sai mã đơn',currency:'USD'});
+  assert.equal((await admin('overview',undefined,'GET')).payments.find(payment=>payment.provider_id==='1006').reason,'CURRENCY_MISMATCH');
+  const mismatch = await admin('payments/1006/reconcile',{orderId:paid.id,reason:'Synthetic wrong currency'},'POST',409);
+  assert.equal(mismatch.code,'PAYMENT_NOT_RECONCILABLE');
   assert.equal((await getStatus(a.client)).state,'TRIAL');
   await Promise.all([sepay(paid,1003),sepay(paid,1003)]);
   assert.equal((await getStatus(a.client)).available,'50000000000');
@@ -241,11 +278,12 @@ try {
   assert.equal(yearAfter(new Date('2028-02-29T12:00:00Z')).toISOString(),'2029-02-28T12:00:00.000Z');
   const topup = await a.client.json('/v1/billing/orders',{method:'POST',json:{requestId:randomUUID(),kind:'TOPUP'}});
   assert.equal(topup.amountVnd,fake.topupPriceVnd);
-  await sepay(topup,1005);
+  await sepay(topup,1005,{code:'sai mã đơn'});
+  await admin('payments/1005/reconcile',{orderId:topup.id,reason:'Verified VND fixture with wrong order code'});
   assert.equal((await getStatus(a.client)).available,'60000000000');
   await admin('payments/1005/refund',{reason:'Synthetic top-up refund record'});
   assert.equal((await getStatus(a.client)).available,'50000000000');
-  console.log('PASS SePay signature, amount, double delivery and early renewal');
+  console.log('PASS SePay signature, amount, currency, manual reconciliation, double delivery and early renewal');
 
   const backup = createHttpBackupStore(a.client), alternate = createHttpBackupStore(other.client);
   const now = new Date().toISOString();

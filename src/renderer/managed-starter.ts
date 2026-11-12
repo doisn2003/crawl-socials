@@ -1,4 +1,4 @@
-import { CREDITS_PER_USD, STARTER_OFFER, TOPUP_CREDITS, TRIAL_OFFER, type CreditEntry, type ManagedApi, type ManagedStatus, type StarterOrder } from '../shared/managed.js';
+import { CREDITS_PER_USD, STARTER_OFFER, TOPUP_CREDITS, TRIAL_INSTALLATION_REVIEW_DAYS, TRIAL_OFFER, type CreditEntry, type ManagedApi, type ManagedStatus, type StarterOrder } from '../shared/managed.js';
 import { managedPauseMessage } from '../shared/model-status.js';
 
 const amount = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 });
@@ -64,7 +64,7 @@ export function bindManagedStarter(api: ManagedApi | undefined, changed: () => v
     el('managed-status').textContent = [error || (unavailable && preview ? 'Backend bản thử chưa chạy.' : reason), details, date, checkout,
       preview ? 'Môi trường thử, giao dịch mô phỏng.' : ''].filter(Boolean).join(' · ');
     el('managed-trial-offer').textContent = `${TRIAL_OFFER.credits} credits · ${TRIAL_OFFER.days} ngày`;
-    el('managed-trial-details').textContent = `Theo mã mời, tối đa ${amount.format(TRIAL_OFFER.rawLimit)} bài gốc.`;
+    el('managed-trial-details').textContent = `Theo mã mời, tối đa ${amount.format(TRIAL_OFFER.rawLimit)} bài gốc. FindLink dùng dấu cài đặt Windows đã băm để xét duyệt trong ${TRIAL_INSTALLATION_REVIEW_DAYS} ngày.`;
     el('managed-starter-price').textContent = vnd(STARTER_OFFER.priceVnd) + '/năm';
     el('managed-starter-details').textContent = `${amount.format(STARTER_OFFER.credits)} credits mỗi năm, một thiết bị hoạt động đồng thời.`;
     if (!status && !error) el('managed-status').textContent = 'Đang kiểm tra quyền sử dụng…';

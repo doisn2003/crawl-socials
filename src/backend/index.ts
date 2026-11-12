@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { backendConfig } from './config.js';
-import { database, migrate } from './database.js';
+import { CONTROL_SCHEMA_VERSION, database, migrate } from './database.js';
 import { createBackend } from './server.js';
 
 async function main() {
@@ -18,7 +18,7 @@ async function main() {
   const config = backendConfig(process.env);
   const pool = database(config.databaseUrl);
   try {
-    const ready = await pool.query('SELECT version FROM findlink_control.migrations WHERE version=1');
+    const ready = await pool.query('SELECT version FROM findlink_control.migrations WHERE version=$1', [CONTROL_SCHEMA_VERSION]);
     if (!ready.rowCount) throw Error('BACKEND_MIGRATION_REQUIRED');
     const backend = createBackend(pool, config);
     await new Promise<void>((resolve, reject) => {

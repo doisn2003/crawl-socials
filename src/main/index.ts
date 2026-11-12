@@ -32,6 +32,7 @@ import { createManagedClient, ManagedHttpError, type ManagedRelease } from '../i
 import { createHttpBackupStore } from '../infrastructure/managed/backup.js';
 import { createRunAccess } from '../infrastructure/managed/run-access.js';
 import { createRemoteModelGateway } from '../infrastructure/managed/model-gateway.js';
+import { windowsInstallationTag } from '../infrastructure/managed/windows-installation.js';
 import type { ManagedStatus } from '../shared/managed.js';
 import { managedUpdates } from './managed-updates.js';
 
@@ -284,7 +285,12 @@ async function bootstrap() {
     'csd:gemini-key:remove': () => { if (!geminiKey) throw Error('MODEL_NOT_AUTHORIZED'); return changeKey(() => geminiKey.remove()); },
     'csd:managed:status': managedStatus,
     'csd:managed:wallet': () => managedClient().json('/v1/wallet'),
-    'csd:managed:trial': () => managedClient().json('/v1/trial/activate', { method: 'POST', json: {} }),
+    'csd:managed:trial': async () => {
+      const client = managedClient();
+      if (!client.identity()) throw new ManagedHttpError('AUTH_REQUIRED', 401);
+      const installationTag = localPreview ? 'a'.repeat(64) : await windowsInstallationTag();
+      return client.json('/v1/trial/activate', { method: 'POST', json: { installationTag } });
+    },
     'csd:managed:order': () => managedClient().json('/v1/billing/orders', { method: 'POST', json: { requestId: randomUUID() } }),
     'csd:managed:topup': () => managedClient().json('/v1/billing/orders', { method: 'POST', json: { requestId: randomUUID(), kind: 'TOPUP' } }),
     'csd:managed:order-status': value => {

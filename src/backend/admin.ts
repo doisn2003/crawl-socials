@@ -129,9 +129,10 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
     if (typeof body.approved !== 'boolean') throw bad();
     const reason = string(body.reason, 1000, 4);
     return transaction(pool, async db => {
-      const { rows } = await db.query(`UPDATE findlink_control.trial_reviews SET approved=$2,resolved_at=now()
-        WHERE id=$1 RETURNING account_id`, [id, body.approved]);
+      const { rows } = await db.query('SELECT account_id FROM findlink_control.trial_reviews WHERE id=$1', [id]);
       if (!rows[0]) throw new ApiError(404, 'TRIAL_REVIEW_NOT_FOUND');
+      await lockAccount(db, rows[0].account_id);
+      await db.query('UPDATE findlink_control.trial_reviews SET approved=$2,resolved_at=now() WHERE id=$1', [id, body.approved]);
       await audit(db, 'operator', 'TRIAL_REVIEW_RESOLVED', id, { approved: body.approved, reason });
     });
   }

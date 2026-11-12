@@ -49,7 +49,9 @@ const columnsVi = { username:'Tài khoản', id:'ID', account_id:'ID tài khoả
   credits:'Credits', state:'Trạng thái', starts_at:'Bắt đầu', ends_at:'Kết thúc', order_id:'ID đơn', provider_id:'ID SePay', reason:'Lý do',
   created_at:'Tạo lúc', seen_at:'Hoạt động gần nhất', revoked_at:'Thu hồi lúc', funding:'Quỹ', attempts:'Lượt gọi', measured:'Đã đo', held:'Đang giữ', bound:'Dự phòng (credits)' };
 const names = { STARTER:'Starter', TRIAL:'Dùng thử', INACTIVE:'Chưa có gói', TOPUP:'Nạp credits', PAID:'Starter', PENDING:'Chờ thanh toán',
-  APPLIED:'Đã xác nhận', REVIEW:'Cần đối soát', REFUNDED:'Đã hoàn tiền', EXPIRED:'Hết hạn' };
+  APPLIED:'Đã xác nhận', REVIEW:'Cần đối soát', REFUNDED:'Đã hoàn tiền', EXPIRED:'Hết hạn',
+  DEVICE_REUSE:'Thiết bị đã nhận trial', WINDOWS_INSTALLATION_REUSE:'Bản cài Windows đã nhận trial',
+  REVIEW_DEVICE_CHANGED:'Thiết bị thay đổi sau khi duyệt', CURRENCY_MISMATCH:'Giao dịch báo tiền tệ khác VND' };
 const number = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 6 });
 const date = new Intl.DateTimeFormat('vi-VN', { dateStyle:'short', timeStyle:'short' });
 function cellText(key, value) {

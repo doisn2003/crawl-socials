@@ -23,9 +23,9 @@ Tạo một tệp cấu hình riêng theo [.env.example](../.env.example). Cất
 | Quyền chạy | `FINDLINK_IDENTITY_SECRET` là khóa hex ổn định để đối chiếu thiết bị và trial. `FINDLINK_LEASE_PRIVATE_KEY` là khóa Ed25519 PKCS#8 PEM mã hóa base64. Giữ private key ở server và cung cấp public key SPKI DER mã hóa base64 cho máy build Windows. |
 | Gói nạp thêm | Đặt `FINDLINK_TOPUP_PRICE_VND` nếu bán thêm gói 10.000 credits. |
 
-Railway dùng [cấu hình hạ tầng](../.railway/railway.ts) để chạy migration trước deploy và kiểm tra `/healthz`. Từ thư mục đã link đúng dự án, xem `railway config plan --environment staging` trước khi áp dụng cấu hình. Dùng `railway up --service findlink-api --environment staging` để thử bản mới. Lặp lại với production sau khi staging đạt kiểm tra. Variables được quản lý trong Railway. [Railway Infrastructure as Code](https://docs.railway.com/infrastructure-as-code)
+Trong trình duyệt Codex, mở service `findlink-api` ở môi trường staging. Khi nhánh `findlink-publish-1st` đã có trên GitHub, dùng **Settings → Source → Connect Repo** và chọn nhánh đó. Railway dùng `Dockerfile` ở gốc repo. Trong **Settings**, đặt **Pre-deploy Command** là `node dist/backend/index.js --migrate`, **Healthcheck Path** là `/healthz` và thời gian chờ là 120 giây. [Nguồn triển khai Railway](https://docs.railway.com/services#service-source) · [Lệnh trước deploy](https://docs.railway.com/deployments/pre-deploy-command) · [Cấu hình hạ tầng trong repo](../.railway/railway.ts)
 
-Trong Railway, đặt `PORT=9070` cho healthcheck và `FINDLINK_PORT=9070` cho tiến trình Node. Đặt `FINDLINK_BIND=0.0.0.0` và chọn target port `9070` cho public domain. Khi migration đã chạy nhưng deployment chưa phục vụ HTTPS, đối chiếu các giá trị này trong **Variables** và **Networking**, rồi đọc **Deploy Logs**. [Cổng healthcheck của Railway](https://docs.railway.com/deployments/healthchecks#configure-the-healthcheck-port)
+Trong Railway, đặt `PORT=9070` cho healthcheck và `FINDLINK_PORT=9070` cho tiến trình Node. Đặt `FINDLINK_BIND=0.0.0.0` và chọn target port `9070` cho public domain. Khi migration đã chạy nhưng deployment chưa phục vụ HTTPS, đối chiếu các giá trị này trong **Variables** và **Networking**, rồi đọc **Deploy Logs**. Triển khai bản đã qua kiểm tra staging lên production với database và secrets của môi trường production. [Cổng healthcheck của Railway](https://docs.railway.com/deployments/healthchecks#configure-the-healthcheck-port)
 
 Khi chạy trên máy khác, trỏ `FINDLINK_ENV_FILE` tới tệp cấu hình đã tạo và dùng `NODE_ENV=production` cho backend HTTPS.
 
@@ -36,7 +36,7 @@ npm run backend:migrate
 npm run backend:start
 ```
 
-Migration thêm `findlink_control` vào database. Giữ và sao lưu nhất quán hai schema `csd_backup` và `findlink_control`. Nếu tách role, dùng role migration để tạo schema và role runtime có quyền USAGE, đọc/ghi bảng và sequence liên quan.
+Migration tạo schema `findlink_control` và nâng lên phiên bản 2 để thêm dấu cài đặt Windows cho trial. Giữ và sao lưu nhất quán hai schema `csd_backup` và `findlink_control`. Nếu tách role, dùng role migration để cập nhật schema và role runtime có quyền USAGE, đọc/ghi bảng và sequence liên quan.
 
 Có thể dùng [Compose](compose.yaml) với Caddy. Đặt `FINDLINK_DOMAIN` và tạo `deploy/findlink.env`. Chạy migration rồi khởi động dịch vụ.
 
@@ -56,6 +56,8 @@ Chính sách mới khởi đầu với AI và cấp trial tạm dừng. Trang qu
 3. Mở **Tài khoản và số dư** để kiểm tra gói, credits và hạn. Mục **Tài khoản và thiết bị** cho tạm ngừng quyền chạy, thu hồi trial và xử lý đổi máy. Mục **Xét duyệt trial** xử lý thiết bị đã nhận dùng thử.
 4. Mở **Model và biểu giá**. Chọn model đã cấu hình khóa, nhập giá theo credits trên một triệu token và bấm **Áp dụng cho lượt mới**. Lượt đã cấp quyền giữ model và biểu giá của lượt đó. Khi phí chưa rõ, ghi bằng chứng tại **Đối soát phí AI** để xử lý khoản giữ.
 
+Khi khách kích hoạt trial, FindLink băm dấu cài đặt Windows ngay trên máy và backend lưu thêm dưới dạng HMAC trong 90 ngày. Cài lại FindLink trên cùng bản Windows có thể đưa tài khoản mới vào **Xét duyệt trial**. Hồ sơ đi theo tài khoản khi đổi khóa thiết bị. Duyệt hồ sơ vẫn áp dụng giới hạn cấp trial và ngân sách đã đặt. Các lượt đã cấp trước migration chỉ có dấu thiết bị lưu từ trước.
+
 Gemini 3.1 Flash-Lite là model mặc định. DeepSeek Flash có giá theo khung giờ. Dùng giá cao nhất khi cần một mức dự phòng cố định. Sổ chi phí ghi usage theo phiên bản biểu giá đã chọn và dùng hóa đơn nhà cung cấp để đối soát. [Giá Gemini](https://ai.google.dev/gemini-api/docs/pricing) · [Giá DeepSeek](https://api-docs.deepseek.com/quick_start/pricing/)
 
 ## 4. Bán, gia hạn Starter và nạp credits qua SePay
@@ -65,7 +67,7 @@ Starter hiện có giá **23.000.000 ₫/năm** và **50.000 credits**. Hai giá
 1. Cấu hình SePay Test Mode gửi tiền vào bằng JSON HMAC-SHA256 tới `/v1/billing/webhooks/sepay` của staging. Sau khi thử thành công, cấu hình webhook Live và tài khoản nhận thật ở production. [Xác thực webhook](https://developer.sepay.vn/vi/sepay-webhooks/xac-thuc) · [SePay Test Mode](https://developer.sepay.vn/en/tien-ich-khac/test-mode/mo-phong-giao-dich)
 2. Khách mở **Gói dịch vụ** và chọn **Mua Starter**, **Gia hạn Starter** hoặc **Nạp credits**. Đặt `FINDLINK_TOPUP_PRICE_VND` để mở gói nạp 10.000 credits. Khách chuyển đúng số tiền với mã đơn `FL…` rồi chọn **Kiểm tra giao dịch**.
 3. Backend xác thực chữ ký, tài khoản nhận, mã đơn, số tiền và thời điểm. Giao dịch hợp lệ cấp quyền và credits một lần. Mục **Đơn hàng và hạn gói** hiện ngày bắt đầu và hết hạn. Gia hạn sớm mở credits mới từ đầu kỳ mới.
-4. Dùng **Đối soát SePay** cho giao dịch ngoại lệ. Sau khi đã hoàn tiền qua ngân hàng, ghi nhận trong quản trị để thu hồi quyền và credits còn lại.
+4. Dùng **Đối soát SePay** cho giao dịch ngoại lệ sau khi xác minh tiền tệ và chứng từ trong SePay. Giao dịch báo tiền tệ khác VND không thể áp vào đơn. Sau khi đã hoàn tiền qua ngân hàng, ghi nhận trong quản trị để thu hồi quyền và credits còn lại.
 
 ## 5. Phát hành Windows
 

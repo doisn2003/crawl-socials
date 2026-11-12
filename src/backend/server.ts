@@ -8,6 +8,7 @@ import { backupPath, createBackup, MAX_BACKUP_FILE } from './backup.js';
 import { createBilling } from './billing.js';
 import { loopback, publicLeaseKey, type BackendConfig } from './config.js';
 import { ApiError, bad, hex, integer, rateLimit, record, micros, string, tag, uuid } from './core.js';
+import { CONTROL_SCHEMA_VERSION } from './database.js';
 import { createEntitlements } from './entitlements.js';
 import { createModelQueue } from './model.js';
 
@@ -71,7 +72,7 @@ export function createBackend(pool: Pool, config: BackendConfig, options: { tran
     const reply = (value: unknown, status = 200) => send(res, status, value);
     const body = (max?: number) => json(req, max);
     if (method === 'GET' && path === '/healthz') {
-      const ready = await pool.query('SELECT version FROM findlink_control.migrations WHERE version=1');
+      const ready = await pool.query('SELECT version FROM findlink_control.migrations WHERE version=$1', [CONTROL_SCHEMA_VERSION]);
       if (!ready.rowCount) throw new ApiError(503,'BACKEND_MIGRATION_REQUIRED');
       return reply({ ok: true });
     }
@@ -150,7 +151,10 @@ export function createBackend(pool: Pool, config: BackendConfig, options: { tran
     }
     if (method === 'POST' && path === '/v1/trial/activate') {
       await rateLimit(pool, 'trial:' + actor.deviceTag, 10, 900);
-      return reply(await entitlements.activate(actor));
+      const hasBody = Number(req.headers['content-length']) > 0 || !!req.headers['transfer-encoding'];
+      const value = hasBody ? record(await body(1024)) : {};
+      const installationTag = value.installationTag === undefined ? undefined : hex(value.installationTag);
+      return reply(await entitlements.activate(actor, installationTag));
     }
     if (method === 'POST' && path === '/v1/runs/authorize') {
       await rateLimit(pool, 'lease:' + actor.accountId, 30, 60);
@@ -237,6 +241,7 @@ export function createBackend(pool: Pool, config: BackendConfig, options: { tran
     if (Date.now() - lastMaintenance > 60_000) {
       lastMaintenance = Date.now();
       void models.recover().catch(() => process.stderr.write('FINDLINK_RECONCILIATION_FAILED\n'));
+      void entitlements.pruneInstallationTags().catch(() => process.stderr.write('FINDLINK_MAINTENANCE_FAILED\n'));
       void pool.query(`DELETE FROM findlink_control.rate_buckets WHERE expires_at<now()-interval '1 day';
         DELETE FROM findlink_control.admin_sessions WHERE expires_at<now();
         DELETE FROM findlink_control.admin_otp WHERE used_at<now()-interval '1 day';

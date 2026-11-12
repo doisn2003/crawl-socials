@@ -1,6 +1,6 @@
 import { randomUUID, sign } from 'node:crypto';
 import type { Pool } from 'pg';
-import { TRIAL_OFFER, type ManagedLease, type ManagedScope, type ManagedStatus, type SignedLease } from '../shared/managed.js';
+import { TRIAL_INSTALLATION_REVIEW_DAYS, TRIAL_OFFER, type ManagedLease, type ManagedScope, type ManagedStatus, type SignedLease } from '../shared/managed.js';
 import type { Principal } from './auth.js';
 import type { BackendConfig } from './config.js';
 import { modelCredential } from './model-providers.js';
@@ -69,15 +69,22 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
     lease, signature: sign(null, Buffer.from(JSON.stringify(lease)), config.leaseKey).toString('base64'),
   });
 
+  async function latestReview(db: Transaction, accountId: string) {
+    const { rows } = await db.query<{ approved: boolean; resolved_at: Date | null; device_tag: string }>(
+      `SELECT approved,resolved_at,device_tag FROM findlink_control.trial_reviews
+        WHERE account_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1`, [accountId]);
+    return rows[0];
+  }
+
   async function status(actor: Principal) {
     return transaction(pool, async db => {
       const value = await entitlement(db, actor.accountId, await policy(db));
       if (value.funding === 'TRIAL' && value.trial && !value.status.reason && value.trial.device_tag !== actor.deviceTag) {
         value.status.reason = 'TRIAL_DEVICE_MISMATCH';
       }
-      if (value.status.state === 'INACTIVE') {
-        const review = await db.query('SELECT id FROM findlink_control.trial_reviews WHERE account_id=$1 AND resolved_at IS NULL', [actor.accountId]);
-        if (review.rowCount) value.status.reason = 'TRIAL_REVIEW_REQUIRED';
+      if (value.status.state === 'INACTIVE' && !value.hadPaid && value.status.reason === 'SUBSCRIPTION_REQUIRED') {
+        const review = await latestReview(db, actor.accountId);
+        if (review && (!review.resolved_at || !review.approved)) value.status.reason = 'TRIAL_REVIEW_REQUIRED';
       }
       value.status.checkoutAvailable = config.sepay !== null;
       if (config.sepay && value.status.state === 'STARTER' && config.topupPriceVnd !== undefined) value.status.topupPriceVnd = config.topupPriceVnd;
@@ -85,7 +92,8 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
     });
   }
 
-  async function activate(actor: Principal) {
+  async function activate(actor: Principal, installationTag?: string) {
+    const installation = installationTag ? tag(config.identityKey, 'trial-windows-installation', installationTag) : null;
     const reason = await transaction(pool, async db => {
       const account = await lockAccount(db, actor.accountId);
       const rules = await policy(db, true);
@@ -101,13 +109,23 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
       const emailTag = tag(config.identityKey, 'trial-email', account.email);
       const used = await db.query('SELECT 1 FROM findlink_control.trial_subjects WHERE email_tag=$1', [emailTag]);
       if (used.rowCount) throw new ApiError(409, 'TRIAL_ALREADY_CLAIMED');
-      const sameDevice = await db.query('SELECT 1 FROM findlink_control.trial_subjects WHERE device_tag=$1 LIMIT 1', [actor.deviceTag]);
-      const review = (await db.query(`SELECT approved,resolved_at FROM findlink_control.trial_reviews
-        WHERE account_id=$1 AND device_tag=$2 ORDER BY created_at DESC LIMIT 1`, [actor.accountId, actor.deviceTag])).rows[0];
-      const approved = !!review?.resolved_at && !!review.approved;
-      if (sameDevice.rowCount && !approved) {
-        if (!review) await db.query(`INSERT INTO findlink_control.trial_reviews(id,account_id,device_tag,reason)
-          VALUES($1,$2,$3,'DEVICE_REUSE') ON CONFLICT DO NOTHING`, [randomUUID(), actor.accountId, actor.deviceTag]);
+      const review = await latestReview(db, actor.accountId);
+      if (review && (!review.resolved_at || !review.approved)) return 'TRIAL_REVIEW_REQUIRED';
+      const approved = review?.device_tag === actor.deviceTag;
+      let risk: string | null = null;
+      if (review && !approved) risk = 'REVIEW_DEVICE_CHANGED';
+      if (!review) {
+        const { rows: [reuse] } = await db.query(`SELECT
+          EXISTS (SELECT 1 FROM findlink_control.trial_subjects WHERE device_tag=$1) AS device,
+          EXISTS (SELECT 1 FROM findlink_control.trial_subjects WHERE installation_tag=$2
+            AND started_at > $3::timestamptz - $4::int * interval '1 day') AS installation`,
+          [actor.deviceTag, installation, current.now, TRIAL_INSTALLATION_REVIEW_DAYS]);
+        if (reuse.device) risk = 'DEVICE_REUSE';
+        else if (reuse.installation) risk = 'WINDOWS_INSTALLATION_REUSE';
+      }
+      if (risk) {
+        await db.query(`INSERT INTO findlink_control.trial_reviews(id,account_id,device_tag,reason)
+          VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING`, [randomUUID(), actor.accountId, actor.deviceTag, risk]);
         return 'TRIAL_REVIEW_REQUIRED';
       }
       const limits = (await db.query(`SELECT count(*)::int AS total,
@@ -118,8 +136,8 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
       if (limits.total >= rules.max_trial_subjects || limits.today >= rules.trial_subjects_per_day ||
         BigInt(obligations.amount) + TRIAL_CREDITS > BigInt(rules.trial_grant_cap)) throw new ApiError(503, 'TRIAL_FUNDING_PAUSED');
       const subject = randomUUID(), until = new Date(+current.now + TRIAL_OFFER.days * 86_400_000);
-      await db.query(`INSERT INTO findlink_control.trial_subjects(id,account_id,email_tag,device_tag,started_at,expires_at,reviewed)
-        VALUES($1,$2,$3,$4,$5,$6,$7)`, [subject, actor.accountId, emailTag, actor.deviceTag, current.now, until, approved]);
+      await db.query(`INSERT INTO findlink_control.trial_subjects(id,account_id,email_tag,device_tag,started_at,expires_at,reviewed,installation_tag)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [subject, actor.accountId, emailTag, actor.deviceTag, current.now, until, approved, installation]);
       await grantCredits(db, { accountId: actor.accountId, kind: 'TRIAL', origin: 'trial:' + subject, from: current.now, until, amount: TRIAL_CREDITS });
       await audit(db, actor.accountId, 'TRIAL_ACTIVATED', subject);
       return null;
@@ -218,6 +236,10 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
 
   return {
     status, activate, issue, renew, reportRaw,
+    async pruneInstallationTags() {
+      await pool.query(`UPDATE findlink_control.trial_subjects SET installation_tag=NULL
+        WHERE installation_tag IS NOT NULL AND started_at<=now()-$1::int * interval '1 day'`, [TRIAL_INSTALLATION_REVIEW_DAYS]);
+    },
     async release(actor: Principal, id: string) {
       await pool.query('UPDATE findlink_control.leases SET ended_at=now() WHERE id=$1 AND account_id=$2 AND device_id=$3 AND ended_at IS NULL',
         [id, actor.accountId, actor.deviceId]);

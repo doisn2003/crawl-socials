@@ -130,9 +130,9 @@ export function createBilling(pool: Pool, config: BackendConfig) {
         await lockAccount(db, candidate.account_id);
         matched = (await db.query('SELECT * FROM findlink_control.orders WHERE id=$1 FOR UPDATE', [candidate.id])).rows[0];
       }
-      const reason = !matched ? 'ORDER_CODE_UNMATCHED' : matched.paid_at ? 'ORDER_ALREADY_PAID'
+      const reason = body.currency !== undefined && body.currency !== 'VND' ? 'CURRENCY_MISMATCH'
+        : !matched ? 'ORDER_CODE_UNMATCHED' : matched.paid_at ? 'ORDER_ALREADY_PAID'
         : Number(matched.amount_vnd) !== amount ? 'AMOUNT_MISMATCH'
-        : body.currency !== undefined && body.currency !== 'VND' ? 'CURRENCY_MISMATCH'
         : !received || +received < +matched.created_at - 1000 || +received >= +matched.expires_at || +received > Date.now() + 300_000
           ? 'PAYMENT_TIME_OUTSIDE_ORDER' : null;
       const inserted = await db.query(`INSERT INTO findlink_control.payments(provider_id,order_id,amount_vnd,reference,state,reason,payload_hash)
