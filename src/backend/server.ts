@@ -86,7 +86,8 @@ export function createBackend(pool: Pool, config: BackendConfig, options: { tran
 
     const peer = req.socket.remoteAddress || 'unknown';
     const forwarded = req.headers['x-real-ip'];
-    const ip = config.trustLocalProxy && loopback(peer) && typeof forwarded === 'string' && isIP(forwarded) ? forwarded : peer;
+    const trustedProxy = config.trustRailwayProxy || (config.trustLocalProxy && loopback(peer));
+    const ip = trustedProxy && typeof forwarded === 'string' && isIP(forwarded) ? forwarded : peer;
     const ipTag = tag(config.identityKey, 'ip', ip);
     if (path === '/v1/billing/webhooks/sepay' && method === 'POST') {
       await rateLimit(pool, 'sepay:ip:' + ipTag, 120, 60);

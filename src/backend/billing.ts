@@ -1,6 +1,6 @@
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Pool } from 'pg';
-import { STARTER_OFFER, type StarterOrder } from '../shared/managed.js';
+import { STARTER_OFFER, TOPUP_CREDITS, type StarterOrder } from '../shared/managed.js';
 import type { Principal } from './auth.js';
 import type { BackendConfig } from './config.js';
 import { ApiError, audit, bad, hash, integer, lockAccount, record, STARTER_CREDITS, string, uuid } from './core.js';
@@ -10,7 +10,7 @@ import { grantCredits } from './entitlements.js';
 export const STARTER_PRICE_VND = STARTER_OFFER.priceVnd;
 const codePattern = /(?<![A-Z0-9])FL[A-F0-9]{12}(?![A-Z0-9])/g;
 const starterVersion = 1;
-const topupCredits = 10_000_000_000n;
+const topupCredits = BigInt(TOPUP_CREDITS) * 1_000_000n;
 
 export function yearAfter(date: Date) {
   const until = new Date(date);
@@ -64,6 +64,7 @@ export function createBilling(pool: Pool, config: BackendConfig) {
     const bank = settings();
     return { id: row.id, code: row.code, kind: row.kind, amountVnd: Number(row.amount_vnd), bank: bank.bank,
       accountNumber: bank.account, accountName: bank.name, expiresAt: row.expires_at.toISOString(), paid: !!row.paid_at,
+      ...(bank.test ? { test: true as const } : {}),
       ...(row.period ? { startsAt: row.period.startsAt, endsAt: row.period.endsAt } : {}) };
   };
 

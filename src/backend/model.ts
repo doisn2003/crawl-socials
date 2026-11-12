@@ -1,13 +1,15 @@
 import type { Pool } from 'pg';
 import type { JsonModelResult, ModelPrice } from '../application/ports/model-gateway.js';
-import { modelHash, parseGeminiUsage, pricedUsage } from '../infrastructure/llm/gemini-gateway.js';
-import { managedGeminiBody, managedGeminiBound } from '../infrastructure/llm/managed-gemini-wire.js';
+import { modelHash, pricedUsage } from '../infrastructure/llm/gemini-gateway.js';
+import { managedModelBody, managedModelBound } from '../infrastructure/llm/managed-model-wire.js';
+import { isManagedModel } from '../shared/managed.js';
 import type { Principal } from './auth.js';
 import type { BackendConfig } from './config.js';
 import { ApiError, audit, hex, lockAccount, microsForUsd, policy, record, uuid } from './core.js';
 import { transaction, type Transaction } from './database.js';
 import { requireAction } from './entitlements.js';
 import { validateModelRequest } from './ai-contract.js';
+import { modelCredential, modelEndpoint, parseModelResponse } from './model-providers.js';
 
 type Row = Record<string, any>;
 const deadline = 45_000;
@@ -111,9 +113,9 @@ export function createModelQueue(pool: Pool, config: BackendConfig, transport: t
       if (unknown.rowCount) throw new ApiError(409, 'MODEL_USAGE_UNKNOWN');
       const rules = await policy(db, true);
       const current = await requireAction(db, actor, rules, lease.scope, { lockedAccount: account });
-      if (rules.pause_ai || !config.geminiKey) throw new ApiError(503, 'MODEL_NOT_AUTHORIZED');
+      if (rules.pause_ai || !isManagedModel(lease.model) || !modelCredential(config, lease.model)) throw new ApiError(503, 'MODEL_NOT_AUTHORIZED');
       if (lease.ended_at || +lease.expires_at <= +current.now || lease.epoch !== account.epoch) throw new ApiError(403, 'RUN_LEASE_EXPIRED');
-      const bound = BigInt(managedGeminiBound(request, lease.price as ModelPrice));
+      const bound = BigInt(managedModelBound(lease.model, request, lease.price as ModelPrice));
       const day = utcDay(current.now), row = { account_id: actor.accountId, run_id: lease.run_id, funding: current.funding, bound, budget: lease.budget };
       await metered(db, row, day, rules);
       const grants = (await db.query(`SELECT * FROM findlink_control.grants WHERE account_id=$1 AND starts_at<=$2 AND ends_at>$2
@@ -123,7 +125,7 @@ export function createModelQueue(pool: Pool, config: BackendConfig, transport: t
       if (total < bound) throw new ApiError(402, BigInt(current.status.held) ? 'MODEL_BUDGET_BUSY' : 'MODEL_BUDGET_EXHAUSTED');
       const operation = await db.query(`INSERT INTO findlink_control.ai_operations(account_id,id,run_id,lease_id,route_id,purpose,request_hash,wire,bound,funding,state,budget_day)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'QUEUED',$11) RETURNING *`,
-        [actor.accountId, id, lease.run_id, leaseId, lease.route_id, request.purpose, hash, JSON.stringify(managedGeminiBody(request)), bound.toString(), current.funding, day]);
+        [actor.accountId, id, lease.run_id, leaseId, lease.route_id, request.purpose, hash, JSON.stringify(managedModelBody(lease.model, request)), bound.toString(), current.funding, day]);
       let left = bound;
       for (const grant of grants) {
         if (left === 0n) break;
@@ -157,7 +159,8 @@ export function createModelQueue(pool: Pool, config: BackendConfig, transport: t
       if (!row) return null;
       try {
         const current = await requireAction(db, { accountId: row.account_id, deviceTag: row.key_hash }, rules, row.scope, { ownHold: true, lockedAccount: account });
-        if (!config.geminiKey || row.ended_at || row.revoked_at || !row.session_active || +row.expires_at <= +current.now || row.epoch !== account.epoch ||
+        if (!isManagedModel(row.model) || !modelCredential(config, row.model)) throw new ApiError(503, 'MODEL_NOT_AUTHORIZED');
+        if (row.ended_at || row.revoked_at || !row.session_active || +row.expires_at <= +current.now || row.epoch !== account.epoch ||
           current.funding !== row.funding) throw new ApiError(403, 'RUN_LEASE_EXPIRED');
         const today = utcDay(current.now);
         await metered(db, row, today, rules, row.id);
@@ -182,26 +185,31 @@ export function createModelQueue(pool: Pool, config: BackendConfig, transport: t
     let cost: bigint | null = null;
     let error: string | null = null;
     try {
-      // The route table carries approved Gemini model IDs only.
-      if (row.model !== 'gemini-3.1-flash-lite') throw Error('MODEL_NOT_AUTHORIZED');
-      const response = await transport('https://generativelanguage.googleapis.com/v1beta/models/' + row.model + ':generateContent', {
+      const model = row.model, credential = modelCredential(config, model);
+      if (!isManagedModel(model) || !credential) throw Error('MODEL_NOT_AUTHORIZED');
+      const { url, headers } = modelEndpoint(model, credential);
+      const response = await transport(url, {
         method: 'POST', redirect: 'error', signal: AbortSignal.timeout(deadline),
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.geminiKey! }, body: JSON.stringify(row.wire),
+        headers, body: JSON.stringify(row.wire),
       });
       raw = await boundedResponse(response);
       let payload: Row | null = null;
       try { payload = JSON.parse(raw) as Row; } catch { error = 'MODEL_RESPONSE_NOT_JSON'; }
-      const usage = parseGeminiUsage(payload?.usageMetadata);
+      const { usage, complete, generated, version } = parseModelResponse(model, payload);
       if (usage) cost = microsForUsd(pricedUsage(usage, row.price));
       if (!response.ok) error = 'MODEL_HTTP_' + response.status;
       else if (!error) {
-        const candidate = payload?.candidates?.[0];
-        if (candidate?.finishReason !== 'STOP') error = 'MODEL_INCOMPLETE_RESPONSE';
+        if (!complete) error = 'MODEL_INCOMPLETE_RESPONSE';
         else {
-          const generated = (candidate.content?.parts ?? []).filter((part: Row) => !part.thought).map((part: Row) => part.text ?? '').join('');
           try {
-            result = { value: JSON.parse(generated), invocation_id: row.id, request_hash: row.request_hash, model: row.model,
-              model_version: typeof payload?.modelVersion === 'string' ? payload.modelVersion : null,
+            let value: unknown = JSON.parse(generated);
+            if (model === 'deepseek-flash') {
+              const wrapper = record(value);
+              if (!Object.hasOwn(wrapper, 'result') || Object.keys(wrapper).length !== 1) throw Error('MODEL_OUTPUT_NOT_JSON');
+              value = wrapper.result;
+            }
+            result = { value, invocation_id: row.id, request_hash: row.request_hash, model,
+              model_version: version,
               usage, cost_usd: cost === null ? null : Number(cost) / 1e9,
               unmetered_cost_upper_usd: cost === null ? Number(row.bound) / 1e9 : 0, cache_hit: false,
               elapsed_ms: Date.now() - start, price: row.price };

@@ -47,9 +47,21 @@ const fake = {
 };
 
 async function mockProvider(url, request) {
-  assert.equal(request.headers['x-goog-api-key'], fake.geminiKey);
   providerCalls++;
   if (failTransport) throw Error('simulated transport loss');
+  if (url === 'https://api.deepseek.com/chat/completions') {
+    assert.equal(request.headers.Authorization, 'Bearer ' + fake.deepseekKey);
+    assert.equal(request.headers['x-goog-api-key'], undefined);
+    const body = JSON.parse(request.body);
+    assert.equal(body.model, 'deepseek-flash');
+    assert.equal(body.max_tokens, modelRequest.max_output_tokens);
+    assert.equal(body.thinking.type, 'disabled');
+    assert.equal(body.response_format.type, 'json_object');
+    assert.match(body.messages[0].content, /key named "result"/);
+    return Response.json({ model:'fixture-deepseek', choices:[{finish_reason:'stop',message:{content:'{"result":[{"i":0,"e0":0,"ev":[]}]}'}}],
+      usage:{prompt_tokens:900,completion_tokens:108,prompt_cache_hit_tokens:100,prompt_cache_miss_tokens:800} });
+  }
+  assert.equal(request.headers['x-goog-api-key'], fake.geminiKey);
   return starterGeminiFixture(url, request);
 }
 
@@ -265,7 +277,7 @@ try {
   const paidRun = 'crawl-' + randomUUID();
   const gate = createRunAccess(a.client,projectId,()=>{});
   await gate.begin({runId:paidRun,scope:'COLLECT_AI',budgetUsd:3});
-  const spending = createDurableSpend({file:join(temporary,'wallet.sqlite'),envelope:()=>({scope:'USER',model:REBUILD_MODEL,totalUsd:30,dailyUsd:6})});
+  const spending = createDurableSpend({managed:true,file:join(temporary,'wallet.sqlite'),envelope:()=>({scope:'USER',model:REBUILD_MODEL,totalUsd:30,dailyUsd:6})});
   const gateway = createRemoteModelGateway({directory:join(temporary,'model'),runId:paidRun,budgetUsd:3,client:a.client,access:gate,spending});
   const worker = setInterval(()=>void backend.models.workOnce().catch(()=>{}),200);
   try {
@@ -288,8 +300,30 @@ try {
       {stage:'S2',prompt,context:'',seeds:[],revision:1,answers:[],edits:[]},planner);
     assert.equal(turn.plan.state,'READY');
     assert.ok(turn.campaign?.queries.length);
+    const price = {input_per_million:.3,cached_input_per_million:.006,output_per_million:1.2,observed_at:'2026-11-12'};
+    await admin('tariffs',{model:'arbitrary-model',price},'POST',400);
+    await admin('tariffs',{model:'deepseek-flash',price},'POST',409);
+    fake.deepseekKey = 'deepseek-mock-transport-only';
+    const switched = await admin('tariffs',{model:'deepseek-flash',price},'POST',201);
+    assert.equal(switched.model,'deepseek-flash');
+    await gate.end();
+    await gate.begin({runId:paidRun,scope:'COLLECT_AI',budgetUsd:3});
+    assert.equal(gate.lease().model,REBUILD_MODEL);
+    assert.equal((await gateway.generateJson({...modelRequest,cache_namespace:'pinned-after-switch'})).model,REBUILD_MODEL);
+    await gate.end();
+    const nextRun = 'crawl-' + randomUUID();
+    await gate.begin({runId:nextRun,scope:'COLLECT_AI',budgetUsd:3});
+    assert.equal(gate.lease().route,switched.id);
+    const nextGateway = createRemoteModelGateway({directory:join(temporary,'model-switched'),runId:nextRun,budgetUsd:3,client:a.client,access:gate,spending});
+    const priorCredits = BigInt((await getStatus(a.client)).available);
+    const next = await nextGateway.generateJson(modelRequest);
+    assert.equal(next.model,'deepseek-flash');
+    assert.equal(next.model_version,'fixture-deepseek');
+    assert.equal(nextGateway.summary().model,'deepseek-flash');
+    assert.deepEqual(next.value,output.value);
+    assert.equal(BigInt((await getStatus(a.client)).available),priorCredits-370200n);
   } finally { clearInterval(worker); await gate.end(); }
-  console.log('PASS project backup authorization and remote model adapter');
+  console.log('PASS project backup authorization, remote model switch, pinned runs and credits settlement');
 
   // Expired paid entitlement retains authenticated backup reads and local exports.
   await admin('payments/1003/refund',{reason:'Synthetic bank refund record'});

@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { ModelGatewayError } from '../../application/ports/model-gateway.js';
+import { isManagedModel } from '../../shared/managed.js';
 
 export const REBUILD_MODEL = 'gemini-3.1-flash-lite';
 export const SPEND_DIRECTORY = join(homedir(), '.csd', 'spending');
@@ -17,7 +18,7 @@ const dayOf = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia
 
 /** One account per user/development, deliberately independent of campaign, worktree and key.
  * Unsettled reservations remain charged after a crash; time never releases unknown usage. */
-export function createDurableSpend(options: { envelope: () => SpendEnvelope; file?: string; now?: () => Date }) {
+export function createDurableSpend(options: { envelope: () => SpendEnvelope; file?: string; now?: () => Date; managed?: boolean }) {
   const file = options.file ?? join(SPEND_DIRECTORY, 'ledger.sqlite');
   const now = options.now ?? (() => new Date());
   function transact<T>(work: (db: DatabaseSync, envelope: SpendEnvelope) => T): T {
@@ -46,7 +47,7 @@ export function createDurableSpend(options: { envelope: () => SpendEnvelope; fil
     reserve(model: string, upperUsd: number): string {
       if (!Number.isFinite(upperUsd) || upperUsd < 0) throw new ModelGatewayError('MODEL_SPEND_AMOUNT_INVALID');
       return transact((db, e) => {
-        if (model !== e.model) throw new ModelGatewayError('MODEL_NOT_AUTHORIZED');
+        if (model !== e.model && !(options.managed && e.scope === 'USER' && isManagedModel(model))) throw new ModelGatewayError('MODEL_NOT_AUTHORIZED');
         const t = totals(db, e), upper = units(upperUsd);
         // Development grants may authorize a fixed number of requests. A user's
         // old maxCalls setting must not stop a funded run or reset its ledger.

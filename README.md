@@ -1,6 +1,6 @@
 # FindLink Starter
 
-Nhánh `findlink-publish-1st` có ứng dụng Starter và backend quản lý tài khoản, trial, credits, Gemini và SePay.
+FindLink Starter dùng tài khoản FindLink để quản lý quyền chạy, số dư credits và thanh toán SePay. Quản trị viên chọn model và biểu giá trên backend.
 
 ## Mở thử Starter trên máy này
 
@@ -11,14 +11,14 @@ npm ci
 npm run starter:preview
 ```
 
-Nếu đã cài thư viện, chỉ cần chạy lệnh thứ hai. FindLink mở hai cửa sổ.
+Nếu đã cài thư viện, chạy `npm run starter:preview`. FindLink mở hai cửa sổ.
 
 | Cửa sổ | Thao tác |
 |---|---|
-| **FindLink Starter — Bản thử** | Mục **Dùng thử FindLink** ở đầu trang hiện **100 credits**. Bấm **Lịch sử credits** để xem lần cấp và khoản đã dùng. Thử **Xem tiêu chí trước khi thu** với prompt mẫu để thấy credits giảm. |
-| **Quản trị FindLink Starter — Bản thử** | Xem **Tài khoản và số dư** hoặc **Đơn hàng và hạn gói**. Dùng **Cấp mã mời**, **Ngân sách** và **Biểu giá AI** để thử thao tác quản trị. Mở lại từ menu **Bản thử → Mở quản trị**. |
+| **FindLink Starter — Bản thử** | Ô **Số dư khả dụng** trong khu vực Projects hiện **100 credits**. Mở **Gói dịch vụ → Lịch sử credits** để xem khoản đã cấp và đã dùng. Bấm **Chỉ xem kế hoạch** với prompt mẫu để thử ghi nhận phí AI. |
+| **Quản trị FindLink Starter — Bản thử** | Xem **Tài khoản và số dư**, **Đơn hàng và hạn gói**, **Ngân sách và quyền dùng thử**, hoặc **Model và biểu giá**. Mở lại từ menu **Bản thử → Mở quản trị**. |
 
-Để thử mua gói, bấm **Mua Starter** trong ứng dụng. Đợi vài giây rồi bấm **Kiểm tra thanh toán**. Webhook mô phỏng xác nhận đơn và ví hiện **50.000 credits**. Quay lại quản trị, bấm **Làm mới** để thấy đơn và hạn gói.
+Mở **Gói dịch vụ → Mua Starter**. Đợi vài giây rồi bấm **Kiểm tra giao dịch** để thấy ví có **50.000 credits**. Tiếp tục thử **Nạp credits** để thêm **10.000 credits**. Trên trang quản trị, bấm **Làm mới** để thấy các đơn đã xác nhận.
 
 Bản thử tạo database và AppData riêng, mô phỏng Gemini và SePay, rồi dọn dữ liệu thử khi đóng ứng dụng. Giữ tiến trình chạy trong lúc thao tác và dùng cửa sổ đang mở nếu bản thử đã chạy. Khoản tiền trên màn hình là số liệu thử. Không chuyển tiền.
 
@@ -27,18 +27,18 @@ Bản thử tạo database và AppData riêng, mô phỏng Gemini và SePay, r�
 | Cách mở | Dùng cho |
 |---|---|
 | `npm run starter:preview` | Xem trial, credits, mua Starter và quản trị ngay với dữ liệu mô phỏng. |
-| `npm start` hoặc bản Portable cũ | Chạy nội bộ theo cấu hình máy hiện có. Giao diện dùng USD và key nội bộ. |
+| `npm start` | Chạy nội bộ với key và giới hạn chi tiêu của máy. |
 | **FindLink Starter QA** | Kiểm thử bộ cài Windows. Bản QA mặc định kết nối backend ở `http://127.0.0.1:9070`. |
 | **FindLink Starter phát hành** | Kết nối backend HTTPS của FindLink. Bản này cần được build và ký trên Windows. |
 
 ## Quản trị và mở bán
 
-- **Trial.** Quản trị cấp mã theo email. Khách đăng ký rồi kích hoạt tối đa **100 credits, 14 ngày và 1.000 bài gốc**. Hết trial khóa thu thập và lọc. Khách vẫn xem và export dữ liệu đã lưu.
-- **Credits và API.** **1 USD = 1.000 credits**. Backend giữ Gemini key. Trang quản trị cho bật/tạm dừng AI, đặt ngân sách, cập nhật biểu giá Gemini và đối soát chi phí.
-- **Starter.** **23.000.000 ₫/năm**, gồm **50.000 credits**. Khách mua hoặc gia hạn từ ứng dụng. Webhook SePay xác nhận giao dịch. Quản trị xem hạn gói, điều chỉnh credits, tạm ngừng quyền chạy và ghi nhận tiền đã hoàn.
+- **Trial.** Quản trị cấp mã theo email. Khách mở **Gói dịch vụ**, đăng ký rồi kích hoạt tối đa **100 credits, 14 ngày và 1.000 bài gốc**. Hết trial khóa thu thập và lọc. Khách vẫn xem và export dữ liệu đã lưu.
+- **Credits và API.** **1 USD = 1.000 credits**. Backend giữ khóa Gemini và DeepSeek. Quản trị chọn model cho lượt mới, đặt ngân sách và đối soát chi phí.
+- **Starter.** **23.000.000 ₫/năm**, gồm **50.000 credits**. Mục **Gói dịch vụ** chứa thao tác mua, gia hạn và nạp credits. Webhook SePay xác nhận giao dịch. Quản trị xem hạn gói, điều chỉnh credits, tạm ngừng quyền chạy và ghi nhận tiền đã hoàn.
 - **Sao lưu.** Giữ cấu hình, prompt, preset và JSON kết quả. Khách khôi phục để xem và export trên máy khác. Resume dùng checkpoint trên máy đang chạy.
 
-Backend thử chạy trên máy. Để mở bán cần backend HTTPS, Gemini key, tài khoản nhận và webhook SePay, cùng bộ cài Windows có chữ ký. [Các bước triển khai và quản trị thật](deploy/README.md)
+Backend Railway dùng database riêng cho staging. Xem cách cấu hình khóa AI, ngân sách, thanh toán và bộ cài phát hành trong [hướng dẫn vận hành](deploy/README.md).
 
 ## Phát triển
 

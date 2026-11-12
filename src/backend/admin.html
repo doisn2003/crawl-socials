@@ -52,10 +52,10 @@
         <label>Số trial tối đa<input name="max_trial_subjects" type="number" min="0" required></label>
         <label>Số trial mới mỗi ngày<input name="trial_subjects_per_day" type="number" min="0" required></label>
         <label>Credits cam kết cho trial<input name="trial_grant_cap" type="number" min="0" step="0.001" required></label>
-        <label>Ngân sách AI trial/ngày (USD)<input name="trial_daily_cost" type="number" min="0" step="0.000001" required></label>
-        <label>Ngân sách AI trial/tổng (USD)<input name="trial_total_cost" type="number" min="0" step="0.000001" required></label>
-        <label>Ngân sách AI Starter/ngày (USD)<input name="paid_daily_cost" type="number" min="0" step="0.000001" required></label>
-        <label>Ngân sách AI Starter/tổng (USD)<input name="paid_total_cost" type="number" min="0" step="0.000001" required></label>
+        <label>Ngân sách AI trial/ngày (credits)<input name="trial_daily_cost" type="number" min="0" step="0.000001" required></label>
+        <label>Ngân sách AI trial/tổng (credits)<input name="trial_total_cost" type="number" min="0" step="0.000001" required></label>
+        <label>Ngân sách AI Starter/ngày (credits)<input name="paid_daily_cost" type="number" min="0" step="0.000001" required></label>
+        <label>Ngân sách AI Starter/tổng (credits)<input name="paid_total_cost" type="number" min="0" step="0.000001" required></label>
         <button>Lưu ngân sách</button>
       </form>
       <form id="account">
@@ -85,7 +85,7 @@
         <h2>Đối soát phí AI</h2>
         <label>Tài khoản<input name="accountId" list="account-options" required></label>
         <label>ID yêu cầu<input name="id" required></label>
-        <label>Chi phí đã xác nhận (USD)<input name="cost" type="number" min="0" step="0.000000001" required></label>
+        <label>Chi phí đã xác nhận (credits)<input name="cost" type="number" min="0" step="0.000001" required></label>
         <label>Bằng chứng đối soát<input name="evidence" minlength="4" maxlength="1000" required></label>
         <button>Ghi phí đã xác nhận</button>
       </form>
@@ -99,13 +99,15 @@
         <button>Ghi điều chỉnh</button>
       </form>
       <form id="tariff">
-        <h2>Biểu giá Gemini 3.1 Flash-Lite</h2>
+        <h2>Model và biểu giá</h2>
         <p id="active-tariff"></p>
-        <label>Input (USD/triệu token)<input name="input_per_million" type="number" min="0" step="any" required></label>
-        <label>Cached input (USD/triệu token)<input name="cached_input_per_million" type="number" min="0" step="any" required></label>
-        <label>Output (USD/triệu token)<input name="output_per_million" type="number" min="0" step="any" required></label>
+        <label>Model cho lượt mới<select name="model" required></select></label>
+        <p id="tariff-provider"></p>
+        <label>Input (credits/triệu token)<input name="input_per_million" type="number" min="0" step="any" required></label>
+        <label>Cached input (credits/triệu token)<input name="cached_input_per_million" type="number" min="0" step="any" required></label>
+        <label>Output (credits/triệu token)<input name="output_per_million" type="number" min="0" step="any" required></label>
         <label>Ngày xác minh giá<input name="observed_at" type="date" required></label>
-        <button>Tạo phiên bản giá</button>
+        <button>Áp dụng cho lượt mới</button>
       </form>
     </div>
   </div>

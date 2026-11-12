@@ -1,10 +1,11 @@
 import { createHmac, randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
-import { STARTER_OFFER, TRIAL_OFFER } from '../shared/managed.js';
+import { isManagedModel, MANAGED_MODELS, STARTER_OFFER, TRIAL_OFFER } from '../shared/managed.js';
 import type { BackendConfig } from './config.js';
 import { ApiError, audit, bad, email, hash, hex, integer, lockAccount, micros, policy, rateLimit, record, safeEqual, string, token, uuid } from './core.js';
 import { transaction } from './database.js';
 import { grantCredits } from './entitlements.js';
+import { MODEL_PRICE_SOURCES, modelCredential } from './model-providers.js';
 
 function decodeBase32(text: string) {
   let bits = 0, word = 0;
@@ -88,7 +89,7 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
       if (proposed.trial_enabled && !proposed.pause_grants &&
         (!proposed.max_trial_subjects || !proposed.trial_subjects_per_day || BigInt(proposed.trial_grant_cap) < 100_000_000n ||
           BigInt(proposed.trial_daily_cost) <= 0n || BigInt(proposed.trial_total_cost) <= 0n)) throw bad('TRIAL_CAP_REQUIRED');
-      if (!proposed.pause_ai && (!config.geminiKey || BigInt(proposed.paid_daily_cost) <= 0n || BigInt(proposed.paid_total_cost) <= 0n)) {
+      if (!proposed.pause_ai && (!modelCredential(config, before.route_model) || BigInt(proposed.paid_daily_cost) <= 0n || BigInt(proposed.paid_total_cost) <= 0n)) {
         throw bad('AI_CAP_REQUIRED');
       }
       // Column names are from the fixed lists above.
@@ -106,17 +107,20 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
     }
     if (Number(price.input_per_million) <= 0 || Number(price.output_per_million) <= 0 ||
         Number(price.cached_input_per_million) > Number(price.input_per_million)) throw bad('TARIFF_INVALID');
-    const snapshot = { input_per_million: price.input_per_million, output_per_million: price.output_per_million,
-      cached_input_per_million: price.cached_input_per_million, observed_at: string(price.observed_at,40),
-      source: 'https://ai.google.dev/gemini-api/docs/pricing' };
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(snapshot.observed_at) || !Number.isFinite(Date.parse(snapshot.observed_at))) throw bad('TARIFF_INVALID');
+    const observed = string(price.observed_at, 10, 10), observedTime = Date.parse(observed);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(observed) || !Number.isFinite(observedTime) || new Date(observedTime).toISOString().slice(0, 10) !== observed) throw bad('TARIFF_INVALID');
     return transaction(pool, async db => {
       const before = await policy(db, true);
+      const model: unknown = body.model ?? before.route_model;
+      if (!isManagedModel(model)) throw bad('MODEL_NOT_SUPPORTED');
+      if (!modelCredential(config, model)) throw new ApiError(409, 'MODEL_KEY_REQUIRED');
+      const snapshot = { input_per_million: price.input_per_million, output_per_million: price.output_per_million,
+        cached_input_per_million: price.cached_input_per_million, observed_at: observed, source: MODEL_PRICE_SOURCES[model] };
       const id = (await db.query('SELECT max(id)+1 AS id FROM findlink_control.tariff_versions')).rows[0].id as number;
-      await db.query("INSERT INTO findlink_control.tariff_versions(id,model,price) VALUES($1,'gemini-3.1-flash-lite',$2)", [id, JSON.stringify(snapshot)]);
+      await db.query('INSERT INTO findlink_control.tariff_versions(id,model,price) VALUES($1,$2,$3)', [id, model, JSON.stringify(snapshot)]);
       await db.query('UPDATE findlink_control.policy SET route_id=$1 WHERE id=true', [id]);
-      await audit(db, 'operator', 'TARIFF_CHANGED', String(id), { previous: before.route_id, price: snapshot });
-      return { id };
+      await audit(db, 'operator', 'TARIFF_CHANGED', String(id), { previous: before.route_id, model, price: snapshot });
+      return { id, model };
     });
   }
 
@@ -200,6 +204,7 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
     const queries = [
       ['policy','SELECT * FROM findlink_control.policy'],
       ['tariff',`SELECT t.id,t.model,t.price FROM findlink_control.policy p JOIN findlink_control.tariff_versions t ON t.id=p.route_id WHERE p.id=true`],
+      ['tariffs',`SELECT DISTINCT ON (model) model,price FROM findlink_control.tariff_versions ORDER BY model,id DESC`],
       ['accounts',`SELECT u.username,a.id,
         CASE WHEN paid.active_until IS NOT NULL THEN 'STARTER' WHEN paid.had_paid OR t.id IS NULL THEN 'INACTIVE' ELSE 'TRIAL' END AS plan,
         CASE WHEN paid.had_paid AND paid.active_until IS NULL THEN '0' ELSE wallet.available END AS available,
@@ -227,6 +232,8 @@ export function createAdmin(pool: Pool, config: BackendConfig) {
     ] as const;
     const result = await Promise.all(queries.map(async ([key, sql]) => [key, (await pool.query(sql)).rows] as const));
     return { ...Object.fromEntries(result), setup: { geminiConfigured: !!config.geminiKey, sepayConfigured: !!config.sepay,
+      sepayMode: config.sepay ? config.sepay.test ? 'test' : 'live' : 'disabled',
+      models: MANAGED_MODELS.map(model => ({ model, configured: !!modelCredential(config, model), source: MODEL_PRICE_SOURCES[model] })),
       starter: STARTER_OFFER, trial: TRIAL_OFFER } };
   }
 

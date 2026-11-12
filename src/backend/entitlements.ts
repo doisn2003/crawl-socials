@@ -3,6 +3,7 @@ import type { Pool } from 'pg';
 import { TRIAL_OFFER, type ManagedLease, type ManagedScope, type ManagedStatus, type SignedLease } from '../shared/managed.js';
 import type { Principal } from './auth.js';
 import type { BackendConfig } from './config.js';
+import { modelCredential } from './model-providers.js';
 import { ApiError, audit, bad, hex, lockAccount, micros, policy, record, runId, tag, TRIAL_CREDITS, TRIAL_RAW_LIMIT, uuid } from './core.js';
 import { transaction, type Transaction } from './database.js';
 
@@ -78,7 +79,8 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
         const review = await db.query('SELECT id FROM findlink_control.trial_reviews WHERE account_id=$1 AND resolved_at IS NULL', [actor.accountId]);
         if (review.rowCount) value.status.reason = 'TRIAL_REVIEW_REQUIRED';
       }
-      if (value.status.state === 'STARTER' && config.topupPriceVnd !== undefined) value.status.topupPriceVnd = config.topupPriceVnd;
+      value.status.checkoutAvailable = config.sepay !== null;
+      if (config.sepay && value.status.state === 'STARTER' && config.topupPriceVnd !== undefined) value.status.topupPriceVnd = config.topupPriceVnd;
       return value.status;
     });
   }
@@ -94,7 +96,7 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
       const invite = await db.query(`SELECT 1 FROM findlink_control.invites WHERE account_id=$1 AND email=$2
         AND purpose='TRIAL' AND redeemed_at IS NOT NULL LIMIT 1`, [actor.accountId, account.email]);
       if (!invite.rowCount) throw new ApiError(403, 'INVITE_REQUIRED');
-      if (!rules.trial_enabled || rules.pause_grants || rules.pause_trial || rules.pause_ai || !config.geminiKey
+      if (!rules.trial_enabled || rules.pause_grants || rules.pause_trial || rules.pause_ai || !modelCredential(config, rules.route_model)
         || BigInt(rules.trial_daily_cost) <= 0n || BigInt(rules.trial_total_cost) <= 0n) throw new ApiError(503, 'TRIAL_FUNDING_PAUSED');
       const emailTag = tag(config.identityKey, 'trial-email', account.email);
       const used = await db.query('SELECT 1 FROM findlink_control.trial_subjects WHERE email_tag=$1', [emailTag]);
@@ -166,6 +168,7 @@ export function createEntitlements(pool: Pool, config: BackendConfig) {
       const route = (await db.query(`SELECT r.project_id,r.route_id,t.model,t.price FROM findlink_control.runs r
         JOIN findlink_control.tariff_versions t ON t.id=r.route_id WHERE r.account_id=$1 AND r.id=$2`, [actor.accountId, id])).rows[0];
       if (route.project_id !== projectId) throw new ApiError(409, 'RUN_PROJECT_MISMATCH');
+      if ((scope === 'PLAN' || scope === 'ASSESS') && !modelCredential(config, route.model)) throw new ApiError(503, 'MODEL_NOT_AUTHORIZED');
       const expiresAt = Math.min(+current.now + LEASE_SECONDS * 1000, +current.until!);
       const leaseId = existing?.id ?? randomUUID();
       if (existing) await db.query('UPDATE findlink_control.leases SET expires_at=$2 WHERE id=$1', [leaseId, new Date(expiresAt)]);

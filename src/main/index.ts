@@ -73,7 +73,7 @@ async function bootstrap() {
   const geminiKey = managed ? null : await createGeminiKeySettings(secrets, () => environmentKey, { preferEnvironment: true });
   const appConfig = createUserConfigStore(join(paths.userData, 'data'));
   const machineSpendLimits = () => appConfig.read().spendLimits ?? DEFAULT_USER_SPEND_LIMITS;
-  const spending = createDurableSpend({ ...(qa ? { file: join(paths.userData, 'spending', 'ledger.sqlite') } : {}),
+  const spending = createDurableSpend({ managed: !!managed, ...(qa ? { file: join(paths.userData, 'spending', 'ledger.sqlite') } : {}),
     envelope: () => ({ scope: 'USER', model: REBUILD_MODEL,
     ...machineSpendLimits() }) });
   const schedulers = new Map<string, RequestScheduler>();

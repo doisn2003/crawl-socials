@@ -70,6 +70,7 @@ export async function lockAccount(db: Transaction, id: string) {
   return rows[0];
 }
 export async function policy(db: Transaction, lock = false) {
-  const { rows } = await db.query('SELECT * FROM findlink_control.policy WHERE id=true' + (lock ? ' FOR UPDATE' : ''));
+  const { rows } = await db.query(`SELECT p.*,t.model AS route_model FROM findlink_control.policy p
+    JOIN findlink_control.tariff_versions t ON t.id=p.route_id WHERE p.id=true` + (lock ? ' FOR UPDATE OF p' : ''));
   return rows[0]!;
 }

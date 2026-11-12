@@ -25,7 +25,7 @@ function httpsUrl(value, pathAllowed = false) {
   return url;
 }
 
-const version = process.env.FINDLINK_STARTER_VERSION || '0.5.0';
+const version = process.env.FINDLINK_STARTER_VERSION || '0.5.1';
 if (!/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(version)) throw Error('STARTER_VERSION_INVALID');
 const manifest = qa ? { origin: process.env.FINDLINK_QA_ORIGIN || 'http://127.0.0.1:9070', testOnly: true } : {
   origin: httpsUrl(required('FINDLINK_PUBLIC_URL')).origin,

@@ -67,8 +67,28 @@ app.on('browser-window-created', (_event, window) => {
       const run = source => window.webContents.executeJavaScript(source);
       await until(window, "!!window.csd?.managed && !document.getElementById('managed-starter').hidden", 'PREVIEW_DESKTOP_NOT_READY');
       phase = 'REGISTER';
-      await run('window.csd.projects.register(' + JSON.stringify(signup) + ')');
-      const trial = await run('window.csd.managed.activateTrial()');
+      if (verify) {
+        assert.equal(await run("!!document.querySelector('.intro #managed-balance')"),true);
+        await run("document.getElementById('managed-service-open').click()");
+        await until(window,"!document.getElementById('managed-sign-in').hidden && !document.getElementById('managed-sign-in').disabled",'PREVIEW_SIGN_IN_NOT_READY');
+        assert.equal(await run("document.getElementById('managed-service-dialog').open"),true);
+        await run("document.getElementById('managed-sign-in').click()");
+        assert.equal(await run("document.getElementById('project-auth-dialog').open"),true);
+        await run(`{
+          const credentials = ${JSON.stringify(signup)};
+          document.getElementById('project-username').value = credentials.username;
+          document.getElementById('project-password').value = credentials.password;
+          document.getElementById('project-invite').value = credentials.invite;
+          document.getElementById('project-register').click();
+        }`);
+        await until(window,"!document.getElementById('managed-trial').hidden && !document.getElementById('managed-trial').disabled",'PREVIEW_ACTIVATE_NOT_READY');
+        await run("document.getElementById('managed-trial').click()");
+        await until(window,"window.csd.managed.status().then(status => status.state === 'TRIAL')",'PREVIEW_TRIAL_NOT_ACTIVE');
+      } else {
+        await run('window.csd.projects.register(' + JSON.stringify(signup) + ')');
+        await run('window.csd.managed.activateTrial()');
+      }
+      const trial = await run('window.csd.managed.status()');
       assert.equal(trial.state, 'TRIAL');
       assert.equal(trial.available, '100000000');
       await run('window.csd.saveConfig(' + JSON.stringify(savedConfig) + ')');
@@ -98,9 +118,16 @@ app.on('browser-window-created', (_event, window) => {
       await until(window, "window.csd.managed.status().then(status => status.state === 'STARTER')", 'PREVIEW_SEPAY_NOT_APPLIED');
       await run("document.getElementById('managed-order-check').click()");
       await until(window, "document.getElementById('managed-balance').textContent.includes('50.000 credits')", 'PREVIEW_STARTER_BALANCE_NOT_VISIBLE');
+      await run("document.getElementById('managed-order-close').click()");
+      assert.equal(await run("document.getElementById('managed-service-dialog').open"),true);
+      await run("document.getElementById('managed-topup').click()");
+      await until(window, "document.getElementById('managed-order-dialog').open", 'PREVIEW_TOPUP_NOT_VISIBLE');
+      await until(window, "window.csd.managed.status().then(status => status.available === '60000000000')", 'PREVIEW_TOPUP_NOT_APPLIED');
+      await run("document.getElementById('managed-order-check').click()");
+      await until(window, "document.getElementById('managed-balance').textContent.includes('60.000 credits')", 'PREVIEW_TOPUP_BALANCE_NOT_VISIBLE');
       await operations.webContents.executeJavaScript("document.getElementById('refresh').click()");
       await until(operations, "document.getElementById('orders-list')?.textContent.includes('Đã xác nhận')", 'PREVIEW_ADMIN_ORDER_NOT_VISIBLE');
-      console.log('FINDLINK_PREVIEW_VERIFIED trial=100 ai=charged sepay=applied starter=50000 admin=visible');
+      console.log('FINDLINK_PREVIEW_VERIFIED intro=credits service=dialog trial=100 ai=charged sepay=applied starter=50000 topup=60000 admin=visible');
       clearTimeout(startup);
       app.quit();
     } catch {

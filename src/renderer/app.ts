@@ -10,6 +10,7 @@ import { MAX_RESULT_TARGET, MAX_RAW_POSTS, MAX_SEARCH_QUERIES, DEFAULT_RAW_CAP, 
 import { planAndStart } from './start-workflow.js';
 import { bindProjectManager } from './project-manager.js';
 import { bindManagedStarter, formatCredits } from './managed-starter.js';
+import { CREDITS_PER_USD } from '../shared/managed.js';
 
 declare global { interface Window { readonly csd: ProductionApi; } }
 
@@ -148,10 +149,9 @@ function setSaveStatus(message: string, kind: string) {
   const node = element('save-status'); node.textContent = message; node.dataset.state = kind;
 }
 function readConfig(): UserConfig {
-  const unit = state?.managed ? 1000 : 1;
   return {
     filterPercent: filterMode.valueAsNumber,
-    spendLimits: { totalUsd: spendTotal.valueAsNumber / unit, dailyUsd: spendDaily.valueAsNumber / unit },
+    spendLimits: { totalUsd: spendTotal.valueAsNumber / CREDITS_PER_USD, dailyUsd: spendDaily.valueAsNumber / CREDITS_PER_USD },
     performance: 'BALANCED',
     keywords: [...new Set(keywords.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean))],
     minimumPosts: minimumPosts.value.trim() ? Number(minimumPosts.value) : NaN,
@@ -160,7 +160,7 @@ function readConfig(): UserConfig {
         enabled: true, filterMode: currentFilter(), prompt: campaignPrompt.value, brandContext: brandContext.value,
         languageScope: 'VIETNAMESE',
         totalTarget: Number(suitableTarget.value),
-        rawCap: Number(rawCap.value), budgetUsd: currentFilter() === 'OFF' ? 0 : Number(modelBudget.value) / unit, commentsEnabled: collectComments.checked,
+        rawCap: Number(rawCap.value), budgetUsd: currentFilter() === 'OFF' ? 0 : Number(modelBudget.value) / CREDITS_PER_USD, commentsEnabled: collectComments.checked,
       }
     } : {})
   };
@@ -178,7 +178,7 @@ function validateConfig(value: UserConfig): string {
     if (!Number.isSafeInteger(o.totalTarget) || o.totalTarget < 1 || o.totalTarget > MAX_RESULT_TARGET) return 'Số bài muốn nhận phải từ 1 đến 5.000.';
     if (!Number.isSafeInteger(o.rawCap) || o.rawCap < o.totalTarget || o.rawCap > MAX_RAW_POSTS) return 'Số bài tìm tối đa cần ít nhất bằng số bài muốn nhận và không quá 50.000.';
     if (!Number.isFinite(o.budgetUsd) || (o.filterMode === 'OFF' ? o.budgetUsd !== 0 : o.budgetUsd <= 0) || o.budgetUsd > 30)
-      return state?.managed ? 'Ngân sách AI cần lớn hơn 0 và không quá 30.000 credits.' : 'Ngân sách AI cần lớn hơn 0 và không quá 30 USD.';
+      return 'Ngân sách AI cần lớn hơn 0 và không quá 30.000 credits.';
   }
   return '';
 }
@@ -284,8 +284,7 @@ function updateControls() {
   collectComments.disabled ||= mode === 'OFF';
   setText('filter-mode-help', { OFF: 'Lấy bài đã tìm được, chưa đánh giá; không gọi AI.', CONSISTENT: 'Tìm rộng cả bối cảnh, sở thích và cơ hội gián tiếp; loại quảng cáo và bài lạc đề.', STANDARD: 'Giữ nhu cầu, vấn đề, tâm sự, mong muốn, trải nghiệm và thảo luận liên quan.', QUALITY: 'Chỉ giữ bài có căn cứ rõ ràng, đáp ứng đúng yêu cầu và có giá trị cụ thể cho mục tiêu tìm kiếm.' }[mode]);
   const money = state?.spending;
-  const cost = state?.managed ? formatCredits : (usd: number) => '$' + usd.toFixed(4);
-  setText('spend-status', money ? 'Đã dùng ' + cost(money.measuredUsd) + ' · Đang giữ ' + cost(money.heldUsd) + ' · Còn ' + cost(money.remainingUsd) + ' theo giới hạn của máy' : '');
+  setText('spend-status', money ? 'Đã dùng ' + formatCredits(money.measuredUsd) + ' · Đang giữ ' + formatCredits(money.heldUsd) + ' · Còn ' + formatCredits(money.remainingUsd) + ' theo giới hạn của máy' : '');
   const config = readConfig();
   const selected = selectableProfiles();
   setText('keyword-count', config.keywords.length ? number(config.keywords.length) + ' từ khóa' : '');
@@ -592,9 +591,8 @@ function renderOpportunities() {
   setText('result-count', number(opportunity.targetCount ?? counts.suitable) + ' / ' + number(opportunity.totalTarget) + (opportunity.filterMode === 'OFF' ? ' BÀI CHƯA ĐÁNH GIÁ' : ' BÀI ĐƯỢC NHẬN'));
   setText('opportunity-summary', number(counts.raw) + ' bài đã tìm · ' + number(counts.comments) + ' bình luận'
     + (counts.pending ? ' · ' + number(counts.pending) + (opportunity.filterMode === 'OFF' ? ' bài chưa đánh giá' : ' bài chưa có kết luận') : '')
-    + (state?.managed ? ' · Đã dùng ' + formatCredits(opportunity.costUsd)
-      + (opportunity.usageUnknown ? ' · Tối đa ' + formatCredits(opportunity.costUpperUsd) : '') + ' / ' + formatCredits(opportunity.budgetUsd)
-      : ' · Chi phí $' + opportunity.costUsd.toFixed(4) + (opportunity.usageUnknown ? '–$' + opportunity.costUpperUsd.toFixed(4) : '') + ' / $' + opportunity.budgetUsd.toFixed(2))
+    + ' · Đã dùng ' + formatCredits(opportunity.costUsd)
+    + (opportunity.usageUnknown ? ' · Tối đa ' + formatCredits(opportunity.costUpperUsd) : '') + ' / ' + formatCredits(opportunity.budgetUsd)
     + (opportunity.resultPolicy === 'GLOBAL_FIRST_QUALIFIED' || opportunity.evaluationPolicy === 'GOAL_EVIDENCE' ? '' : ' · Kết quả cũ: cần lọc lại để áp dụng cách đánh giá mới.'));
   if (opportunity.commentsPending) element('opportunity-summary').textContent += ' · ' + number(opportunity.commentsPending) + ' bài chờ đọc bình luận';
   if (opportunity.commentsFailed) element('opportunity-summary').textContent += ' · ' + number(opportunity.commentsFailed) + ' bài lỗi khi đọc bình luận';
@@ -673,16 +671,9 @@ function applyState(next: ProductionState, replaceConfig = false) {
     filterMode.value = String(restoreFilterPercent(next.config.filterPercent, o?.filterMode));
     languageScope.value = 'VIETNAMESE';
     intentEnabled.checked = true;
-    const unit = next.managed ? 1000 : 1;
-    for (const [field, title, max] of [[spendTotal, 'Trần cộng dồn', 10000], [spendDaily, 'Trần mỗi ngày', 10000], [modelBudget, 'Hạn mức mỗi lượt', 30]] as const) {
-      field.max = String(max * unit);
-      field.step = String(0.01 * unit);
-      field.closest('label')!.querySelector('.metric-label')!.textContent = title + (next.managed ? ' (credits)' : ' (USD)');
-    }
-    modelBudget.min = String(0.01 * unit);
-    spendTotal.value = String((next.config.spendLimits?.totalUsd ?? DEFAULT_USER_SPEND_LIMITS.totalUsd) * unit);
-    spendDaily.value = String((next.config.spendLimits?.dailyUsd ?? DEFAULT_USER_SPEND_LIMITS.dailyUsd) * unit);
-    rawCap.value = String(o?.rawCap ?? DEFAULT_RAW_CAP); modelBudget.value = String((o?.budgetUsd || DEFAULT_RUN_BUDGET_USD) * unit);
+    spendTotal.value = String((next.config.spendLimits?.totalUsd ?? DEFAULT_USER_SPEND_LIMITS.totalUsd) * CREDITS_PER_USD);
+    spendDaily.value = String((next.config.spendLimits?.dailyUsd ?? DEFAULT_USER_SPEND_LIMITS.dailyUsd) * CREDITS_PER_USD);
+    rawCap.value = String(o?.rawCap ?? DEFAULT_RAW_CAP); modelBudget.value = String((o?.budgetUsd || DEFAULT_RUN_BUDGET_USD) * CREDITS_PER_USD);
     collectComments.checked = o?.commentsEnabled ?? false;
     savedConfig = key(next.config); initialized = true; configDirty = false; setSaveStatus('Đã lưu trên máy', 'saved');
     if (active() && next.run) for (const platform of next.run.platforms) {

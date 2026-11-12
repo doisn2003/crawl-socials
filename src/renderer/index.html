@@ -111,24 +111,6 @@
     </header>
 
     <main>
-      <section id="managed-starter" class="project-account starter-access" aria-labelledby="managed-plan" hidden>
-        <div>
-          <strong id="managed-plan">FindLink Starter</strong>
-          <p id="managed-balance" class="starter-balance" hidden></p>
-          <p id="managed-status" class="helper" role="status"></p>
-          <p id="managed-terms" class="helper"></p>
-        </div>
-        <div class="project-actions">
-          <button id="managed-sign-in" class="primary-button" type="button" hidden>Đăng nhập hoặc nhập mã mời</button>
-          <button id="managed-refresh" class="secondary-button" type="button" hidden>Kiểm tra kết nối</button>
-          <button id="managed-demo" class="text-button" type="button" hidden>Xem mẫu</button>
-          <button id="managed-trial" class="secondary-button" type="button" hidden>Kích hoạt dùng thử</button>
-          <button id="managed-order" class="primary-button" type="button" hidden>Mua Starter</button>
-          <button id="managed-topup" class="secondary-button" type="button" hidden>Nạp credits</button>
-          <button id="managed-wallet" class="text-button" type="button" hidden>Lịch sử credits</button>
-          <button id="managed-update" class="secondary-button" type="button" hidden>Cài cập nhật</button>
-        </div>
-      </section>
       <section class="intro" aria-labelledby="page-title">
         <div class="intro-main project-manager">
           <div class="project-heading">
@@ -136,6 +118,18 @@
             <button id="project-create" class="secondary-button" type="button" disabled>+ Tạo project</button>
           </div>
           <p class="helper">Mỗi project lưu riêng yêu cầu, cấu hình và kết quả thu thập.</p>
+          <div id="managed-starter" class="starter-access" hidden>
+            <div>
+              <p class="starter-balance-label">Số dư khả dụng</p>
+              <strong id="managed-balance" class="starter-balance" aria-live="polite">—</strong>
+              <p id="managed-held" class="helper" hidden></p>
+            </div>
+            <div class="starter-service-actions">
+              <span id="managed-plan" class="helper">Đang kiểm tra quyền sử dụng…</span>
+              <button id="managed-service-open" class="secondary-button" type="button" aria-haspopup="dialog" aria-controls="managed-service-dialog">Gói dịch vụ</button>
+            </div>
+            <p id="managed-access-note" class="helper" role="status" hidden></p>
+          </div>
           <div id="project-list" class="project-list" aria-label="Danh sách project"><p class="helper">Đang tải projects…</p></div>
           <div class="project-account">
             <div><strong id="project-account-name">Làm việc trên máy này</strong><p id="project-backup-status" class="helper" role="status" aria-live="polite"></p></div>
@@ -148,6 +142,41 @@
           <p id="project-message" class="helper" role="status" aria-live="polite" hidden></p>
         </div>
       </section>
+
+      <dialog id="managed-service-dialog" class="project-dialog service-dialog" aria-labelledby="managed-service-title">
+        <div class="service-heading">
+          <h2 id="managed-service-title">Gói dịch vụ</h2>
+          <form method="dialog"><button class="text-button" type="submit">Đóng</button></form>
+        </div>
+        <p id="managed-status" class="helper" role="status"></p>
+        <div class="project-actions service-account-actions">
+          <button id="managed-sign-in" class="primary-button" type="button" hidden>Đăng nhập / Đăng ký</button>
+          <button id="managed-refresh" class="secondary-button" type="button" hidden>Kiểm tra kết nối</button>
+          <button id="managed-wallet" class="text-button" type="button" hidden>Lịch sử credits</button>
+          <button id="managed-update" class="secondary-button" type="button" hidden>Cài cập nhật</button>
+        </div>
+        <div class="service-offers">
+          <section class="service-offer" aria-labelledby="managed-trial-title">
+            <h3 id="managed-trial-title">Dùng thử</h3>
+            <strong id="managed-trial-offer"></strong>
+            <p id="managed-trial-details" class="helper"></p>
+            <div class="project-actions">
+              <button id="managed-trial" class="secondary-button" type="button" hidden>Kích hoạt dùng thử</button>
+              <button id="managed-demo" class="text-button" type="button">Xem kết quả mẫu</button>
+            </div>
+          </section>
+          <section class="service-offer service-offer-starter" aria-labelledby="managed-starter-title">
+            <h3 id="managed-starter-title">Starter</h3>
+            <strong id="managed-starter-price"></strong>
+            <p id="managed-starter-details" class="helper"></p>
+            <button id="managed-order" class="primary-button" type="button" hidden>Mua Starter</button>
+          </section>
+        </div>
+        <section id="managed-topup-offer" class="service-offer service-topup" aria-labelledby="managed-topup-title" hidden>
+          <div><h3 id="managed-topup-title">Nạp thêm credits</h3><p id="managed-topup-details" class="helper"></p></div>
+          <button id="managed-topup" class="secondary-button" type="button">Nạp credits</button>
+        </section>
+      </dialog>
 
       <dialog id="project-editor" class="project-dialog" aria-labelledby="project-editor-title">
         <form id="project-editor-form">
@@ -317,20 +346,20 @@
                 <input id="raw-cap" type="number" min="1" max="50000" step="1" value="5000" disabled>
               </label>
               <label class="metric-box metric-box-mint">
-                <span class="metric-label">Hạn mức chi tiêu mỗi lượt (USD)</span>
-                <input id="model-budget" type="number" min="0.01" max="30" step="0.01" value="3" disabled>
+                <span class="metric-label">Hạn mức chi tiêu mỗi lượt (credits)</span>
+                <input id="model-budget" type="number" min="10" max="30000" step="10" value="3000" disabled>
               </label>
             </div>
             <h4>Giới hạn tiền AI trên máy này</h4>
             <p class="helper">Các lượt dùng chung trần cộng dồn và trần mỗi ngày. FindLink ghi lại tiền đã dùng khi tạo lượt mới. Đặt một trần bằng 0 để tắt các lượt gọi AI.</p>
             <div class="opportunity-limits limits-compact">
               <label class="metric-box">
-                <span class="metric-label">Trần cộng dồn (USD)</span>
-                <input id="spend-total" type="number" min="0" max="10000" step="0.01" value="30" disabled>
+                <span class="metric-label">Trần cộng dồn (credits)</span>
+                <input id="spend-total" type="number" min="0" max="10000000" step="10" value="30000" disabled>
               </label>
               <label class="metric-box">
-                <span class="metric-label">Trần mỗi ngày (USD)</span>
-                <input id="spend-daily" type="number" min="0" max="10000" step="0.01" value="6" disabled>
+                <span class="metric-label">Trần mỗi ngày (credits)</span>
+                <input id="spend-daily" type="number" min="0" max="10000000" step="10" value="6000" disabled>
               </label>
             </div>
             <p id="spend-status" class="helper spend-status-pill"></p>

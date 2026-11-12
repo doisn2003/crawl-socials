@@ -81,11 +81,15 @@ if (!process.versions.electron) {
         await until("!document.getElementById('managed-starter').hidden");
         const initial = await run('window.csd.getState()');
         assert.equal(initial.managed,true);
-        assert.equal(initial.version,'0.5.0');
+        assert.equal(initial.version,process.env.FINDLINK_STARTER_VERSION || '0.5.1');
         assert.equal(app.getName(),'FindLink Starter QA');
         assert.equal(app.getPath('userData'),qaRoot);
         assert.equal(initial.run.id,runId);
         assert.equal(initial.run.resultsOnly,true);
+        assert.equal(await run("!!document.querySelector('.intro #managed-balance')"),true);
+        await run("document.getElementById('managed-service-open').click()");
+        assert.equal(await run("document.getElementById('managed-service-dialog').open"),true);
+        await run("document.getElementById('managed-service-dialog').close()");
         assert.equal((await run('window.csd.managed.status()')).state,'GUEST');
         assert.match(await run("window.csd.prepareCampaign().then(()=>'',e=>String(e.message))"),/AUTH_REQUIRED/);
         assert.match(await run("window.csd.geminiKey.save({key:'fixture-no-provider-key'}).then(()=>'',e=>String(e.message))"),/MODEL_NOT_AUTHORIZED/);

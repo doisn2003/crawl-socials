@@ -3,8 +3,9 @@ import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { ModelGatewayError, type JsonModelRequest, type JsonModelResult, type ModelGateway } from '../../application/ports/model-gateway.js';
 import { modelHash } from '../llm/gemini-gateway.js';
-import { managedGeminiBound } from '../llm/managed-gemini-wire.js';
+import { managedModelBound } from '../llm/managed-model-wire.js';
 import { REBUILD_MODEL, type DurableSpend } from '../llm/durable-spend.js';
+import type { ManagedLease, ManagedModel } from '../../shared/managed.js';
 import type { ManagedClient } from './client.js';
 import { ManagedHttpError } from './client.js';
 import type { RunAccess } from './run-access.js';
@@ -19,7 +20,7 @@ interface Receipt {
   bound: string;
   dispatched: boolean;
 }
-interface LocalOperation { upper: number; hold: string; result?: Receipt; rejected?: boolean }
+interface LocalOperation { upper: number; hold: string; model?: ManagedModel; result?: Receipt; rejected?: boolean }
 
 export function createRemoteModelGateway(options: { directory: string; budgetUsd: number; runId: string;
   client: ManagedClient; access: RunAccess; spending: DurableSpend; planning?: boolean }): ModelGateway {
@@ -42,11 +43,12 @@ export function createRemoteModelGateway(options: { directory: string; budgetUsd
     else records.set(id,data);
   }
 
-  async function execute(id: string, request: JsonModelRequest, leaseId: string, upper: number) {
+  async function execute(id: string, request: JsonModelRequest, lease: ManagedLease) {
     let data = records.get(id);
     if (!data) {
-      const hold = options.spending.reserve(REBUILD_MODEL, upper / 1e9);
-      data = { upper, hold };
+      const upper = managedModelBound(lease.model, request, lease.price);
+      const hold = options.spending.reserve(lease.model, upper / 1e9);
+      data = { upper, hold, model: lease.model };
       try { save(id,data); } catch (error) { options.spending.settle(hold, 0); throw error; }
     }
     const { signal, ...wire } = request;
@@ -57,7 +59,7 @@ export function createRemoteModelGateway(options: { directory: string; budgetUsd
         if (receipt) receipt = await options.client.json<Receipt>(path);
         else {
           // A stable ID turns response loss and Resume into a receipt read.
-          receipt = await options.client.json<Receipt>('/v1/ai/operations', { method: 'POST', json: { id, leaseId, request: wire }, ...(signal ? { signal } : {}) });
+          receipt = await options.client.json<Receipt>('/v1/ai/operations', { method: 'POST', json: { id, leaseId: lease.id, request: wire }, ...(signal ? { signal } : {}) });
         }
         const started = performance.now();
         while (receipt.state === 'QUEUED' || receipt.state === 'DISPATCHING') {
@@ -101,19 +103,21 @@ export function createRemoteModelGateway(options: { directory: string; budgetUsd
       }
       const ongoing = pending.get(id);
       if (ongoing) return ongoing;
-      const task = execute(id,request,lease.id,managedGeminiBound(request,lease.price)).finally(() => pending.delete(id));
+      const task = execute(id,request,lease).finally(() => pending.delete(id));
       pending.set(id,task);
       return task;
     },
     summary() {
       let measured = 0, unknown = 0, reserved = 0, attempts = 0;
+      let model = options.access.model(options.runId);
       for (const [id, value] of records) {
+        model ??= value.model;
         attempts++;
         if (value.result?.cost != null) measured += Number(value.result.charge ?? value.result.cost) / 1e9;
         else if (pending.has(id)) reserved += value.upper / 1e9;
         else unknown += value.upper / 1e9;
       }
-      return { model: REBUILD_MODEL, budget_usd: options.budgetUsd, measured_cost_usd: measured,
+      return { model: model ?? REBUILD_MODEL, budget_usd: options.budgetUsd, measured_cost_usd: measured,
         unmetered_cost_upper_usd: unknown, reserved_usd: reserved, remaining_usd: Math.max(0,options.budgetUsd-measured-unknown-reserved),
         billable_attempts: attempts, cache_hits: cacheHits, cost_basis: 'TOKEN_USAGE_AT_SNAPSHOT_LIST_PRICE_NOT_INVOICE' };
     },

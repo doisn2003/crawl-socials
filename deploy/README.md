@@ -2,7 +2,14 @@
 
 Dùng [bản thử](../README.md#mở-thử-starter-trên-máy-này) để xem credits, trial và mua Starter trên máy trước. Các bước dưới đây dành cho backend bán hàng qua HTTPS.
 
-## 1. Chuẩn bị backend
+## 1. Mở trang quản trị
+
+- **Staging** dùng tài khoản và thanh toán thử. [Quản trị staging](https://findlink-api-staging.up.railway.app/admin)
+- **Production** dùng tài khoản khách hàng. [Quản trị production](https://findlink-api-production.up.railway.app/admin)
+
+Mở service `findlink-api` trong dự án Railway `findlink-starter`. Lấy `FINDLINK_ADMIN_TOKEN` từ **Variables**. Thêm `FINDLINK_ADMIN_TOTP_SECRET` vào ứng dụng tạo mã TOTP với chu kỳ 30 giây, 6 chữ số, HMAC-SHA1. Dùng token và mã TOTP để đăng nhập. [Dự án Railway](https://railway.com/project/6f372a6d-ca74-4786-aa20-25f8f0b48a6a)
+
+## 2. Cấu hình và cập nhật backend
 
 Tạo một tệp cấu hình riêng theo [.env.example](../.env.example). Cất các giá trị thật trong kho secrets của máy chủ.
 
@@ -10,13 +17,15 @@ Tạo một tệp cấu hình riêng theo [.env.example](../.env.example). Cất
 |---|---|
 | Database | `DATABASE_URL` của PostgreSQL, chỉ backend kết nối. |
 | Địa chỉ | `FINDLINK_PUBLIC_URL` là địa chỉ HTTPS của backend. Backend mặc định nghe tại `127.0.0.1:9070` sau reverse proxy. |
-| Gemini | `FINDLINK_GEMINI_API_KEY` là khóa của dự án dịch vụ. Khi đổi khóa, cập nhật trên server và khởi động lại backend. |
-| SePay | `FINDLINK_SEPAY_WEBHOOK_SECRET`, `FINDLINK_SEPAY_BANK`, `FINDLINK_SEPAY_ACCOUNT`, `FINDLINK_SEPAY_ACCOUNT_NAME`. Bank và số tài khoản khớp `gateway` và `accountNumber` trong webhook. |
+| AI | `FINDLINK_GEMINI_API_KEY` cho Gemini 3.1 Flash-Lite, `FINDLINK_DEEPSEEK_API_KEY` cho DeepSeek Flash. Cập nhật biến và redeploy khi đổi khóa. |
+| SePay | `FINDLINK_SEPAY_MODE` nhận `disabled`, `test` hoặc `live`. Cấu hình secret HMAC, bank, số tài khoản và tên chủ tài khoản qua `FINDLINK_SEPAY_WEBHOOK_SECRET`, `FINDLINK_SEPAY_BANK`, `FINDLINK_SEPAY_ACCOUNT`, `FINDLINK_SEPAY_ACCOUNT_NAME`. Bank và số tài khoản khớp `gateway` và `accountNumber` trong webhook. |
 | Quản trị | `FINDLINK_ADMIN_TOKEN` gồm 64 ký tự hex. Thêm `FINDLINK_ADMIN_TOTP_SECRET` dạng Base32 vào trình xác thực TOTP, chu kỳ 30 giây, 6 chữ số, HMAC-SHA1. |
 | Quyền chạy | `FINDLINK_IDENTITY_SECRET` là khóa hex ổn định để đối chiếu thiết bị và trial. `FINDLINK_LEASE_PRIVATE_KEY` là khóa Ed25519 PKCS#8 PEM mã hóa base64. Giữ private key ở server và cung cấp public key SPKI DER mã hóa base64 cho máy build Windows. |
 | Gói nạp thêm | Đặt `FINDLINK_TOPUP_PRICE_VND` nếu bán thêm gói 10.000 credits. |
 
-Chạy build và migration một lần cho mỗi phiên bản. Trỏ `FINDLINK_ENV_FILE` tới tệp cấu hình đã tạo và dùng `NODE_ENV=production` khi chạy backend thật.
+Railway dùng [cấu hình hạ tầng](../.railway/railway.ts) để chạy migration trước deploy và kiểm tra `/healthz`. Từ thư mục đã link đúng dự án, xem `railway config plan --environment staging` trước khi áp dụng cấu hình. Dùng `railway up --service findlink-api --environment staging` để thử bản mới. Lặp lại với production sau khi staging đạt kiểm tra. Variables được quản lý trong Railway. [Railway Infrastructure as Code](https://docs.railway.com/infrastructure-as-code)
+
+Khi chạy trên máy khác, trỏ `FINDLINK_ENV_FILE` tới tệp cấu hình đã tạo và dùng `NODE_ENV=production` cho backend HTTPS.
 
 ```powershell
 npm ci
@@ -36,27 +45,27 @@ docker compose -f deploy/compose.yaml up -d --build
 
 Bật `FINDLINK_TRUST_LOCAL_PROXY=1` khi proxy ghi đè `X-Real-IP` và backend chỉ nhận truy cập qua loopback. Kiểm tra HTTPS và `GET /healthz` trước khi mở trang quản trị.
 
-## 2. Cấp trial và quản lý credits
+## 3. Quản lý model, trial và credits
 
-Mở đường dẫn **/admin** trên địa chỉ backend HTTPS. Đăng nhập bằng khóa quản trị và mã TOTP. Chính sách mới khởi đầu với AI và cấp trial tạm dừng.
+Chính sách mới khởi đầu với AI và cấp trial tạm dừng. Trang quản trị dùng credits cho ngân sách và biểu giá.
 
 1. Mở **Ngân sách và quyền dùng thử**. Đặt ngân sách AI riêng cho trial và Starter, giới hạn trial mỗi ngày và tổng credits tài trợ. Bật phần quyền cần mở rồi bấm **Lưu ngân sách**.
 2. Mở **Mã mời** và chọn **Tài khoản và dùng thử**. Tạo mã cho email đã duyệt và gửi mã riêng cho đúng khách. Mỗi mã dùng một lần. Khách chọn **Đăng ký** trong FindLink rồi bấm **Kích hoạt 100 credits dùng thử**.
 3. Mở **Tài khoản và số dư** để kiểm tra gói, credits và hạn. Mục **Tài khoản và thiết bị** cho tạm ngừng quyền chạy, thu hồi trial và xử lý đổi máy. Mục **Xét duyệt trial** xử lý thiết bị đã nhận dùng thử.
-4. Mở **Biểu giá Gemini 3.1 Flash-Lite** để lưu phiên bản giá theo triệu token. Lượt chạy đã cấp quyền giữ biểu giá của lượt đó. Khi phí một yêu cầu chưa rõ, backend giữ dự phòng đến khi có bằng chứng để ghi ở **Đối soát phí AI**.
+4. Mở **Model và biểu giá**. Chọn model đã cấu hình khóa, nhập giá theo credits trên một triệu token và bấm **Áp dụng cho lượt mới**. Lượt đã cấp quyền giữ model và biểu giá của lượt đó. Khi phí chưa rõ, ghi bằng chứng tại **Đối soát phí AI** để xử lý khoản giữ.
 
-Phiên bản này dùng Gemini 3.1 Flash-Lite. Khóa API nằm trong cấu hình server. Trang quản trị thay bảng giá, ngân sách và quyền sử dụng cho model này. DeepSeek nằm ở chặng sau.
+Gemini 3.1 Flash-Lite là model mặc định. DeepSeek Flash có giá theo khung giờ. Dùng giá cao nhất khi cần một mức dự phòng cố định. Sổ chi phí ghi usage theo phiên bản biểu giá đã chọn và dùng hóa đơn nhà cung cấp để đối soát. [Giá Gemini](https://ai.google.dev/gemini-api/docs/pricing) · [Giá DeepSeek](https://api-docs.deepseek.com/quick_start/pricing/)
 
-## 3. Bán và gia hạn Starter qua SePay
+## 4. Bán, gia hạn Starter và nạp credits qua SePay
 
 Starter hiện có giá **23.000.000 ₫/năm** và **50.000 credits**. Hai giá trị là điều khoản cố định của phiên bản này. Trang quản trị theo dõi từng đơn, hạn gói và số dư. Mục **Điều chỉnh credits Starter** cấp thêm credits hoặc hoàn debit AI có lý do.
 
-1. Cấu hình SePay gửi giao dịch tiền vào bằng JSON HMAC-SHA256 tới `/v1/billing/webhooks/sepay`. Dùng Test Mode kiểm tra trước. [Xác thực webhook](https://developer.sepay.vn/vi/sepay-webhooks/xac-thuc) · [SePay Test Mode](https://developer.sepay.vn/en/tien-ich-khac/test-mode/mo-phong-giao-dich)
-2. Khách bấm **Mua Starter** hoặc **Gia hạn Starter** trong ứng dụng và chuyển đúng số tiền với mã đơn `FL…`.
+1. Cấu hình SePay Test Mode gửi tiền vào bằng JSON HMAC-SHA256 tới `/v1/billing/webhooks/sepay` của staging. Sau khi thử thành công, cấu hình webhook Live và tài khoản nhận thật ở production. [Xác thực webhook](https://developer.sepay.vn/vi/sepay-webhooks/xac-thuc) · [SePay Test Mode](https://developer.sepay.vn/en/tien-ich-khac/test-mode/mo-phong-giao-dich)
+2. Khách mở **Gói dịch vụ** và chọn **Mua Starter**, **Gia hạn Starter** hoặc **Nạp credits**. Đặt `FINDLINK_TOPUP_PRICE_VND` để mở gói nạp 10.000 credits. Khách chuyển đúng số tiền với mã đơn `FL…` rồi chọn **Kiểm tra giao dịch**.
 3. Backend xác thực chữ ký, tài khoản nhận, mã đơn, số tiền và thời điểm. Giao dịch hợp lệ cấp quyền và credits một lần. Mục **Đơn hàng và hạn gói** hiện ngày bắt đầu và hết hạn. Gia hạn sớm mở credits mới từ đầu kỳ mới.
 4. Dùng **Đối soát SePay** cho giao dịch ngoại lệ. Sau khi đã hoàn tiền qua ngân hàng, ghi nhận trong quản trị để thu hồi quyền và credits còn lại.
 
-## 4. Phát hành Windows
+## 5. Phát hành Windows
 
 - `npm run dist:starter:qa` tạo bộ cài thử chưa ký trong `release/starter-qa`. Địa chỉ backend mặc định là `http://127.0.0.1:9070`. Có thể đặt `FINDLINK_QA_ORIGIN` khi build.
 - Đặt `FINDLINK_PUBLIC_URL`, `FINDLINK_UPDATE_URL`, `FINDLINK_LEASE_PUBLIC_KEY` và `FINDLINK_SIGNING_PUBLISHER` trong môi trường build chính thức. Dùng `FINDLINK_SIGNING_CERT_SHA1` hoặc `CSC_LINK` cùng mật khẩu chứng chỉ từ kho secrets.

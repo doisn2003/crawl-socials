@@ -100,7 +100,23 @@
   .filter-labels { gap: 2px; font-size: 11px; }
 }
 .wallet-entries { max-height: 45vh; overflow-y: auto; padding-inline-start: 24px; }
-.starter-access { margin: 0 0 20px; padding: 16px 20px; border: 1px solid #d9cbed; border-radius: 14px; background: #f7f1fc; }
-.starter-access .helper { margin: 4px 0 0; }
-.starter-balance { margin: 3px 0 0; font-size: 1.45rem; font-weight: 700; color: #47216e; }
-.starter-access .helper:empty { display: none; }
+.starter-access:not([hidden]) { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 12px 20px; }
+.starter-access { margin-block: 12px; padding: 13px 16px; border: 1px solid #ded3ef; border-radius: 14px; background: #f8f3fd; }
+.starter-balance-label { margin: 0 0 2px; color: #5d4d70; font-size: .8rem; }
+.starter-balance { font-size: 1.4rem; font-weight: 700; color: #47216e; font-variant-numeric: tabular-nums; }
+.starter-access .helper { margin: 0; }
+.starter-service-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+#managed-access-note { flex-basis: 100%; }
+.managed-mode #project-auth-open { display: none; }
+.project-dialog.service-dialog { width: min(620px, calc(100vw - 32px)); }
+.service-heading, .service-topup:not([hidden]) { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.service-heading h2 { margin: 0; }
+.service-account-actions { margin-block: 12px 16px; }
+.service-offers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.service-offer { padding: 14px; border: 1px solid #ded3ef; border-radius: 12px; }
+.service-offer-starter { background: #f8f3fd; }
+.service-offer h3 { margin: 0 0 6px; font-size: .95rem; }
+.service-offer .helper { margin: 6px 0 10px; }
+.service-topup { margin-top: 12px; }
+.service-topup .helper { margin-bottom: 0; }
+@media (max-width: 520px) { .service-offers { grid-template-columns: 1fr; } }

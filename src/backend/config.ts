@@ -9,9 +9,11 @@ export interface BackendConfig {
   leaseKey: KeyObject;
   identityKey: string;
   geminiKey: string | null;
+  deepseekKey?: string | null;
   admin: { token: string; totp: string } | null;
-  sepay: { secret: string; bank: string; account: string; name: string } | null;
+  sepay: { secret: string; bank: string; account: string; name: string; test?: boolean } | null;
   trustLocalProxy: boolean;
+  trustRailwayProxy?: boolean;
   production: boolean;
   topupPriceVnd?: number;
 }
@@ -34,7 +36,7 @@ export function backendConfig(env: NodeJS.ProcessEnv): BackendConfig {
     throw Error('FINDLINK_PUBLIC_URL_INVALID');
   }
   const host = env.FINDLINK_BIND || '127.0.0.1';
-  const port = Number(env.FINDLINK_PORT || '9070');
+  const port = Number(env.FINDLINK_PORT || env.PORT || '9070');
   if (!isIP(host) || !Number.isInteger(port) || port < 1 || port > 65535) throw Error('FINDLINK_BIND_INVALID');
   const encodedKey = env.FINDLINK_LEASE_PRIVATE_KEY;
   if (production && !encodedKey) throw Error('FINDLINK_LEASE_PRIVATE_KEY_REQUIRED');
@@ -48,18 +50,24 @@ export function backendConfig(env: NodeJS.ProcessEnv): BackendConfig {
   if (admin && (!/^[a-f0-9]{64}$/.test(admin.token) || !/^[A-Z2-7]{32,128}$/.test(admin.totp))) {
     throw Error('FINDLINK_ADMIN_CONFIG_INVALID');
   }
-  const sepay = env.FINDLINK_SEPAY_WEBHOOK_SECRET || production ? {
+  const sepayMode = env.FINDLINK_SEPAY_MODE ?? (env.FINDLINK_SEPAY_WEBHOOK_SECRET ? 'live' : 'disabled');
+  if (!['disabled', 'test', 'live'].includes(sepayMode)) throw Error('FINDLINK_SEPAY_MODE_INVALID');
+  if (production && env.RAILWAY_ENVIRONMENT_NAME === 'production' && sepayMode === 'test') throw Error('FINDLINK_SEPAY_TEST_REQUIRES_STAGING');
+  const sepay = sepayMode !== 'disabled' ? {
     secret: required(env, 'FINDLINK_SEPAY_WEBHOOK_SECRET'), bank: required(env, 'FINDLINK_SEPAY_BANK'),
     account: required(env, 'FINDLINK_SEPAY_ACCOUNT'), name: required(env, 'FINDLINK_SEPAY_ACCOUNT_NAME'),
+    ...(sepayMode === 'test' ? { test: true } : {}),
   } : null;
   if (sepay && (sepay.secret.length < 16 || !/^\d{6,30}$/.test(sepay.account) || sepay.bank.length > 40 || sepay.name.length > 100)) {
     throw Error('FINDLINK_SEPAY_CONFIG_INVALID');
   }
-  const geminiKey = production ? required(env, 'FINDLINK_GEMINI_API_KEY') : env.FINDLINK_GEMINI_API_KEY?.trim() || null;
+  const geminiKey = env.FINDLINK_GEMINI_API_KEY?.trim() || null;
+  const deepseekKey = env.FINDLINK_DEEPSEEK_API_KEY?.trim() || null;
   const topupPriceVnd = env.FINDLINK_TOPUP_PRICE_VND ? Number(env.FINDLINK_TOPUP_PRICE_VND) : undefined;
   if (topupPriceVnd !== undefined && (!Number.isSafeInteger(topupPriceVnd) || topupPriceVnd <= 0 || topupPriceVnd > 100_000_000)) throw Error('TOPUP_PRICE_INVALID');
   return { production, databaseUrl: required(env, 'DATABASE_URL'), origin: endpoint.origin, host, port,
-    leaseKey, identityKey, geminiKey, admin, sepay, trustLocalProxy: env.FINDLINK_TRUST_LOCAL_PROXY === '1',
+    leaseKey, identityKey, geminiKey, deepseekKey, admin, sepay, trustLocalProxy: env.FINDLINK_TRUST_LOCAL_PROXY === '1',
+    trustRailwayProxy: !!env.RAILWAY_ENVIRONMENT_ID && env.FINDLINK_TRUST_RAILWAY_PROXY === '1',
     ...(topupPriceVnd === undefined ? {} : { topupPriceVnd }) };
 }
 

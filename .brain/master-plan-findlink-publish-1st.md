@@ -1,6 +1,6 @@
 # FindLink — kế hoạch phân phối và quản lý thuê bao lần đầu
 
-Nghiên cứu ngày 10/11/2026, múi giờ Asia/Bangkok. Nhánh `findlink-publish-1st` được tạo từ `bac9399` trước khi nghiên cứu. Backend và Starter MVP chạy được trong môi trường thử. Xem cách mở bản thử và các điều kiện mở bán ở mục 12.
+Nghiên cứu ngày 10/11/2026, múi giờ Asia/Bangkok. Nhánh `findlink-publish-1st` được tạo từ `bac9399` trước khi nghiên cứu. Mục 12 ghi kết quả kiểm thử Starter và trạng thái triển khai.
 
 Cập nhật 11/11/2026 theo yêu cầu người dùng: hết trial phải khóa cả thu thập và lọc, vẫn xem/export dữ liệu cũ; bổ sung chống tạo nhiều tài khoản lấy credits tài trợ. Luồng cấp trial ở mục 5 thay thế đề xuất tự cấp 20 credits cho guest và 100 credits chỉ sau xác minh tài khoản trước đây.
 
@@ -353,7 +353,7 @@ API đề xuất: `/auth/*`, `/guest/claim`, `/me/entitlements`, `/wallet`, `/us
 | P4, 7–10 ngày | Demo guest, trial theo mã mời, eligibility/rate limits, thanh toán và admin xét duyệt | Không cấp trial/payment đôi; hết trial khóa collect/plan/assess kể cả OFF; export cũ luôn hoạt động; công tắc và cap tài trợ có hiệu lực. |
 | P5, 3–5 ngày | Signed installer/update, secret scan, backup/recovery release | Clean install/update/recovery trên dữ liệu cách ly, migration không mất lịch sử, signing xác minh được. |
 | Pilot, khoảng 2 tuần theo mức sử dụng | Nhóm khách nhỏ, đo chi phí và độ hữu ích | Có chi phí/activation/support thực; chỉ mở rộng khi số liệu đáp ứng mục tiêu. |
-| Sau MVP | Public trial 20 + 80/OTP nếu kinh tế phù hợp; DeepSeek adapter, A/B chất lượng; membership/Agency; Scale | Public trial qua abuse/OTP/budget tests và đo chặn nhầm trước khi mở; mỗi route/gói qua gate riêng. |
+| Sau MVP | Public trial 20 + 80/OTP nếu kinh tế phù hợp, đo chất lượng DeepSeek, membership/Agency và Scale | Public trial qua abuse/OTP/budget tests và đo chặn nhầm trước khi mở. Từng model và gói qua kiểm thử riêng. |
 
 Không cần chặn MVP vào việc có hai provider. Hoàn tất server/Gemini trước; route abstraction giúp thêm DeepSeek sau mà không phân phối key. Nếu scope thương mại yêu cầu Agency ngay, đưa membership, quyền project và nhiều thiết bị vào trước pilot và cập nhật ước lượng.
 
@@ -379,16 +379,18 @@ Kiểm thử bắt buộc bằng mocks/local trước release:
 
 ## 12. Kết quả triển khai Starter MVP
 
-Chạy `npm run starter:preview` trên Windows để mở **FindLink Starter — Bản thử** và **Quản trị FindLink Starter — Bản thử**. Bản thử dùng PostgreSQL riêng, tự kích hoạt tài khoản mẫu có 100 credits và mô phỏng Gemini/SePay. Bộ cài Starter QA mặc định cần backend ở `127.0.0.1:9070`. `npm start` mở bản nội bộ. [Các thao tác để tự kiểm tra](../README.md#mở-thử-starter-trên-máy-này)
+Chạy `npm run starter:preview` trên Windows để mở **FindLink Starter — Bản thử** và **Quản trị FindLink Starter — Bản thử**. Bản thử dùng PostgreSQL riêng, tự kích hoạt tài khoản mẫu có 100 credits và mô phỏng AI cùng SePay. Số dư nằm trong khu vực Projects. Nút **Gói dịch vụ** mở danh sách gói, đăng ký, kích hoạt trial, mua, gia hạn, nạp và lịch sử credits. [Cách tự kiểm tra](../README.md#mở-thử-starter-trên-máy-này)
 
 | Phần của kế hoạch | Chức năng đã có |
 |---|---|
 | Quản lý từ xa | Tài khoản, mã mời, thiết bị, quyền chạy ngắn hạn và công tắc ngừng AI/trial. Trang quản trị xem được tài khoản, số dư, đơn và hạn gói. |
-| Credits và AI | Backend giữ khóa Gemini 3.1 Flash-Lite. Ví giữ và trừ credits theo usage, tỷ lệ 1 USD = 1.000 credits. Admin quản lý biểu giá theo phiên bản, quỹ AI và khoản chờ đối soát. |
+| Credits và AI | Backend đọc khóa dịch vụ từ biến máy chủ. Admin chọn Gemini 3.1 Flash-Lite hoặc DeepSeek Flash và lưu biểu giá cho lượt mới. Lượt đang có giữ model và biểu giá đã cấp. Ví giữ và trừ credits theo usage với tỷ lệ 1 USD = 1.000 credits. |
 | Trial | Mã mời theo email và dùng một lần, xét duyệt thiết bị dùng lại, cap tổng. Tối đa 100 credits, 14 ngày, 1.000 bài gốc. Hết quyền khóa thu thập, lọc và Resume. Vẫn xem và export kết quả cũ. |
 | Starter | Giá cố định 23.000.000 ₫/năm và 50.000 credits. Webhook SePay xác thực trước khi cấp gói. Hỗ trợ gia hạn, nạp thêm theo giá cấu hình, đối soát và ghi nhận hoàn tiền. |
 | Sao lưu và đóng gói | Migration `findlink_control` phiên bản 1 đã áp dụng lên database trong `.env`. Backup mới gửi cấu hình, prompt, preset và JSON kết quả. Có bộ cài QA và quy trình build Windows có chữ ký. |
 
-Kiểm thử giao diện bản thử đi qua kích hoạt 100 credits, gọi AI mô phỏng và thấy debit, tạo đơn SePay mô phỏng rồi nhận 50.000 credits. Trang quản trị hiện giao dịch đã xác nhận. PostgreSQL thật hiện có schema, còn AI và trial ở trạng thái tạm dừng cho đến khi thiết lập ngân sách vận hành.
+Kiểm thử trên PostgreSQL cách ly đã xác minh khóa trial, chống cấp trùng, giao dịch SePay mô phỏng, đổi model, giữ biểu giá của lượt cũ, khôi phục bản sao lưu và export dữ liệu đã lưu. Kiểm thử giao diện qua **Gói dịch vụ** kích hoạt 100 credits, ghi phí AI mô phỏng, mua Starter nhận 50.000 credits rồi nạp đến 60.000 credits.
 
-Để mở bán cần đưa backend và feed cập nhật lên HTTPS, cấu hình khóa Gemini và tài khoản SePay, chạy SePay Test Mode với cấu hình đó rồi ký và thử nâng cấp bộ cài Windows. Đăng ký public 20 + 80, DeepSeek, Agency và Scale thuộc chặng sau. [Hướng dẫn quản trị và triển khai](../deploy/README.md)
+Ngày 12/11/2026, 1.123 kiểm thử hồi quy, kiểm thử backend trên PostgreSQL cách ly và kiểm thử main/preload/renderer trong bộ cài QA 0.5.1 đã qua. Backend khởi động được với `NODE_ENV=production` trong môi trường cách ly. Bản QA kết nối địa chỉ staging và chưa ký Authenticode.
+
+Railway đã có service `findlink-api`, hai môi trường và database staging riêng. Migration staging đã ghi phiên bản 1. Lần kiểm tra HTTPS staging gần nhất trả 404 tại `/healthz`. Điều kiện mở bán gồm xác minh backend production qua HTTPS, cấu hình khóa dịch vụ và ngân sách, xác minh SePay Test Mode rồi Live, ký bộ cài Windows và kiểm tra cập nhật qua feed HTTPS. Đăng ký public 20 + 80, Agency và Scale thuộc chặng sau. [Hướng dẫn quản trị và triển khai](../deploy/README.md)

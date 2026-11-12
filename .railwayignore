@@ -1,0 +1,16 @@
+.env*
+**/.env*
+**/*.env
+/.brain/
+/.tmp*/
+/.test-build*/
+/artifacts/
+/data/
+/dist/
+/node_modules/
+/release/
+/secrets/
+**/*.pfx
+**/*.pem
+**/*.key
+**/*.log

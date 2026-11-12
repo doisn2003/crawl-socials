@@ -1,5 +1,5 @@
 import { createPublicKey, verify, type KeyObject } from 'node:crypto';
-import type { ManagedLease, ManagedScope, ManagedStatus, SignedLease } from '../../shared/managed.js';
+import { isManagedModel, type ManagedLease, type ManagedScope, type ManagedStatus, type SignedLease } from '../../shared/managed.js';
 import { sha256 } from '../projects/snapshot.js';
 import { ManagedHttpError, type ManagedClient } from './client.js';
 
@@ -36,7 +36,7 @@ export function createRunAccess(client: ManagedClient, projectId: string, onDeni
         lease.projectId !== projectId || lease.accountId !== client.identity()?.id || lease.deviceId !== client.deviceId() ||
         lease.runId !== expected.runId || lease.scope !== expected.scope ||
         (expected.id && lease.id !== expected.id) || !Number.isSafeInteger(lease.expiresAt) || !Number.isSafeInteger(lease.issuedAt) ||
-        lease.expiresAt <= lease.issuedAt || lease.expiresAt - lease.issuedAt > 120_000 || lease.model !== 'gemini-3.1-flash-lite') {
+        lease.expiresAt <= lease.issuedAt || lease.expiresAt - lease.issuedAt > 120_000 || !isManagedModel(lease.model)) {
       throw Error('RUN_LEASE_SIGNATURE_INVALID');
     }
     const deadline = at + lease.expiresAt - lease.issuedAt;
@@ -101,6 +101,7 @@ export function createRunAccess(client: ManagedClient, projectId: string, onDeni
 
   return {
     begin, reason,
+    model(runId: string) { return active?.lease.runId === runId ? active.lease.model : undefined; },
     interrupt() { if (active || acquiring) deny('ENTITLEMENT_UNAVAILABLE'); },
     async preflight() {
       const state = await client.json<ManagedStatus>('/v1/me/entitlements');
