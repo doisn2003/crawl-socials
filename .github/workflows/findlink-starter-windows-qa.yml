@@ -1,0 +1,81 @@
+name: FindLink Starter Windows QA
+
+on:
+  push:
+    branches: [findlink-publish-1st]
+    paths:
+      - '.github/workflows/findlink-starter-windows-qa.yml'
+      - '.node-version'
+      - 'package*.json'
+      - 'src/**'
+      - 'scripts/**'
+      - 'tsconfig*.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: starter-windows-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Build two QA installers
+        shell: pwsh
+        run: |
+          foreach ($version in @('0.5.4', '0.5.5')) {
+            $env:FINDLINK_STARTER_VERSION = $version
+            npm run dist:starter:qa
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Verify Windows install, upgrade and reinstall
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:RUNNER_TEMP ('findlink-starter-qa-' + [guid]::NewGuid().ToString('N'))
+          $executable = Join-Path $installDir 'FindLink Starter QA.exe'
+          $uninstaller = Join-Path $installDir 'Uninstall FindLink Starter QA.exe'
+          $appData = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'FindLink Starter QA'
+
+          function Install-Qa([string] $Version, [switch] $Update) {
+            $setup = (Resolve-Path -LiteralPath "release/starter-qa/FindLink-Starter-QA-$Version-Setup.exe").Path
+            $flags = if ($Update) { '/S --updated' } else { '/S' }
+            $process = Start-Process -FilePath $setup -ArgumentList "$flags /D=$installDir" -WindowStyle Hidden -Wait -PassThru
+            if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'QA_INSTALL_FAILED' }
+            $env:FINDLINK_STARTER_VERSION = $Version
+            $entry = Join-Path $installDir 'resources/app.asar/dist/main/index.js'
+            node scripts/starter-desktop-smoke.mjs "--module=$entry"
+            if ($LASTEXITCODE -ne 0) { throw 'QA_INSTALLED_DESKTOP_SMOKE_FAILED' }
+          }
+
+          function Uninstall-Qa {
+            $process = Start-Process -FilePath $uninstaller -ArgumentList '/S' -WindowStyle Hidden -Wait -PassThru
+            if ($process.ExitCode -ne 0 -or (Test-Path -LiteralPath $executable)) { throw 'QA_UNINSTALL_FAILED' }
+          }
+
+          if (Test-Path -LiteralPath $appData) { throw 'QA_APPDATA_ALREADY_EXISTS' }
+          Install-Qa '0.5.4'
+          $fixture = Join-Path $appData 'csd-desktop/data/collections/crawl-qa/results.json'
+          New-Item -ItemType Directory -Path (Split-Path -Parent $fixture) -Force | Out-Null
+          Set-Content -LiteralPath $fixture -Value '{"facebook":[{"post_id":"qa-retained-post"}],"threads":[]}' -Encoding utf8
+          $expectedHash = (Get-FileHash -LiteralPath $fixture).Hash
+
+          function Assert-ResultsPreserved {
+            if ((Get-FileHash -LiteralPath $fixture).Hash -ne $expectedHash) { throw 'QA_SAVED_RESULTS_CHANGED' }
+          }
+
+          Install-Qa '0.5.5' -Update
+          Assert-ResultsPreserved
+          Uninstall-Qa
+          Assert-ResultsPreserved
+          Install-Qa '0.5.5'
+          Assert-ResultsPreserved
+          Write-Output 'STARTER_WINDOWS_INSTALL_UPGRADE_REINSTALL_PASSED'

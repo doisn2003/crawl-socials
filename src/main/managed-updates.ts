@@ -27,17 +27,17 @@ export function managedUpdates(feed: string, publisher: string) {
   assertStarterUpdateConfig(configuration, { url: url.href, publisher });
   const { autoUpdater, NsisUpdater } = updater;
   if (!(autoUpdater instanceof NsisUpdater)) throw Error('UPDATE_TARGET_INVALID');
-  autoUpdater.setFeedURL({ provider: 'generic', url: url.href, channel: 'latest' });
+  autoUpdater.setFeedURL({ provider: 'generic', url: url.href, channel: 'latest', useMultipleRangeRequest: false });
   autoUpdater.logger = null;
   autoUpdater.allowDowngrade = false;
   autoUpdater.allowPrerelease = false;
   autoUpdater.disableWebInstaller = true;
-  autoUpdater.autoDownload = true;
+  autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
   const signedByPublisher = (file: string) => hasStarterSignature(file, publisher).catch(() => false);
   autoUpdater.verifyUpdateCodeSignature = async (_names, file) => (await signedByPublisher(file)) ? null : 'UPDATE_SIGNATURE_INVALID';
   let verifiedFile: string | null = null;
-  let generation = 0, closed = false;
+  let generation = 0, closed = false, checking = false;
   autoUpdater.on('update-downloaded', event => {
     if (closed) return;
     const current = ++generation;
@@ -49,7 +49,17 @@ export function managedUpdates(feed: string, publisher: string) {
     });
   });
   autoUpdater.on('error', () => {});
-  const check = () => { if (!verifiedFile && !closed) void autoUpdater.checkForUpdates().catch(() => {}); };
+  async function check() {
+    if (verifiedFile || closed || checking) return;
+    checking = true;
+    try {
+      const update = await autoUpdater.checkForUpdates();
+      if (closed || !update?.isUpdateAvailable) return;
+      readStarterFeed(JSON.stringify(update.updateInfo));
+      await autoUpdater.downloadUpdate(update.cancellationToken);
+    } catch { /* Leave the current version running if the feed or download fails. */ }
+    finally { checking = false; }
+  }
   const first = setTimeout(check, 5000), interval = setInterval(check, 6 * 60 * 60_000);
   first.unref(); interval.unref();
   return {

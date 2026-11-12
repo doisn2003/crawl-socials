@@ -22,6 +22,7 @@ Tạo một tệp cấu hình riêng theo [.env.example](../.env.example). Cất
 | Quản trị | `FINDLINK_ADMIN_TOKEN` gồm 64 ký tự hex. Thêm `FINDLINK_ADMIN_TOTP_SECRET` dạng Base32 vào trình xác thực TOTP, chu kỳ 30 giây, 6 chữ số, HMAC-SHA1. |
 | Quyền chạy | `FINDLINK_IDENTITY_SECRET` là khóa hex ổn định để đối chiếu thiết bị, trial và dẫn xuất khóa mã hóa API Starter. Giữ giá trị này khi chuyển database sang máy chủ khác. `FINDLINK_LEASE_PRIVATE_KEY` là khóa Ed25519 PKCS#8 PEM mã hóa base64. Giữ private key ở server và cung cấp public key SPKI DER mã hóa base64 cho máy build Windows. |
 | Gói nạp thêm | Đặt `FINDLINK_TOPUP_PRICE_VND` nếu bán thêm gói 10.000 credits. |
+| Tải FindLink Starter | Đặt `FINDLINK_STARTER_RELEASE_REPO` cho kho GitHub public chứa bộ cài. Đặt `FINDLINK_STARTER_RELEASE_VERSION` khi sẵn sàng mở phiên bản đã xác minh. |
 
 Trong trình duyệt Codex, mở service `findlink-api` ở môi trường staging. Khi nhánh `findlink-publish-1st` đã có trên GitHub, dùng **Settings → Source → Connect Repo** và chọn nhánh đó. Railway dùng `Dockerfile` ở gốc repo. Trong **Settings**, đặt **Pre-deploy Command** là `node dist/backend/index.js --migrate`, **Healthcheck Path** là `/healthz` và thời gian chờ là 120 giây. [Nguồn triển khai Railway](https://docs.railway.com/services#service-source) · [Lệnh trước deploy](https://docs.railway.com/deployments/pre-deploy-command) · [Cấu hình hạ tầng trong repo](../.railway/railway.ts)
 
@@ -36,7 +37,7 @@ npm run backend:migrate
 npm run backend:start
 ```
 
-Migration tạo schema `findlink_control` và nâng lên phiên bản 2 để thêm dấu cài đặt Windows cho trial. Giữ và sao lưu nhất quán hai schema `csd_backup` và `findlink_control`. Nếu tách role, dùng role migration để cập nhật schema và role runtime có quyền USAGE, đọc/ghi bảng và sequence liên quan.
+Migration tạo schema `findlink_control`. Phiên bản 2 thêm dấu cài đặt Windows cho trial. Phiên bản 3 bổ sung khóa Starter mã hóa và biểu giá riêng cho trial. Giữ và sao lưu nhất quán hai schema `csd_backup` và `findlink_control`. Nếu tách role, dùng role migration để cập nhật schema và role runtime có quyền USAGE, đọc/ghi bảng và sequence liên quan.
 
 Có thể dùng [Compose](compose.yaml) với Caddy. Đặt `FINDLINK_DOMAIN` và tạo `deploy/findlink.env`. Chạy migration rồi khởi động dịch vụ.
 
@@ -77,7 +78,16 @@ Starter hiện có giá **23.000.000 ₫/năm** và **50.000 credits**. Hai giá
 - `npm run dist:starter:qa` tạo bộ cài thử chưa ký trong `release/starter-qa`. Địa chỉ backend mặc định là `http://127.0.0.1:9070`. Có thể đặt `FINDLINK_QA_ORIGIN` khi build.
 - Đặt `FINDLINK_PUBLIC_URL`, `FINDLINK_UPDATE_URL`, `FINDLINK_LEASE_PUBLIC_KEY` và `FINDLINK_SIGNING_PUBLISHER` trong môi trường build chính thức. Lấy `leasePublicKey` từ `/v1/config` của chính backend production. Dùng `FINDLINK_SIGNING_CERT_SHA1` hoặc `CSC_LINK` cùng mật khẩu chứng chỉ từ kho secrets.
 - Chạy `npm run dist:starter` trên Windows. Lệnh kiểm chữ ký của FindLink và installer, kiểm publisher trong `app-update.yml`, rồi tạo `release/starter-feed/<version>` chứa installer, blockmap và `latest.yml`. Dùng phiên bản cao hơn khi phát hành bản sửa.
-- Đưa hai tệp theo phiên bản lên feed HTTPS trước, rồi đưa `latest.yml` lên sau. Với Caddy trong repo, đặt tệp vào `deploy/downloads/windows` và dùng `https://<domain>/downloads/windows/` cho `FINDLINK_UPDATE_URL`.
-- Chạy `npm run verify:starter-feed` bằng cấu hình build để so tệp HTTPS với gói đã ký và kiểm tra HTTP Range. Thử cài mới và cập nhật từ phiên bản trước trên máy QA. [Cập nhật tự động electron-builder v26](https://www.electron.build/v26/docs/features/auto-update/)
+
+### Feed HTTPS trên Railway
+
+1. Dùng `https://findlink-api-production.up.railway.app/downloads/windows/` làm `FINDLINK_UPDATE_URL` khi build bản production. Đặt `FINDLINK_STARTER_RELEASE_REPO=doisn2003/crawl-socials` trong Railway.
+2. Tạo bản nháp GitHub Release với tag `findlink-starter-v<version>` trỏ tới commit đã build. Tải lên cả ba tệp từ `release/starter-feed/<version>`, rồi công bố bản GitHub Release đã ký. Giữ tệp theo tag cố định để bản cũ vẫn tải được blockmap. [Quản lý GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)
+3. Chạy `npm run verify:starter-feed` với `FINDLINK_UPDATE_URL` trỏ tới `https://github.com/doisn2003/crawl-socials/releases/download/findlink-starter-v<version>/`. Lệnh so checksum, metadata và HTTP Range với bản đã ký trên máy build.
+4. Đặt `FINDLINK_STARTER_RELEASE_VERSION=<version>` trên Railway. Chạy lại `npm run verify:starter-feed` với địa chỉ production ở bước 1. Đường `/downloads/windows/` mở bộ cài hiện tại. Desktop lấy `latest.yml` từ cùng địa chỉ. Dùng version cao hơn cho bản sửa.
+
+Nếu vận hành bằng Caddy, đặt tệp trong `deploy/downloads/windows`, đưa installer và blockmap lên trước `latest.yml` và dùng `https://<domain>/downloads/windows/` làm feed.
+
+Workflow [FindLink Starter Windows QA](../.github/workflows/findlink-starter-windows-qa.yml) kiểm tra cài mới, nâng cấp, gỡ và cài lại trên máy Windows sạch. Kiểm tra thêm cài mới và tự cập nhật **bằng bộ cài đã ký** từ feed HTTPS trước khi mở bán. [Cập nhật tự động electron-builder v26](https://www.electron.build/v26/docs/features/auto-update/)
 
 Trước khi mở bán, kiểm tra `npm test`, `npm run backend:test -- --env=.env`, luồng SePay Test Mode, giá và hạn mức Gemini, cài mới/cập nhật có chữ ký, và khôi phục dữ liệu trên máy QA. Bài tích hợp trong repo dùng PostgreSQL cách ly và dịch vụ mô phỏng.

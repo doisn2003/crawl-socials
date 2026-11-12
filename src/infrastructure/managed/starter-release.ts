@@ -2,6 +2,23 @@ import { JSON_SCHEMA, load } from 'js-yaml';
 
 const maxMetadataBytes = 64 * 1024;
 const releaseVersion = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
+const releaseInstaller = /^FindLink-Starter-([\d.]+)-Setup\.exe(?:\.blockmap)?$/;
+
+export function isStarterReleaseVersion(version: unknown): version is string {
+  return typeof version === 'string' && releaseVersion.test(version)
+    && version.split('.').every(part => Number.isSafeInteger(Number(part)));
+}
+
+export function starterReleaseAsset(version: string, filename: string) {
+  const installer = `FindLink-Starter-${version}-Setup.exe`;
+  if (filename === '') return { version, filename: installer };
+  if (filename === 'latest.yml') return { version, filename };
+  const requested = releaseInstaller.exec(filename)?.[1];
+  if (!isStarterReleaseVersion(requested)) return null;
+  const current = version.split('.').map(Number);
+  const difference = requested.split('.').map((part, index) => Number(part) - current[index]!).find(value => value !== 0);
+  return (difference ?? 0) <= 0 ? { version: requested, filename } : null;
+}
 
 function object(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -37,7 +54,7 @@ export function assertStarterUpdateConfig(source: string, expected: { url: strin
 export function readStarterFeed(source: string, expectedVersion?: string) {
   const data = readMetadata(source, 'RELEASE_UPDATE_METADATA_INVALID');
   const version = data.version;
-  if (typeof version !== 'string' || !releaseVersion.test(version) || (expectedVersion && version !== expectedVersion)) {
+  if (!isStarterReleaseVersion(version) || (expectedVersion && version !== expectedVersion)) {
     throw Error('RELEASE_UPDATE_VERSION_INVALID');
   }
   const filename = `FindLink-Starter-${version}-Setup.exe`;

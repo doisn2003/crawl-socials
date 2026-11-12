@@ -1,5 +1,6 @@
 import { createPrivateKey, createPublicKey, generateKeyPairSync, type KeyObject } from 'node:crypto';
 import { isIP } from 'node:net';
+import { isStarterReleaseVersion } from '../infrastructure/managed/starter-release.js';
 
 export interface BackendConfig {
   databaseUrl: string;
@@ -16,6 +17,7 @@ export interface BackendConfig {
   trustRailwayProxy?: boolean;
   production: boolean;
   topupPriceVnd?: number;
+  starterRelease?: { repository: string; version: string };
 }
 
 function required(env: NodeJS.ProcessEnv, name: string) {
@@ -65,10 +67,14 @@ export function backendConfig(env: NodeJS.ProcessEnv): BackendConfig {
   const trialDeepseekKey = (env.FINDLINK_TRIAL_DEEPSEEK_API_KEY ?? env.FINDLINK_DEEPSEEK_API_KEY)?.trim() || null;
   const topupPriceVnd = env.FINDLINK_TOPUP_PRICE_VND ? Number(env.FINDLINK_TOPUP_PRICE_VND) : undefined;
   if (topupPriceVnd !== undefined && (!Number.isSafeInteger(topupPriceVnd) || topupPriceVnd <= 0 || topupPriceVnd > 100_000_000)) throw Error('TOPUP_PRICE_INVALID');
+  const repository = env.FINDLINK_STARTER_RELEASE_REPO?.trim(), version = env.FINDLINK_STARTER_RELEASE_VERSION?.trim();
+  if (repository && !/^[a-zA-Z0-9-]{1,39}\/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,99}$/.test(repository)) throw Error('FINDLINK_STARTER_RELEASE_REPO_INVALID');
+  if (version && (!repository || !isStarterReleaseVersion(version))) throw Error('FINDLINK_STARTER_RELEASE_VERSION_INVALID');
   return { production, databaseUrl: required(env, 'DATABASE_URL'), origin: endpoint.origin, host, port,
     leaseKey, identityKey, trialGeminiKey, trialDeepseekKey, admin, sepay, trustLocalProxy: env.FINDLINK_TRUST_LOCAL_PROXY === '1',
     trustRailwayProxy: !!env.RAILWAY_ENVIRONMENT_ID && env.FINDLINK_TRUST_RAILWAY_PROXY === '1',
-    ...(topupPriceVnd === undefined ? {} : { topupPriceVnd }) };
+    ...(topupPriceVnd === undefined ? {} : { topupPriceVnd }),
+    ...(repository && version ? { starterRelease: { repository, version } } : {}) };
 }
 
 export const publicLeaseKey = (key: KeyObject) => createPublicKey(key).export({ type: 'spki', format: 'der' }).toString('base64');

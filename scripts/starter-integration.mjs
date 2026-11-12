@@ -121,6 +121,23 @@ try {
   const status = (c, id) => c.json('/v1/ai/operations/' + id);
 
   assert.equal((await request('/healthz',200)).ok,true);
+  const download = (path, method = 'GET') => fetch(origin + '/downloads/windows' + path, { method, redirect: 'manual' });
+  assert.equal((await download('/latest.yml')).status,404);
+  fake.starterRelease = { repository:'fixture/FindLink', version:'0.5.5' };
+  for (const [path, method, version, filename] of [
+    ['', 'GET', '0.5.5', 'FindLink-Starter-0.5.5-Setup.exe'],
+    ['/latest.yml?noCache=1', 'GET', '0.5.5', 'latest.yml'],
+    ['/FindLink-Starter-0.5.4-Setup.exe.blockmap', 'HEAD', '0.5.4', 'FindLink-Starter-0.5.4-Setup.exe.blockmap'],
+  ]) {
+    const result = await download(path, method);
+    assert.equal(result.status,307);
+    assert.equal(result.headers.get('cache-control'),'no-store');
+    assert.equal(result.headers.get('location'),`https://github.com/fixture/FindLink/releases/download/findlink-starter-v${version}/${filename}`);
+  }
+  assert.equal((await download('/FindLink-Starter-0.5.6-Setup.exe')).status,404);
+  assert.equal((await download('/other.exe')).status,404);
+  delete fake.starterRelease;
+  console.log('PASS HTTPS release alias, versioned blockmaps and unpublished release protection');
   const otp = totp(fake.admin.totp,Math.floor(Date.now()/30_000));
   administrator = (await request('/v1/admin/session',200,{ method: 'POST', json: { token: fake.admin.token, otp } })).token;
   await request('/v1/admin/session',401,{ method: 'POST',json:{ token: fake.admin.token,otp } });

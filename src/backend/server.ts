@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { isIP } from 'node:net';
 import { readFile } from 'node:fs/promises';
 import type { Pool } from 'pg';
+import { starterReleaseAsset } from '../infrastructure/managed/starter-release.js';
 import { createAdmin } from './admin.js';
 import { createAuth } from './auth.js';
 import { backupPath, createBackup, MAX_BACKUP_FILE } from './backup.js';
@@ -13,6 +14,7 @@ import { createEntitlements } from './entitlements.js';
 import { createModelQueue } from './model.js';
 
 const jsonMax = 192 * 1024;
+const windowsDownloads = '/downloads/windows';
 const routes = {
   '/admin': ['admin.html','text/html; charset=utf-8'],
   '/admin/console.js': ['admin-console.js','text/javascript; charset=utf-8'],
@@ -71,6 +73,16 @@ export function createBackend(pool: Pool, config: BackendConfig, options: { tran
     const url = new URL(req.url, config.origin), path = url.pathname, method = req.method;
     const reply = (value: unknown, status = 200) => send(res, status, value);
     const body = (max?: number) => json(req, max);
+    if ((method === 'GET' || method === 'HEAD') && (path === windowsDownloads || path.startsWith(windowsDownloads + '/'))) {
+      const release = config.starterRelease;
+      const filename = path.slice(windowsDownloads.length + 1);
+      const asset = release && starterReleaseAsset(release.version, filename);
+      if (!release || !asset) throw new ApiError(404, 'STARTER_RELEASE_UNAVAILABLE');
+      const location = `https://github.com/${release.repository}/releases/download/findlink-starter-v${asset.version}/${asset.filename}`;
+      res.writeHead(307, { Location: location });
+      res.end();
+      return;
+    }
     if (method === 'GET' && path === '/healthz') {
       const ready = await pool.query('SELECT version FROM findlink_control.migrations WHERE version=$1', [CONTROL_SCHEMA_VERSION]);
       if (!ready.rowCount) throw new ApiError(503,'BACKEND_MIGRATION_REQUIRED');

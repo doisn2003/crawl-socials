@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { assertStarterUpdateConfig, readStarterFeed, starterUpdateUrl } from '../src/infrastructure/managed/starter-release.js';
+import { assertStarterUpdateConfig, readStarterFeed, starterReleaseAsset, starterUpdateUrl } from '../src/infrastructure/managed/starter-release.js';
 
 const url = 'https://findlink.example/downloads/windows/';
 const publisher = 'FindLink Publisher';
@@ -33,4 +33,15 @@ test('the Starter feed identifies exactly one versioned public installer', () =>
   ]) assert.throws(() => readStarterFeed(JSON.stringify({ ...info, files: [file] })), /RELEASE_UPDATE_METADATA_INVALID/);
   assert.throws(() => readStarterFeed(JSON.stringify({ ...info, files: [...info.files, ...info.files] })), /RELEASE_UPDATE_METADATA_INVALID/);
   assert.throws(() => readStarterFeed(JSON.stringify({ ...info, sha512: 'stale' })), /RELEASE_UPDATE_METADATA_INVALID/);
+});
+
+test('the Windows download path serves the active release and older blockmaps by numeric version', () => {
+  const version = '0.10.0';
+  assert.deepEqual(starterReleaseAsset(version, ''), { version, filename: 'FindLink-Starter-0.10.0-Setup.exe' });
+  assert.deepEqual(starterReleaseAsset(version, 'latest.yml'), { version, filename: 'latest.yml' });
+  assert.deepEqual(starterReleaseAsset(version, filename + '.blockmap'), { version: '0.5.1', filename: filename + '.blockmap' });
+  for (const invalid of ['FindLink-Starter-0.10.1-Setup.exe', 'FindLink-Starter-00.1.1-Setup.exe',
+    'FindLink-Starter-QA-0.10.0-Setup.exe', 'FindLink-Starter-0.0.0-Setup.exe%2F..', 'https://other.example/latest.yml']) {
+    assert.equal(starterReleaseAsset(version, invalid), null);
+  }
 });
