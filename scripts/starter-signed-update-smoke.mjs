@@ -113,6 +113,7 @@ const runId = 'crawl-' + randomUUID(), profileId = 'csd-' + randomUUID();
 const dataDir = join(appData, 'data'), outputDirectory = join(dataDir, 'collections', runId);
 const results = JSON.stringify({ facebook: [{ post_id: 'signed-update-fixture', text: 'Bài đã lưu trước khi cập nhật.' }], threads: [] });
 const children = [];
+let phase = 'build';
 try {
   server.listen(0, 'localhost');
   await once(server, 'listening');
@@ -127,9 +128,11 @@ try {
     for (const name of [metadata.filename, metadata.blockmapName]) files.set('/downloads/windows/' + name, join(directory, name));
   }
   files.set('/downloads/windows/latest.yml', join(feedRoot, to, 'latest.yml'));
+  phase = 'hosted feed';
   await verifyHostedStarterFeed(feed, await inspectStarterFeed(join(feedRoot, to), to));
   checks = downloads = 0;
 
+  phase = 'initial install';
   execFileSync(join(feedRoot, from, `FindLink-Starter-${from}-Setup.exe`), ['/S', '/D=' + installDir],
     { windowsVerbatimArguments: true, windowsHide: true, timeout: 120_000 });
   assert.equal(installedVersion(), from);
@@ -151,12 +154,15 @@ try {
   const original = await launchApp();
   children.push(original.child);
   await verifySavedRun(original, from);
+  phase = 'update download';
   await original.run("document.getElementById('managed-service-open').click()");
   await waitFor(() => original.run("!document.getElementById('managed-update').hidden && !document.getElementById('managed-update').disabled"),
     'SIGNED_UPDATE_BUTTON_NOT_READY', 150_000);
   assert.ok(checks > 0 && downloads > 0);
   assert.equal(await original.run("document.getElementById('managed-update').click(); true"), true);
+  phase = 'update install';
   await waitFor(async () => installedVersion() === to, 'SIGNED_UPDATE_INSTALL_DID_NOT_FINISH', 120_000);
+  phase = 'updated app restart';
   await waitFor(async () => updatedAppWindow(original.child.pid), 'SIGNED_UPDATE_APP_DID_NOT_RESTART');
   const restartedPid = updatedAppWindow(original.child.pid, true);
   assert.ok(restartedPid);
@@ -167,6 +173,9 @@ try {
   children.push(updated.child);
   await verifySavedRun(updated, to);
   console.log('STARTER_SIGNED_UPDATE_SMOKE_PASSED HTTPS, verified installer, app restart, preserved results');
+} catch (error) {
+  console.error('STARTER_SIGNED_UPDATE_SMOKE_FAILED', { phase, checks, downloads });
+  throw error;
 } finally {
   for (const child of children) if (child.exitCode === null && child.signalCode === null) child.kill();
   server.closeAllConnections();

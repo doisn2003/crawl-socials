@@ -107,10 +107,12 @@ jobs:
             -CertStoreLocation $store -Signer $testRoot -HashAlgorithm SHA256 -NotAfter $until
           $serverCert = New-SelfSignedCertificate -Type SSLServerAuthentication -DnsName localhost -CertStoreLocation $store `
             -Signer $testRoot -KeyExportPolicy Exportable -HashAlgorithm SHA256 -NotAfter $until
+          Write-Output 'STARTER_WINDOWS_TEST_CERTIFICATES_CREATED'
 
           $rootFile = Join-Path $testDir 'root.cer'
           Export-Certificate -Cert $testRoot -FilePath $rootFile | Out-Null
-          Import-Certificate -FilePath $rootFile -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
+          Import-Certificate -FilePath $rootFile -CertStoreLocation 'Cert:\LocalMachine\Root' | Out-Null
+          Write-Output 'STARTER_WINDOWS_TEST_ROOT_TRUSTED'
           $rootPem = Join-Path $testDir 'root.pem'
           $rootBase64 = [Convert]::ToBase64String($testRoot.RawData, [Base64FormattingOptions]::InsertLineBreaks)
           [IO.File]::WriteAllText($rootPem, "-----BEGIN CERTIFICATE-----`n$rootBase64`n-----END CERTIFICATE-----`n")
@@ -120,6 +122,7 @@ jobs:
           $pfxPassword = ConvertTo-SecureString -String $env:FINDLINK_TEST_TLS_PASSWORD -AsPlainText -Force
           Export-PfxCertificate -Cert $serverCert -FilePath $env:FINDLINK_TEST_TLS_PFX -Password $pfxPassword `
             -CryptoAlgorithmOption AES256_SHA256 | Out-Null
+          Write-Output 'STARTER_WINDOWS_TEST_TLS_READY'
           $env:FINDLINK_SIGNING_CERT_SHA1 = $publisher.Thumbprint
           $env:FINDLINK_SIGNING_PUBLISHER = $publisher.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
           npm run test:starter-signed-update
