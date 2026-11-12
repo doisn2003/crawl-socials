@@ -4,6 +4,7 @@ import { lstat, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { backup, DatabaseSync } from 'node:sqlite';
+import { isEmptyDiscoveryStore } from '../storage/discovery-store.js';
 
 export interface BackupFile { path: string; category: string; sha256: string; content: Buffer; }
 export interface BackupEntry { path: string; category: string; sha256: string; size: number; }
@@ -42,9 +43,8 @@ export function isSavedProjectFile(path: string): boolean {
     || parts.length === 4 && parts[2] === 'opportunity' && runConfiguration.has(parts[3]!));
 }
 
-async function listFiles(directory: string, full: boolean, keepDeliveryHistory: boolean, signal?: AbortSignal): Promise<string[]> {
-  const candidates: string[] = [];
-  async function visit(path: string): Promise<void> {
+async function* findProjectFiles(directory: string, full: boolean, keepDeliveryHistory: boolean, signal?: AbortSignal): AsyncGenerator<string> {
+  async function* visit(path: string): AsyncGenerator<string> {
     signal?.throwIfAborted();
     let entries;
     try { entries = await readdir(join(directory, path), { withFileTypes: true }); }
@@ -55,14 +55,19 @@ async function listFiles(directory: string, full: boolean, keepDeliveryHistory: 
       const file = path ? path + '/' + entry.name : entry.name;
       if (entry.isDirectory() && (full || ['filter-presets', 'collections'].includes(file) || path === 'filter-presets'
         || path === 'collections' && runId.test(entry.name)
-        || entry.name === 'opportunity' && /^collections\/crawl-[a-f0-9-]{36}$/u.test(path))) await visit(file);
+        || entry.name === 'opportunity' && /^collections\/crawl-[a-f0-9-]{36}$/u.test(path))) yield* visit(file);
       else if (entry.isFile() && (full || isSavedProjectFile(file)
-        || keepDeliveryHistory && ['discovery.sqlite', 'project-posts.sqlite', 'retained-source-roots.json'].includes(file))) candidates.push(file);
+        || keepDeliveryHistory && ['discovery.sqlite', 'project-posts.sqlite', 'retained-source-roots.json'].includes(file))) yield file;
     }
   }
-  await visit('');
-  // A legacy snapshot captures databases before the journals that can replay newer events.
-  return candidates.sort((a, b) => Number(category(a) !== 'database') - Number(category(b) !== 'database') || a.localeCompare(b));
+  yield* visit('');
+}
+
+export async function isEmptyProject(directory: string): Promise<boolean> {
+  for await (const file of findProjectFiles(directory, true, false)) {
+    if (file !== 'discovery.sqlite' || !isEmptyDiscoveryStore(join(directory, file))) return false;
+  }
+  return true;
 }
 
 async function fingerprintFile(file: string, signal?: AbortSignal, cache?: ProjectFileHashes) {
@@ -83,7 +88,10 @@ async function fingerprintFile(file: string, signal?: AbortSignal, cache?: Proje
 /** Hash incrementally and keep bytes off the manifest. Only legacy SQLite files need staging. */
 export async function withProjectSnapshot<T>(directory: string, work: (snapshot: ProjectSnapshot) => Promise<T>,
   options: { full?: boolean; keepDeliveryHistory?: boolean; signal?: AbortSignal; cache?: ProjectFileHashes } = {}): Promise<T> {
-  const candidates = await listFiles(directory, options.full === true, options.keepDeliveryHistory === true, options.signal);
+  const candidates: string[] = [];
+  for await (const file of findProjectFiles(directory, options.full === true, options.keepDeliveryHistory === true, options.signal)) candidates.push(file);
+  // A legacy snapshot captures databases before the journals that can replay newer events.
+  candidates.sort((a, b) => Number(category(a) !== 'database') - Number(category(b) !== 'database') || a.localeCompare(b));
   const snapshot: ProjectSnapshot = { directory, scratch: '', files: [] };
   try {
     for (const path of candidates) {

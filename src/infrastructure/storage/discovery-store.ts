@@ -11,6 +11,25 @@ export const exportDigest = (path: string) => createHash('sha256').update(readFi
 const validRun = (v: string) => typeof v === 'string' && /^[a-zA-Z0-9_-]{1,160}$/.test(v);
 const validId = (v: string) => typeof v === 'string' && /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(v);
 const validError = (v: unknown) => v === null || (typeof v === 'string' && /^[A-Z][A-Z0-9_]{0,100}$/.test(v));
+
+export function isEmptyDiscoveryStore(file: string): boolean {
+  const tables = ['subscriptions', 'discovery_runs', 'deliveries', 'delivery_exports'];
+  let db: DatabaseSync | undefined;
+  try {
+    db = new DatabaseSync(file, { readOnly: true });
+    const objects = db.prepare("SELECT name FROM sqlite_schema WHERE type <> 'index'").all();
+    if (objects.length !== tables.length || objects.some(({ name }) => !tables.includes(String(name)))) return false;
+    for (const table of tables) {
+      if (db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).get()) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  } finally {
+    db?.close();
+  }
+}
+
 export function createDiscoveryStore(file: string, now: () => Date = () => new Date()) {
   mkdirSync(dirname(file), { recursive: true });
   const db = new DatabaseSync(file);

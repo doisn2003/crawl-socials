@@ -7,13 +7,14 @@ import type { SecretStore } from '../../application/ports/secret-store.js';
 import type { CsdProject, ProjectWorkspaceState } from '../../shared/projects.js';
 import { atomicJson } from '../config/user-config.js';
 import { createPostgresBackup, type ProjectBackupStore } from './postgres.js';
-import { restoreProject, sha256, snapshotFiles, withProjectSnapshot, type ProjectFileHashes, type ProjectSnapshot } from './snapshot.js';
+import { isEmptyProject, restoreProject, sha256, snapshotFiles, withProjectSnapshot, type ProjectFileHashes, type ProjectSnapshot } from './snapshot.js';
 
 interface LocalProject extends CsdProject {
   ownerId: string;
   revision: number;
   lastFingerprint: string | null;
   deletedAt: string | null;
+  autoCreated?: boolean;
 }
 interface WorkspaceIndex {
   schemaVersion: 1;
@@ -61,9 +62,10 @@ export async function createProjectWorkspace(input: { directory: string; databas
     if (!project) throw Error('PROJECT_NOT_FOUND');
     return project;
   }
-  function createLocal(value: { name: string; avatar?: string | null }): LocalProject {
+  function createLocal(value: { name: string; avatar?: string | null }, autoCreated = false): LocalProject {
     const now = timestamp();
-    const project: LocalProject = { id: randomUUID(), ...projectFields(value), createdAt: now, updatedAt: now, ownerId: ownerId(), revision: 0, lastFingerprint: null, deletedAt: null };
+    const project: LocalProject = { id: randomUUID(), ...projectFields(value), createdAt: now, updatedAt: now, ownerId: ownerId(), revision: 0,
+      lastFingerprint: null, deletedAt: null, autoCreated };
     mkdirSync(directory(project), { recursive: true });
     index.projects.push(project);
     index.activeProjectId = project.id;
@@ -72,7 +74,7 @@ export async function createProjectWorkspace(input: { directory: string; databas
   }
   function ensureActive(): void {
     const available = index.projects.filter(project => project.ownerId === ownerId() && !project.deletedAt);
-    if (!available.length) { createLocal({ name: 'Project mới' }); return; }
+    if (!available.length) { createLocal({ name: 'Project mới' }, true); return; }
     if (!available.some(project => project.id === index.activeProjectId)) index.activeProjectId = available[0]!.id;
     save();
   }
@@ -159,9 +161,9 @@ export async function createProjectWorkspace(input: { directory: string; databas
         // Recover a previous ownership transfer interrupted before local index publication.
         for (const project of index.projects.filter(entry => entry.ownerId === index.guestId && existingRemote.some(remoteProject => remoteProject.id === entry.id))) project.ownerId = authenticated.id;
         if (existingRemote.some(project => !project.deletedAt)) {
-          for (const project of index.projects.filter(entry => entry.ownerId === index.guestId && entry.revision === 0
-            && [defaultProjectName, ...legacyDefaultProjectNames].includes(entry.name))) {
-            if (await withProjectSnapshot(directory(project), async snapshot => snapshot.files.length === 0, { full: true })) index.projects.splice(index.projects.indexOf(project), 1);
+          for (const project of index.projects.filter(entry => entry.ownerId === index.guestId && entry.revision === 0 && !entry.deletedAt
+            && entry.avatar === null && (entry.autoCreated ?? [defaultProjectName, ...legacyDefaultProjectNames].includes(entry.name)))) {
+            if (await isEmptyProject(directory(project))) index.projects.splice(index.projects.indexOf(project), 1);
           }
         }
         await push();
@@ -184,7 +186,7 @@ export async function createProjectWorkspace(input: { directory: string; databas
     }
   }
   if (index.migrationPending || index.projects.length === 0) {
-    const migrated = index.projects[0] ?? createLocal({ name: defaultProjectName });
+    const migrated = index.projects[0] ?? createLocal({ name: defaultProjectName }, true);
     // Only application-generated data moves into a project. Browser sessions and keys stay machine-local.
     const names = ['user-config.json', 'user-config.json.v1.backup', 'latest-run.json', 'active-campaign-draft.json', 'collections', 'filter-presets', 'assessment-cache', 'retained-source-roots.json'];
     for (const name of names) {
@@ -217,7 +219,8 @@ export async function createProjectWorkspace(input: { directory: string; databas
     create: (value: { name: string; avatar?: string | null }) => serial(async () => { createLocal(value); pending(); return state(); }),
     update: (value: { id: string; name: string; avatar?: string | null }) => serial(async () => {
       const project = find(value.id);
-      Object.assign(project, projectFields({ name: value.name, avatar: value.avatar === undefined ? project.avatar : value.avatar }), { updatedAt: timestamp() });
+      Object.assign(project, projectFields({ name: value.name, avatar: value.avatar === undefined ? project.avatar : value.avatar }),
+        { updatedAt: timestamp(), autoCreated: false });
       save(); pending(); return state();
     }),
     remove: (value: { id: string }) => serial(async () => {

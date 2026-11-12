@@ -9,6 +9,7 @@ import { createProjectWorkspace } from '../src/infrastructure/projects/workspace
 import { passwordHash, passwordMatches, type ProjectBackupStore, type RemoteProject } from '../src/infrastructure/projects/postgres.js';
 import { readSnapshotFile, restoreProject, safePath, sha256, snapshotProject, withProjectSnapshot, type BackupFile } from '../src/infrastructure/projects/snapshot.js';
 import { compactSavedProject } from '../src/infrastructure/projects/compact-project.js';
+import { createDiscoveryStore } from '../src/infrastructure/storage/discovery-store.js';
 import type { SecretStore } from '../src/application/ports/secret-store.js';
 
 function memorySecrets(): SecretStore {
@@ -122,10 +123,13 @@ test('login restores all files on a new machine, keeps identity on restart and s
     writeFileSync(join(first.activeDirectory(), 'latest-run.json'), JSON.stringify({ outputDirectory: join(first.activeDirectory(), 'collections', 'crawl-fixture') }));
     assert.equal((await first.register({ username: 'person', password: 'simple' })).user?.username, 'person');
     const second = await createProjectWorkspace({ directory: join(root, 'two'), backupStore: cloud, secretStore: secrets });
+    createDiscoveryStore(join(second.activeDirectory(), 'discovery.sqlite')).close();
     await second.login({ username: 'person', password: 'simple' });
     assert.equal(second.state().activeProjectId, id);
     assert.equal(second.state().projects.length, 1);
     assert.equal(JSON.parse(readFileSync(join(second.activeDirectory(), 'latest-run.json'), 'utf8')).outputDirectory, join(second.activeDirectory(), 'collections', 'crawl-fixture'));
+    await second.sync();
+    assert.deepEqual([...cloud.stored.keys()], [id]);
     await second.close();
     const restarted = await createProjectWorkspace({ directory: join(root, 'two'), backupStore: cloud, secretStore: secrets });
     assert.equal(restarted.state().user?.username, 'person');
@@ -133,6 +137,22 @@ test('login restores all files on a new machine, keeps identity on restart and s
     await restarted.logout();
     assert.equal(restarted.state().user, null);
     assert.ok(restarted.state().projects.every(project => project.id !== id));
+    createDiscoveryStore(join(restarted.activeDirectory(), 'discovery.sqlite')).close();
+    await restarted.login({ username: 'person', password: 'simple' });
+    assert.deepEqual(restarted.state().projects.map(project => project.id), [id]);
+    await restarted.logout();
+    const localId = restarted.state().activeProjectId;
+    const history = createDiscoveryStore(join(restarted.activeDirectory(), 'discovery.sqlite'));
+    try { history.create({ sourceRunId: 'local-run', label: 'Lịch sử trên máy' }); }
+    finally { history.close(); }
+    await restarted.create({ name: 'Dữ liệu FindLink hiện có' });
+    const userCreatedId = restarted.state().activeProjectId;
+    await restarted.login({ username: 'person', password: 'simple' });
+    assert.deepEqual(new Set(restarted.state().projects.map(project => project.id)), new Set([id, localId, userCreatedId]));
+    await restarted.select({ id: localId });
+    const restoredHistory = createDiscoveryStore(join(restarted.activeDirectory(), 'discovery.sqlite'));
+    try { assert.equal(restoredHistory.list()[0]?.label, 'Lịch sử trên máy'); }
+    finally { restoredHistory.close(); }
     await restarted.close(); await first.close();
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
