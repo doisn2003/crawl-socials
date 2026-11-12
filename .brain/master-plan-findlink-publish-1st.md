@@ -419,4 +419,8 @@ Commit `0a6a073` đã qua bài kiểm thử tự cập nhật có chữ ký Auth
 
 Ngày 12/11/2026, bản đóng gói QA 0.5.5 kết nối staging qua HTTPS và chạy với AppData riêng. Tài khoản thử đăng ký qua **Gói dịch vụ**, tạo đơn Starter và đơn nạp trong ứng dụng. SePay Test Mode giao hai webhook `#48554` và `#48555`, cả hai nhận HTTP 201. Giao diện hiển thị 50.000 rồi 60.000 credits tại khu vực Projects. PostgreSQL có đúng một kỳ Starter và hai khoản cấp credits cho tài khoản thử. Kiểm thử ghi nhận 0 lượt AI.
 
-Người dùng chọn đứng tên doanh nghiệp trên bộ cài phát hành trực tiếp qua HTTPS. Chứng chỉ ký mã của doanh nghiệp sẽ dùng tên đã được nhà cấp chứng chỉ xác minh. [Hướng dẫn phát hành Windows](../deploy/README.md#5-phát-hành-windows)
+Người dùng muốn khách tải bộ cài `.exe` trực tiếp qua HTTPS và giảm cảnh báo khi cài. Microsoft Store là kênh tùy chọn. Chứng chỉ ký mã doanh nghiệp xác nhận tên nhà phát hành. SmartScreen vẫn có thể cảnh báo với bộ cài mới trong thời gian tích lũy uy tín. [SmartScreen và chữ ký ứng dụng](https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation) · [Hướng dẫn phát hành Windows](../deploy/README.md#5-phát-hành-windows)
+
+Ngày 12/11/2026, Windows Defender đã quét bộ cài QA 0.5.5 và thư mục ứng dụng đóng gói, không phát hiện mối đe dọa. Authenticode xác nhận bộ cài QA chưa ký. Kết quả quét chỉ xác minh lần kiểm tra mã độc trên máy QA. Còn chờ bộ cài có chữ ký tin cậy để kiểm tra đường tải chính thức.
+
+Cùng bản đóng gói QA 0.5.5 đã kiểm thử đặt lại mật khẩu bằng mã một lần, sao lưu qua staging và đăng nhập lại từ một hồ sơ Windows trống trên cùng máy. Bản sao lưu mẫu có ba tệp, tổng 1.271 byte, gồm cấu hình chứa prompt, metadata lượt chạy và JSON kết quả. Cấu hình và JSON kết quả giữ nguyên SHA-256, bản khôi phục xuất được JSON. Nhật ký thu thập mẫu vẫn nằm ở hồ sơ nguồn. Tài khoản QA giữ nguyên 60.000 credits và không phát sinh lượt AI.

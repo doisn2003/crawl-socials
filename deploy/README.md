@@ -79,6 +79,8 @@ FindLink phát hành bộ cài `.exe` qua đường tải HTTPS. Khách cài và
 
 Chữ ký Authenticode xác nhận tên nhà phát hành trên bộ cài Windows và giúp kiểm tra tệp còn nguyên vẹn. Chọn tên cá nhân hoặc doanh nghiệp sẽ đứng tên chứng chỉ ký mã. Nhà cấp chứng chỉ xác minh danh tính trước khi cấp. Sau khi thiết lập thiết bị hoặc dịch vụ ký, lấy tên publisher đúng như trên chứng chỉ để cấu hình build. [Chữ ký Authenticode](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/authenticode)
 
+SmartScreen có thể cảnh báo khi khách tải một bộ cài mới, kể cả khi đã ký. Giữ cùng danh tính ký qua các phiên bản giúp tích lũy uy tín. Bản QA chưa ký dùng để thử trên staging. Windows 11 có thể chặn bản này khi Smart App Control đang bật. [SmartScreen và chữ ký ứng dụng](https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation)
+
 - `npm run dist:starter:qa` tạo bộ cài thử chưa ký trong `release/starter-qa`. Địa chỉ backend mặc định là `http://127.0.0.1:9070`. Có thể đặt `FINDLINK_QA_ORIGIN` khi build.
 - Đặt `FINDLINK_PUBLIC_URL`, `FINDLINK_UPDATE_URL`, `FINDLINK_LEASE_PUBLIC_KEY` và `FINDLINK_SIGNING_PUBLISHER` trong môi trường build chính thức. Lấy `leasePublicKey` từ `/v1/config` của chính backend production. Dùng `FINDLINK_SIGNING_CERT_SHA1` hoặc `CSC_LINK` cùng mật khẩu chứng chỉ từ kho secrets.
 - Chạy `npm run dist:starter` trên Windows. Lệnh kiểm chữ ký của FindLink và installer, kiểm publisher trong `app-update.yml`, rồi tạo `release/starter-feed/<version>` chứa installer, blockmap và `latest.yml`. Dùng phiên bản cao hơn khi phát hành bản sửa.
