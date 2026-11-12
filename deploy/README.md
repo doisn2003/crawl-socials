@@ -25,6 +25,8 @@ Tạo một tệp cấu hình riêng theo [.env.example](../.env.example). Cất
 
 Railway dùng [cấu hình hạ tầng](../.railway/railway.ts) để chạy migration trước deploy và kiểm tra `/healthz`. Từ thư mục đã link đúng dự án, xem `railway config plan --environment staging` trước khi áp dụng cấu hình. Dùng `railway up --service findlink-api --environment staging` để thử bản mới. Lặp lại với production sau khi staging đạt kiểm tra. Variables được quản lý trong Railway. [Railway Infrastructure as Code](https://docs.railway.com/infrastructure-as-code)
 
+Trong Railway, đặt `PORT=9070` cho healthcheck và `FINDLINK_PORT=9070` cho tiến trình Node. Đặt `FINDLINK_BIND=0.0.0.0` và chọn target port `9070` cho public domain. Khi migration đã chạy nhưng deployment chưa phục vụ HTTPS, đối chiếu các giá trị này trong **Variables** và **Networking**, rồi đọc **Deploy Logs**. [Cổng healthcheck của Railway](https://docs.railway.com/deployments/healthchecks#configure-the-healthcheck-port)
+
 Khi chạy trên máy khác, trỏ `FINDLINK_ENV_FILE` tới tệp cấu hình đã tạo và dùng `NODE_ENV=production` cho backend HTTPS.
 
 ```powershell
